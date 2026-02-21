@@ -238,6 +238,19 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
   private async handleExportForwardZip(docId: string) {
     const ids = await getForwardLinkedDocIds(docId);
+    console.info("[DocAssistant][ForwardLinks] export-forward-zip trigger", {
+      currentDocId: docId,
+      forwardDocCount: ids.length,
+      forwardDocIds: ids,
+    });
+    if (!ids.length) {
+      showMessage(
+        "未找到可导出的正链文档。请打开开发者工具查看 [DocAssistant][ForwardLinks] 调试日志",
+        9000,
+        "error"
+      );
+      return;
+    }
     await this.exportDocZip(ids, "正链", docId);
   }
 

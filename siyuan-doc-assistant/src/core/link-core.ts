@@ -10,8 +10,14 @@ const BLOCK_ID_PATTERN = "[0-9]{14}-[a-z0-9]{7,}";
 export function extractSiyuanBlockIdsFromMarkdown(markdown: string): string[] {
   const found = new Set<string>();
   const patterns = [
-    new RegExp(`\\(\\((${BLOCK_ID_PATTERN})`, "g"),
-    new RegExp(`siyuan://blocks/(${BLOCK_ID_PATTERN})`, "g"),
+    // ((block-id)) and (( block-id "alias" ))
+    new RegExp(`\\(\\(\\s*(${BLOCK_ID_PATTERN})`, "gi"),
+    // siyuan://blocks/block-id with optional query/hash
+    new RegExp(`siyuan://blocks/(${BLOCK_ID_PATTERN})`, "gi"),
+    // [[block-id]] and [[ block-id "alias" ]]
+    new RegExp(`\\[\\[\\s*(${BLOCK_ID_PATTERN})`, "gi"),
+    // Fallback for transformed links that still keep '/blocks/<id>'.
+    new RegExp(`blocks/(${BLOCK_ID_PATTERN})`, "gi"),
   ];
 
   for (const pattern of patterns) {

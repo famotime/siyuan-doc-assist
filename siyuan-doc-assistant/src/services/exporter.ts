@@ -7,7 +7,6 @@ import {
 import { buildGetFileRequest, decodeURIComponentSafe } from "@/core/workspace-path-core";
 import {
   exportMdContent,
-  exportMds,
   exportResources,
   getFileBlob,
   putBlobFile,
@@ -22,6 +21,26 @@ function basename(hPath: string): string {
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "_").trim();
+}
+
+function sanitizePathSegment(name: string): string {
+  const normalized = (name || "").normalize("NFKC");
+  const replaced = normalized.replace(/[^A-Za-z0-9\u4E00-\u9FFF._-]/g, "_");
+  const compact = replaced.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+  return compact || "export";
+}
+
+function sanitizeArchiveBaseName(name: string): string {
+  const normalized = normalizeUploadFileName(sanitizePathSegment(name || ""), "export")
+    .replace(/\.zip$/i, "")
+    .replace(/\.+$/g, "")
+    .trim();
+  return normalized || "export";
+}
+
+function buildSafeMarkdownFileName(rawTitle: string, fallbackId: string): string {
+  const safeBase = sanitizePathSegment(rawTitle || "") || fallbackId;
+  return normalizeUploadFileName(`${safeBase}.md`, `${fallbackId}.md`);
 }
 
 function withZipExtension(name: string): string {
@@ -115,21 +134,19 @@ export type ExportCurrentDocResult = {
   zipPath?: string;
 };
 
+const EXPORT_MD_OPTIONS = {
+  refMode: 3,
+  embedMode: 0,
+  addTitle: false,
+  yfm: false,
+} as const;
+
 export async function exportCurrentDocMarkdown(
   docId: string
 ): Promise<ExportCurrentDocResult> {
-  const res = await exportMdContent(docId, {
-    // Keep export to current doc body only:
-    // - no ref footnotes expansion
-    // - no embedded block quote expansion
-    // - no auto title/front-matter injection
-    refMode: 3,
-    embedMode: 0,
-    addTitle: false,
-    yfm: false,
-  });
-  const title = sanitizeFileName(basename(res.hPath || docId));
-  const markdownName = `${title || docId}.md`;
+  const res = await exportMdContent(docId, EXPORT_MD_OPTIONS);
+  const title = basename(res.hPath || docId);
+  const markdownName = buildSafeMarkdownFileName(title, docId);
   const content = res.content || "";
   const assetPaths = getExportResourceAssetPaths(content);
 
@@ -143,14 +160,14 @@ export async function exportCurrentDocMarkdown(
 
   const tempDir = `/temp/export/doc-link-tool-${randomId()}`;
   const tempAssetsDir = `${tempDir}/assets`;
-  const tempMarkdownName = normalizeUploadFileName(markdownName, `${docId}.md`);
+  const tempMarkdownName = buildSafeMarkdownFileName(title, docId);
   const tempMarkdownPath = `${tempDir}/${tempMarkdownName}`;
   const rewrittenMarkdown = rewriteMarkdownAssetLinksToBasename(content, "assets");
   await putFile(tempMarkdownPath, rewrittenMarkdown);
   await stageAssetsToTempDir(assetPaths, tempAssetsDir);
 
   try {
-    const zipName = sanitizeFileName(title || docId);
+    const zipName = sanitizeArchiveBaseName(title || docId);
     const zip = await exportResources([tempMarkdownPath, tempAssetsDir], zipName);
     const outputName = `${zipName}.zip`;
     await triggerWorkspaceFileDownload(zip.path, outputName);
@@ -161,7 +178,7 @@ export async function exportCurrentDocMarkdown(
     };
   } finally {
     // Best effort cleanup of temporary markdown folder.
-    void removeFile(tempDir).catch(() => undefined);
+    void Promise.resolve(removeFile(tempDir)).catch(() => undefined);
   }
 }
 
@@ -169,12 +186,65 @@ export async function exportDocIdsAsMarkdownZip(
   docIds: string[],
   preferredDownloadBaseName?: string
 ): Promise<{ name: string; zip: string }> {
-  const result = await exportMds(docIds);
-  const preferredName = sanitizeFileName(preferredDownloadBaseName || "");
-  const fallbackName = sanitizeFileName(result.name || "export");
-  const derivedName = basenameFromWorkspacePath(result.zip)
-    || withZipExtension(fallbackName);
-  const downloadName = preferredName ? withZipExtension(preferredName) : derivedName;
-  await triggerWorkspaceFileDownload(result.zip, downloadName);
-  return result;
+  if (!docIds.length) {
+    throw new Error("未找到可导出的文档");
+  }
+
+  const preferredName = sanitizeArchiveBaseName(preferredDownloadBaseName || "");
+  const tempDir = `/temp/export/doc-link-tool-${randomId()}`;
+  const tempAssetsDir = `${tempDir}/assets`;
+  const usedDocNames = new Set<string>();
+  const assetPathSet = new Set<string>();
+  const packPathSet = new Set<string>();
+
+  const uniqueDocIds = [...new Set(docIds.filter(Boolean))];
+  for (const docId of uniqueDocIds) {
+    const res = await exportMdContent(docId, EXPORT_MD_OPTIONS);
+    const title = basename(res.hPath || docId) || docId;
+    const safeBase = sanitizePathSegment(title) || docId;
+    const markdownName = normalizeUploadFileName(`${safeBase}.md`, `${docId}.md`);
+    let uniqueName = markdownName;
+    let suffix = 2;
+    while (usedDocNames.has(uniqueName)) {
+      uniqueName = normalizeUploadFileName(`${safeBase}-${suffix}.md`, `${docId}-${suffix}.md`);
+      suffix += 1;
+    }
+    usedDocNames.add(uniqueName);
+
+    const content = res.content || "";
+    const rewrittenMarkdown = rewriteMarkdownAssetLinksToBasename(content, "assets");
+    const markdownPath = `${tempDir}/${uniqueName}`;
+    try {
+      await putFile(markdownPath, rewrittenMarkdown);
+    } catch (error: any) {
+      const detail = error?.message || String(error);
+      throw new Error(`导出临时文件写入失败（${markdownPath}）：${detail}`);
+    }
+    packPathSet.add(markdownPath);
+
+    const assetPaths = getExportResourceAssetPaths(content);
+    for (const assetPath of assetPaths) {
+      assetPathSet.add(assetPath);
+    }
+  }
+
+  if (assetPathSet.size) {
+    await stageAssetsToTempDir([...assetPathSet], tempAssetsDir);
+    packPathSet.add(tempAssetsDir);
+  }
+
+  const zipBaseName = preferredName || "export";
+  try {
+    const packPaths = [...packPathSet];
+    const zip = await exportResources(packPaths, zipBaseName);
+    const derivedName = basenameFromWorkspacePath(zip.path) || withZipExtension(zipBaseName);
+    const downloadName = preferredName ? withZipExtension(preferredName) : derivedName;
+    await triggerWorkspaceFileDownload(zip.path, downloadName);
+    return {
+      name: zipBaseName,
+      zip: zip.path,
+    };
+  } finally {
+    void Promise.resolve(removeFile(tempDir)).catch(() => undefined);
+  }
 }

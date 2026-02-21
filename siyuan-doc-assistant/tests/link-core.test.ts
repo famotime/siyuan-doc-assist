@@ -12,11 +12,13 @@ describe("link-core", () => {
       "[doc](siyuan://blocks/20260101101010-abcdef1)",
       "[other](siyuan://blocks/20260202121212-bcdefg2)",
       "((20260202121212-bcdefg2 'alias'))",
+      "[[20260303131313-cdefgh3]]",
     ].join("\n");
 
     expect(extractSiyuanBlockIdsFromMarkdown(markdown)).toEqual([
       "20260101101010-abcdef1",
       "20260202121212-bcdefg2",
+      "20260303131313-cdefgh3",
     ]);
   });
 
@@ -42,5 +44,17 @@ describe("link-core", () => {
     expect(text).toBe(
       "## 反向链接文档\n\n- [First](siyuan://blocks/doc1)\n- [Second](siyuan://blocks/doc2)"
     );
+  });
+
+  test("extracts ids from transformed links that still contain /blocks/<id>", () => {
+    const markdown = [
+      "custom-link://open?target=blocks/20260220075025-ue88wkc",
+      "something://a/b/blocks/20260220220208-esrmvws?focus=1",
+    ].join("\n");
+
+    expect(extractSiyuanBlockIdsFromMarkdown(markdown)).toEqual([
+      "20260220075025-ue88wkc",
+      "20260220220208-esrmvws",
+    ]);
   });
 });
