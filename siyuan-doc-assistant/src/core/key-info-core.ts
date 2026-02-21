@@ -154,7 +154,8 @@ function collectRegexMatches(
   original: string,
   pattern: RegExp,
   type: KeyInfoType,
-  groupIndex: number
+  groupIndex: number,
+  rawBuilder?: (raw: string, cleaned: string) => string
 ): { items: KeyInfoExtract[]; ranges: Array<[number, number]> } {
   const items: KeyInfoExtract[] = [];
   const ranges: Array<[number, number]> = [];
@@ -162,8 +163,9 @@ function collectRegexMatches(
   match = pattern.exec(text);
   while (match) {
     const matchRaw = match[0] || "";
-    const raw = original.slice(match.index, match.index + matchRaw.length) || matchRaw;
-    const cleaned = normalizeInlineText(match[groupIndex] || raw);
+    const rawSlice = original.slice(match.index, match.index + matchRaw.length) || matchRaw;
+    const cleaned = normalizeInlineText(match[groupIndex] || rawSlice);
+    const raw = rawBuilder ? rawBuilder(rawSlice, cleaned) : rawSlice.trim();
     if (cleaned) {
       items.push({
         type,
@@ -207,6 +209,17 @@ function extractHeadings(markdown: string, masked: string): KeyInfoExtract[] {
   return items;
 }
 
+function collectHtmlWrappedMatches(
+  masked: string,
+  original: string,
+  tagName: string,
+  type: KeyInfoType,
+  wrapper: (cleaned: string) => string
+): { items: KeyInfoExtract[]; ranges: Array<[number, number]> } {
+  const pattern = new RegExp(`<${tagName}[^>]*>([\\s\\S]+?)<\\/${tagName}>`, "gi");
+  return collectRegexMatches(masked, original, pattern, type, 1, (_raw, cleaned) => wrapper(cleaned));
+}
+
 function normalizeTagText(value: string): string {
   let text = value.trim();
   text = text.replace(/^#+/, "");
@@ -235,6 +248,20 @@ function extractTags(original: string, masked: string): KeyInfoExtract[] {
     }
     match = pattern.exec(masked);
   }
+  const spanPattern = /<span[^>]*data-type=["']tag["'][^>]*>([\s\S]+?)<\/span>/gi;
+  match = spanPattern.exec(masked);
+  while (match) {
+    const cleaned = normalizeTagText(match[1] || "");
+    if (cleaned) {
+      items.push({
+        type: "tag",
+        text: cleaned,
+        raw: `#${cleaned}`,
+        offset: match.index,
+      });
+    }
+    match = spanPattern.exec(masked);
+  }
   return items;
 }
 
@@ -256,14 +283,24 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   );
   items.push(...highlightMarks.items);
 
-  const highlightTags = collectRegexMatches(
+  const highlightTags = collectHtmlWrappedMatches(
     masked,
     markdown,
-    /<mark>([\s\S]+?)<\/mark>/gi,
+    "mark",
     "highlight",
-    1
+    (cleaned) => `==${cleaned}==`
   );
   items.push(...highlightTags.items);
+
+  const highlightSpans = collectRegexMatches(
+    masked,
+    markdown,
+    /<span[^>]*data-type=["']mark["'][^>]*>([\s\S]+?)<\/span>/gi,
+    "highlight",
+    1,
+    (_raw, cleaned) => `==${cleaned}==`
+  );
+  items.push(...highlightSpans.items);
 
   const remarkMatches = collectRegexMatches(
     masked,
@@ -283,12 +320,12 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   );
   items.push(...boldMatches.items);
 
-  const strongMatches = collectRegexMatches(
+  const strongMatches = collectHtmlWrappedMatches(
     masked,
     markdown,
-    /<strong>([\s\S]+?)<\/strong>/gi,
+    "strong",
     "bold",
-    1
+    (cleaned) => `**${cleaned}**`
   );
   items.push(...strongMatches.items);
 
@@ -302,21 +339,21 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   );
   items.push(...italicMatches.items);
 
-  const emMatches = collectRegexMatches(
+  const emMatches = collectHtmlWrappedMatches(
     masked,
     markdown,
-    /<em>([\s\S]+?)<\/em>/gi,
+    "em",
     "italic",
-    1
+    (cleaned) => `*${cleaned}*`
   );
   items.push(...emMatches.items);
 
-  const italicTagMatches = collectRegexMatches(
+  const italicTagMatches = collectHtmlWrappedMatches(
     masked,
     markdown,
-    /<i>([\s\S]+?)<\/i>/gi,
+    "i",
     "italic",
-    1
+    (cleaned) => `*${cleaned}*`
   );
   items.push(...italicTagMatches.items);
 

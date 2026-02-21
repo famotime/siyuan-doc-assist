@@ -20,14 +20,14 @@ export type KeyInfoDockHandle = {
   destroy: () => void;
 };
 
-const FILTERS: Array<{ key: KeyInfoFilter; label: string }> = [
-  { key: "all", label: "全部" },
-  { key: "title", label: "标题" },
-  { key: "bold", label: "加粗" },
-  { key: "italic", label: "斜体" },
-  { key: "highlight", label: "高亮" },
-  { key: "remark", label: "备注" },
-  { key: "tag", label: "标签" },
+const FILTERS: Array<{ key: KeyInfoFilter; label: string; icon: string }> = [
+  { key: "all", label: "全部", icon: "全" },
+  { key: "title", label: "标题", icon: "题" },
+  { key: "bold", label: "加粗", icon: "粗" },
+  { key: "italic", label: "斜体", icon: "斜" },
+  { key: "highlight", label: "高亮", icon: "亮" },
+  { key: "remark", label: "备注", icon: "注" },
+  { key: "tag", label: "标签", icon: "签" },
 ];
 
 function filterItems(items: KeyInfoItem[], filter: KeyInfoFilter): KeyInfoItem[] {
@@ -94,7 +94,15 @@ export function createKeyInfoDock(
   FILTERS.forEach((filter) => {
     const button = document.createElement("button");
     button.className = "b3-button b3-button--small doc-assistant-keyinfo__filter";
-    button.textContent = filter.label;
+    button.dataset.type = filter.key;
+    const icon = document.createElement("span");
+    icon.className = `doc-assistant-keyinfo__filter-icon doc-assistant-keyinfo__filter-icon--${filter.key}`;
+    icon.textContent = filter.icon;
+    const label = document.createElement("span");
+    label.className = "doc-assistant-keyinfo__filter-label";
+    label.textContent = filter.label;
+    button.appendChild(icon);
+    button.appendChild(label);
     button.addEventListener("click", () => {
       setState({ filter: filter.key });
     });
@@ -108,12 +116,26 @@ export function createKeyInfoDock(
   const footer = document.createElement("div");
   footer.className = "doc-assistant-keyinfo__footer";
   const refreshBtn = document.createElement("button");
-  refreshBtn.className = "b3-button b3-button--outline b3-button--small";
-  refreshBtn.textContent = "刷新";
+  refreshBtn.className =
+    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--refresh";
+  const refreshIcon = document.createElement("span");
+  refreshIcon.className = "doc-assistant-keyinfo__footer-icon";
+  refreshIcon.textContent = "↻";
+  const refreshLabel = document.createElement("span");
+  refreshLabel.textContent = "刷新";
+  refreshBtn.appendChild(refreshIcon);
+  refreshBtn.appendChild(refreshLabel);
   refreshBtn.addEventListener("click", () => callbacks.onRefresh?.());
   const exportBtn = document.createElement("button");
-  exportBtn.className = "b3-button b3-button--small b3-button--primary";
-  exportBtn.textContent = "导出 Markdown";
+  exportBtn.className =
+    "b3-button b3-button--small b3-button--primary doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--export";
+  const exportIcon = document.createElement("span");
+  exportIcon.className = "doc-assistant-keyinfo__footer-icon";
+  exportIcon.textContent = "⬇";
+  const exportLabel = document.createElement("span");
+  exportLabel.textContent = "导出 Markdown";
+  exportBtn.appendChild(exportIcon);
+  exportBtn.appendChild(exportLabel);
   exportBtn.addEventListener("click", () => callbacks.onExport());
   footer.appendChild(refreshBtn);
   footer.appendChild(exportBtn);

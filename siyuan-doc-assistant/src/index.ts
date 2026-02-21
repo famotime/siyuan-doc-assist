@@ -7,10 +7,16 @@ import {
 } from "siyuan";
 import "@/index.scss";
 import { buildKeyInfoMarkdown } from "@/core/key-info-core";
+import { findExtraBlankParagraphIds } from "@/core/markdown-cleanup-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/exporter";
 import { getDocKeyInfo } from "@/services/key-info";
-import { appendBlock, getDocMetaByID } from "@/services/kernel";
+import {
+  appendBlock,
+  deleteBlockById,
+  getChildBlocksByParentId,
+  getDocMetaByID,
+} from "@/services/kernel";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import {
   getBacklinkDocs,
@@ -30,7 +36,8 @@ type ActionKey =
   | "export-backlinks-zip"
   | "export-forward-zip"
   | "move-backlinks"
-  | "dedupe";
+  | "dedupe"
+  | "remove-extra-blank-lines";
 
 type ActionConfig = {
   key: ActionKey;
@@ -85,23 +92,38 @@ const ACTIONS: ActionConfig[] = [
     desktopOnly: true,
     icon: "iconTrashcan",
   },
+  {
+    key: "remove-extra-blank-lines",
+    commandText: "去除本文档多余空行",
+    menuText: "去除本文档多余空行",
+    icon: "iconEraser",
+  },
 ];
 
 function getProtyleDocId(protyle: any): string {
-  return protyle?.block?.rootID || protyle?.block?.id || "";
+  return (
+    protyle?.block?.rootID ||
+    protyle?.block?.rootId ||
+    protyle?.block?.root_id ||
+    protyle?.block?.id ||
+    ""
+  );
 }
 
 export default class DocLinkToolkitPlugin extends Plugin {
   private currentDocId = "";
+  private currentProtyle?: any;
   private isMobile = false;
   private keyInfoDock?: KeyInfoDockHandle;
   private keyInfoRequestId = 0;
 
   private readonly onSwitchProtyle = (event: CustomEvent<any>) => {
-    const id = getProtyleDocId(event.detail?.protyle);
+    const protyle = event.detail?.protyle;
+    const id = getProtyleDocId(protyle);
     if (id) {
       this.currentDocId = id;
-      void this.refreshKeyInfoDock(id);
+      this.currentProtyle = protyle;
+      void this.refreshKeyInfoDock(id, protyle);
     }
   };
 
@@ -113,6 +135,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
       return;
     }
     this.currentDocId = docId;
+    if (detail?.protyle) {
+      this.currentProtyle = detail.protyle;
+    }
 
     menu.addSeparator();
     for (const action of ACTIONS) {
@@ -158,17 +183,24 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private resolveDocId(explicitId?: string, protyle?: any): string {
     if (explicitId) {
       this.currentDocId = explicitId;
+      if (protyle) {
+        this.currentProtyle = protyle;
+      }
       return explicitId;
     }
     const fromProtyle = getProtyleDocId(protyle);
     if (fromProtyle) {
       this.currentDocId = fromProtyle;
+      this.currentProtyle = protyle;
       return fromProtyle;
     }
     const activeEditor = getActiveEditor();
     const activeId = getProtyleDocId(activeEditor?.protyle);
     if (activeId) {
       this.currentDocId = activeId;
+      if (activeEditor?.protyle) {
+        this.currentProtyle = activeEditor.protyle;
+      }
       return activeId;
     }
     return this.currentDocId;
@@ -220,6 +252,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
           break;
         case "dedupe":
           await this.handleDedupe(docId);
+          break;
+        case "remove-extra-blank-lines":
+          await this.handleRemoveExtraBlankLines(docId);
           break;
       }
     } catch (error: any) {
@@ -340,6 +375,47 @@ export default class DocLinkToolkitPlugin extends Plugin {
     showMessage(`识别到 ${candidates.length} 组重复候选`, 5000, "info");
   }
 
+  private async handleRemoveExtraBlankLines(docId: string) {
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的段落", 4000, "info");
+      return;
+    }
+
+    const result = findExtraBlankParagraphIds(blocks);
+    if (result.removedCount === 0) {
+      showMessage("未发现需要去除的多余空行", 4000, "info");
+      return;
+    }
+
+    const ok = await this.askConfirm(
+      "确认去除空行",
+      `将删除 ${result.removedCount} 个多余空行段落，是否继续？`
+    );
+    if (!ok) {
+      return;
+    }
+
+    let failed = 0;
+    for (const id of result.deleteIds) {
+      try {
+        await deleteBlockById(id);
+      } catch {
+        failed += 1;
+      }
+    }
+
+    if (failed > 0) {
+      showMessage(
+        `已去除 ${result.removedCount - failed} 个多余空行段落，失败 ${failed} 个`,
+        6000,
+        "error"
+      );
+      return;
+    }
+    showMessage(`已去除 ${result.removedCount} 个多余空行段落`, 5000, "info");
+  }
+
   private registerKeyInfoDock() {
     this.addDock({
       type: "doc-assistant-keyinfo",
@@ -360,7 +436,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
             void this.refreshKeyInfoDock();
           },
         });
-        void this.refreshKeyInfoDock();
+        void this.refreshKeyInfoDock(undefined, getActiveEditor()?.protyle);
       },
       update: () => {
         void this.refreshKeyInfoDock();
@@ -372,11 +448,11 @@ export default class DocLinkToolkitPlugin extends Plugin {
     });
   }
 
-  private async refreshKeyInfoDock(explicitId?: string) {
+  private async refreshKeyInfoDock(explicitId?: string, protyle?: any) {
     if (!this.keyInfoDock) {
       return;
     }
-    const docId = this.resolveDocId(explicitId);
+    const docId = this.resolveDocId(explicitId, protyle);
     if (!docId) {
       this.keyInfoDock.setState({
         docTitle: "",
@@ -394,7 +470,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
     });
 
     try {
-      const data = await getDocKeyInfo(docId);
+      const activeProtyle =
+        protyle || this.currentProtyle || getActiveEditor()?.protyle;
+      const data = await getDocKeyInfo(docId, activeProtyle);
       if (requestId !== this.keyInfoRequestId) {
         return;
       }

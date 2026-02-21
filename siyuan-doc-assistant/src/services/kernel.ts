@@ -67,6 +67,14 @@ type SqlChildDocRow = {
   path: string;
 };
 
+type SqlChildBlockRow = {
+  id: string;
+  type: string;
+  content: string;
+  markdown: string;
+  sort: number;
+};
+
 export type DocMeta = {
   id: string;
   parentId: string;
@@ -96,6 +104,13 @@ export type ChildDocMeta = {
   box: string;
   hPath: string;
   updated: string;
+};
+
+export type ChildBlockMeta = {
+  id: string;
+  type: string;
+  content: string;
+  markdown: string;
 };
 
 type FileErrorRes = {
@@ -201,6 +216,21 @@ export async function appendBlock(
     dataType: "markdown",
     data,
     parentID,
+  });
+}
+
+export async function deleteBlockById(id: string): Promise<void> {
+  await requestApi("/api/block/deleteBlock", { id });
+}
+
+export async function updateBlockMarkdown(
+  id: string,
+  data: string
+): Promise<void> {
+  await requestApi("/api/block/updateBlock", {
+    dataType: "markdown",
+    data,
+    id,
   });
 }
 
@@ -369,6 +399,26 @@ export async function getChildDocsByParent(parentId: string): Promise<ChildDocMe
       hPath: row.hpath,
       updated: row.updated,
     }));
+}
+
+export async function getChildBlocksByParentId(
+  parentId: string
+): Promise<ChildBlockMeta[]> {
+  if (!parentId) {
+    return [];
+  }
+  const rows = await sql<SqlChildBlockRow>(
+    `select id, type, content, markdown, sort
+     from blocks
+     where parent_id='${escapeSqlLiteral(parentId)}'
+     order by sort asc`
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    type: row.type,
+    content: row.content || "",
+    markdown: row.markdown || "",
+  }));
 }
 
 export async function mapBlockIdsToRootDocIds(
