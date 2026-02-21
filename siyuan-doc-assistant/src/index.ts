@@ -6,8 +6,10 @@ import {
   showMessage,
 } from "siyuan";
 import "@/index.scss";
+import { buildKeyInfoMarkdown } from "@/core/key-info-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/exporter";
+import { getDocKeyInfo } from "@/services/key-info";
 import { appendBlock, getDocMetaByID } from "@/services/kernel";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import {
@@ -19,6 +21,7 @@ import {
 } from "@/services/link-resolver";
 import { moveDocsAsChildren } from "@/services/mover";
 import { openDedupeDialog } from "@/ui/dialogs";
+import { createKeyInfoDock, KeyInfoDockHandle } from "@/ui/key-info-dock";
 
 type ActionKey =
   | "export-current"
@@ -91,11 +94,14 @@ function getProtyleDocId(protyle: any): string {
 export default class DocLinkToolkitPlugin extends Plugin {
   private currentDocId = "";
   private isMobile = false;
+  private keyInfoDock?: KeyInfoDockHandle;
+  private keyInfoRequestId = 0;
 
   private readonly onSwitchProtyle = (event: CustomEvent<any>) => {
     const id = getProtyleDocId(event.detail?.protyle);
     if (id) {
       this.currentDocId = id;
+      void this.refreshKeyInfoDock(id);
     }
   };
 
@@ -126,6 +132,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
     this.eventBus.on("switch-protyle", this.onSwitchProtyle);
     this.eventBus.on("click-editortitleicon", this.onEditorTitleMenu);
+    this.registerKeyInfoDock();
 
     for (const action of ACTIONS) {
       this.addCommand({
@@ -144,6 +151,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
   onunload() {
     this.eventBus.off("switch-protyle", this.onSwitchProtyle);
     this.eventBus.off("click-editortitleicon", this.onEditorTitleMenu);
+    this.keyInfoDock?.destroy();
+    this.keyInfoDock = undefined;
   }
 
   private resolveDocId(explicitId?: string, protyle?: any): string {
@@ -329,5 +338,120 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onDelete: async (ids) => deleteDocsByIds(ids),
     });
     showMessage(`识别到 ${candidates.length} 组重复候选`, 5000, "info");
+  }
+
+  private registerKeyInfoDock() {
+    this.addDock({
+      type: "doc-assistant-keyinfo",
+      data: {},
+      config: {
+        title: "关键内容",
+        icon: "iconList",
+        position: "RightTop",
+        size: {
+          width: 320,
+          height: null,
+        },
+      },
+      init: (dock) => {
+        this.keyInfoDock = createKeyInfoDock(dock.element, {
+          onExport: () => this.exportKeyInfoMarkdown(),
+          onRefresh: () => {
+            void this.refreshKeyInfoDock();
+          },
+        });
+        void this.refreshKeyInfoDock();
+      },
+      update: () => {
+        void this.refreshKeyInfoDock();
+      },
+      destroy: () => {
+        this.keyInfoDock?.destroy();
+        this.keyInfoDock = undefined;
+      },
+    });
+  }
+
+  private async refreshKeyInfoDock(explicitId?: string) {
+    if (!this.keyInfoDock) {
+      return;
+    }
+    const docId = this.resolveDocId(explicitId);
+    if (!docId) {
+      this.keyInfoDock.setState({
+        docTitle: "",
+        items: [],
+        loading: false,
+        emptyText: "未找到当前文档",
+      });
+      return;
+    }
+
+    const requestId = ++this.keyInfoRequestId;
+    this.keyInfoDock.setState({
+      loading: true,
+      emptyText: "加载中...",
+    });
+
+    try {
+      const data = await getDocKeyInfo(docId);
+      if (requestId !== this.keyInfoRequestId) {
+        return;
+      }
+      this.keyInfoDock.setState({
+        docTitle: data.docTitle || docId,
+        items: data.items,
+        loading: false,
+        emptyText: "暂无关键内容",
+      });
+    } catch (error: any) {
+      if (requestId !== this.keyInfoRequestId) {
+        return;
+      }
+      const message = error?.message || String(error);
+      showMessage(`加载关键内容失败：${message}`, 7000, "error");
+      this.keyInfoDock.setState({
+        docTitle: "",
+        items: [],
+        loading: false,
+        emptyText: "加载失败",
+      });
+    }
+  }
+
+  private exportKeyInfoMarkdown() {
+    if (!this.keyInfoDock) {
+      return;
+    }
+    const items = this.keyInfoDock.getVisibleItems();
+    if (!items.length) {
+      showMessage("没有可导出的关键内容", 4000, "info");
+      return;
+    }
+
+    const state = this.keyInfoDock.getState();
+    const docTitle = state.docTitle || this.currentDocId || "key-info";
+    const content = buildKeyInfoMarkdown(items);
+    const fileName = this.buildKeyInfoFileName(docTitle);
+    this.triggerMarkdownDownload(fileName, content);
+    showMessage(`已导出 ${items.length} 条关键内容`, 5000, "info");
+  }
+
+  private buildKeyInfoFileName(docTitle: string): string {
+    const safeTitle = (docTitle || "key-info").replace(/[\\/:*?"<>|]/g, "_").trim();
+    const base = safeTitle || "key-info";
+    return `${base}-key-info.md`;
+  }
+
+  private triggerMarkdownDownload(fileName: string, content: string) {
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1000);
   }
 }

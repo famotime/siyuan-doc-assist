@@ -39,6 +39,11 @@ type ExportResourcesRes = {
   path: string;
 };
 
+type BlockKramdownRes = {
+  id: string;
+  kramdown: string;
+};
+
 type SqlDocRow = {
   id: string;
   parent_id: string;
@@ -174,6 +179,17 @@ export async function exportResources(
   return requestApi<ExportResourcesRes>("/api/export/exportResources", {
     paths,
     name,
+  });
+}
+
+export async function getBlockKramdowns(
+  ids: string[]
+): Promise<BlockKramdownRes[]> {
+  if (!ids.length) {
+    return [];
+  }
+  return requestApi<BlockKramdownRes[]>("/api/block/getBlockKramdowns", {
+    ids,
   });
 }
 
