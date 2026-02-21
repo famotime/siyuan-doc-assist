@@ -1,7 +1,7 @@
 {
-  "name": "plugin-sample-vite-vue",
-  "author": "wetoria",
-  "url": "https://github.com/Wetoria/plugin-sample-vite-vue",
+  "name": "doc-assistant",
+  "author": "",
+  "url": "",
   "version": "0.0.1",
   "minAppVersion": "3.5.7",
   "disabledInPublish": true,
@@ -12,9 +12,9 @@
     "all"
   ],
   "displayName": {
-    "default": "文档链接整理工具 (Doc Link Toolkit)",
-    "en_US": "Doc Link Toolkit",
-    "zh_CN": "文档链接整理工具 (Doc Link Toolkit)"
+    "default": "文档助手 / Doc Assistant",
+    "en_US": "Doc Assistant",
+    "zh_CN": "文档助手"
   },
   "description": {
     "default": "Manage backlinks/forward links, export linked docs, move backlinks as children, and detect duplicate docs by title similarity.",
