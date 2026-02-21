@@ -36,6 +36,13 @@
 - 兼容 `rows`/`cards`/分组结构
 - 列信息使用返回的 `columns` 或 `fields`
 
+### 3.1 视图结构差异（简表）
+
+|视图类型|行数据字段|列数据字段|分组字段|
+|---|---|---|---|
+|`table`|`rows`|`columns`|`groups`|
+|`gallery`|`cards`|`fields`|`groups`|
+
 ## 4. 批量写值示例
 
 ```json
@@ -51,11 +58,16 @@
 }
 ```
 
-注：`rowID` 将在后续版本迁移为 `itemID`，见下一篇。
+注：`rowID` 将逐步迁移为 `itemID`，新增功能需兼容两者。
 
-## 5. 本章如何使用
+## 5. rowID -> itemID 迁移要点
+
+- 新接口优先使用 `itemID`，旧逻辑可保留 `rowID` 兼容期。
+- 获取映射可用 `/api/av/getAttributeViewItemIDsByBoundIDs` 与 `/api/av/getAttributeViewBoundBlockIDsByItemIDs`。
+- 具体迁移实践与示例见 `reference/04-database-av/AV增删改查实战示例.md`。
+
+## 6. 本章如何使用
 
 - 做数据库 CRUD 功能时，先确定“绑定块/非绑定块”模式
 - 新建多行多列时优先批量接口，减少请求次数
 - 不同视图类型统一走解析适配层，不要把解析写死在业务里
-

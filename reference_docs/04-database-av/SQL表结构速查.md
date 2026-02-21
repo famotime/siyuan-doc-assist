@@ -15,6 +15,8 @@
 - `assets`：资源文件索引
 - `spans`：行内元素索引
 
+详表与字段语义见：`reference/04-database-av/数据库表与字段详解.md`
+
 ## 2. blocks 核心字段
 
 - `id`：块 ID
@@ -54,4 +56,3 @@ WHERE root_id = '20210104091228-d0rzbmm';
 - 当 API 无法直接满足查询需求时，用 SQL 做补充检索
 - 查询结果再回到 `/api/block/*` 或 `/api/attr/*` 做标准化处理
 - 不把 SQL 结构当作长期稳定契约
-

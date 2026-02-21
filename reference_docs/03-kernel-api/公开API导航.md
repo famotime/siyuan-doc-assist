@@ -65,6 +65,10 @@
 1. `/api/query/sql`
 2. 根据结果二次调用 `/api/block/getBlockKramdown`
 
+## 4.1 常用接口示例
+
+完整示例见：`reference/03-kernel-api/常用接口调用示例.md`
+
 ## 5. 响应处理建议
 
 - 为接口错误定义统一错误类
