@@ -36,4 +36,28 @@ describe("key-info-core", () => {
     const items = extractKeyInfoFromMarkdown(markdown);
     expect(items).toHaveLength(0);
   });
+
+  test("ignores inline key info inside heading lines", () => {
+    const markdown = [
+      "# **标题一**",
+      "## ==标题二==",
+      "正文 **正文加粗** 与 #正文标签。",
+    ].join("\n");
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+    const headingInline = items.filter(
+      (item) =>
+        (item.type === "bold" && item.text === "标题一") ||
+        (item.type === "highlight" && item.text === "标题二")
+    );
+    const bodyInline = items.filter(
+      (item) =>
+        (item.type === "bold" && item.text === "正文加粗") ||
+        (item.type === "tag" && item.text === "正文标签")
+    );
+
+    expect(items.filter((item) => item.type === "title")).toHaveLength(2);
+    expect(headingInline).toHaveLength(0);
+    expect(bodyInline).toHaveLength(2);
+  });
 });

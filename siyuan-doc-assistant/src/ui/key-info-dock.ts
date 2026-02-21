@@ -1,4 +1,11 @@
 import { KeyInfoFilter, KeyInfoItem, KeyInfoType, keyInfoTypeLabel } from "@/core/key-info-core";
+import {
+  consumeKeyInfoListPostRenderAction,
+  createKeyInfoListScrollState,
+  setKeyInfoListLastKnownScroll,
+  updateKeyInfoListScrollContext,
+} from "@/core/key-info-scroll-core";
+import { DockDocAction, DockTabKey, DOCK_TABS } from "@/core/dock-panel-core";
 
 export type KeyInfoDockState = {
   docTitle: string;
@@ -7,6 +14,9 @@ export type KeyInfoDockState = {
   loading: boolean;
   isRefreshing: boolean;
   emptyText: string;
+  activeTab: DockTabKey;
+  docActions: DockDocAction[];
+  scrollContextKey: string;
 };
 
 export type KeyInfoDockHandle = {
@@ -75,6 +85,7 @@ export function createKeyInfoDock(
     onExport: () => void;
     onRefresh?: () => void;
     onItemClick?: (item: KeyInfoItem) => void;
+    onDocActionClick?: (actionKey: string) => void;
   }
 ): KeyInfoDockHandle {
   const state: KeyInfoDockState = {
@@ -84,6 +95,9 @@ export function createKeyInfoDock(
     loading: false,
     isRefreshing: false,
     emptyText: "暂无关键内容",
+    activeTab: "key-info",
+    docActions: [],
+    scrollContextKey: "",
   };
 
   const root = document.createElement("div");
@@ -95,7 +109,7 @@ export function createKeyInfoDock(
   titleRow.className = "doc-assistant-keyinfo__title-row";
   const title = document.createElement("div");
   title.className = "doc-assistant-keyinfo__title";
-  title.textContent = "关键内容";
+  title.textContent = "文档助手";
   const loadingTag = document.createElement("span");
   loadingTag.className = "doc-assistant-keyinfo__loading ft__secondary";
   loadingTag.textContent = "";
@@ -106,6 +120,22 @@ export function createKeyInfoDock(
   titleRow.appendChild(loadingTag);
   header.appendChild(titleRow);
   header.appendChild(docTitle);
+
+  const tabs = document.createElement("div");
+  tabs.className = "doc-assistant-keyinfo__tabs";
+  const tabButtons = new Map<DockTabKey, HTMLButtonElement>();
+  DOCK_TABS.forEach((tab) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "doc-assistant-keyinfo__tab";
+    button.textContent = tab.label;
+    button.dataset.tab = tab.key;
+    button.addEventListener("click", () => {
+      setState({ activeTab: tab.key });
+    });
+    tabs.appendChild(button);
+    tabButtons.set(tab.key, button);
+  });
 
   const filters = document.createElement("div");
   filters.className = "doc-assistant-keyinfo__filters";
@@ -171,17 +201,28 @@ export function createKeyInfoDock(
   footer.appendChild(refreshBtn);
   footer.appendChild(exportBtn);
 
+  const keyInfoPanel = document.createElement("div");
+  keyInfoPanel.className = "doc-assistant-keyinfo__panel doc-assistant-keyinfo__panel--key-info";
+  keyInfoPanel.appendChild(filters);
+  keyInfoPanel.appendChild(list);
+  keyInfoPanel.appendChild(footer);
+
+  const docProcessPanel = document.createElement("div");
+  docProcessPanel.className = "doc-assistant-keyinfo__panel doc-assistant-keyinfo__panel--doc-process";
+  const docProcessList = document.createElement("div");
+  docProcessList.className = "doc-assistant-keyinfo__actions";
+  docProcessPanel.appendChild(docProcessList);
+
   root.appendChild(header);
-  root.appendChild(filters);
-  root.appendChild(list);
-  root.appendChild(footer);
+  root.appendChild(tabs);
+  root.appendChild(keyInfoPanel);
+  root.appendChild(docProcessPanel);
 
   element.replaceChildren(root);
 
   let scrollLock: { top: number; left: number; until: number } | null = null;
   let restoringScroll = false;
-  let lastKnownScrollTop = 0;
-  let lastKnownScrollLeft = 0;
+  let scrollState = createKeyInfoListScrollState(state.scrollContextKey);
 
   const lockListScroll = (durationMs = 3000) => {
     scrollLock = {
@@ -197,8 +238,8 @@ export function createKeyInfoDock(
     if (scrollLock && !locked) {
       scrollLock = null;
     }
-    const targetTop = locked ? scrollLock!.top : lastKnownScrollTop;
-    const targetLeft = locked ? scrollLock!.left : lastKnownScrollLeft;
+    const targetTop = locked ? scrollLock!.top : scrollState.lastKnownTop;
+    const targetLeft = locked ? scrollLock!.left : scrollState.lastKnownLeft;
     if (list.scrollTop !== targetTop) {
       list.scrollTop = targetTop;
     }
@@ -220,8 +261,11 @@ export function createKeyInfoDock(
   list.addEventListener("scroll", () => {
     if (!scrollLock || restoringScroll) {
       if (!restoringScroll) {
-        lastKnownScrollTop = list.scrollTop;
-        lastKnownScrollLeft = list.scrollLeft;
+        scrollState = setKeyInfoListLastKnownScroll(
+          scrollState,
+          list.scrollTop,
+          list.scrollLeft
+        );
       }
       return;
     }
@@ -257,6 +301,84 @@ export function createKeyInfoDock(
         button.classList.remove("is-active");
       }
     });
+  };
+
+  const updateTabButtons = () => {
+    tabButtons.forEach((button, key) => {
+      if (key === state.activeTab) {
+        button.classList.add("is-active");
+      } else {
+        button.classList.remove("is-active");
+      }
+    });
+  };
+
+  const renderTabPanels = () => {
+    const showKeyInfo = state.activeTab === "key-info";
+    keyInfoPanel.classList.toggle("is-hidden", !showKeyInfo);
+    docProcessPanel.classList.toggle("is-hidden", showKeyInfo);
+  };
+
+  const renderDocActions = () => {
+    if (!state.docActions.length) {
+      const empty = document.createElement("div");
+      empty.className = "doc-assistant-keyinfo__empty ft__secondary";
+      empty.textContent = "暂无文档处理命令";
+      docProcessList.replaceChildren(empty);
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    let previousGroup = "";
+    state.docActions.forEach((action) => {
+      if (previousGroup && previousGroup !== action.group) {
+        const separator = document.createElement("div");
+        separator.className = "doc-assistant-keyinfo__action-separator";
+        const separatorLabel = document.createElement("span");
+        separatorLabel.className = "doc-assistant-keyinfo__action-separator-label";
+        separatorLabel.textContent = action.groupLabel;
+        separator.appendChild(separatorLabel);
+        fragment.appendChild(separator);
+      } else if (!previousGroup) {
+        const firstGroupLabel = document.createElement("div");
+        firstGroupLabel.className = "doc-assistant-keyinfo__action-group-label";
+        firstGroupLabel.textContent = action.groupLabel;
+        fragment.appendChild(firstGroupLabel);
+      }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "b3-button doc-assistant-keyinfo__action-btn";
+
+      const iconWrap = document.createElement("span");
+      iconWrap.className = "doc-assistant-keyinfo__action-icon";
+      const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      iconSvg.setAttribute("aria-hidden", "true");
+      const useNode = document.createElementNS("http://www.w3.org/2000/svg", "use");
+      useNode.setAttributeNS("http://www.w3.org/1999/xlink", "href", `#${action.icon}`);
+      useNode.setAttribute("xlink:href", `#${action.icon}`);
+      iconSvg.appendChild(useNode);
+      iconWrap.appendChild(iconSvg);
+
+      const label = document.createElement("span");
+      label.className = "doc-assistant-keyinfo__action-label";
+      label.textContent = action.label;
+
+      button.appendChild(iconWrap);
+      button.appendChild(label);
+      button.disabled = action.disabled;
+      if (action.disabledReason) {
+        button.title = action.disabledReason;
+      }
+      button.addEventListener("click", () => {
+        if (action.disabled) {
+          return;
+        }
+        callbacks.onDocActionClick?.(action.key);
+      });
+      fragment.appendChild(button);
+      previousGroup = action.group;
+    });
+    docProcessList.replaceChildren(fragment);
   };
 
   const rowCache = new Map<string, HTMLDivElement>();
@@ -320,6 +442,20 @@ export function createKeyInfoDock(
 
   const getFilterSignature = () => state.filter.slice().sort().join("|");
 
+  const applyPostRenderScroll = () => {
+    const postRender = consumeKeyInfoListPostRenderAction(scrollState);
+    scrollState = postRender.nextState;
+    if (postRender.action.type === "reset") {
+      restoringScroll = true;
+      list.scrollTop = 0;
+      list.scrollLeft = 0;
+      restoringScroll = false;
+      return;
+    }
+    requestAnimationFrame(restoreListScroll);
+    setTimeout(restoreListScroll, 80);
+  };
+
   const renderList = () => {
     const visible = filterItems(state.items, state.filter);
     if (state.loading && !visible.length) {
@@ -330,6 +466,7 @@ export function createKeyInfoDock(
       list.appendChild(empty);
       lastRenderIds = [];
       lastRenderFilterSignature = getFilterSignature();
+      applyPostRenderScroll();
       return;
     }
 
@@ -341,6 +478,7 @@ export function createKeyInfoDock(
       list.appendChild(empty);
       lastRenderIds = [];
       lastRenderFilterSignature = getFilterSignature();
+      applyPostRenderScroll();
       return;
     }
 
@@ -367,6 +505,7 @@ export function createKeyInfoDock(
       }
       lastRenderIds = visible.map((item) => item.id);
       lastRenderFilterSignature = filterSignature;
+      applyPostRenderScroll();
       return;
     }
 
@@ -395,8 +534,7 @@ export function createKeyInfoDock(
     list.replaceChildren(fragment);
     lastRenderIds = visible.map((item) => item.id);
     lastRenderFilterSignature = filterSignature;
-    requestAnimationFrame(restoreListScroll);
-    setTimeout(restoreListScroll, 80);
+    applyPostRenderScroll();
   };
 
   const renderHeader = () => {
@@ -414,21 +552,38 @@ export function createKeyInfoDock(
     const prevFilter = state.filter;
     const prevLoading = state.loading;
     const prevEmptyText = state.emptyText;
+    const prevTab = state.activeTab;
+    const prevDocActions = state.docActions;
+    const prevScrollContextKey = state.scrollContextKey;
     Object.assign(state, next);
+    scrollState = updateKeyInfoListScrollContext(scrollState, state.scrollContextKey);
+    if (prevScrollContextKey !== state.scrollContextKey) {
+      scrollLock = null;
+    }
     renderHeader();
     updateFilterButtons();
+    updateTabButtons();
+    renderTabPanels();
+    if (prevDocActions !== state.docActions) {
+      renderDocActions();
+    }
     const shouldRenderList =
       prevItems !== state.items ||
       prevFilter !== state.filter ||
       prevLoading !== state.loading ||
-      prevEmptyText !== state.emptyText;
+      prevEmptyText !== state.emptyText ||
+      prevTab !== state.activeTab ||
+      prevScrollContextKey !== state.scrollContextKey;
     if (shouldRenderList) {
       renderList();
     }
   };
 
   updateFilterButtons();
+  updateTabButtons();
+  renderTabPanels();
   renderList();
+  renderDocActions();
 
   return {
     setState,

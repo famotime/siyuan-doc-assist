@@ -7,6 +7,7 @@ import {
 } from "siyuan";
 import "@/index.scss";
 import { buildKeyInfoMarkdown, KeyInfoItem } from "@/core/key-info-core";
+import { buildDockDocActions, DockDocActionGroup } from "@/core/dock-panel-core";
 import { findExtraBlankParagraphIds } from "@/core/markdown-cleanup-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/exporter";
@@ -43,6 +44,7 @@ type ActionConfig = {
   key: ActionKey;
   commandText: string;
   menuText: string;
+  group: DockDocActionGroup;
   desktopOnly?: boolean;
   icon: string;
 };
@@ -52,36 +54,42 @@ const ACTIONS: ActionConfig[] = [
     key: "export-current",
     commandText: "仅导出当前文档",
     menuText: "仅导出当前文档",
+    group: "export",
     icon: "iconDownload",
   },
   {
     key: "export-backlinks-zip",
     commandText: "打包导出反链文档",
     menuText: "打包导出反链文档",
+    group: "export",
     icon: "iconDownload",
   },
   {
     key: "export-forward-zip",
     commandText: "打包导出正链文档",
     menuText: "打包导出正链文档",
+    group: "export",
     icon: "iconDownload",
   },
   {
     key: "insert-backlinks",
     commandText: "插入反链文档列表到正文",
     menuText: "插入反链文档列表到正文",
+    group: "insert",
     icon: "iconList",
   },
   {
     key: "insert-child-docs",
     commandText: "插入子文档列表到正文",
     menuText: "插入子文档列表到正文",
+    group: "insert",
     icon: "iconList",
   },
   {
     key: "move-backlinks",
     commandText: "移动反链文档为子文档",
     menuText: "移动反链文档为子文档",
+    group: "organize",
     desktopOnly: true,
     icon: "iconMove",
   },
@@ -89,6 +97,7 @@ const ACTIONS: ActionConfig[] = [
     key: "dedupe",
     commandText: "识别本层级重复文档",
     menuText: "识别本层级重复文档",
+    group: "organize",
     desktopOnly: true,
     icon: "iconTrashcan",
   },
@@ -96,9 +105,16 @@ const ACTIONS: ActionConfig[] = [
     key: "remove-extra-blank-lines",
     commandText: "去除本文档空段落",
     menuText: "去除本文档空段落",
+    group: "organize",
     icon: "iconTrashcan",
   },
 ];
+
+const ACTION_KEY_SET = new Set<ActionKey>(ACTIONS.map((action) => action.key));
+
+function isActionKey(value: string): value is ActionKey {
+  return ACTION_KEY_SET.has(value as ActionKey);
+}
 
 function getProtyleDocId(protyle: any): string {
   return (
@@ -510,7 +526,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       type: "doc-assistant-keyinfo",
       data: {},
       config: {
-        title: "关键内容",
+        title: "文档助手",
         icon: "iconList",
         position: "RightTop",
         size: {
@@ -527,6 +543,15 @@ export default class DocLinkToolkitPlugin extends Plugin {
           onItemClick: (item) => {
             this.handleKeyInfoItemClick(item);
           },
+          onDocActionClick: (actionKey) => {
+            if (!isActionKey(actionKey)) {
+              return;
+            }
+            void this.runAction(actionKey);
+          },
+        });
+        this.keyInfoDock.setState({
+          docActions: buildDockDocActions(ACTIONS, this.isMobile),
         });
         void this.refreshKeyInfoDock(undefined, getActiveEditor()?.protyle);
       },
@@ -552,6 +577,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
         loading: false,
         isRefreshing: false,
         emptyText: "未找到当前文档",
+        scrollContextKey: "",
       });
       return;
     }
@@ -564,6 +590,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       loading: !hasItems || !isSameDoc,
       isRefreshing: true,
       emptyText: !hasItems || !isSameDoc ? "加载中..." : currentState.emptyText,
+      scrollContextKey: docId,
     });
 
     try {
@@ -590,6 +617,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
         loading: false,
         isRefreshing: false,
         emptyText: "暂无关键内容",
+        scrollContextKey: docId,
       });
     } catch (error: any) {
       if (requestId !== this.keyInfoRequestId) {
@@ -602,6 +630,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
         loading: false,
         isRefreshing: false,
         emptyText: "加载失败",
+        scrollContextKey: docId,
         ...(keepItems
           ? {}
           : {

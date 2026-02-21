@@ -180,8 +180,12 @@ function collectRegexMatches(
   return { items, ranges };
 }
 
-function extractHeadings(markdown: string, masked: string): KeyInfoExtract[] {
+function extractHeadings(
+  markdown: string,
+  masked: string
+): { items: KeyInfoExtract[]; ranges: Array<[number, number]> } {
   const items: KeyInfoExtract[] = [];
+  const ranges: Array<[number, number]> = [];
   const originalLines = markdown.split(/\r?\n/);
   const maskedLines = masked.split(/\r?\n/);
   let offset = 0;
@@ -203,10 +207,11 @@ function extractHeadings(markdown: string, masked: string): KeyInfoExtract[] {
           offset,
         });
       }
+      ranges.push([offset, offset + (originalLines[i]?.length ?? 0)]);
     }
     offset += (originalLines[i]?.length ?? 0) + 1;
   }
-  return items;
+  return { items, ranges };
 }
 
 function collectHtmlWrappedMatches(
@@ -272,10 +277,12 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   const masked = maskMarkdown(markdown);
   const items: KeyInfoExtract[] = [];
 
-  items.push(...extractHeadings(markdown, masked));
+  const headingExtract = extractHeadings(markdown, masked);
+  items.push(...headingExtract.items);
+  const maskedWithoutHeadings = applyMaskRanges(masked, headingExtract.ranges);
 
   const highlightMarks = collectRegexMatches(
-    masked,
+    maskedWithoutHeadings,
     markdown,
     /==([^\n]+?)==/g,
     "highlight",
@@ -284,7 +291,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...highlightMarks.items);
 
   const highlightTags = collectHtmlWrappedMatches(
-    masked,
+    maskedWithoutHeadings,
     markdown,
     "mark",
     "highlight",
@@ -293,7 +300,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...highlightTags.items);
 
   const highlightSpans = collectRegexMatches(
-    masked,
+    maskedWithoutHeadings,
     markdown,
     /<span[^>]*data-type=["']mark["'][^>]*>([\s\S]+?)<\/span>/gi,
     "highlight",
@@ -303,7 +310,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...highlightSpans.items);
 
   const remarkMatches = collectRegexMatches(
-    masked,
+    maskedWithoutHeadings,
     markdown,
     /%%([^\n]+?)%%/g,
     "remark",
@@ -312,7 +319,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...remarkMatches.items);
 
   const boldMatches = collectRegexMatches(
-    masked,
+    maskedWithoutHeadings,
     markdown,
     /(\*\*|__)([^\n]+?)\1/g,
     "bold",
@@ -321,7 +328,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...boldMatches.items);
 
   const strongMatches = collectHtmlWrappedMatches(
-    masked,
+    maskedWithoutHeadings,
     markdown,
     "strong",
     "bold",
@@ -329,7 +336,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   );
   items.push(...strongMatches.items);
 
-  const maskedWithoutBold = applyMaskRanges(masked, boldMatches.ranges);
+  const maskedWithoutBold = applyMaskRanges(maskedWithoutHeadings, boldMatches.ranges);
   const italicMatches = collectRegexMatches(
     maskedWithoutBold,
     markdown,
@@ -340,7 +347,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...italicMatches.items);
 
   const emMatches = collectHtmlWrappedMatches(
-    masked,
+    maskedWithoutHeadings,
     markdown,
     "em",
     "italic",
@@ -349,7 +356,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...emMatches.items);
 
   const italicTagMatches = collectHtmlWrappedMatches(
-    masked,
+    maskedWithoutHeadings,
     markdown,
     "i",
     "italic",
@@ -357,7 +364,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   );
   items.push(...italicTagMatches.items);
 
-  items.push(...extractTags(markdown, masked));
+  items.push(...extractTags(markdown, maskedWithoutHeadings));
 
   items.sort((a, b) => a.offset - b.offset);
   return items;

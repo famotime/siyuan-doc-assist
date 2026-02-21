@@ -489,13 +489,19 @@ export async function getDocKeyInfo(docId: string, protyle?: any): Promise<KeyIn
   const markdownInlineItems: KeyInfoItem[] = [];
   let order = 0;
   const blockSortMap = new Map<string, number>();
+  const headingBlockIds = new Set<string>();
   rows.forEach((row, index) => {
     const blockSort = normalizeSort(row.sort, index);
     blockSortMap.set(row.id, blockSort);
+    if (row.type === "h") {
+      headingBlockIds.add(row.id);
+    }
   });
   const domBlockSort = getDomBlockSortMap(protyle);
   domBlockSort.forEach((value, key) => {
-    blockSortMap.set(key, value);
+    if (!blockSortMap.has(key)) {
+      blockSortMap.set(key, value);
+    }
   });
   blockSortMap.set(rootId, blockSortMap.get(rootId) ?? -1);
 
@@ -587,8 +593,12 @@ export async function getDocKeyInfo(docId: string, protyle?: any): Promise<KeyIn
   });
 
   const spans = await listSpanRows(rootId);
-  const spanItems = mapSpanRowsToItems(spans, blockSortMap);
-  const domItems = extractInlineFromDom(protyle, blockSortMap, rootId);
+  const spanItems = mapSpanRowsToItems(spans, blockSortMap).filter(
+    (item) => !headingBlockIds.has(item.blockId || "")
+  );
+  const domItems = extractInlineFromDom(protyle, blockSortMap, rootId).filter(
+    (item) => !headingBlockIds.has(item.blockId || "")
+  );
   let preferredInlineItems: KeyInfoItem[] = [];
   if (domItems.length || spanItems.length) {
     const spanBuckets = new Map<string, KeyInfoItem[]>();
