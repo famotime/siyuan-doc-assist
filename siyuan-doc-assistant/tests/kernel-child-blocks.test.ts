@@ -36,4 +36,26 @@ describe("kernel child blocks", () => {
     });
     expect(result.map((item) => item.id)).toEqual(["a", "b"]);
   });
+
+  test("falls back to kramdown when SQL misses ids", async () => {
+    requestApiMock.mockImplementation((url: string) => {
+      if (url === "/api/block/getChildBlocks") {
+        return Promise.resolve([
+          { id: "a", type: "p" },
+          { id: "b", type: "p" },
+        ]);
+      }
+      if (url === "/api/query/sql") {
+        return Promise.resolve([{ id: "a", type: "p", content: "text", markdown: "text" }]);
+      }
+      if (url === "/api/block/getBlockKramdowns") {
+        return Promise.resolve({ kramdowns: [{ id: "b", kramdown: "" }] });
+      }
+      return Promise.resolve([]);
+    });
+
+    const result = await getChildBlocksByParentId("doc-1");
+    expect(result.map((item) => item.id)).toEqual(["a", "b"]);
+    expect(result[1]?.markdown || "").toBe("");
+  });
 });

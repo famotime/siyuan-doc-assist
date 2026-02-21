@@ -209,9 +209,16 @@ export async function getBlockKramdowns(
   if (!ids.length) {
     return [];
   }
-  return requestApi<BlockKramdownRes[]>("/api/block/getBlockKramdowns", {
+  const res = await requestApi<any>("/api/block/getBlockKramdowns", {
     ids,
   });
+  if (Array.isArray(res)) {
+    return res as BlockKramdownRes[];
+  }
+  if (res && Array.isArray(res.kramdowns)) {
+    return res.kramdowns as BlockKramdownRes[];
+  }
+  return [];
 }
 
 export async function appendBlock(
@@ -416,6 +423,9 @@ export async function getChildBlocksByParentId(
   const childList = await requestApi<ChildBlockListItem[]>("/api/block/getChildBlocks", {
     id: parentId,
   });
+  const childTypeMap = new Map(
+    (childList || []).map((item) => [item?.id || "", item?.type || ""])
+  );
   const seen = new Set<string>();
   const orderedIds = (childList || [])
     .map((item) => item?.id || "")
@@ -440,23 +450,41 @@ export async function getChildBlocksByParentId(
      where id in (${inClause(orderedIds)})
      order by sort asc`
   );
-  const rowMap = new Map(rows.map((row) => [row.id, row]));
+  const rowMap = new Map<string, ChildBlockMeta>();
+  for (const row of rows) {
+    rowMap.set(row.id, {
+      id: row.id,
+      type: row.type,
+      content: row.content || "",
+      markdown: row.markdown || "",
+    });
+  }
+  const missingIds = orderedIds.filter((id) => !rowMap.has(id));
+  if (missingIds.length) {
+    const kramdowns = await getBlockKramdowns(missingIds);
+    const kramdownMap = new Map(kramdowns.map((item) => [item.id, item.kramdown || ""]));
+    for (const id of missingIds) {
+      const type = childTypeMap.get(id) || "p";
+      const markdown = kramdownMap.get(id) || "";
+      rowMap.set(id, {
+        id,
+        type,
+        content: "",
+        markdown,
+      });
+    }
+  }
   console.info("[DocAssistant][BlankLines] child blocks loaded", {
     parentId,
     apiCount: childList?.length || 0,
     orderedCount: orderedIds.length,
     sqlCount: rows.length,
+    missingCount: missingIds.length,
     sample: orderedIds.slice(0, 8),
   });
   return orderedIds
     .map((id) => rowMap.get(id))
-    .filter((row): row is SqlChildBlockRow => !!row)
-    .map((row) => ({
-      id: row.id,
-      type: row.type,
-      content: row.content || "",
-      markdown: row.markdown || "",
-    }));
+    .filter((row): row is ChildBlockMeta => !!row);
 }
 
 export async function mapBlockIdsToRootDocIds(

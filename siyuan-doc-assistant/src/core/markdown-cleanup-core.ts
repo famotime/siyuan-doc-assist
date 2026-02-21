@@ -20,8 +20,12 @@ function isBlankLine(line: string): boolean {
   if (!line) {
     return true;
   }
-  const normalized = line.replace(/[\u200B\uFEFF\u00A0\u3000]/g, "");
-  return normalized.trim().length === 0;
+  const normalized = line
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;|&#160;|&#xA0;/gi, "")
+    .replace(/[\p{Cf}\p{Z}]/gu, "")
+    .replace(/\s+/g, "");
+  return normalized.length === 0;
 }
 
 function isBlankParagraph(block: ParagraphBlockMeta): boolean {

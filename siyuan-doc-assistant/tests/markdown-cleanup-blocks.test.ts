@@ -41,4 +41,15 @@ describe("markdown-cleanup-core (blocks)", () => {
     expect(result.deleteIds).toEqual(["a", "b"]);
     expect(result.keptBlankIds).toEqual([]);
   });
+
+  test("treats html-only content as blank", () => {
+    const blocks = [
+      { id: "a", type: "p", content: "<br>", markdown: "<br />" },
+      { id: "b", type: "p", content: "&nbsp;", markdown: "&#160;" },
+      { id: "c", type: "p", content: "<span>text</span>", markdown: "text" },
+    ];
+
+    const result = findExtraBlankParagraphIds(blocks);
+    expect(result.deleteIds).toEqual(["a", "b"]);
+  });
 });
