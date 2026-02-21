@@ -6,7 +6,7 @@ describe("markdown-cleanup-core", () => {
     const input = "a\n\n\nb\n\n\n\nc";
     const result = removeExtraBlankLinesFromMarkdown(input);
     expect(result.markdown).toBe("a\n\nb\n\nc");
-    expect(result.removedLines).toBe(5);
+    expect(result.removedLines).toBe(3);
   });
 
   test("keeps single blank lines between paragraphs", () => {

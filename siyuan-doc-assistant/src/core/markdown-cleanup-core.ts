@@ -107,6 +107,12 @@ export function findExtraBlankParagraphIds(
     }
   }
 
+  console.info("[DocAssistant][BlankLines] blank paragraphs", {
+    totalBlocks: blocks.length,
+    blankCount: deleteIds.length,
+    sample: deleteIds.slice(0, 8),
+  });
+
   return {
     deleteIds,
     keptBlankIds,

@@ -44,6 +44,12 @@ type BlockKramdownRes = {
   kramdown: string;
 };
 
+type ChildBlockListItem = {
+  id: string;
+  type: string;
+  subtype?: string;
+};
+
 type SqlDocRow = {
   id: string;
   parent_id: string;
@@ -407,18 +413,50 @@ export async function getChildBlocksByParentId(
   if (!parentId) {
     return [];
   }
+  const childList = await requestApi<ChildBlockListItem[]>("/api/block/getChildBlocks", {
+    id: parentId,
+  });
+  const seen = new Set<string>();
+  const orderedIds = (childList || [])
+    .map((item) => item?.id || "")
+    .filter(Boolean)
+    .filter((id) => {
+      if (seen.has(id)) {
+        return false;
+      }
+      seen.add(id);
+      return true;
+    });
+  if (!orderedIds.length) {
+    console.info("[DocAssistant][BlankLines] child blocks empty", {
+      parentId,
+      apiCount: childList?.length || 0,
+    });
+    return [];
+  }
   const rows = await sql<SqlChildBlockRow>(
     `select id, type, content, markdown, sort
      from blocks
-     where parent_id='${escapeSqlLiteral(parentId)}'
+     where id in (${inClause(orderedIds)})
      order by sort asc`
   );
-  return rows.map((row) => ({
-    id: row.id,
-    type: row.type,
-    content: row.content || "",
-    markdown: row.markdown || "",
-  }));
+  const rowMap = new Map(rows.map((row) => [row.id, row]));
+  console.info("[DocAssistant][BlankLines] child blocks loaded", {
+    parentId,
+    apiCount: childList?.length || 0,
+    orderedCount: orderedIds.length,
+    sqlCount: rows.length,
+    sample: orderedIds.slice(0, 8),
+  });
+  return orderedIds
+    .map((id) => rowMap.get(id))
+    .filter((row): row is SqlChildBlockRow => !!row)
+    .map((row) => ({
+      id: row.id,
+      type: row.type,
+      content: row.content || "",
+      markdown: row.markdown || "",
+    }));
 }
 
 export async function mapBlockIdsToRootDocIds(
