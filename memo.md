@@ -1,5 +1,7 @@
 ## Todo
 
+
+## Done
 - 以 /plugin-sample-vite-vue-main 为开发模板，参考 /reference 下的文档，开发一个思源笔记插件。
 - 插件功能：
     - 导出时仅导出本文档内容，不导出子文档（不管当前笔记配置选项）
