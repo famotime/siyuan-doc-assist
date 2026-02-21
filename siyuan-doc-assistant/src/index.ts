@@ -116,6 +116,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private isMobile = false;
   private keyInfoDock?: KeyInfoDockHandle;
   private keyInfoRequestId = 0;
+  private keyInfoJumpId = 0;
+  private lastProtocolOpenId = "";
+  private lastProtocolOpenAt = 0;
+  private keyInfoDocId = "";
 
   private readonly onSwitchProtyle = (event: CustomEvent<any>) => {
     const protyle = event.detail?.protyle;
@@ -226,6 +230,16 @@ export default class DocLinkToolkitPlugin extends Plugin {
     }
   }
 
+  private openBlockByProtocolThrottled(blockId: string) {
+    const now = performance.now();
+    if (this.lastProtocolOpenId === blockId && now - this.lastProtocolOpenAt < 800) {
+      return;
+    }
+    this.lastProtocolOpenId = blockId;
+    this.lastProtocolOpenAt = now;
+    this.openBlockByProtocol(blockId);
+  }
+
   private flashBlockElement(target: HTMLElement) {
     const flashClass = "doc-assistant-keyinfo__flash";
     target.classList.remove(flashClass);
@@ -236,11 +250,18 @@ export default class DocLinkToolkitPlugin extends Plugin {
     }, 900);
   }
 
-  private scheduleFlashAfterScroll(target: HTMLElement) {
+  private scheduleFlashAfterScroll(
+    target: HTMLElement,
+    jumpId: number,
+    onTimeout?: () => void
+  ) {
     const start = performance.now();
     const minDelay = 160;
     const maxWait = 2000;
     const check = () => {
+      if (jumpId !== this.keyInfoJumpId) {
+        return;
+      }
       const now = performance.now();
       const viewHeight =
         window.innerHeight || document.documentElement.clientHeight || 0;
@@ -253,8 +274,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
       const delta = Math.abs(center - viewHeight / 2);
       const threshold = Math.min(80, viewHeight * 0.1);
       const ready = delta <= threshold && now - start >= minDelay;
-      if (ready || now - start >= maxWait) {
+      if (ready) {
         this.flashBlockElement(target);
+        return;
+      }
+      if (now - start >= maxWait) {
+        onTimeout?.();
         return;
       }
       window.requestAnimationFrame(check);
@@ -267,6 +292,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     if (!blockId) {
       return;
     }
+    const jumpId = ++this.keyInfoJumpId;
     const protyle = this.currentProtyle || getActiveEditor()?.protyle;
     const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
     if (root) {
@@ -275,11 +301,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
       ) as HTMLElement | null;
       if (target) {
         target.scrollIntoView({ block: "center", behavior: "smooth" });
-        this.scheduleFlashAfterScroll(target);
+        this.scheduleFlashAfterScroll(target, jumpId, () => {
+          this.openBlockByProtocolThrottled(blockId);
+        });
         return;
       }
     }
-    this.openBlockByProtocol(blockId);
+    this.openBlockByProtocolThrottled(blockId);
   }
 
   private async runAction(action: ActionKey, explicitId?: string, protyle?: any) {
@@ -522,15 +550,20 @@ export default class DocLinkToolkitPlugin extends Plugin {
         docTitle: "",
         items: [],
         loading: false,
+        isRefreshing: false,
         emptyText: "未找到当前文档",
       });
       return;
     }
 
     const requestId = ++this.keyInfoRequestId;
+    const currentState = this.keyInfoDock.getState();
+    const isSameDoc = this.keyInfoDocId && this.keyInfoDocId === docId;
+    const hasItems = currentState.items.length > 0;
     this.keyInfoDock.setState({
-      loading: true,
-      emptyText: "加载中...",
+      loading: !hasItems || !isSameDoc,
+      isRefreshing: true,
+      emptyText: !hasItems || !isSameDoc ? "加载中..." : currentState.emptyText,
     });
 
     try {
@@ -540,10 +573,22 @@ export default class DocLinkToolkitPlugin extends Plugin {
       if (requestId !== this.keyInfoRequestId) {
         return;
       }
+      this.keyInfoDocId = docId;
+      let nextItems = data.items;
+      if (isSameDoc && hasItems) {
+        const existingIds = new Set(currentState.items.map((item) => item.id));
+        const appended = data.items.filter((item) => !existingIds.has(item.id));
+        if (appended.length) {
+          nextItems = [...currentState.items, ...appended];
+        } else {
+          nextItems = currentState.items;
+        }
+      }
       this.keyInfoDock.setState({
         docTitle: data.docTitle || docId,
-        items: data.items,
+        items: nextItems,
         loading: false,
+        isRefreshing: false,
         emptyText: "暂无关键内容",
       });
     } catch (error: any) {
@@ -552,11 +597,17 @@ export default class DocLinkToolkitPlugin extends Plugin {
       }
       const message = error?.message || String(error);
       showMessage(`加载关键内容失败：${message}`, 7000, "error");
+      const keepItems = isSameDoc && hasItems;
       this.keyInfoDock.setState({
-        docTitle: "",
-        items: [],
         loading: false,
+        isRefreshing: false,
         emptyText: "加载失败",
+        ...(keepItems
+          ? {}
+          : {
+              docTitle: "",
+              items: [],
+            }),
       });
     }
   }

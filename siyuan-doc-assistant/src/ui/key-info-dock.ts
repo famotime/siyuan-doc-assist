@@ -5,6 +5,7 @@ export type KeyInfoDockState = {
   items: KeyInfoItem[];
   filter: KeyInfoFilter;
   loading: boolean;
+  isRefreshing: boolean;
   emptyText: string;
 };
 
@@ -54,16 +55,9 @@ function buildTypeBadge(type: KeyInfoType): HTMLSpanElement {
   return badge;
 }
 
-function buildRow(
-  item: KeyInfoItem,
-  onItemClick?: (item: KeyInfoItem) => void
-): HTMLDivElement {
+function buildRow(item: KeyInfoItem): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "doc-assistant-keyinfo__row";
-  row.dataset.keyinfoId = item.id;
-  if (item.blockId) {
-    row.dataset.blockId = item.blockId;
-  }
 
   const badge = buildTypeBadge(item.type);
   const text = document.createElement("div");
@@ -72,23 +66,6 @@ function buildRow(
 
   row.appendChild(badge);
   row.appendChild(text);
-
-  if (item.blockId && onItemClick) {
-    row.classList.add("is-clickable");
-    row.setAttribute("role", "button");
-    row.tabIndex = 0;
-    row.addEventListener("click", () => {
-      onItemClick(item);
-    });
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onItemClick(item);
-      }
-    });
-  } else if (!item.blockId) {
-    row.classList.add("is-disabled");
-  }
   return row;
 }
 
@@ -105,6 +82,7 @@ export function createKeyInfoDock(
     items: [],
     filter: [...FILTER_TYPES],
     loading: false,
+    isRefreshing: false,
     emptyText: "暂无关键内容",
   };
 
@@ -113,13 +91,20 @@ export function createKeyInfoDock(
 
   const header = document.createElement("div");
   header.className = "doc-assistant-keyinfo__header";
+  const titleRow = document.createElement("div");
+  titleRow.className = "doc-assistant-keyinfo__title-row";
   const title = document.createElement("div");
   title.className = "doc-assistant-keyinfo__title";
   title.textContent = "关键内容";
+  const loadingTag = document.createElement("span");
+  loadingTag.className = "doc-assistant-keyinfo__loading ft__secondary";
+  loadingTag.textContent = "";
   const docTitle = document.createElement("div");
   docTitle.className = "doc-assistant-keyinfo__doc-title ft__secondary";
   docTitle.textContent = "未选择文档";
-  header.appendChild(title);
+  titleRow.appendChild(title);
+  titleRow.appendChild(loadingTag);
+  header.appendChild(titleRow);
   header.appendChild(docTitle);
 
   const filters = document.createElement("div");
@@ -193,6 +178,67 @@ export function createKeyInfoDock(
 
   element.replaceChildren(root);
 
+  let scrollLock: { top: number; left: number; until: number } | null = null;
+  let restoringScroll = false;
+  let lastKnownScrollTop = 0;
+  let lastKnownScrollLeft = 0;
+
+  const lockListScroll = (durationMs = 3000) => {
+    scrollLock = {
+      top: list.scrollTop,
+      left: list.scrollLeft,
+      until: performance.now() + durationMs,
+    };
+    requestAnimationFrame(enforceScrollLock);
+  };
+
+  const restoreListScroll = () => {
+    const locked = scrollLock && performance.now() <= scrollLock.until;
+    if (scrollLock && !locked) {
+      scrollLock = null;
+    }
+    const targetTop = locked ? scrollLock!.top : lastKnownScrollTop;
+    const targetLeft = locked ? scrollLock!.left : lastKnownScrollLeft;
+    if (list.scrollTop !== targetTop) {
+      list.scrollTop = targetTop;
+    }
+    if (list.scrollLeft !== targetLeft) {
+      list.scrollLeft = targetLeft;
+    }
+  };
+
+  const enforceScrollLock = () => {
+    if (!scrollLock) {
+      return;
+    }
+    restoreListScroll();
+    if (scrollLock) {
+      requestAnimationFrame(enforceScrollLock);
+    }
+  };
+
+  list.addEventListener("scroll", () => {
+    if (!scrollLock || restoringScroll) {
+      if (!restoringScroll) {
+        lastKnownScrollTop = list.scrollTop;
+        lastKnownScrollLeft = list.scrollLeft;
+      }
+      return;
+    }
+    restoringScroll = true;
+    restoreListScroll();
+    restoringScroll = false;
+  });
+
+  const handleItemClick = callbacks.onItemClick
+    ? (item: KeyInfoItem) => {
+        lockListScroll();
+        callbacks.onItemClick?.(item);
+        requestAnimationFrame(restoreListScroll);
+        setTimeout(restoreListScroll, 200);
+      }
+    : undefined;
+
   const updateFilterButtons = () => {
     const active = new Set(state.filter);
     const isAll = active.size >= FILTER_TYPES.length;
@@ -213,41 +259,172 @@ export function createKeyInfoDock(
     });
   };
 
+  const rowCache = new Map<string, HTMLDivElement>();
+  let lastRenderIds: string[] = [];
+  let lastRenderFilterSignature = "";
+
+  const updateRow = (
+    row: HTMLDivElement,
+    item: KeyInfoItem,
+    onItemClick?: (item: KeyInfoItem) => void
+  ) => {
+    row.className = "doc-assistant-keyinfo__row";
+    row.dataset.keyinfoId = item.id;
+    if (item.blockId) {
+      row.dataset.blockId = item.blockId;
+    } else {
+      row.removeAttribute("data-block-id");
+    }
+
+    let badge = row.querySelector(".doc-assistant-keyinfo__badge") as HTMLSpanElement | null;
+    let text = row.querySelector(".doc-assistant-keyinfo__text") as HTMLDivElement | null;
+    if (!badge || !text) {
+      row.replaceChildren();
+      badge = document.createElement("span");
+      badge.className = "doc-assistant-keyinfo__badge";
+      text = document.createElement("div");
+      text.className = "doc-assistant-keyinfo__text";
+      row.appendChild(badge);
+      row.appendChild(text);
+    }
+
+    badge.className = `doc-assistant-keyinfo__badge doc-assistant-keyinfo__badge--${item.type}`;
+    badge.textContent = keyInfoTypeLabel(item.type);
+    text.textContent = item.text;
+
+    if (item.blockId && onItemClick) {
+      row.classList.add("is-clickable");
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      row.onmousedown = (event) => {
+        event.preventDefault();
+      };
+      row.onclick = () => {
+        onItemClick(item);
+      };
+      row.onkeydown = (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onItemClick(item);
+        }
+      };
+    } else {
+      row.classList.add("is-disabled");
+      row.removeAttribute("role");
+      row.tabIndex = -1;
+      row.onclick = null;
+      row.onkeydown = null;
+      row.onmousedown = null;
+    }
+  };
+
+  const getFilterSignature = () => state.filter.slice().sort().join("|");
+
   const renderList = () => {
-    list.replaceChildren();
-    if (state.loading) {
+    const visible = filterItems(state.items, state.filter);
+    if (state.loading && !visible.length) {
+      list.replaceChildren();
       const empty = document.createElement("div");
       empty.className = "doc-assistant-keyinfo__empty ft__secondary";
       empty.textContent = "加载中...";
       list.appendChild(empty);
+      lastRenderIds = [];
+      lastRenderFilterSignature = getFilterSignature();
       return;
     }
 
-    const visible = filterItems(state.items, state.filter);
     if (!visible.length) {
+      list.replaceChildren();
       const empty = document.createElement("div");
       empty.className = "doc-assistant-keyinfo__empty ft__secondary";
       empty.textContent = state.emptyText || "暂无关键内容";
       list.appendChild(empty);
+      lastRenderIds = [];
+      lastRenderFilterSignature = getFilterSignature();
+      return;
+    }
+
+    const filterSignature = getFilterSignature();
+    const canAppend =
+      lastRenderIds.length > 0 &&
+      filterSignature === lastRenderFilterSignature &&
+      visible.length >= lastRenderIds.length &&
+      lastRenderIds.every((id, index) => visible[index]?.id === id);
+
+    if (canAppend) {
+      for (let i = lastRenderIds.length; i < visible.length; i += 1) {
+        const item = visible[i];
+        if (!item) {
+          continue;
+        }
+        let row = rowCache.get(item.id);
+        if (!row) {
+          row = buildRow(item);
+          updateRow(row, item, handleItemClick);
+          rowCache.set(item.id, row);
+        }
+        list.appendChild(row);
+      }
+      lastRenderIds = visible.map((item) => item.id);
+      lastRenderFilterSignature = filterSignature;
       return;
     }
 
     const fragment = document.createDocumentFragment();
+    const activeIds = new Set<string>();
     visible.forEach((item) => {
-      fragment.appendChild(buildRow(item, callbacks.onItemClick));
+      activeIds.add(item.id);
+      let row = rowCache.get(item.id);
+      if (!row) {
+        row = buildRow(item);
+        rowCache.set(item.id, row);
+      }
+      updateRow(row, item, handleItemClick);
+      fragment.appendChild(row);
     });
-    list.appendChild(fragment);
+
+    rowCache.forEach((row, id) => {
+      if (!activeIds.has(id)) {
+        rowCache.delete(id);
+        if (row.parentElement === list) {
+          row.remove();
+        }
+      }
+    });
+
+    list.replaceChildren(fragment);
+    lastRenderIds = visible.map((item) => item.id);
+    lastRenderFilterSignature = filterSignature;
+    requestAnimationFrame(restoreListScroll);
+    setTimeout(restoreListScroll, 80);
   };
 
   const renderHeader = () => {
     docTitle.textContent = state.docTitle || "未选择文档";
+    loadingTag.textContent = state.isRefreshing ? "加载中..." : "";
+    if (state.isRefreshing) {
+      loadingTag.classList.add("is-visible");
+    } else {
+      loadingTag.classList.remove("is-visible");
+    }
   };
 
   const setState = (next: Partial<KeyInfoDockState>) => {
+    const prevItems = state.items;
+    const prevFilter = state.filter;
+    const prevLoading = state.loading;
+    const prevEmptyText = state.emptyText;
     Object.assign(state, next);
     renderHeader();
     updateFilterButtons();
-    renderList();
+    const shouldRenderList =
+      prevItems !== state.items ||
+      prevFilter !== state.filter ||
+      prevLoading !== state.loading ||
+      prevEmptyText !== state.emptyText;
+    if (shouldRenderList) {
+      renderList();
+    }
   };
 
   updateFilterButtons();

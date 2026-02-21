@@ -82,10 +82,26 @@
   gap: 4px;
 }
 
+.doc-assistant-keyinfo__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .doc-assistant-keyinfo__title {
   font-weight: 700;
   letter-spacing: 0.2px;
   color: var(--b3-theme-on-surface);
+}
+
+.doc-assistant-keyinfo__loading {
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.doc-assistant-keyinfo__loading.is-visible {
+  opacity: 0.75;
 }
 
 .doc-assistant-keyinfo__doc-title {
@@ -163,6 +179,7 @@
 .doc-assistant-keyinfo__list {
   flex: 1;
   overflow: auto;
+  overflow-anchor: none;
   border: 1px solid var(--b3-border-color);
   border-radius: 10px;
   padding: 10px;

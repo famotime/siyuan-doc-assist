@@ -62,14 +62,31 @@ function normalizeSort(value: number | string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+async function queryAllRows<T = any>(stmt: string, pageSize = 500): Promise<T[]> {
+  const rows: T[] = [];
+  const base = stmt.trim().replace(/;$/, "");
+  let offset = 0;
+  while (true) {
+    const page = await sql<T>(`${base} limit ${pageSize} offset ${offset}`);
+    if (!page || page.length === 0) {
+      break;
+    }
+    rows.push(...page);
+    if (page.length < pageSize) {
+      break;
+    }
+    offset += page.length;
+  }
+  return rows;
+}
+
 async function listDocBlocks(docId: string): Promise<SqlKeyInfoRow[]> {
-  const rows = await sql<SqlKeyInfoRow>(
+  return queryAllRows<SqlKeyInfoRow>(
     `select id, sort, type, subtype, content, markdown, memo, tag
      from blocks
      where root_id='${escapeSqlLiteral(docId)}'
      order by sort asc`
   );
-  return rows || [];
 }
 
 async function resolveRootId(docId: string): Promise<string> {
@@ -204,8 +221,7 @@ async function listSpanRows(docId: string): Promise<SqlSpanRow[]> {
       and (${typeConditions.join(" OR ")})
     order by b.sort asc, ${orderBy}
   `;
-  const rows = await sql<SqlSpanRow>(stmt.trim());
-  return rows || [];
+  return queryAllRows<SqlSpanRow>(stmt.trim());
 }
 
 function extractInlineMemoHint(ial?: string): string {
@@ -573,6 +589,7 @@ export async function getDocKeyInfo(docId: string, protyle?: any): Promise<KeyIn
   const spans = await listSpanRows(rootId);
   const spanItems = mapSpanRowsToItems(spans, blockSortMap);
   const domItems = extractInlineFromDom(protyle, blockSortMap, rootId);
+  let preferredInlineItems: KeyInfoItem[] = [];
   if (domItems.length || spanItems.length) {
     const spanBuckets = new Map<string, KeyInfoItem[]>();
     spanItems.forEach((item) => {
@@ -601,9 +618,35 @@ export async function getDocKeyInfo(docId: string, protyle?: any): Promise<KeyIn
       remainingSpans.push(...bucket);
     });
 
-    items.push(...mergedDom, ...remainingSpans);
-  } else if (markdownInlineItems.length) {
-    items.push(...markdownInlineItems);
+    preferredInlineItems = [...mergedDom, ...remainingSpans];
+  }
+
+  if (markdownInlineItems.length) {
+    if (!preferredInlineItems.length) {
+      items.push(...markdownInlineItems);
+    } else {
+      const preferredBuckets = new Map<string, KeyInfoItem[]>();
+      preferredInlineItems.forEach((item) => {
+        const key = `${item.type}|${item.text}|${item.blockId}`;
+        const bucket = preferredBuckets.get(key) || [];
+        bucket.push(item);
+        preferredBuckets.set(key, bucket);
+      });
+
+      const merged = [...preferredInlineItems];
+      markdownInlineItems.forEach((item) => {
+        const key = `${item.type}|${item.text}|${item.blockId}`;
+        const bucket = preferredBuckets.get(key);
+        if (bucket && bucket.length) {
+          bucket.pop();
+          return;
+        }
+        merged.push(item);
+      });
+      items.push(...merged);
+    }
+  } else if (preferredInlineItems.length) {
+    items.push(...preferredInlineItems);
   }
 
   const normalizedDocTitle = normalizeTitle(docTitle);
