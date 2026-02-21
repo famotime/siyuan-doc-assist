@@ -1,9 +1,4 @@
-import {
-  KeyInfoFilter,
-  KeyInfoItem,
-  KeyInfoType,
-  keyInfoTypeLabel,
-} from "@/core/key-info-core";
+import { KeyInfoFilter, KeyInfoItem, KeyInfoType, keyInfoTypeLabel } from "@/core/key-info-core";
 
 export type KeyInfoDockState = {
   docTitle: string;
@@ -20,7 +15,18 @@ export type KeyInfoDockHandle = {
   destroy: () => void;
 };
 
-const FILTERS: Array<{ key: KeyInfoFilter; label: string; icon: string }> = [
+type FilterKey = "all" | KeyInfoType;
+
+const FILTER_TYPES: KeyInfoType[] = [
+  "title",
+  "bold",
+  "italic",
+  "highlight",
+  "remark",
+  "tag",
+];
+
+const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
   { key: "all", label: "全部", icon: "全" },
   { key: "title", label: "标题", icon: "题" },
   { key: "bold", label: "加粗", icon: "粗" },
@@ -31,10 +37,14 @@ const FILTERS: Array<{ key: KeyInfoFilter; label: string; icon: string }> = [
 ];
 
 function filterItems(items: KeyInfoItem[], filter: KeyInfoFilter): KeyInfoItem[] {
-  if (filter === "all") {
+  if (!filter.length) {
+    return [];
+  }
+  if (filter.length >= FILTER_TYPES.length) {
     return items;
   }
-  return items.filter((item) => item.type === filter);
+  const active = new Set(filter);
+  return items.filter((item) => active.has(item.type));
 }
 
 function buildTypeBadge(type: KeyInfoType): HTMLSpanElement {
@@ -93,7 +103,7 @@ export function createKeyInfoDock(
   const state: KeyInfoDockState = {
     docTitle: "",
     items: [],
-    filter: "all",
+    filter: [...FILTER_TYPES],
     loading: false,
     emptyText: "暂无关键内容",
   };
@@ -114,7 +124,7 @@ export function createKeyInfoDock(
 
   const filters = document.createElement("div");
   filters.className = "doc-assistant-keyinfo__filters";
-  const filterButtons = new Map<KeyInfoFilter, HTMLButtonElement>();
+  const filterButtons = new Map<FilterKey, HTMLButtonElement>();
 
   FILTERS.forEach((filter) => {
     const button = document.createElement("button");
@@ -129,7 +139,18 @@ export function createKeyInfoDock(
     button.appendChild(icon);
     button.appendChild(label);
     button.addEventListener("click", () => {
-      setState({ filter: filter.key });
+      if (filter.key === "all") {
+        const isAllActive = state.filter.length >= FILTER_TYPES.length;
+        setState({ filter: isAllActive ? [] : [...FILTER_TYPES] });
+        return;
+      }
+      const current = new Set(state.filter);
+      if (current.has(filter.key)) {
+        current.delete(filter.key);
+      } else {
+        current.add(filter.key);
+      }
+      setState({ filter: Array.from(current) });
     });
     filters.appendChild(button);
     filterButtons.set(filter.key, button);
@@ -173,8 +194,18 @@ export function createKeyInfoDock(
   element.replaceChildren(root);
 
   const updateFilterButtons = () => {
+    const active = new Set(state.filter);
+    const isAll = active.size >= FILTER_TYPES.length;
     filterButtons.forEach((button, key) => {
-      if (state.filter === key) {
+      if (key === "all") {
+        if (isAll) {
+          button.classList.add("is-active");
+        } else {
+          button.classList.remove("is-active");
+        }
+        return;
+      }
+      if (active.has(key)) {
         button.classList.add("is-active");
       } else {
         button.classList.remove("is-active");

@@ -6,7 +6,7 @@ export type KeyInfoType =
   | "remark"
   | "tag";
 
-export type KeyInfoFilter = "all" | KeyInfoType;
+export type KeyInfoFilter = KeyInfoType[];
 
 export type KeyInfoExtract = {
   type: KeyInfoType;
