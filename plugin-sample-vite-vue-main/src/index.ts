@@ -6,8 +6,9 @@ import {
   showMessage,
 } from "siyuan";
 import "@/index.scss";
+import { decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/exporter";
-import { appendBlock } from "@/services/kernel";
+import { appendBlock, getDocMetaByID } from "@/services/kernel";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import {
   getBacklinkDocs,
@@ -36,27 +37,27 @@ type ActionConfig = {
 const ACTIONS: ActionConfig[] = [
   {
     key: "export-current",
-    commandText: "仅导出当前文档为 Markdown",
-    menuText: "仅导出当前文档为 Markdown",
-    icon: "iconExport",
+    commandText: "仅导出当前文档",
+    menuText: "仅导出当前文档",
+    icon: "iconDownload",
+  },
+  {
+    key: "export-backlinks-zip",
+    commandText: "打包导出反链文档",
+    menuText: "打包导出反链文档",
+    icon: "iconDownload",
+  },
+  {
+    key: "export-forward-zip",
+    commandText: "打包导出正链文档",
+    menuText: "打包导出正链文档",
+    icon: "iconDownload",
   },
   {
     key: "insert-backlinks",
     commandText: "插入反链文档列表到正文",
     menuText: "插入反链文档列表到正文",
     icon: "iconList",
-  },
-  {
-    key: "export-backlinks-zip",
-    commandText: "导出反链文档为 Markdown ZIP",
-    menuText: "导出反链文档为 Markdown ZIP",
-    icon: "iconDownload",
-  },
-  {
-    key: "export-forward-zip",
-    commandText: "导出正链文档为 Markdown ZIP",
-    menuText: "导出正链文档为 Markdown ZIP",
-    icon: "iconDownload",
   },
   {
     key: "move-backlinks",
@@ -67,8 +68,8 @@ const ACTIONS: ActionConfig[] = [
   },
   {
     key: "dedupe",
-    commandText: "识别并清理重复文档",
-    menuText: "识别并清理重复文档",
+    commandText: "识别本层级重复文档",
+    menuText: "识别本层级重复文档",
     desktopOnly: true,
     icon: "iconTrashcan",
   },
@@ -232,21 +233,25 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private async handleExportBacklinksZip(docId: string) {
     const backlinks = await getBacklinkDocs(docId);
     const ids = backlinks.map((item) => item.id);
-    await this.exportDocZip(ids, "反链");
+    await this.exportDocZip(ids, "反链", docId);
   }
 
   private async handleExportForwardZip(docId: string) {
     const ids = await getForwardLinkedDocIds(docId);
-    await this.exportDocZip(ids, "正链");
+    await this.exportDocZip(ids, "正链", docId);
   }
 
-  private async exportDocZip(ids: string[], label: string) {
+  private async exportDocZip(ids: string[], label: string, currentDocId: string) {
     if (!ids.length) {
       showMessage(`未找到可导出的${label}文档`, 5000, "error");
       return;
     }
-    const result = await exportDocIdsAsMarkdownZip(ids);
-    showMessage(`导出完成（${result.name}）：${result.zip}`, 9000, "info");
+    const currentDoc = await getDocMetaByID(currentDocId);
+    const preferredZipName = currentDoc?.title || currentDocId;
+    const result = await exportDocIdsAsMarkdownZip(ids, preferredZipName);
+    const displayName = decodeURIComponentSafe(result.name || "");
+    const displayZip = decodeURIComponentSafe(result.zip || "");
+    showMessage(`导出完成（${displayName}）：${displayZip}`, 9000, "info");
   }
 
   private async handleMoveBacklinks(docId: string) {

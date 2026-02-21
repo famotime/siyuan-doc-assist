@@ -4,7 +4,7 @@ import {
   normalizeUploadFileName,
   rewriteMarkdownAssetLinksToBasename,
 } from "@/core/export-media-core";
-import { buildGetFileRequest } from "@/core/workspace-path-core";
+import { buildGetFileRequest, decodeURIComponentSafe } from "@/core/workspace-path-core";
 import {
   exportMdContent,
   exportMds,
@@ -24,6 +24,10 @@ function sanitizeFileName(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "_").trim();
 }
 
+function withZipExtension(name: string): string {
+  return name.endsWith(".zip") ? name : `${name}.zip`;
+}
+
 function triggerDownload(fileName: string, content: string) {
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -36,15 +40,34 @@ function triggerDownload(fileName: string, content: string) {
   }, 1000);
 }
 
+function normalizeFileDownloadPath(path: string): string {
+  const trimmed = (path || "").trim();
+  if (!trimmed) {
+    return "/";
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function isExportRoutePath(path: string): boolean {
+  const normalized = normalizeFileDownloadPath(path);
+  return normalized.startsWith("/export/");
+}
+
 async function triggerWorkspaceFileDownload(relativePath: string, downloadName?: string) {
-  const request = buildGetFileRequest(relativePath);
-  const response = await fetch(request.url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: request.body,
-  });
+  const normalized = normalizeFileDownloadPath(relativePath);
+  let response: Response;
+  if (isExportRoutePath(normalized)) {
+    response = await fetch(normalized, { method: "GET" });
+  } else {
+    const request = buildGetFileRequest(normalized);
+    response = await fetch(request.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: request.body,
+    });
+  }
   if (!response.ok) {
     throw new Error(`下载失败：${response.status}`);
   }
@@ -69,6 +92,13 @@ async function triggerWorkspaceFileDownload(relativePath: string, downloadName?:
 
 function randomId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function basenameFromWorkspacePath(path: string): string {
+  const cleaned = (path || "").replace(/[?#].*$/, "");
+  const parts = cleaned.split("/").filter(Boolean);
+  const name = parts.length ? parts[parts.length - 1] : "";
+  return decodeURIComponentSafe(name);
 }
 
 async function stageAssetsToTempDir(assetPaths: string[], tempAssetsDir: string) {
@@ -136,7 +166,15 @@ export async function exportCurrentDocMarkdown(
 }
 
 export async function exportDocIdsAsMarkdownZip(
-  docIds: string[]
+  docIds: string[],
+  preferredDownloadBaseName?: string
 ): Promise<{ name: string; zip: string }> {
-  return exportMds(docIds);
+  const result = await exportMds(docIds);
+  const preferredName = sanitizeFileName(preferredDownloadBaseName || "");
+  const fallbackName = sanitizeFileName(result.name || "export");
+  const derivedName = basenameFromWorkspacePath(result.zip)
+    || withZipExtension(fallbackName);
+  const downloadName = preferredName ? withZipExtension(preferredName) : derivedName;
+  await triggerWorkspaceFileDownload(result.zip, downloadName);
+  return result;
 }
