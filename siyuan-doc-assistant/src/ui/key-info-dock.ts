@@ -44,9 +44,16 @@ function buildTypeBadge(type: KeyInfoType): HTMLSpanElement {
   return badge;
 }
 
-function buildRow(item: KeyInfoItem): HTMLDivElement {
+function buildRow(
+  item: KeyInfoItem,
+  onItemClick?: (item: KeyInfoItem) => void
+): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "doc-assistant-keyinfo__row";
+  row.dataset.keyinfoId = item.id;
+  if (item.blockId) {
+    row.dataset.blockId = item.blockId;
+  }
 
   const badge = buildTypeBadge(item.type);
   const text = document.createElement("div");
@@ -55,6 +62,23 @@ function buildRow(item: KeyInfoItem): HTMLDivElement {
 
   row.appendChild(badge);
   row.appendChild(text);
+
+  if (item.blockId && onItemClick) {
+    row.classList.add("is-clickable");
+    row.setAttribute("role", "button");
+    row.tabIndex = 0;
+    row.addEventListener("click", () => {
+      onItemClick(item);
+    });
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onItemClick(item);
+      }
+    });
+  } else if (!item.blockId) {
+    row.classList.add("is-disabled");
+  }
   return row;
 }
 
@@ -63,6 +87,7 @@ export function createKeyInfoDock(
   callbacks: {
     onExport: () => void;
     onRefresh?: () => void;
+    onItemClick?: (item: KeyInfoItem) => void;
   }
 ): KeyInfoDockHandle {
   const state: KeyInfoDockState = {
@@ -178,7 +203,7 @@ export function createKeyInfoDock(
 
     const fragment = document.createDocumentFragment();
     visible.forEach((item) => {
-      fragment.appendChild(buildRow(item));
+      fragment.appendChild(buildRow(item, callbacks.onItemClick));
     });
     list.appendChild(fragment);
   };

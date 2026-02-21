@@ -183,6 +183,27 @@
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
 }
 
+.doc-assistant-keyinfo__row.is-clickable {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.doc-assistant-keyinfo__row.is-clickable:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--b3-theme-primary) 45%, var(--b3-border-color));
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.08);
+}
+
+.doc-assistant-keyinfo__row.is-clickable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--b3-theme-primary) 70%, white);
+  outline-offset: 2px;
+}
+
+.doc-assistant-keyinfo__row.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .doc-assistant-keyinfo__badge {
   font-size: 11px;
   line-height: 18px;

@@ -6,7 +6,7 @@ import {
   showMessage,
 } from "siyuan";
 import "@/index.scss";
-import { buildKeyInfoMarkdown } from "@/core/key-info-core";
+import { buildKeyInfoMarkdown, KeyInfoItem } from "@/core/key-info-core";
 import { findExtraBlankParagraphIds } from "@/core/markdown-cleanup-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/exporter";
@@ -215,6 +215,34 @@ export default class DocLinkToolkitPlugin extends Plugin {
         () => resolve(false)
       );
     });
+  }
+
+  private openBlockByProtocol(blockId: string) {
+    const url = `siyuan://blocks/${blockId}`;
+    try {
+      window.open(url);
+    } catch {
+      window.location.href = url;
+    }
+  }
+
+  private handleKeyInfoItemClick(item: KeyInfoItem) {
+    const blockId = item.blockId;
+    if (!blockId) {
+      return;
+    }
+    const protyle = this.currentProtyle || getActiveEditor()?.protyle;
+    const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+    if (root) {
+      const target = root.querySelector(
+        `[data-node-id="${blockId}"]`
+      ) as HTMLElement | null;
+      if (target) {
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+    }
+    this.openBlockByProtocol(blockId);
   }
 
   private async runAction(action: ActionKey, explicitId?: string, protyle?: any) {
@@ -430,6 +458,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
           onExport: () => this.exportKeyInfoMarkdown(),
           onRefresh: () => {
             void this.refreshKeyInfoDock();
+          },
+          onItemClick: (item) => {
+            this.handleKeyInfoItemClick(item);
           },
         });
         void this.refreshKeyInfoDock(undefined, getActiveEditor()?.protyle);
