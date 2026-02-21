@@ -94,9 +94,9 @@ const ACTIONS: ActionConfig[] = [
   },
   {
     key: "remove-extra-blank-lines",
-    commandText: "去除本文档多余空行",
-    menuText: "去除本文档多余空行",
-    icon: "iconEraser",
+    commandText: "去除本文档空段落",
+    menuText: "去除本文档空段落",
+    icon: "iconTrashcan",
   },
 ];
 
@@ -384,13 +384,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
     const result = findExtraBlankParagraphIds(blocks);
     if (result.removedCount === 0) {
-      showMessage("未发现需要去除的多余空行", 4000, "info");
+      showMessage("未发现需要去除的空段落", 4000, "info");
       return;
     }
 
     const ok = await this.askConfirm(
       "确认去除空行",
-      `将删除 ${result.removedCount} 个多余空行段落，是否继续？`
+      `将删除 ${result.removedCount} 个空段落，是否继续？`
     );
     if (!ok) {
       return;
@@ -406,14 +406,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
     }
 
     if (failed > 0) {
-      showMessage(
-        `已去除 ${result.removedCount - failed} 个多余空行段落，失败 ${failed} 个`,
-        6000,
-        "error"
-      );
+      showMessage(`已去除 ${result.removedCount - failed} 个空段落，失败 ${failed} 个`, 6000, "error");
       return;
     }
-    showMessage(`已去除 ${result.removedCount} 个多余空行段落`, 5000, "info");
+    showMessage(`已去除 ${result.removedCount} 个空段落`, 5000, "info");
   }
 
   private registerKeyInfoDock() {
