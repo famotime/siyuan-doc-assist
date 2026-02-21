@@ -22,6 +22,7 @@ const getRootDocRawMarkdownMock = vi.mocked(getRootDocRawMarkdown);
 
 type SqlRow = {
   id: string;
+  parent_id?: string;
   sort: number;
   type: string;
   subtype: string;
@@ -221,5 +222,66 @@ describe("key-info service heading inline merge", () => {
       .map((item) => item.text);
 
     expect(titleTexts).toEqual(["文档标题", "1 第一节", "10 第十节"]);
+  });
+
+  test("interleaves heading and content by structural block order", async () => {
+    mockKernelSql([
+      {
+        id: "h-1",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "h",
+        subtype: "h1",
+        content: "第一节",
+        markdown: "# 第一节",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "h-2",
+        parent_id: "doc-1",
+        sort: 2,
+        type: "h",
+        subtype: "h1",
+        content: "第二节",
+        markdown: "# 第二节",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "p-1",
+        parent_id: "h-1",
+        sort: 100,
+        type: "p",
+        subtype: "",
+        content: "A",
+        markdown: "**A**",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "p-2",
+        parent_id: "h-2",
+        sort: 100,
+        type: "p",
+        subtype: "",
+        content: "B",
+        markdown: "**B**",
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const result = await getDocKeyInfo("doc-1");
+    const sequence = result.items
+      .filter((item) => item.blockId !== "doc-1")
+      .map((item) => `${item.type}:${item.text}`);
+
+    expect(sequence).toEqual([
+      "title:第一节",
+      "bold:A",
+      "title:第二节",
+      "bold:B",
+    ]);
   });
 });

@@ -26,7 +26,7 @@ async function queryAllRows<T = unknown>(stmt: string, pageSize = 500): Promise<
 
 export async function listDocBlocks(docId: string): Promise<SqlKeyInfoRow[]> {
   return queryAllRows<SqlKeyInfoRow>(
-    `select id, sort, type, subtype, content, markdown, memo, tag
+    `select id, parent_id, sort, type, subtype, content, markdown, memo, tag
      from blocks
      where root_id='${escapeSqlLiteral(docId)}'
      order by sort asc`

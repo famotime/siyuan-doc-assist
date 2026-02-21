@@ -2,6 +2,7 @@ import { KeyInfoType } from "@/core/key-info-core";
 
 export type SqlKeyInfoRow = {
   id: string;
+  parent_id?: string;
   sort: number | string;
   type?: string;
   subtype?: string;

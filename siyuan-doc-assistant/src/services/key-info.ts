@@ -20,6 +20,66 @@ import {
   resolveRootId,
 } from "@/services/key-info-query";
 
+function buildStructuralBlockOrderMap(
+  rows: Array<{ id: string; parent_id?: string; sort: number | string }>,
+  rootId: string
+): Map<string, number> {
+  const indexById = new Map<string, number>();
+  rows.forEach((row, index) => {
+    indexById.set(row.id, index);
+  });
+
+  const childrenByParent = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const parentId = row.parent_id || "";
+    const group = childrenByParent.get(parentId) || [];
+    group.push(row);
+    childrenByParent.set(parentId, group);
+  }
+
+  childrenByParent.forEach((group, parentId) => {
+    group.sort((a, b) => {
+      const aSort = normalizeSort(a.sort, indexById.get(a.id) ?? 0);
+      const bSort = normalizeSort(b.sort, indexById.get(b.id) ?? 0);
+      if (aSort !== bSort) {
+        return aSort - bSort;
+      }
+      const aIndex = indexById.get(a.id) ?? 0;
+      const bIndex = indexById.get(b.id) ?? 0;
+      return aIndex - bIndex;
+    });
+    childrenByParent.set(parentId, group);
+  });
+
+  const orderMap = new Map<string, number>();
+  let cursor = 0;
+  const visiting = new Set<string>();
+  const walk = (parentId: string) => {
+    const children = childrenByParent.get(parentId) || [];
+    for (const child of children) {
+      if (orderMap.has(child.id)) {
+        continue;
+      }
+      orderMap.set(child.id, cursor);
+      cursor += 1;
+      if (visiting.has(child.id)) {
+        continue;
+      }
+      visiting.add(child.id);
+      walk(child.id);
+      visiting.delete(child.id);
+    }
+  };
+
+  walk(rootId);
+  rows.forEach((row, index) => {
+    if (!orderMap.has(row.id)) {
+      orderMap.set(row.id, cursor + index);
+    }
+  });
+  return orderMap;
+}
+
 export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<KeyInfoDocResult> {
   const rootId = await resolveRootId(docId);
   const docMeta = await getDocMetaByID(rootId);
@@ -47,8 +107,9 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   let order = 0;
   const blockSortMap = new Map<string, number>();
   const headingBlockIds = new Set<string>();
+  const structuralOrderMap = buildStructuralBlockOrderMap(rows, rootId);
   rows.forEach((row, index) => {
-    const blockSort = normalizeSort(row.sort, index);
+    const blockSort = structuralOrderMap.get(row.id) ?? normalizeSort(row.sort, index);
     blockSortMap.set(row.id, blockSort);
     if (row.type === "h") {
       headingBlockIds.add(row.id);
@@ -84,7 +145,10 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   });
 
   rows.forEach((row, index) => {
-    const blockSort = blockSortMap.get(row.id) ?? normalizeSort(row.sort, index);
+    const blockSort =
+      blockSortMap.get(row.id) ??
+      structuralOrderMap.get(row.id) ??
+      normalizeSort(row.sort, index);
     const markdown = kramdownMap.get(row.id) || row.markdown || "";
     const extracted = extractKeyInfoFromMarkdown(markdown);
     for (const item of extracted) {

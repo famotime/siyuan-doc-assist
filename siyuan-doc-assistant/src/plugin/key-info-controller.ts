@@ -5,6 +5,7 @@ import { getDocKeyInfo } from "@/services/key-info";
 import { createKeyInfoDock, KeyInfoDockHandle } from "@/ui/key-info-dock";
 import { ActionConfig, ActionKey, isActionKey } from "@/plugin/actions";
 import { ProtyleLike } from "@/plugin/doc-context";
+import { resolveKeyInfoItems } from "@/plugin/key-info-state";
 
 type KeyInfoControllerDeps = {
   isMobile: () => boolean;
@@ -93,7 +94,7 @@ export class KeyInfoController {
 
     const requestId = ++this.keyInfoRequestId;
     const currentState = this.keyInfoDock.getState();
-    const isSameDoc = this.keyInfoDocId && this.keyInfoDocId === docId;
+    const isSameDoc = !!this.keyInfoDocId && this.keyInfoDocId === docId;
     const hasItems = currentState.items.length > 0;
     this.keyInfoDock.setState({
       loading: !hasItems || !isSameDoc,
@@ -109,16 +110,12 @@ export class KeyInfoController {
         return;
       }
       this.keyInfoDocId = docId;
-      let nextItems = data.items;
-      if (isSameDoc && hasItems) {
-        const existingIds = new Set(currentState.items.map((item) => item.id));
-        const appended = data.items.filter((item) => !existingIds.has(item.id));
-        if (appended.length) {
-          nextItems = [...currentState.items, ...appended];
-        } else {
-          nextItems = currentState.items;
-        }
-      }
+      const nextItems = resolveKeyInfoItems({
+        isSameDoc,
+        hasItems,
+        currentItems: currentState.items,
+        latestItems: data.items,
+      });
       this.keyInfoDock.setState({
         docTitle: data.docTitle || docId,
         items: nextItems,
