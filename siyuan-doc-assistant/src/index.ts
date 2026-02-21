@@ -226,6 +226,42 @@ export default class DocLinkToolkitPlugin extends Plugin {
     }
   }
 
+  private flashBlockElement(target: HTMLElement) {
+    const flashClass = "doc-assistant-keyinfo__flash";
+    target.classList.remove(flashClass);
+    void target.offsetWidth;
+    target.classList.add(flashClass);
+    window.setTimeout(() => {
+      target.classList.remove(flashClass);
+    }, 900);
+  }
+
+  private scheduleFlashAfterScroll(target: HTMLElement) {
+    const start = performance.now();
+    const minDelay = 160;
+    const maxWait = 2000;
+    const check = () => {
+      const now = performance.now();
+      const viewHeight =
+        window.innerHeight || document.documentElement.clientHeight || 0;
+      if (!viewHeight) {
+        this.flashBlockElement(target);
+        return;
+      }
+      const rect = target.getBoundingClientRect();
+      const center = rect.top + rect.height / 2;
+      const delta = Math.abs(center - viewHeight / 2);
+      const threshold = Math.min(80, viewHeight * 0.1);
+      const ready = delta <= threshold && now - start >= minDelay;
+      if (ready || now - start >= maxWait) {
+        this.flashBlockElement(target);
+        return;
+      }
+      window.requestAnimationFrame(check);
+    };
+    window.requestAnimationFrame(check);
+  }
+
   private handleKeyInfoItemClick(item: KeyInfoItem) {
     const blockId = item.blockId;
     if (!blockId) {
@@ -239,6 +275,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       ) as HTMLElement | null;
       if (target) {
         target.scrollIntoView({ block: "center", behavior: "smooth" });
+        this.scheduleFlashAfterScroll(target);
         return;
       }
     }

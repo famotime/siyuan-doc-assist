@@ -204,6 +204,19 @@
   opacity: 0.6;
 }
 
+.doc-assistant-keyinfo__flash {
+  animation: doc-assistant-keyinfo-flash 0.9s ease-out;
+}
+
+@keyframes doc-assistant-keyinfo-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--b3-theme-primary) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
 .doc-assistant-keyinfo__badge {
   font-size: 11px;
   line-height: 18px;
