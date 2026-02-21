@@ -1,6 +1,3 @@
-# router.go
-
-```go
 // SiYuan - Refactor your thinking
 // Copyright (c) 2020-present, b3log.org
 //
@@ -528,4 +525,4 @@ func ServeAPI(ginServer *gin.Engine) {
 	ginServer.Handle("POST", "/api/ui/reloadFiletree", model.CheckAuth, model.CheckAdminRole, model.CheckReadonly, reloadFiletree)
 	ginServer.Handle("POST", "/api/ui/reloadTag", model.CheckAuth, model.CheckAdminRole, model.CheckReadonly, reloadTag)
 }
-```
+
