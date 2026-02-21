@@ -46,7 +46,7 @@ function createDocRow(
   return row;
 }
 
-export function openDedupeDialog(args: OpenDedupeDialogArgs): Dialog {
+export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeof Dialog> {
   const dialog = new Dialog({
     title: "重复文档识别",
     content: `<div class="link-tool-dedupe"><div class="link-tool-dedupe__toolbar"></div><div class="link-tool-dedupe__groups"></div></div>`,

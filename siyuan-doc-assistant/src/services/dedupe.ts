@@ -37,6 +37,7 @@ export async function findDuplicateCandidates(
     updated: row.updated,
     hPath: row.hpath,
   }));
+  const docHPathMap = new Map(docs.map((doc) => [doc.id, doc.hPath]));
 
   const groups = buildDuplicateGroups(docs, threshold);
   return groups.map((group, index) => ({
@@ -46,7 +47,7 @@ export async function findDuplicateCandidates(
       id: doc.id,
       title: doc.title,
       updated: doc.updated,
-      hPath: (docs.find((item) => item.id === doc.id) || doc).hPath,
+      hPath: docHPathMap.get(doc.id) || "",
     })),
   }));
 }

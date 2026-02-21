@@ -19,10 +19,6 @@ function basename(hPath: string): string {
   return parts.length ? parts[parts.length - 1] : hPath;
 }
 
-function sanitizeFileName(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, "_").trim();
-}
-
 function sanitizePathSegment(name: string): string {
   const normalized = (name || "").normalize("NFKC");
   const replaced = normalized.replace(/[^A-Za-z0-9\u4E00-\u9FFF._-]/g, "_");

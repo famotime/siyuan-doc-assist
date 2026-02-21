@@ -48,6 +48,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      # Run tests before packaging
+      - name: Run tests
+        run: pnpm test
+
       # Build for production, 这一步会生成一个 package.zip
       - name: Build for production
         run: pnpm build

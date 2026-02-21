@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true
+  },
+  "include": [
+    "src/core/**/*.ts",
+    "src/plugin/**/*.ts",
+    "src/services/key-info*.ts",
+    "src/types/**/*.d.ts"
+  ]
+}

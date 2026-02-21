@@ -44,8 +44,7 @@
   "include": [
     "tools/**/*.ts",
     "src/**/*.ts",
-    "src/**/*.d.ts",
-    "src/**/*.vue"
+    "src/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",

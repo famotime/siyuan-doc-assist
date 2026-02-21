@@ -15,17 +15,14 @@
     "release:minor": "node ./release.js --mode=minor",
     "release:major": "node ./release.js --mode=major",
     "build": "vite build",
+    "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "dependencies": {
-    "vue": "^3.3.8"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@antfu/eslint-config": "^4.8.1",
     "@types/node": "^20.2.0",
-    "@vitejs/plugin-vue": "^5.2.1",
-    "@vue/tsconfig": "^0.7.0",
     "eslint": "^9.22.0",
     "eslint-plugin-format": "^1.0.1",
     "eslint-plugin-perfectionist": "^4.2.0",

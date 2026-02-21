@@ -74,7 +74,13 @@ pnpm build
 pnpm test
 ```
 
-当前测试覆盖 `tests/` 下核心逻辑：
+可选严格类型检查（当前聚焦 `core` 与 `plugin` 分层）：
+
+```bash
+pnpm exec tsc -p tsconfig.strict.json --noEmit
+```
+
+当前测试覆盖 `tests/` 下核心/插件逻辑：
 
 - 链接提取与去重
 - 移动冲突处理
@@ -96,4 +102,4 @@ pnpm release:major
 
 `release.js` 会更新 `plugin.json` 和 `package.json` 版本号，并执行提交、打标签与推送。
 
-GitHub Action（`.github/workflows/release.yml`）在推送 `v*` tag 后自动构建并上传 `package.zip` 到 Release。
+GitHub Action（`.github/workflows/release.yml`）在推送 `v*` tag 后会先执行 `pnpm test`，再构建并上传 `package.zip` 到 Release。

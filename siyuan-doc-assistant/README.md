@@ -74,7 +74,13 @@ This produces:
 pnpm test
 ```
 
-Current tests cover core modules in `tests/`:
+Optional strict type-check for refactoring hotspots (`core` + `plugin`):
+
+```bash
+pnpm exec tsc -p tsconfig.strict.json --noEmit
+```
+
+Current tests cover core/plugin modules in `tests/`:
 
 - link parsing and dedupe
 - move conflict planning
@@ -96,4 +102,4 @@ pnpm release:major
 
 `release.js` updates `plugin.json` + `package.json`, creates commit/tag, and pushes to origin.
 
-GitHub Action (`.github/workflows/release.yml`) creates a release when tag `v*` is pushed and uploads `package.zip`.
+GitHub Action (`.github/workflows/release.yml`) now runs `pnpm test` before build/release, then uploads `package.zip` when tag `v*` is pushed.
