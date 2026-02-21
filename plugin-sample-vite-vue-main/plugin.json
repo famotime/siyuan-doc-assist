@@ -1,0 +1,33 @@
+{
+  "name": "plugin-sample-vite-vue",
+  "author": "wetoria",
+  "url": "https://github.com/Wetoria/plugin-sample-vite-vue",
+  "version": "0.0.1",
+  "minAppVersion": "3.5.7",
+  "disabledInPublish": true,
+  "backends": [
+    "all"
+  ],
+  "frontends": [
+    "all"
+  ],
+  "displayName": {
+    "default": "文档链接整理工具 (Doc Link Toolkit)",
+    "en_US": "Doc Link Toolkit",
+    "zh_CN": "文档链接整理工具 (Doc Link Toolkit)"
+  },
+  "description": {
+    "default": "Manage backlinks/forward links, export linked docs, move backlinks as children, and detect duplicate docs by title similarity.",
+    "en_US": "Manage backlinks/forward links, export linked docs, move backlinks as children, and detect duplicate docs by title similarity.",
+    "zh_CN": "管理反链/正链文档，导出链接文档，移动反链为子文档，并按标题相似度识别重复文档。"
+  },
+  "readme": {
+    "default": "README.md",
+    "en_US": "README.md",
+    "zh_CN": "README_zh_CN.md"
+  },
+  "funding": {
+    "custom": []
+  },
+  "keywords": []
+}
