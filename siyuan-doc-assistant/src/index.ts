@@ -12,8 +12,10 @@ import { appendBlock, getDocMetaByID } from "@/services/kernel";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import {
   getBacklinkDocs,
+  getChildDocs,
   getForwardLinkedDocIds,
   toBacklinkMarkdown,
+  toChildDocMarkdown,
 } from "@/services/link-resolver";
 import { moveDocsAsChildren } from "@/services/mover";
 import { openDedupeDialog } from "@/ui/dialogs";
@@ -21,6 +23,7 @@ import { openDedupeDialog } from "@/ui/dialogs";
 type ActionKey =
   | "export-current"
   | "insert-backlinks"
+  | "insert-child-docs"
   | "export-backlinks-zip"
   | "export-forward-zip"
   | "move-backlinks"
@@ -57,6 +60,12 @@ const ACTIONS: ActionConfig[] = [
     key: "insert-backlinks",
     commandText: "插入反链文档列表到正文",
     menuText: "插入反链文档列表到正文",
+    icon: "iconList",
+  },
+  {
+    key: "insert-child-docs",
+    commandText: "插入子文档列表到正文",
+    menuText: "插入子文档列表到正文",
     icon: "iconList",
   },
   {
@@ -188,6 +197,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
         case "insert-backlinks":
           await this.handleInsertBacklinks(docId);
           break;
+        case "insert-child-docs":
+          await this.handleInsertChildDocs(docId);
+          break;
         case "export-backlinks-zip":
           await this.handleExportBacklinksZip(docId);
           break;
@@ -228,6 +240,17 @@ export default class DocLinkToolkitPlugin extends Plugin {
     const markdown = toBacklinkMarkdown(backlinks);
     await appendBlock(markdown, docId);
     showMessage(`已插入 ${backlinks.length} 个反链文档链接`, 5000, "info");
+  }
+
+  private async handleInsertChildDocs(docId: string) {
+    const childDocs = await getChildDocs(docId);
+    if (!childDocs.length) {
+      showMessage("当前文档没有可插入的子文档", 5000, "info");
+      return;
+    }
+    const markdown = toChildDocMarkdown(childDocs);
+    await appendBlock(markdown, docId);
+    showMessage(`已插入 ${childDocs.length} 个子文档链接`, 5000, "info");
   }
 
   private async handleExportBacklinksZip(docId: string) {

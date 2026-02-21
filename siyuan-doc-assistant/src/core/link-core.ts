@@ -3,6 +3,7 @@ export type DocRef = {
   name: string;
   hPath?: string;
   box?: string;
+  depth?: number;
 };
 
 const BLOCK_ID_PATTERN = "[0-9]{14}-[a-z0-9]{7,}";
@@ -50,4 +51,13 @@ export function dedupeDocRefs<T extends { id: string }>(items: T[]): T[] {
 export function buildBacklinkListMarkdown(items: DocRef[]): string {
   const lines = items.map((item) => `- [${item.name}](siyuan://blocks/${item.id})`);
   return `## 反向链接文档\n\n${lines.join("\n")}`;
+}
+
+export function buildChildDocListMarkdown(items: DocRef[]): string {
+  const lines = items.map((item) => {
+    const depth = Math.max(0, item.depth || 0);
+    const indent = "    ".repeat(depth);
+    return `${indent}- [${item.name}](siyuan://blocks/${item.id})`;
+  });
+  return `## 子文档列表\n\n${lines.join("\n")}`;
 }

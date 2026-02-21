@@ -54,6 +54,14 @@ type SqlRootRow = {
   root_id: string;
 };
 
+type SqlChildDocRow = {
+  id: string;
+  box: string;
+  hpath: string;
+  updated: string;
+  path: string;
+};
+
 export type DocMeta = {
   id: string;
   parentId: string;
@@ -70,6 +78,21 @@ export type PathInfo = {
   notebook: string;
 };
 
+export type FileTreeDoc = {
+  id: string;
+  name: string;
+  path: string;
+  icon?: string;
+  subFileCount?: number;
+};
+
+export type ChildDocMeta = {
+  id: string;
+  box: string;
+  hPath: string;
+  updated: string;
+};
+
 type FileErrorRes = {
   code?: number;
   msg?: string;
@@ -82,6 +105,32 @@ function escapeSqlLiteral(value: string): string {
 function toTitle(hPath: string): string {
   const parts = hPath.split("/").filter(Boolean);
   return parts.length ? parts[parts.length - 1] : hPath;
+}
+
+function trimDocPathSuffix(path: string): string {
+  const value = (path || "").trim();
+  return value.endsWith(".sy") ? value.slice(0, -3) : value;
+}
+
+function toChildDocPathPrefix(parentPath: string): string {
+  const normalized = trimDocPathSuffix(parentPath);
+  if (!normalized) {
+    return "";
+  }
+  return normalized.endsWith("/") ? normalized : `${normalized}/`;
+}
+
+function isDirectChildDocPath(parentPath: string, candidatePath: string): boolean {
+  const prefix = toChildDocPathPrefix(parentPath);
+  if (!prefix) {
+    return false;
+  }
+  const normalizedCandidate = trimDocPathSuffix(candidatePath);
+  if (!normalizedCandidate.startsWith(prefix)) {
+    return false;
+  }
+  const suffix = normalizedCandidate.slice(prefix.length);
+  return !!suffix && !suffix.includes("/");
 }
 
 function inClause(ids: string[]): string {
@@ -213,6 +262,17 @@ export async function getPathByID(id: string): Promise<PathInfo> {
   return requestApi<PathInfo>("/api/filetree/getPathByID", { id });
 }
 
+export async function listDocsByPath(
+  notebook: string,
+  path: string
+): Promise<FileTreeDoc[]> {
+  const res = await requestApi<{ files?: FileTreeDoc[] }>("/api/filetree/listDocsByPath", {
+    notebook,
+    path,
+  });
+  return res?.files || [];
+}
+
 export async function getDocMetaByID(id: string): Promise<DocMeta | null> {
   const rows = await sql<SqlDocRow>(
     `select id, parent_id, root_id, box, path, hpath, updated from blocks where type='d' and id='${escapeSqlLiteral(
@@ -257,12 +317,42 @@ export async function getDocMetasByIDs(ids: string[]): Promise<DocMeta[]> {
 }
 
 export async function getChildDocTitles(parentId: string): Promise<string[]> {
-  const rows = await sql<{ hpath: string }>(
-    `select hpath from blocks where type='d' and parent_id='${escapeSqlLiteral(
+  const rows = await getChildDocsByParent(parentId);
+  return rows.map((row) => toTitle(row.hPath));
+}
+
+export async function getChildDocsByParent(parentId: string): Promise<ChildDocMeta[]> {
+  const parentRows = await sql<{ box: string; path: string }>(
+    `select box, path from blocks where type='d' and id='${escapeSqlLiteral(
       parentId
-    )}'`
+    )}' limit 1`
   );
-  return rows.map((row) => toTitle(row.hpath));
+  const parent = parentRows[0];
+  if (!parent?.path || !parent?.box) {
+    return [];
+  }
+
+  const childPrefix = toChildDocPathPrefix(parent.path);
+  if (!childPrefix) {
+    return [];
+  }
+
+  const rows = await sql<SqlChildDocRow>(
+    `select id, box, hpath, updated, path
+     from blocks
+     where type='d'
+       and box='${escapeSqlLiteral(parent.box)}'
+       and path like '${escapeSqlLiteral(childPrefix)}%'
+     order by hpath asc`
+  );
+  return rows
+    .filter((row) => isDirectChildDocPath(parent.path, row.path))
+    .map((row) => ({
+      id: row.id,
+      box: row.box,
+      hPath: row.hpath,
+      updated: row.updated,
+    }));
 }
 
 export async function mapBlockIdsToRootDocIds(

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   buildBacklinkListMarkdown,
+  buildChildDocListMarkdown,
   dedupeDocRefs,
   extractSiyuanBlockIdsFromMarkdown,
 } from "@/core/link-core";
@@ -43,6 +44,17 @@ describe("link-core", () => {
 
     expect(text).toBe(
       "## 反向链接文档\n\n- [First](siyuan://blocks/doc1)\n- [Second](siyuan://blocks/doc2)"
+    );
+  });
+
+  test("builds child doc list markdown section with siyuan links", () => {
+    const text = buildChildDocListMarkdown([
+      { id: "doc1", name: "Child 1", depth: 0 },
+      { id: "doc2", name: "Child 2", depth: 1 },
+    ]);
+
+    expect(text).toBe(
+      "## 子文档列表\n\n- [Child 1](siyuan://blocks/doc1)\n    - [Child 2](siyuan://blocks/doc2)"
     );
   });
 

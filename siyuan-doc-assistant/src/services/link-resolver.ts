@@ -1,5 +1,6 @@
 import {
   buildBacklinkListMarkdown,
+  buildChildDocListMarkdown,
   dedupeDocRefs,
   extractSiyuanBlockIdsFromMarkdown,
 } from "@/core/link-core";
@@ -7,8 +8,10 @@ import {
   exportMdContent,
   getDocMetasByIDs,
   getBacklink2,
+  getPathByID,
   getForwardRefTargetBlockIds,
   getRootDocRawMarkdown,
+  listDocsByPath,
   mapBlockIdsToRootDocIds,
 } from "@/services/kernel";
 import { DocRefItem } from "@/types/link-tool";
@@ -16,6 +19,19 @@ import { DocRefItem } from "@/types/link-tool";
 function basename(hPath: string): string {
   const parts = hPath.split("/").filter(Boolean);
   return parts.length ? parts[parts.length - 1] : hPath;
+}
+
+function stripDocSuffix(name: string): string {
+  return name.endsWith(".sy") ? name.slice(0, -3) : name;
+}
+
+function docName(name: string, path: string, id: string): string {
+  const byName = stripDocSuffix((name || "").trim());
+  if (byName) {
+    return byName;
+  }
+  const byPath = stripDocSuffix(path.split("/").filter(Boolean).pop() || "");
+  return byPath || id;
 }
 
 function buildIdLineEvidence(markdown: string, ids: string[]): Array<{ id: string; lines: string[] }> {
@@ -51,6 +67,46 @@ export async function getBacklinkDocs(docId: string): Promise<DocRefItem[]> {
 
 export function toBacklinkMarkdown(items: DocRefItem[]): string {
   return buildBacklinkListMarkdown(items);
+}
+
+export async function getChildDocs(parentId: string): Promise<DocRefItem[]> {
+  const parentPath = await getPathByID(parentId);
+  const box = parentPath?.notebook || "";
+  const rootPath = parentPath?.path || "";
+  if (!box || !rootPath) {
+    return [];
+  }
+
+  const visited = new Set<string>();
+  const result: DocRefItem[] = [];
+
+  const walk = async (path: string, depth: number): Promise<void> => {
+    const docs = await listDocsByPath(box, path);
+    for (const item of docs) {
+      if (!item?.id || visited.has(item.id)) {
+        continue;
+      }
+      visited.add(item.id);
+      result.push({
+        id: item.id,
+        box,
+        hPath: "",
+        name: docName(item.name || "", item.path || "", item.id),
+        source: "child" as const,
+        depth,
+      });
+      if (item.path && (item.subFileCount === undefined || item.subFileCount > 0)) {
+        await walk(item.path, depth + 1);
+      }
+    }
+  };
+
+  await walk(rootPath, 0);
+  return result;
+}
+
+export function toChildDocMarkdown(items: DocRefItem[]): string {
+  return buildChildDocListMarkdown(items);
 }
 
 export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {

@@ -3,8 +3,9 @@ export type DocRefItem = {
   box: string;
   hPath: string;
   name: string;
+  depth?: number;
   updated?: string;
-  source: "backlink" | "forward";
+  source: "backlink" | "forward" | "child";
 };
 
 export type DedupeDocItem = {
