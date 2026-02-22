@@ -81,6 +81,12 @@ type SqlChildBlockRow = {
   sort: number;
 };
 
+type SqlBlockParentRow = {
+  id: string;
+  parent_id: string;
+  root_id: string;
+};
+
 export type DocMeta = {
   id: string;
   parentId: string;
@@ -180,6 +186,21 @@ function normalizeDocSyPath(box: string, docPath: string): string {
   }
   const path = normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
   return `/data/${notebook}${path}`;
+}
+
+function buildDocSyCandidatePaths(box: string, docPath: string): string[] {
+  const normalized = normalizeDocSyPath(box, docPath);
+  if (!normalized) {
+    return [];
+  }
+  const candidates = new Set<string>();
+  candidates.add(normalized);
+  if (/\.sy$/i.test(normalized)) {
+    candidates.add(normalized.replace(/\.sy$/i, ""));
+  } else {
+    candidates.add(`${normalized}.sy`);
+  }
+  return [...candidates];
 }
 
 function getSyNodeId(node: SyTreeNode): string {
@@ -404,6 +425,70 @@ export async function getFileBlob(path: string): Promise<Blob> {
   return response.blob();
 }
 
+function isFileErrorEnvelope(value: unknown): value is FileErrorRes & { data?: unknown } {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const payload = value as FileErrorRes & { data?: unknown };
+  return typeof payload.code === "number" && payload.code !== 0 && payload.data === null;
+}
+
+function isFileSuccessEnvelope(value: unknown): value is { code: number; data?: unknown } {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const payload = value as { code?: unknown };
+  return typeof payload.code === "number" && payload.code === 0;
+}
+
+async function getFileTextAllowJson(path: string): Promise<string> {
+  const response = await fetch("/api/file/getFile", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ path }),
+  });
+  if (!response.ok) {
+    throw new Error(`读取文件失败：${response.status}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  const text = await response.text();
+  if (!contentType.includes("application/json")) {
+    return text;
+  }
+  if (!text.trim()) {
+    return text;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    // JSON content-type with non-JSON payload should still be treated as file text.
+    return text;
+  }
+  if (isFileErrorEnvelope(parsed)) {
+    const message = (parsed.msg || "").trim();
+    throw new Error(message || `读取文件失败：${parsed.code}`);
+  }
+  if (isFileSuccessEnvelope(parsed)) {
+    const data = parsed.data;
+    if (typeof data === "string") {
+      return data;
+    }
+    if (data == null) {
+      return "";
+    }
+    if (typeof data === "object") {
+      return JSON.stringify(data);
+    }
+    return String(data);
+  }
+  return text;
+}
+
 export async function getPathByID(id: string): Promise<PathInfo> {
   return requestApi<PathInfo>("/api/filetree/getPathByID", { id });
 }
@@ -582,6 +667,47 @@ export async function getChildBlocksByParentId(
     .filter((row): row is ChildBlockMeta => !!row);
 }
 
+export async function resolveDocDirectChildBlockId(
+  docId: string,
+  blockId: string
+): Promise<string> {
+  const targetDocId = (docId || "").trim();
+  let currentId = (blockId || "").trim();
+  if (!targetDocId || !currentId) {
+    return "";
+  }
+
+  const visited = new Set<string>();
+  for (let depth = 0; depth < 64; depth += 1) {
+    if (!currentId || visited.has(currentId)) {
+      return "";
+    }
+    visited.add(currentId);
+    const rows = await sql<SqlBlockParentRow>(
+      `select id, parent_id, root_id
+       from blocks
+       where id='${escapeSqlLiteral(currentId)}'
+       limit 1`
+    );
+    if (!rows.length) {
+      return "";
+    }
+    const row = rows[0];
+    if (row.id === targetDocId) {
+      return "";
+    }
+    if (row.root_id && row.root_id !== targetDocId) {
+      return "";
+    }
+    if (row.parent_id === targetDocId) {
+      return row.id;
+    }
+    currentId = row.parent_id || "";
+  }
+
+  return "";
+}
+
 export async function mapBlockIdsToRootDocIds(
   blockIds: string[]
 ): Promise<string[]> {
@@ -627,25 +753,69 @@ export async function getDocTreeOrderFromSy(docId: string): Promise<Map<string, 
   if (!docId) {
     return new Map();
   }
+  const candidatePaths = new Set<string>();
   try {
     const meta = await getDocMetaByID(docId);
-    if (!meta?.box || !meta.path) {
-      return new Map();
+    if (meta?.box && meta.path) {
+      buildDocSyCandidatePaths(meta.box, meta.path).forEach((path) =>
+        candidatePaths.add(path)
+      );
     }
-    const syPath = normalizeDocSyPath(meta.box, meta.path);
-    if (!syPath) {
-      return new Map();
-    }
-    const blob = await getFileBlob(syPath);
-    const raw = await blob.text();
-    if (!raw.trim()) {
-      return new Map();
-    }
-    const parsed = JSON.parse(raw) as SyTreeNode;
-    return buildSyTreeOrderMap(parsed);
   } catch {
+    // Ignore and try other strategies.
+  }
+
+  try {
+    const pathInfo = await getPathByID(docId);
+    if (pathInfo?.notebook && pathInfo.path) {
+      buildDocSyCandidatePaths(pathInfo.notebook, pathInfo.path).forEach((path) =>
+        candidatePaths.add(path)
+      );
+    }
+  } catch {
+    // Ignore and continue with available paths.
+  }
+
+  const failures: Array<{ path: string; reason: string }> = [];
+  const candidates = [...candidatePaths];
+  if (!candidates.length) {
+    console.warn("[DocAssistant][KeyInfo] sy order candidates empty", { docId });
     return new Map();
   }
+
+  for (const syPath of candidates) {
+    try {
+      const raw = await getFileTextAllowJson(syPath);
+      if (!raw.trim()) {
+        failures.push({ path: syPath, reason: "empty-file" });
+        continue;
+      }
+      const parsed = JSON.parse(raw) as SyTreeNode;
+      const orderMap = buildSyTreeOrderMap(parsed);
+      if (orderMap.size) {
+        console.info("[DocAssistant][KeyInfo] sy order loaded", {
+          docId,
+          path: syPath,
+          count: orderMap.size,
+          candidates,
+        });
+        return orderMap;
+      }
+      failures.push({ path: syPath, reason: "empty-order-map" });
+    } catch (error: any) {
+      failures.push({
+        path: syPath,
+        reason: error?.message || String(error),
+      });
+      // Try next candidate path.
+    }
+  }
+  console.warn("[DocAssistant][KeyInfo] sy order unavailable", {
+    docId,
+    candidates,
+    failures: failures.slice(0, 6),
+  });
+  return new Map();
 }
 
 export async function getForwardRefTargetBlockIds(docId: string): Promise<string[]> {

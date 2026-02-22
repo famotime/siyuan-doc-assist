@@ -1,5 +1,9 @@
 import { extractKeyInfoFromMarkdown, KeyInfoItem } from "@/core/key-info-core";
-import { getDocMetaByID, getRootDocRawMarkdown } from "@/services/kernel";
+import {
+  getDocMetaByID,
+  getDocTreeOrderFromSy,
+  getRootDocRawMarkdown,
+} from "@/services/kernel";
 import {
   extractInlineFromDom,
   getDomBlockSortMap,
@@ -19,6 +23,15 @@ import {
   listSpanRows,
   resolveRootId,
 } from "@/services/key-info-query";
+
+const SY_ORDER_MIN_HIT_RATIO = 0.85;
+
+type OrderResolution = {
+  source: "sy" | "structural" | "fallback";
+  orderMap: Map<string, number>;
+  syHitCount: number;
+  syHitRatio: number;
+};
 
 function buildStructuralBlockOrderMap(
   rows: Array<{ id: string; parent_id?: string; sort: number | string }>,
@@ -80,6 +93,48 @@ function buildStructuralBlockOrderMap(
   return orderMap;
 }
 
+function resolveBlockOrderMap(
+  rows: Array<{ id: string }>,
+  syOrderMap: Map<string, number>,
+  structuralOrderMap: Map<string, number>
+): OrderResolution {
+  if (!rows.length) {
+    return {
+      source: "fallback",
+      orderMap: new Map(),
+      syHitCount: 0,
+      syHitRatio: 0,
+    };
+  }
+
+  const syHitCount = rows.reduce((count, row) => {
+    return count + (syOrderMap.has(row.id) ? 1 : 0);
+  }, 0);
+  const syHitRatio = syHitCount / rows.length;
+  if (syOrderMap.size && syHitRatio >= SY_ORDER_MIN_HIT_RATIO) {
+    return {
+      source: "sy",
+      orderMap: syOrderMap,
+      syHitCount,
+      syHitRatio,
+    };
+  }
+  if (structuralOrderMap.size) {
+    return {
+      source: "structural",
+      orderMap: structuralOrderMap,
+      syHitCount,
+      syHitRatio,
+    };
+  }
+  return {
+    source: "fallback",
+    orderMap: new Map(),
+    syHitCount,
+    syHitRatio,
+  };
+}
+
 export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<KeyInfoDocResult> {
   const rootId = await resolveRootId(docId);
   const docMeta = await getDocMetaByID(rootId);
@@ -104,12 +159,27 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   const kramdownMap = await getKramdownMap(rows.map((row) => row.id));
   const items: KeyInfoItem[] = [];
   const markdownInlineItems: KeyInfoItem[] = [];
+  const hasChildBlocks = rows.some((row) => row.id !== rootId);
   let order = 0;
   const blockSortMap = new Map<string, number>();
   const headingBlockIds = new Set<string>();
   const structuralOrderMap = buildStructuralBlockOrderMap(rows, rootId);
+  const syOrderMap = await getDocTreeOrderFromSy(rootId);
+  const resolvedOrder = resolveBlockOrderMap(rows, syOrderMap, structuralOrderMap);
+  console.info("[DocAssistant][KeyInfo] order resolution", {
+    docId: rootId,
+    source: resolvedOrder.source,
+    rowCount: rows.length,
+    syOrderCount: syOrderMap.size,
+    syHitCount: resolvedOrder.syHitCount,
+    syHitRatio: Number(resolvedOrder.syHitRatio.toFixed(3)),
+    minHitRatio: SY_ORDER_MIN_HIT_RATIO,
+    sample: rows.slice(0, 8).map((row) => row.id),
+  });
   rows.forEach((row, index) => {
-    const blockSort = structuralOrderMap.get(row.id) ?? normalizeSort(row.sort, index);
+    const blockSort =
+      resolvedOrder.orderMap.get(row.id) ??
+      index;
     blockSortMap.set(row.id, blockSort);
     if (row.type === "h") {
       headingBlockIds.add(row.id);
@@ -147,10 +217,16 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   rows.forEach((row, index) => {
     const blockSort =
       blockSortMap.get(row.id) ??
-      structuralOrderMap.get(row.id) ??
-      normalizeSort(row.sort, index);
-    const markdown = kramdownMap.get(row.id) || row.markdown || "";
-    const extracted = extractKeyInfoFromMarkdown(markdown);
+      resolvedOrder.orderMap.get(row.id) ??
+      index;
+    const isRootDocRow = row.id === rootId && row.type === "d";
+    const shouldExtractMarkdown = !isRootDocRow || !hasChildBlocks;
+    const markdown = shouldExtractMarkdown
+      ? (kramdownMap.get(row.id) || row.markdown || "")
+      : "";
+    const extracted = shouldExtractMarkdown
+      ? extractKeyInfoFromMarkdown(markdown)
+      : [];
     for (const item of extracted) {
       if (item.type === "title") {
         if (row.type === "h") {
@@ -204,7 +280,7 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
         type: "tag",
         text: tag,
         raw: `#${tag}`,
-        offset: 1_000_000 + order,
+        offset: order,
         blockId: row.id,
         blockSort,
         order,

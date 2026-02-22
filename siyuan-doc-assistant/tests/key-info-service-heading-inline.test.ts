@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 vi.mock("@/services/kernel", () => ({
   getBlockKramdowns: vi.fn(),
   getDocMetaByID: vi.fn(),
+  getDocTreeOrderFromSy: vi.fn(),
   getRootDocRawMarkdown: vi.fn(),
   sql: vi.fn(),
 }));
@@ -11,12 +12,14 @@ import { getDocKeyInfo } from "@/services/key-info";
 import {
   getBlockKramdowns,
   getDocMetaByID,
+  getDocTreeOrderFromSy,
   getRootDocRawMarkdown,
   sql,
 } from "@/services/kernel";
 
 const sqlMock = vi.mocked(sql);
 const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
+const getDocTreeOrderFromSyMock = vi.mocked(getDocTreeOrderFromSy);
 const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
 const getRootDocRawMarkdownMock = vi.mocked(getRootDocRawMarkdown);
 
@@ -68,6 +71,7 @@ describe("key-info service heading inline merge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getDocMetaByIDMock.mockResolvedValue({ id: "doc-1", title: "文档标题" } as any);
+    getDocTreeOrderFromSyMock.mockResolvedValue(new Map());
     getBlockKramdownsMock.mockResolvedValue([]);
     getRootDocRawMarkdownMock.mockResolvedValue("");
   });
@@ -283,5 +287,233 @@ describe("key-info service heading inline merge", () => {
       "title:第二节",
       "bold:B",
     ]);
+  });
+
+  test("prefers .sy structural order over DB sort when they conflict", async () => {
+    mockKernelSql([
+      {
+        id: "h-1",
+        parent_id: "doc-1",
+        sort: 200,
+        type: "h",
+        subtype: "h1",
+        content: "第一节",
+        markdown: "# 第一节",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "p-1",
+        parent_id: "h-1",
+        sort: 210,
+        type: "p",
+        subtype: "",
+        content: "A",
+        markdown: "**A**",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "h-2",
+        parent_id: "doc-1",
+        sort: 10,
+        type: "h",
+        subtype: "h1",
+        content: "第二节",
+        markdown: "# 第二节",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "p-2",
+        parent_id: "h-2",
+        sort: 20,
+        type: "p",
+        subtype: "",
+        content: "B",
+        markdown: "**B**",
+        memo: "",
+        tag: "",
+      },
+    ]);
+    getDocTreeOrderFromSyMock.mockResolvedValue(
+      new Map([
+        ["h-1", 0],
+        ["p-1", 1],
+        ["h-2", 2],
+        ["p-2", 3],
+      ])
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const sequence = result.items
+      .filter((item) => item.blockId !== "doc-1")
+      .map((item) => `${item.type}:${item.text}`);
+
+    expect(sequence).toEqual([
+      "title:第一节",
+      "bold:A",
+      "title:第二节",
+      "bold:B",
+    ]);
+  });
+
+  test("keeps early block tags before later section headings by .sy order", async () => {
+    mockKernelSql([
+      {
+        id: "p-1",
+        parent_id: "doc-1",
+        sort: 900,
+        type: "p",
+        subtype: "",
+        content: "前文段落",
+        markdown: "前文内容",
+        memo: "",
+        tag: "前文标签",
+      },
+      {
+        id: "h-2",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "h",
+        subtype: "h2",
+        content: "后文标题",
+        markdown: "## 后文标题",
+        memo: "",
+        tag: "",
+      },
+    ]);
+    getDocTreeOrderFromSyMock.mockResolvedValue(
+      new Map([
+        ["p-1", 0],
+        ["h-2", 1],
+      ])
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const sequence = result.items
+      .filter((item) => item.blockId !== "doc-1")
+      .map((item) => `${item.type}:${item.text}`);
+
+    expect(sequence).toEqual([
+      "tag:前文标签",
+      "title:后文标题",
+    ]);
+  });
+
+  test("falls back to structural order when .sy coverage is too low", async () => {
+    mockKernelSql([
+      {
+        id: "h-1",
+        parent_id: "doc-1",
+        sort: 200,
+        type: "h",
+        subtype: "h1",
+        content: "第一节",
+        markdown: "# 第一节",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "h-2",
+        parent_id: "doc-1",
+        sort: 10,
+        type: "h",
+        subtype: "h1",
+        content: "第二节",
+        markdown: "# 第二节",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "h-3",
+        parent_id: "doc-1",
+        sort: 20,
+        type: "h",
+        subtype: "h1",
+        content: "第三节",
+        markdown: "# 第三节",
+        memo: "",
+        tag: "",
+      },
+    ]);
+    // only 1/3 blocks hit, below 0.85 threshold
+    getDocTreeOrderFromSyMock.mockResolvedValue(
+      new Map([["h-1", 0]])
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const titles = result.items
+      .filter((item) => item.type === "title" && item.blockId !== "doc-1")
+      .map((item) => item.text);
+
+    expect(titles).toEqual([
+      "第二节",
+      "第三节",
+      "第一节",
+    ]);
+  });
+
+  test("ignores root document markdown extraction when child blocks exist", async () => {
+    mockKernelSql([
+      {
+        id: "doc-1",
+        parent_id: "",
+        sort: 0,
+        type: "d",
+        subtype: "",
+        content: "文档标题",
+        markdown: "## 译者后记\n==末尾高亮==\n#末尾标签",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "h-1",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "h",
+        subtype: "h2",
+        content: "推荐序",
+        markdown: "## 推荐序",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "h-2",
+        parent_id: "doc-1",
+        sort: 2,
+        type: "h",
+        subtype: "h2",
+        content: "译者后记",
+        markdown: "## 译者后记",
+        memo: "",
+        tag: "",
+      },
+    ]);
+    getDocTreeOrderFromSyMock.mockResolvedValue(
+      new Map([
+        ["doc-1", 0],
+        ["h-1", 1],
+        ["h-2", 2],
+      ])
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+
+    expect(
+      result.items.some(
+        (item) => item.blockId === "doc-1" && item.text === "译者后记"
+      )
+    ).toBe(false);
+    expect(
+      result.items.some(
+        (item) => item.blockId === "doc-1" && item.type === "highlight" && item.text === "末尾高亮"
+      )
+    ).toBe(false);
+    expect(
+      result.items.some(
+        (item) => item.blockId === "doc-1" && item.type === "tag" && item.text === "末尾标签"
+      )
+    ).toBe(false);
   });
 });
