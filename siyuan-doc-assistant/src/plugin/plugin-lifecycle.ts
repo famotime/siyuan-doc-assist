@@ -8,6 +8,11 @@ import { ActionRunner } from "@/plugin/action-runner";
 import { ACTIONS } from "@/plugin/actions";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
+import {
+  destroyActionProcessingOverlay,
+  hideActionProcessingOverlay,
+  showActionProcessingOverlay,
+} from "@/ui/action-processing-overlay";
 
 export default class DocLinkToolkitPlugin extends Plugin {
   private currentDocId = "";
@@ -19,6 +24,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     resolveDocId: (explicitId?: string, protyle?: ProtyleLike) =>
       this.resolveDocId(explicitId, protyle),
     askConfirm: (title, text) => this.askConfirm(title, text),
+    setBusy: (busy) => this.setActionBusy(busy),
   });
 
   private readonly keyInfoController = new KeyInfoController({
@@ -98,6 +104,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.eventBus.off("switch-protyle", this.onSwitchProtyle);
     this.eventBus.off("click-editortitleicon", this.onEditorTitleMenu);
     this.keyInfoController.destroy();
+    destroyActionProcessingOverlay();
   }
 
   private resolveDocId(explicitId?: string, protyle?: ProtyleLike): string {
@@ -135,5 +142,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
         () => resolve(false)
       );
     });
+  }
+
+  private setActionBusy(busy: boolean) {
+    if (busy) {
+      showActionProcessingOverlay("文档处理中，请稍候...");
+      return;
+    }
+    hideActionProcessingOverlay();
   }
 }

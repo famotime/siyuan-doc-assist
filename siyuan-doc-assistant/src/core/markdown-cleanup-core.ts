@@ -8,6 +8,7 @@ export type ParagraphBlockMeta = {
   type: string;
   content?: string;
   markdown?: string;
+  resolved?: boolean;
 };
 
 export type BlankParagraphCleanupResult = {
@@ -30,6 +31,9 @@ function isBlankLine(line: string): boolean {
 
 function isBlankParagraph(block: ParagraphBlockMeta): boolean {
   if (block.type !== "p") {
+    return false;
+  }
+  if (block.resolved === false) {
     return false;
   }
   return isBlankLine(block.content || "") && isBlankLine(block.markdown || "");

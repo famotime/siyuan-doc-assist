@@ -52,4 +52,14 @@ describe("markdown-cleanup-core (blocks)", () => {
     const result = findExtraBlankParagraphIds(blocks);
     expect(result.deleteIds).toEqual(["a", "b"]);
   });
+
+  test("skips unresolved paragraphs to avoid accidental deletion", () => {
+    const blocks = [
+      { id: "a", type: "p", content: "", markdown: "", resolved: false },
+      { id: "b", type: "p", content: "", markdown: "", resolved: true },
+    ];
+
+    const result = findExtraBlankParagraphIds(blocks);
+    expect(result.deleteIds).toEqual(["b"]);
+  });
 });

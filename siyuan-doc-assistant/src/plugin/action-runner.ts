@@ -25,10 +25,18 @@ type ActionRunnerDeps = {
   isMobile: () => boolean;
   resolveDocId: (explicitId?: string, protyle?: ProtyleLike) => string;
   askConfirm: (title: string, text: string) => Promise<boolean>;
+  setBusy?: (busy: boolean) => void;
 };
 
 export class ActionRunner {
+  private isRunning = false;
+
   constructor(private readonly deps: ActionRunnerDeps) {}
+
+  private async askConfirmWithVisibleDialog(title: string, text: string): Promise<boolean> {
+    this.deps.setBusy?.(false);
+    return this.deps.askConfirm(title, text);
+  }
 
   async runAction(action: ActionKey, explicitId?: string, protyle?: ProtyleLike) {
     const config = ACTIONS.find((item) => item.key === action);
@@ -42,6 +50,14 @@ export class ActionRunner {
       showMessage("未找到当前文档上下文，请先打开文档后重试", 5000, "error");
       return;
     }
+
+    if (this.isRunning) {
+      showMessage("正在处理中，请等待当前任务完成", 4000, "info");
+      return;
+    }
+
+    this.isRunning = true;
+    this.deps.setBusy?.(true);
 
     try {
       switch (action) {
@@ -73,6 +89,9 @@ export class ActionRunner {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       showMessage(message, 7000, "error");
+    } finally {
+      this.isRunning = false;
+      this.deps.setBusy?.(false);
     }
   }
 
@@ -162,13 +181,14 @@ export class ActionRunner {
       showMessage("当前文档没有反向链接文档可移动", 5000, "info");
       return;
     }
-    const ok = await this.deps.askConfirm(
+    const ok = await this.askConfirmWithVisibleDialog(
       "确认移动",
       `将尝试把 ${backlinks.length} 篇反链文档移动为当前文档子文档，是否继续？`
     );
     if (!ok) {
       return;
     }
+    this.deps.setBusy?.(true);
 
     const report = await moveDocsAsChildren(
       docId,
@@ -210,13 +230,14 @@ export class ActionRunner {
       return;
     }
 
-    const ok = await this.deps.askConfirm(
+    const ok = await this.askConfirmWithVisibleDialog(
       "确认去除空行",
       `将删除 ${result.removedCount} 个空段落，是否继续？`
     );
     if (!ok) {
       return;
     }
+    this.deps.setBusy?.(true);
 
     let failed = 0;
     for (const id of result.deleteIds) {

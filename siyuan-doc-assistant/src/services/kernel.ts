@@ -117,6 +117,7 @@ export type ChildBlockMeta = {
   type: string;
   content: string;
   markdown: string;
+  resolved?: boolean;
 };
 
 type FileErrorRes = {
@@ -167,6 +168,28 @@ export async function sql<T = any>(stmt: string): Promise<T[]> {
   return requestApi<T[]>("/api/query/sql", { stmt });
 }
 
+async function sqlPaged<T = any>(
+  stmt: string,
+  pageSize = 64,
+  maxPages = 200
+): Promise<T[]> {
+  const rows: T[] = [];
+  const base = stmt.trim().replace(/;$/, "");
+  let offset = 0;
+  for (let page = 0; page < maxPages; page += 1) {
+    const pageRows = await sql<T>(`${base} limit ${pageSize} offset ${offset}`);
+    if (!pageRows || pageRows.length === 0) {
+      break;
+    }
+    rows.push(...pageRows);
+    if (pageRows.length < pageSize) {
+      break;
+    }
+    offset += pageRows.length;
+  }
+  return rows;
+}
+
 export async function getBacklink2(
   id: string,
   containChildren = false
@@ -209,16 +232,25 @@ export async function getBlockKramdowns(
   if (!ids.length) {
     return [];
   }
-  const res = await requestApi<any>("/api/block/getBlockKramdowns", {
-    ids,
-  });
-  if (Array.isArray(res)) {
-    return res as BlockKramdownRes[];
+  const chunks: string[][] = [];
+  const chunkSize = 50;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    chunks.push(ids.slice(i, i + chunkSize));
   }
-  if (res && Array.isArray(res.kramdowns)) {
-    return res.kramdowns as BlockKramdownRes[];
+  const rows: BlockKramdownRes[] = [];
+  for (const chunk of chunks) {
+    const res = await requestApi<any>("/api/block/getBlockKramdowns", {
+      ids: chunk,
+    });
+    if (Array.isArray(res)) {
+      rows.push(...(res as BlockKramdownRes[]));
+      continue;
+    }
+    if (res && Array.isArray(res.kramdowns)) {
+      rows.push(...(res.kramdowns as BlockKramdownRes[]));
+    }
   }
-  return [];
+  return rows;
 }
 
 export async function appendBlock(
@@ -444,7 +476,7 @@ export async function getChildBlocksByParentId(
     });
     return [];
   }
-  const rows = await sql<SqlChildBlockRow>(
+  const rows = await sqlPaged<SqlChildBlockRow>(
     `select id, type, content, markdown, sort
      from blocks
      where id in (${inClause(orderedIds)})
@@ -457,20 +489,27 @@ export async function getChildBlocksByParentId(
       type: row.type,
       content: row.content || "",
       markdown: row.markdown || "",
+      resolved: true,
     });
   }
   const missingIds = orderedIds.filter((id) => !rowMap.has(id));
+  let unresolvedCount = 0;
   if (missingIds.length) {
     const kramdowns = await getBlockKramdowns(missingIds);
     const kramdownMap = new Map(kramdowns.map((item) => [item.id, item.kramdown || ""]));
     for (const id of missingIds) {
       const type = childTypeMap.get(id) || "p";
-      const markdown = kramdownMap.get(id) || "";
+      const resolved = kramdownMap.has(id);
+      const markdown = resolved ? (kramdownMap.get(id) || "") : "";
+      if (!resolved) {
+        unresolvedCount += 1;
+      }
       rowMap.set(id, {
         id,
         type,
         content: "",
         markdown,
+        resolved,
       });
     }
   }
@@ -480,6 +519,7 @@ export async function getChildBlocksByParentId(
     orderedCount: orderedIds.length,
     sqlCount: rows.length,
     missingCount: missingIds.length,
+    unresolvedCount,
     sample: orderedIds.slice(0, 8),
   });
   return orderedIds
