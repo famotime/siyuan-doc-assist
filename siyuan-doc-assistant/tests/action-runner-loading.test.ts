@@ -215,4 +215,40 @@ describe("action-runner loading guard", () => {
     expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(1, "b");
     expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(2, "c");
   });
+
+  test("ignores doc id as current block and falls back to active editor block", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", content: "A", markdown: "A", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "B", resolved: true } as any,
+      { id: "c", type: "p", content: "C", markdown: "C", resolved: true } as any,
+    ]);
+    getActiveEditorMock.mockReturnValue({
+      protyle: { block: { id: "b" } },
+    });
+    const runner = createRunner();
+    const protyle = { block: { rootID: "doc-1", id: "doc-1" } } as any;
+
+    await runner.runAction("delete-from-current-to-end" as any, undefined, protyle);
+
+    expect(deleteBlockByIdMock).toHaveBeenCalledTimes(2);
+    expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(1, "b");
+    expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(2, "c");
+  });
+
+  test("shows locate error when both provided and active ids are doc id", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", content: "A", markdown: "A", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "B", resolved: true } as any,
+    ]);
+    getActiveEditorMock.mockReturnValue({
+      protyle: { block: { id: "doc-1" } },
+    });
+    const runner = createRunner();
+    const protyle = { block: { rootID: "doc-1", id: "doc-1" } } as any;
+
+    await runner.runAction("delete-from-current-to-end" as any, undefined, protyle);
+
+    expect(deleteBlockByIdMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("未定位到当前段落，请将光标置于正文后重试", 5000, "error");
+  });
 });

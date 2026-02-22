@@ -34,6 +34,19 @@ type ActionRunnerDeps = {
   setBusy?: (busy: boolean) => void;
 };
 
+type CurrentBlockResolveSource =
+  | "provided-block-id"
+  | "provided-dom"
+  | "active-block-id"
+  | "active-dom"
+  | "none";
+
+type CurrentBlockResolveResult = {
+  id: string;
+  source: CurrentBlockResolveSource;
+  wasDocId: boolean;
+};
+
 export class ActionRunner {
   private isRunning = false;
 
@@ -43,13 +56,90 @@ export class ActionRunner {
     return (protyle?.block?.id || "").trim();
   }
 
-  private resolveCurrentBlockId(protyle?: ProtyleLike): string {
-    const fromProvided = this.getProtyleBlockId(protyle);
-    if (fromProvided) {
-      return fromProvided;
+  private normalizeCandidateBlockId(candidateId: string, docId: string): CurrentBlockResolveResult {
+    const normalized = (candidateId || "").trim();
+    if (!normalized) {
+      return { id: "", source: "none", wasDocId: false };
     }
+    if (normalized === docId) {
+      return { id: "", source: "none", wasDocId: true };
+    }
+    return { id: normalized, source: "none", wasDocId: false };
+  }
+
+  private getFocusedBlockIdFromDom(protyle?: ProtyleLike): string {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+    if (!root || typeof root.querySelector !== "function") {
+      return "";
+    }
+
+    const resolveFromElement = (element: Element | null | undefined) => {
+      if (!element) {
+        return "";
+      }
+      const blockElement = element.closest?.("[data-node-id]") as HTMLElement | null;
+      if (!blockElement || !root.contains(blockElement)) {
+        return "";
+      }
+      return (blockElement.dataset.nodeId || blockElement.getAttribute("data-node-id") || "").trim();
+    };
+
+    const selection = window.getSelection?.();
+    const anchorNode = selection?.anchorNode || null;
+    const anchorElement =
+      anchorNode && (anchorNode as any).nodeType === Node.ELEMENT_NODE
+        ? (anchorNode as Element)
+        : anchorNode?.parentElement || null;
+    const fromAnchor = resolveFromElement(anchorElement);
+    if (fromAnchor) {
+      return fromAnchor;
+    }
+
+    const focused = root.querySelector(":focus");
+    const fromFocused = resolveFromElement(focused);
+    if (fromFocused) {
+      return fromFocused;
+    }
+
+    return "";
+  }
+
+  private resolveCurrentBlockId(docId: string, protyle?: ProtyleLike): CurrentBlockResolveResult {
+    let wasDocId = false;
+
+    const fromProvided = this.normalizeCandidateBlockId(this.getProtyleBlockId(protyle), docId);
+    if (fromProvided.id) {
+      return { ...fromProvided, source: "provided-block-id" };
+    }
+    wasDocId = wasDocId || fromProvided.wasDocId;
+
+    const fromProvidedDom = this.normalizeCandidateBlockId(this.getFocusedBlockIdFromDom(protyle), docId);
+    if (fromProvidedDom.id) {
+      return { ...fromProvidedDom, source: "provided-dom", wasDocId };
+    }
+    wasDocId = wasDocId || fromProvidedDom.wasDocId;
+
     const activeProtyle = getActiveEditor()?.protyle as ProtyleLike | undefined;
-    return this.getProtyleBlockId(activeProtyle);
+    const fromActive = this.normalizeCandidateBlockId(this.getProtyleBlockId(activeProtyle), docId);
+    if (fromActive.id) {
+      return { ...fromActive, source: "active-block-id", wasDocId };
+    }
+    wasDocId = wasDocId || fromActive.wasDocId;
+
+    const fromActiveDom = this.normalizeCandidateBlockId(this.getFocusedBlockIdFromDom(activeProtyle), docId);
+    if (fromActiveDom.id) {
+      return { ...fromActiveDom, source: "active-dom", wasDocId };
+    }
+    wasDocId = wasDocId || fromActiveDom.wasDocId;
+
+    return {
+      id: "",
+      source: "none",
+      wasDocId,
+    };
   }
 
   private async askConfirmWithVisibleDialog(title: string, text: string): Promise<boolean> {
@@ -319,7 +409,8 @@ export class ActionRunner {
   }
 
   private async handleDeleteFromCurrentToEnd(docId: string, protyle?: ProtyleLike) {
-    const currentBlockId = this.resolveCurrentBlockId(protyle);
+    const current = this.resolveCurrentBlockId(docId, protyle);
+    const currentBlockId = current.id;
     if (!currentBlockId) {
       showMessage("未定位到当前段落，请将光标置于正文后重试", 5000, "error");
       return;
@@ -333,12 +424,23 @@ export class ActionRunner {
 
     const directChildIdSet = new Set(blocks.map((item) => item.id));
     let deleteStartId = currentBlockId;
+    let mappedFromNested = false;
     if (!directChildIdSet.has(deleteStartId)) {
       const mapped = await resolveDocDirectChildBlockId(docId, deleteStartId);
       if (mapped) {
+        mappedFromNested = true;
         deleteStartId = mapped;
       }
     }
+    console.info("[DocAssistant][DeleteFromCurrent] resolve start block", {
+      docId,
+      source: current.source,
+      currentBlockIdWasDocId: current.wasDocId,
+      currentBlockId,
+      deleteStartId,
+      mappedFromNested,
+      directChildCount: blocks.length,
+    });
 
     const result = findDeleteFromCurrentBlockIds(blocks, deleteStartId);
     if (result.deleteCount === 0) {
