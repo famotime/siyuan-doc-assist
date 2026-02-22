@@ -4,6 +4,7 @@ import {
   buildChildDocListMarkdown,
   dedupeDocRefs,
   extractSiyuanBlockIdsFromMarkdown,
+  filterDocRefsByMarkdown,
 } from "@/core/link-core";
 
 describe("link-core", () => {
@@ -67,6 +68,30 @@ describe("link-core", () => {
     expect(extractSiyuanBlockIdsFromMarkdown(markdown)).toEqual([
       "20260220075025-ue88wkc",
       "20260220220208-esrmvws",
+    ]);
+  });
+
+  test("filters doc refs that already exist in markdown", () => {
+    const markdown = [
+      "See ((20260101101010-abcdef1)).",
+      "- [Link](siyuan://blocks/20260202121212-bcdefg2)",
+    ].join("\n");
+    const items = [
+      { id: "20260101101010-abcdef1", name: "Doc A" },
+      { id: "20260202121212-bcdefg2", name: "Doc B" },
+      { id: "20260303131313-cdefgh3", name: "Doc C" },
+    ];
+
+    const result = filterDocRefsByMarkdown(items, markdown);
+
+    expect(result.items).toEqual([{ id: "20260303131313-cdefgh3", name: "Doc C" }]);
+    expect(result.skipped).toEqual([
+      { id: "20260101101010-abcdef1", name: "Doc A" },
+      { id: "20260202121212-bcdefg2", name: "Doc B" },
+    ]);
+    expect(result.existingIds).toEqual([
+      "20260101101010-abcdef1",
+      "20260202121212-bcdefg2",
     ]);
   });
 });

@@ -18,6 +18,7 @@ import {
   updateBlockMarkdown,
 } from "@/services/kernel";
 import {
+  filterDocRefsByExistingLinks,
   getBacklinkDocs,
   getChildDocs,
   getForwardLinkedDocIds,
@@ -254,9 +255,15 @@ export class ActionRunner {
       showMessage("当前文档没有可插入的反向链接文档", 5000, "info");
       return;
     }
-    const markdown = toBacklinkMarkdown(backlinks);
+    const filtered = await filterDocRefsByExistingLinks(docId, backlinks);
+    if (!filtered.items.length) {
+      showMessage("当前文档已包含所有反向链接文档", 5000, "info");
+      return;
+    }
+    const markdown = toBacklinkMarkdown(filtered.items);
     await appendBlock(markdown, docId);
-    showMessage(`已插入 ${backlinks.length} 个反链文档链接`, 5000, "info");
+    const skipSuffix = filtered.skipped.length ? `，跳过已存在 ${filtered.skipped.length} 个` : "";
+    showMessage(`已插入 ${filtered.items.length} 个反链文档链接${skipSuffix}`, 5000, "info");
   }
 
   private async handleInsertChildDocs(docId: string) {
@@ -265,9 +272,15 @@ export class ActionRunner {
       showMessage("当前文档没有可插入的子文档", 5000, "info");
       return;
     }
-    const markdown = toChildDocMarkdown(childDocs);
+    const filtered = await filterDocRefsByExistingLinks(docId, childDocs);
+    if (!filtered.items.length) {
+      showMessage("当前文档已包含所有子文档链接", 5000, "info");
+      return;
+    }
+    const markdown = toChildDocMarkdown(filtered.items);
     await appendBlock(markdown, docId);
-    showMessage(`已插入 ${childDocs.length} 个子文档链接`, 5000, "info");
+    const skipSuffix = filtered.skipped.length ? `，跳过已存在 ${filtered.skipped.length} 个` : "";
+    showMessage(`已插入 ${filtered.items.length} 个子文档链接${skipSuffix}`, 5000, "info");
   }
 
   private async handleExportBacklinksZip(docId: string) {

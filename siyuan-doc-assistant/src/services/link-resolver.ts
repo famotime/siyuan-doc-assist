@@ -65,6 +65,32 @@ export async function getBacklinkDocs(docId: string): Promise<DocRefItem[]> {
   return dedupeDocRefs(docs);
 }
 
+export async function filterDocRefsByExistingLinks(
+  docId: string,
+  items: DocRefItem[]
+): Promise<{ items: DocRefItem[]; skipped: DocRefItem[]; existingIds: string[] }> {
+  if (!docId || !items.length) {
+    return { items, skipped: [], existingIds: [] };
+  }
+  const markdown = await getRootDocRawMarkdown(docId);
+  const extracted = extractSiyuanBlockIdsFromMarkdown(markdown || "");
+  if (!extracted.length) {
+    return { items, skipped: [], existingIds: [] };
+  }
+  const mappedRootIds = await mapBlockIdsToRootDocIds(extracted);
+  const existingSet = new Set<string>([...extracted, ...mappedRootIds]);
+  const kept: DocRefItem[] = [];
+  const skipped: DocRefItem[] = [];
+  for (const item of items) {
+    if (item?.id && existingSet.has(item.id)) {
+      skipped.push(item);
+    } else {
+      kept.push(item);
+    }
+  }
+  return { items: kept, skipped, existingIds: [...existingSet] };
+}
+
 export function toBacklinkMarkdown(items: DocRefItem[]): string {
   return buildBacklinkListMarkdown(items);
 }

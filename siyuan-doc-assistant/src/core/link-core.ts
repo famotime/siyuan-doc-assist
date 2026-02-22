@@ -48,6 +48,30 @@ export function dedupeDocRefs<T extends { id: string }>(items: T[]): T[] {
   return result;
 }
 
+export function filterDocRefsByMarkdown<T extends { id: string }>(
+  items: T[],
+  markdown: string
+): { items: T[]; skipped: T[]; existingIds: string[] } {
+  if (!items.length) {
+    return { items, skipped: [], existingIds: [] };
+  }
+  const existingIds = extractSiyuanBlockIdsFromMarkdown(markdown || "");
+  if (!existingIds.length) {
+    return { items, skipped: [], existingIds };
+  }
+  const existingSet = new Set(existingIds);
+  const kept: T[] = [];
+  const skipped: T[] = [];
+  for (const item of items) {
+    if (item?.id && existingSet.has(item.id)) {
+      skipped.push(item);
+    } else {
+      kept.push(item);
+    }
+  }
+  return { items: kept, skipped, existingIds };
+}
+
 export function buildBacklinkListMarkdown(items: DocRef[]): string {
   const lines = items.map((item) => `- [${item.name}](siyuan://blocks/${item.id})`);
   return `## 反向链接文档\n\n${lines.join("\n")}`;
