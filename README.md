@@ -1,60 +1,105 @@
 # siyuan-plugin
 
-思源笔记插件开发仓库，当前主项目为 `siyuan-doc-assistant`（文档助手）。
+思源笔记插件开发仓库，主项目为 `siyuan-doc-assistant`（文档助手）。
 
-## 项目结构
+## 仓库结构
 
-- `siyuan-doc-assistant/`：当前在开发的思源插件项目（Vite + Vue3 + TypeScript）
-- `plugin-sample-vite-vue/`：模板工程样例（用于参考）
-- `reference_docs/`：思源插件开发参考文档（按模块整理）
+- `siyuan-doc-assistant/`：主插件工程（Vite + Vue 3 + TypeScript）
+- `plugin-sample-vite-vue/`：官方模板参考工程
+- `reference_docs/`：思源插件开发参考文档
 - `memo.md`：需求与阶段性记录
 
-## 插件信息（siyuan-doc-assistant）
+## 主插件信息
 
 - 插件 ID：`doc-assistant`
 - 展示名称：`文档助手 / Doc Assistant`
 - 最低思源版本：`3.5.7`
-- 当前版本：`0.0.1`
-- 技术栈：`Vue 3`、`TypeScript`、`Vite`、`Vitest`
+- 当前版本：`1.0.0`
 
-## 已实现功能
+## 功能总览
 
-1. 仅导出当前文档（支持媒体资源打包为 zip）。
-2. 将当前文档的反链文档整理为 Markdown 列表并插入正文。
-3. 打包导出反链文档为 Markdown zip。
-4. 打包导出正链文档为 Markdown zip。
-5. 将反链文档移动为当前文档子文档（同名自动重命名，桌面端）。
-6. 根据标题相似度识别重复文档并手工勾选删除（默认阈值 `0.85`，桌面端）。
+插件侧栏提供两个板块：
 
-## 开发与构建
+### 1. 关键内容
+
+- 自动提取文档中的标题、加粗、斜体、高亮、备注、标签
+- 支持类型多选筛选、手动刷新和滚动状态保持
+- 点击条目可在当前文档中平滑定位到对应块，失败时自动回退协议跳转
+- 支持将当前筛选结果导出为 Markdown
+
+### 2. 文档处理
+
+- 导出：仅导出当前文档、打包导出反链文档、打包导出正链文档，含媒体资源时自动打包 zip
+- 整理：移动反链为子文档、识别重复文档并批量处理（支持打开全部文档/插入全部链接）
+- 编辑：插入反链/子文档列表、去除空段落、标题前补空段落、删除从当前段到文末、选中块批量加粗/高亮
+
+## 使用入口
+
+- 命令面板：可执行全部插件命令
+- 编辑器标题菜单：可直接执行文档处理动作
+- 右侧 Dock 面板：提供“关键内容 / 文档处理”双标签页
+
+说明：
+
+- 支持在 Dock 面板中按动作开启或关闭“注册到文档标题菜单”
+- 部分动作为桌面端限定，移动端会自动置灰并给出提示
+
+## 开发
 
 在 `siyuan-doc-assistant/` 目录执行：
 
 ```bash
 pnpm install
+cp .env.example .env
+```
+
+编辑 `.env`，设置：
+
+- `VITE_SIYUAN_WORKSPACE_PATH`：本地思源工作空间路径（含 `data/` 目录）
+- `VITE_DEV_DIST_DIR`：可选，手动指定开发产物目录（符号链接场景）
+
+启动监听构建：
+
+```bash
+pnpm dev
+```
+
+监听模式输出目录：
+
+`<思源工作空间>/data/plugins/<plugin.json.name>`
+
+## 常用命令
+
+```bash
 pnpm dev
 pnpm build
 pnpm test
+pnpm test:watch
+pnpm typecheck:strict
 ```
 
-开发模式会把产物输出到：
+- `pnpm dev`：监听构建，输出到 `<workspace>/data/plugins/<plugin.json.name>`
+- `pnpm build`：生成 `dist/` 与 `package.zip`
+- `pnpm test`：运行 Vitest 单测
 
-`<你的思源工作空间>/data/plugins/<plugin.json 中的 name>`
+当前测试主要覆盖：
 
-请先配置环境变量文件：
+- 关键信息提取、排序、滚动锁定与点击交互
+- 正链/反链解析与导出路径
+- 文本清理与块级编辑动作
+- 文档菜单注册状态持久化
+- 子块/kramdown 兼容与回退逻辑
 
-- 复制 `siyuan-doc-assistant/.env.example` 为 `siyuan-doc-assistant/.env`
-- 设置 `VITE_SIYUAN_WORKSPACE_PATH` 为本地思源工作空间路径
+## 发布
 
-## 测试
+在 `siyuan-doc-assistant/` 目录执行发布命令：
 
-当前有核心单测覆盖：
+```bash
+pnpm release
+pnpm release:manual
+pnpm release:patch
+pnpm release:minor
+pnpm release:major
+```
 
-- `tests/link-core.test.ts`
-- `tests/move-core.test.ts`
-- `tests/dedupe-core.test.ts`
-- `tests/exporter-current.test.ts`
-- `tests/exporter-zip-download.test.ts`
-- `tests/workspace-path-core.test.ts`
-
-本地于 `2026-02-21` 尝试执行 `pnpm test` 时失败，原因为缺少 `node_modules/vitest/vitest.mjs`。如遇相同问题，先重新执行 `pnpm install`。
+`release.js` 会同步更新 `plugin.json` 与 `package.json` 版本号，并执行打 tag 与推送。

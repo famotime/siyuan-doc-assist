@@ -1,105 +1,19 @@
-# Doc Assistant for SiYuan
+# 思源文档助手（Doc Assistant）
 
-[简体中文](./README_zh_CN.md)
+项目文档已统一到仓库根目录：
 
-A SiYuan plugin for organizing document links and cleaning duplicate notes.
+- `../README.md`
 
-## Plugin Info
+核心能力：
 
-- Plugin name (`plugin.json`): `doc-assistant`
-- Display name: `Doc Assistant` (`zh_CN`: `文档助手`)
-- Min SiYuan version: `3.5.7`
-- Current version: `0.0.1`
+- 关键内容提取与定位（标题、加粗、斜体、高亮、备注、标签）
+- 文档处理命令（导出、整理、编辑）
 
-## Features
-
-1. Export current document only.
-2. Export current document with media files as a zip when local assets are detected.
-3. Insert backlink document list into current document body.
-4. Export backlink documents as markdown zip.
-5. Export forward-linked documents as markdown zip.
-6. Move backlink documents under current document as children (desktop only, auto-rename on title conflict).
-7. Detect duplicate documents in current level by title similarity and delete selected duplicates (desktop only, default threshold `0.85`).
-
-## Where To Use
-
-- Command palette: all actions are registered as plugin commands.
-- Editor title menu: open a document, click title icon menu, then run Doc Assistant actions.
-
-## Development
-
-Prerequisites:
-
-- Node.js
-- pnpm
-
-Setup:
+开发命令（在当前目录执行）：
 
 ```bash
 pnpm install
-```
-
-Create local env:
-
-```bash
-cp .env.example .env
-```
-
-Set `VITE_SIYUAN_WORKSPACE_PATH` in `.env` to your local SiYuan workspace path.
-
-Run watch build:
-
-```bash
 pnpm dev
-```
-
-In watch mode, build output goes to:
-
-`<SiYuan workspace>/data/plugins/<plugin.json.name>`
-
-## Build
-
-```bash
 pnpm build
-```
-
-This produces:
-
-- `dist/` plugin files
-- `package.zip` (for release upload)
-
-## Test
-
-```bash
 pnpm test
 ```
-
-Optional strict type-check for refactoring hotspots (`core` + `plugin`):
-
-```bash
-pnpm exec tsc -p tsconfig.strict.json --noEmit
-```
-
-Current tests cover core/plugin modules in `tests/`:
-
-- link parsing and dedupe
-- move conflict planning
-- duplicate title detection logic
-- markdown/media export helpers
-- zip download path handling
-
-## Release
-
-Manual release helpers:
-
-```bash
-pnpm release
-pnpm release:manual
-pnpm release:patch
-pnpm release:minor
-pnpm release:major
-```
-
-`release.js` updates `plugin.json` + `package.json`, creates commit/tag, and pushes to origin.
-
-GitHub Action (`.github/workflows/release.yml`) now runs `pnpm test` before build/release, then uploads `package.zip` when tag `v*` is pushed.

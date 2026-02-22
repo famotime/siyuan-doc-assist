@@ -2,7 +2,7 @@
   "name": "doc-assistant",
   "author": "",
   "url": "",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "minAppVersion": "3.5.7",
   "disabledInPublish": true,
   "backends": [
@@ -24,7 +24,7 @@
   "readme": {
     "default": "README.md",
     "en_US": "README.md",
-    "zh_CN": "README_zh_CN.md"
+    "zh_CN": "README.md"
   },
   "funding": {
     "custom": []
