@@ -17,6 +17,11 @@ export type BlankParagraphCleanupResult = {
   removedCount: number;
 };
 
+export type HeadingBlankParagraphInsertResult = {
+  insertBeforeIds: string[];
+  insertCount: number;
+};
+
 function isBlankLine(line: string): boolean {
   if (!line) {
     return true;
@@ -37,6 +42,14 @@ function isBlankParagraph(block: ParagraphBlockMeta): boolean {
     return false;
   }
   return isBlankLine(block.content || "") && isBlankLine(block.markdown || "");
+}
+
+function isHeadingBlock(block: ParagraphBlockMeta): boolean {
+  if (block.type === "h") {
+    return true;
+  }
+  const markdown = (block.markdown || "").trimStart();
+  return /^#{1,6}\s+\S/.test(markdown);
 }
 
 function isFenceLine(line: string): { marker: string; length: number } | null {
@@ -125,5 +138,38 @@ export function findExtraBlankParagraphIds(
     deleteIds,
     keptBlankIds,
     removedCount: deleteIds.length,
+  };
+}
+
+export function findHeadingMissingBlankParagraphBeforeIds(
+  blocks: ParagraphBlockMeta[]
+): HeadingBlankParagraphInsertResult {
+  const insertBeforeIds: string[] = [];
+
+  for (let i = 0; i < blocks.length; i += 1) {
+    const current = blocks[i];
+    if (!isHeadingBlock(current)) {
+      continue;
+    }
+    if (i === 0) {
+      continue;
+    }
+    const previous = i > 0 ? blocks[i - 1] : undefined;
+    if (previous && isBlankParagraph(previous)) {
+      continue;
+    }
+    insertBeforeIds.push(current.id);
+  }
+
+  console.info("[DocAssistant][BlankLines] headings missing blank paragraph", {
+    totalBlocks: blocks.length,
+    headingCount: blocks.filter((block) => isHeadingBlock(block)).length,
+    insertCount: insertBeforeIds.length,
+    sample: insertBeforeIds.slice(0, 8),
+  });
+
+  return {
+    insertBeforeIds,
+    insertCount: insertBeforeIds.length,
   };
 }

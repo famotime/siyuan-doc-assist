@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { findExtraBlankParagraphIds } from "@/core/markdown-cleanup-core";
+import {
+  findExtraBlankParagraphIds,
+  findHeadingMissingBlankParagraphBeforeIds,
+} from "@/core/markdown-cleanup-core";
 
 describe("markdown-cleanup-core (blocks)", () => {
   test("removes all blank paragraphs", () => {
@@ -61,5 +64,22 @@ describe("markdown-cleanup-core (blocks)", () => {
 
     const result = findExtraBlankParagraphIds(blocks);
     expect(result.deleteIds).toEqual(["b"]);
+  });
+
+  test("finds headings that are missing a blank paragraph before them", () => {
+    const blocks = [
+      { id: "h1", type: "h", content: "H1", markdown: "# H1" },
+      { id: "p1", type: "p", content: "正文", markdown: "正文" },
+      { id: "h2", type: "h", content: "H2", markdown: "## H2" },
+      { id: "blank", type: "p", content: "", markdown: "" },
+      { id: "h3", type: "h", content: "H3", markdown: "### H3" },
+      { id: "h4", type: "h", content: "H4", markdown: "#### H4" },
+      { id: "blank2", type: "p", content: "\u00A0", markdown: "" },
+      { id: "h5", type: "h", content: "H5", markdown: "##### H5" },
+    ];
+
+    const result = findHeadingMissingBlankParagraphBeforeIds(blocks);
+    expect(result.insertBeforeIds).toEqual(["h2", "h4"]);
+    expect(result.insertCount).toBe(2);
   });
 });

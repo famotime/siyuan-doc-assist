@@ -125,6 +125,14 @@ type FileErrorRes = {
   msg?: string;
 };
 
+type SyTreeNode = {
+  ID?: string;
+  Properties?: {
+    id?: string;
+  };
+  Children?: SyTreeNode[];
+};
+
 function escapeSqlLiteral(value: string): string {
   return value.replace(/'/g, "''");
 }
@@ -162,6 +170,39 @@ function isDirectChildDocPath(parentPath: string, candidatePath: string): boolea
 
 function inClause(ids: string[]): string {
   return ids.map((id) => `'${escapeSqlLiteral(id)}'`).join(",");
+}
+
+function normalizeDocSyPath(box: string, docPath: string): string {
+  const notebook = (box || "").trim();
+  const normalizedPath = (docPath || "").trim();
+  if (!notebook || !normalizedPath) {
+    return "";
+  }
+  const path = normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
+  return `/data/${notebook}${path}`;
+}
+
+function getSyNodeId(node: SyTreeNode): string {
+  return (node?.ID || node?.Properties?.id || "").trim();
+}
+
+function buildSyTreeOrderMap(root: SyTreeNode): Map<string, number> {
+  const orderMap = new Map<string, number>();
+  let cursor = 0;
+  const walk = (node?: SyTreeNode) => {
+    if (!node || typeof node !== "object") {
+      return;
+    }
+    const id = getSyNodeId(node);
+    if (id && !orderMap.has(id)) {
+      orderMap.set(id, cursor);
+      cursor += 1;
+    }
+    const children = Array.isArray(node.Children) ? node.Children : [];
+    children.forEach((child) => walk(child));
+  };
+  walk(root);
+  return orderMap;
 }
 
 export async function sql<T = any>(stmt: string): Promise<T[]> {
@@ -260,6 +301,20 @@ export async function appendBlock(
   return requestApi("/api/block/appendBlock", {
     dataType: "markdown",
     data,
+    parentID,
+  });
+}
+
+export async function insertBlockBefore(
+  data: string,
+  nextID: string,
+  parentID = ""
+): Promise<any> {
+  return requestApi("/api/block/insertBlock", {
+    dataType: "markdown",
+    data,
+    nextID,
+    previousID: "",
     parentID,
   });
 }
@@ -566,6 +621,31 @@ export async function getRootDocRawMarkdown(docId: string): Promise<string> {
     `select markdown from blocks where root_id='${escapeSqlLiteral(docId)}'`
   );
   return rows.map((row) => row.markdown || "").filter(Boolean).join("\n");
+}
+
+export async function getDocTreeOrderFromSy(docId: string): Promise<Map<string, number>> {
+  if (!docId) {
+    return new Map();
+  }
+  try {
+    const meta = await getDocMetaByID(docId);
+    if (!meta?.box || !meta.path) {
+      return new Map();
+    }
+    const syPath = normalizeDocSyPath(meta.box, meta.path);
+    if (!syPath) {
+      return new Map();
+    }
+    const blob = await getFileBlob(syPath);
+    const raw = await blob.text();
+    if (!raw.trim()) {
+      return new Map();
+    }
+    const parsed = JSON.parse(raw) as SyTreeNode;
+    return buildSyTreeOrderMap(parsed);
+  } catch {
+    return new Map();
+  }
 }
 
 export async function getForwardRefTargetBlockIds(docId: string): Promise<string[]> {

@@ -8,7 +8,8 @@ export type ActionKey =
   | "export-forward-zip"
   | "move-backlinks"
   | "dedupe"
-  | "remove-extra-blank-lines";
+  | "remove-extra-blank-lines"
+  | "insert-blank-before-headings";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -77,6 +78,13 @@ export const ACTIONS: ActionConfig[] = [
     menuText: "去除本文档空段落",
     group: "organize",
     icon: "iconTrashcan",
+  },
+  {
+    key: "insert-blank-before-headings",
+    commandText: "为标题前补空段落",
+    menuText: "为标题前补空段落",
+    group: "organize",
+    icon: "iconList",
   },
 ];
 

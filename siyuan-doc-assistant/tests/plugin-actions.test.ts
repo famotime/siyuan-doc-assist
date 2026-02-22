@@ -10,6 +10,7 @@ describe("plugin actions", () => {
   test("recognizes valid action keys", () => {
     expect(isActionKey("export-current")).toBe(true);
     expect(isActionKey("insert-backlinks")).toBe(true);
+    expect(isActionKey("insert-blank-before-headings")).toBe(true);
     expect(isActionKey("invalid-key")).toBe(false);
   });
 });

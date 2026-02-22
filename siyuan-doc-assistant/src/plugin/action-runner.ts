@@ -1,5 +1,8 @@
 import { showMessage } from "siyuan";
-import { findExtraBlankParagraphIds } from "@/core/markdown-cleanup-core";
+import {
+  findExtraBlankParagraphIds,
+  findHeadingMissingBlankParagraphBeforeIds,
+} from "@/core/markdown-cleanup-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/exporter";
@@ -8,6 +11,7 @@ import {
   deleteBlockById,
   getChildBlocksByParentId,
   getDocMetaByID,
+  insertBlockBefore,
 } from "@/services/kernel";
 import {
   getBacklinkDocs,
@@ -84,6 +88,9 @@ export class ActionRunner {
           break;
         case "remove-extra-blank-lines":
           await this.handleRemoveExtraBlankLines(docId);
+          break;
+        case "insert-blank-before-headings":
+          await this.handleInsertBlankBeforeHeadings(docId);
           break;
       }
     } catch (error: unknown) {
@@ -253,5 +260,43 @@ export class ActionRunner {
       return;
     }
     showMessage(`已去除 ${result.removedCount} 个空段落`, 5000, "info");
+  }
+
+  private async handleInsertBlankBeforeHeadings(docId: string) {
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的段落", 4000, "info");
+      return;
+    }
+
+    const result = findHeadingMissingBlankParagraphBeforeIds(blocks);
+    if (result.insertCount === 0) {
+      showMessage("所有标题前均已有空段落", 4000, "info");
+      return;
+    }
+
+    const ok = await this.askConfirmWithVisibleDialog(
+      "确认补空段落",
+      `将为 ${result.insertCount} 个标题前插入空段落，是否继续？`
+    );
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
+    let failed = 0;
+    for (const headingId of result.insertBeforeIds) {
+      try {
+        await insertBlockBefore("<br />", headingId, docId);
+      } catch {
+        failed += 1;
+      }
+    }
+
+    if (failed > 0) {
+      showMessage(`已为 ${result.insertCount - failed} 个标题补充空段落，失败 ${failed} 个`, 6000, "error");
+      return;
+    }
+    showMessage(`已为 ${result.insertCount} 个标题补充空段落`, 5000, "info");
   }
 }
