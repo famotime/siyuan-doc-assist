@@ -949,9 +949,12 @@ export async function listDocsByParentSubtree(
   box: string,
   parentPrefix: string
 ): Promise<Array<{ id: string; hpath: string; updated: string }>> {
-  return sql<Array<{ id: string; hpath: string; updated: string }>[number]>(
-    `select id, hpath, updated from blocks where type='d' and box='${escapeSqlLiteral(
-      box
-    )}' and path like '${escapeSqlLiteral(parentPrefix)}%'`
+  return sqlPaged<Array<{ id: string; hpath: string; updated: string }>[number]>(
+    `select id, hpath, updated
+     from blocks
+     where type='d'
+       and box='${escapeSqlLiteral(box)}'
+       and path like '${escapeSqlLiteral(parentPrefix)}%'
+     order by path asc, id asc`
   );
 }

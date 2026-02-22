@@ -31,12 +31,29 @@ export async function findDuplicateCandidates(
 
   const parentPrefix = toParentPrefix(current.path);
   const rows = await listDocsByParentSubtree(current.box, parentPrefix);
-  const docs: DedupeDocItem[] = rows.map((row) => ({
-    id: row.id,
-    title: basename(row.hpath),
-    updated: row.updated,
-    hPath: row.hpath,
-  }));
+  const docsMap = new Map<string, DedupeDocItem>();
+  rows.forEach((row) => {
+    docsMap.set(row.id, {
+      id: row.id,
+      title: basename(row.hpath),
+      updated: row.updated,
+      hPath: row.hpath,
+    });
+  });
+
+  if (current.parentId) {
+    const parent = await getDocMetaByID(current.parentId);
+    if (parent && parent.id) {
+      docsMap.set(parent.id, {
+        id: parent.id,
+        title: basename(parent.hPath),
+        updated: parent.updated,
+        hPath: parent.hPath,
+      });
+    }
+  }
+
+  const docs = [...docsMap.values()];
   const docHPathMap = new Map(docs.map((doc) => [doc.id, doc.hPath]));
 
   const groups = buildDuplicateGroups(docs, threshold);
