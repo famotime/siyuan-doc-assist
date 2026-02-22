@@ -5,6 +5,12 @@ import {
   setKeyInfoListLastKnownScroll,
   updateKeyInfoListScrollContext,
 } from "@/core/key-info-scroll-core";
+import {
+  createKeyInfoListScrollLock,
+  getActiveKeyInfoListScrollLock,
+  releaseKeyInfoListScrollLockOnUserScroll,
+} from "@/core/key-info-scroll-lock-core";
+import type { KeyInfoListScrollLock } from "@/core/key-info-scroll-lock-core";
 import { DockDocAction, DockTabKey, DOCK_TABS } from "@/core/dock-panel-core";
 
 export type KeyInfoDockState = {
@@ -238,26 +244,36 @@ export function createKeyInfoDock(
 
   element.replaceChildren(root);
 
-  let scrollLock: { top: number; left: number; until: number } | null = null;
+  let scrollLock: KeyInfoListScrollLock | null = null;
   let restoringScroll = false;
   let scrollState = createKeyInfoListScrollState(state.scrollContextKey);
 
-  const lockListScroll = (durationMs = 3000) => {
-    scrollLock = {
-      top: list.scrollTop,
-      left: list.scrollLeft,
-      until: performance.now() + durationMs,
-    };
-    requestAnimationFrame(enforceScrollLock);
+  const lockListScroll = (durationMs = 120) => {
+    scrollLock = createKeyInfoListScrollLock(
+      list.scrollTop,
+      list.scrollLeft,
+      performance.now(),
+      durationMs
+    );
+  };
+
+  const getLockedScroll = () => {
+    const active = getActiveKeyInfoListScrollLock(scrollLock, performance.now());
+    if (!active) {
+      scrollLock = null;
+      return null;
+    }
+    return active;
+  };
+
+  const releaseScrollLock = () => {
+    scrollLock = null;
   };
 
   const restoreListScroll = () => {
-    const locked = scrollLock && performance.now() <= scrollLock.until;
-    if (scrollLock && !locked) {
-      scrollLock = null;
-    }
-    const targetTop = locked ? scrollLock!.top : scrollState.lastKnownTop;
-    const targetLeft = locked ? scrollLock!.left : scrollState.lastKnownLeft;
+    const lock = getLockedScroll();
+    const targetTop = lock ? lock.top : scrollState.lastKnownTop;
+    const targetLeft = lock ? lock.left : scrollState.lastKnownLeft;
     if (list.scrollTop !== targetTop) {
       list.scrollTop = targetTop;
     }
@@ -266,30 +282,67 @@ export function createKeyInfoDock(
     }
   };
 
-  const enforceScrollLock = () => {
-    if (!scrollLock) {
-      return;
-    }
-    restoreListScroll();
-    if (scrollLock) {
-      requestAnimationFrame(enforceScrollLock);
-    }
-  };
-
   list.addEventListener("scroll", () => {
-    if (!scrollLock || restoringScroll) {
-      if (!restoringScroll) {
-        scrollState = setKeyInfoListLastKnownScroll(
-          scrollState,
-          list.scrollTop,
-          list.scrollLeft
-        );
-      }
+    if (restoringScroll) {
       return;
     }
+
+    const activeLock = getLockedScroll();
+    if (!activeLock) {
+      scrollState = setKeyInfoListLastKnownScroll(
+        scrollState,
+        list.scrollTop,
+        list.scrollLeft
+      );
+      return;
+    }
+
+    const nextLock = releaseKeyInfoListScrollLockOnUserScroll(
+      activeLock,
+      list.scrollTop,
+      list.scrollLeft
+    );
+    if (!nextLock) {
+      scrollLock = null;
+      scrollState = setKeyInfoListLastKnownScroll(
+        scrollState,
+        list.scrollTop,
+        list.scrollLeft
+      );
+      return;
+    }
+
     restoringScroll = true;
     restoreListScroll();
     restoringScroll = false;
+  });
+
+  const releaseLockOnUserIntent = () => {
+    const activeLock = getLockedScroll();
+    if (!activeLock) {
+      return;
+    }
+    releaseScrollLock();
+  };
+
+  list.addEventListener("wheel", releaseLockOnUserIntent, { passive: true });
+  list.addEventListener("touchstart", releaseLockOnUserIntent, { passive: true });
+  list.addEventListener("pointerdown", releaseLockOnUserIntent);
+  list.addEventListener("keydown", (event) => {
+    const key = event.key;
+    if (
+      key === "ArrowUp" ||
+      key === "ArrowDown" ||
+      key === "ArrowLeft" ||
+      key === "ArrowRight" ||
+      key === "PageUp" ||
+      key === "PageDown" ||
+      key === "Home" ||
+      key === "End" ||
+      key === " "
+    ) {
+      releaseLockOnUserIntent();
+    }
   });
 
   const handleItemClick = callbacks.onItemClick
