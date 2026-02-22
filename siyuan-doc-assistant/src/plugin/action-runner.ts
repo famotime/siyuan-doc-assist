@@ -328,8 +328,59 @@ export class ActionRunner {
     openDedupeDialog({
       candidates,
       onDelete: async (ids) => deleteDocsByIds(ids),
+      onOpenAll: (docs) => {
+        this.openDocsByProtocol(docs.map((doc) => doc.id));
+      },
+      onInsertLinks: (docs) => {
+        void this.insertDocLinks(docId, docs);
+      },
     });
     showMessage(`识别到 ${candidates.length} 组重复候选`, 5000, "info");
+  }
+
+  private openDocByProtocol(blockId: string) {
+    const url = `siyuan://blocks/${blockId}`;
+    try {
+      window.open(url);
+    } catch {
+      window.location.href = url;
+    }
+  }
+
+  private openDocsByProtocol(ids: string[]) {
+    const unique = [...new Set(ids)].filter(Boolean);
+    if (!unique.length) {
+      showMessage("没有可打开的文档", 4000, "info");
+      return;
+    }
+    unique.forEach((id, index) => {
+      window.setTimeout(() => {
+        this.openDocByProtocol(id);
+      }, index * 120);
+    });
+    showMessage(`已尝试打开 ${unique.length} 篇文档`, 5000, "info");
+  }
+
+  private async insertDocLinks(
+    docId: string,
+    docs: Array<{ id: string; title: string }>
+  ) {
+    const unique = new Map<string, { id: string; title: string }>();
+    for (const doc of docs) {
+      if (!doc?.id || unique.has(doc.id)) {
+        continue;
+      }
+      unique.set(doc.id, { id: doc.id, title: doc.title || doc.id });
+    }
+    const items = Array.from(unique.values());
+    if (!items.length) {
+      showMessage("没有可插入的文档链接", 4000, "info");
+      return;
+    }
+    const lines = items.map((item) => `- [${item.title}](siyuan://blocks/${item.id})`);
+    const markdown = `## 重复候选文档\n\n${lines.join("\n")}`;
+    await appendBlock(markdown, docId);
+    showMessage(`已插入 ${items.length} 个文档链接`, 5000, "info");
   }
 
   private async handleRemoveExtraBlankLines(docId: string) {

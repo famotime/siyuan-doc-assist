@@ -5,6 +5,8 @@ import { DedupeCandidate } from "@/types/link-tool";
 type OpenDedupeDialogArgs = {
   candidates: DedupeCandidate[];
   onDelete: (ids: string[]) => Promise<{ successIds: string[]; failed: Array<{ id: string; error: string }> }>;
+  onOpenAll: (docs: Array<{ id: string; title: string }>) => void;
+  onInsertLinks: (docs: Array<{ id: string; title: string }>) => void;
 };
 
 function createButton(label: string): HTMLButtonElement {
@@ -58,13 +60,16 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
   const toolbar = root.querySelector(".link-tool-dedupe__toolbar") as HTMLDivElement;
   const groups = root.querySelector(".link-tool-dedupe__groups") as HTMLDivElement;
 
-  const selectAllBtn = createButton("全选可删项");
+  const selectAllBtn = createButton("全选");
   const clearBtn = createButton("清空选择");
+  const openAllBtn = createButton("打开全部文档");
+  const insertLinksBtn = createButton("插入全部文档链接");
   const deleteBtn = createButton("删除选中");
   const cancelBtn = createButton("取消");
   deleteBtn.classList.add("b3-button--error");
-  toolbar.append(selectAllBtn, clearBtn, deleteBtn, cancelBtn);
+  toolbar.append(selectAllBtn, clearBtn, openAllBtn, insertLinksBtn, deleteBtn, cancelBtn);
 
+  const dedupeDocs = new Map<string, { id: string; title: string }>();
   for (const candidate of args.candidates) {
     const section = document.createElement("section");
     section.className = "link-tool-dedupe__group";
@@ -77,6 +82,9 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
     section.appendChild(heading);
 
     for (const doc of candidate.docs) {
+      if (doc.id && !dedupeDocs.has(doc.id)) {
+        dedupeDocs.set(doc.id, { id: doc.id, title: doc.title || doc.id });
+      }
       section.appendChild(createDocRow(candidate.groupId, doc, keepId));
     }
     groups.appendChild(section);
@@ -84,6 +92,7 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
 
   const queryCheckboxes = () =>
     [...groups.querySelectorAll<HTMLInputElement>('input[type="checkbox"][data-id]')];
+  const getAllDocs = () => Array.from(dedupeDocs.values());
 
   selectAllBtn.addEventListener("click", () => {
     for (const checkbox of queryCheckboxes()) {
@@ -95,6 +104,24 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
     for (const checkbox of queryCheckboxes()) {
       checkbox.checked = false;
     }
+  });
+
+  openAllBtn.addEventListener("click", () => {
+    const docs = getAllDocs();
+    if (!docs.length) {
+      showMessage("没有可打开的文档", 4000, "info");
+      return;
+    }
+    args.onOpenAll(docs);
+  });
+
+  insertLinksBtn.addEventListener("click", () => {
+    const docs = getAllDocs();
+    if (!docs.length) {
+      showMessage("没有可插入的文档链接", 4000, "info");
+      return;
+    }
+    args.onInsertLinks(docs);
   });
 
   cancelBtn.addEventListener("click", () => {
