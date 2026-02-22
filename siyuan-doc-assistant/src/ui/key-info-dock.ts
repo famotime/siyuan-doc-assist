@@ -72,6 +72,21 @@ function buildTypeBadge(type: KeyInfoType): HTMLSpanElement {
   return badge;
 }
 
+function formatKeyInfoText(item: KeyInfoItem): string {
+  const content = item.text || "";
+  const hasAnyListPrefix = (value: string) => /^\s*(?:[-+]\s*|\*\s+|\d+\.\s*)/.test(value);
+  if (!item.listPrefix && !item.listItem) {
+    return content;
+  }
+  if (item.listPrefix) {
+    if (content.startsWith(item.listPrefix) || hasAnyListPrefix(content)) {
+      return content;
+    }
+    return `${item.listPrefix}${content}`;
+  }
+  return hasAnyListPrefix(content) ? content : `- ${content}`;
+}
+
 function buildRow(item: KeyInfoItem): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "doc-assistant-keyinfo__row";
@@ -79,7 +94,7 @@ function buildRow(item: KeyInfoItem): HTMLDivElement {
   const badge = buildTypeBadge(item.type);
   const text = document.createElement("div");
   text.className = "doc-assistant-keyinfo__text";
-  text.textContent = item.text;
+  text.textContent = formatKeyInfoText(item);
 
   row.appendChild(badge);
   row.appendChild(text);
@@ -512,7 +527,8 @@ export function createKeyInfoDock(
 
     badge.className = `doc-assistant-keyinfo__badge doc-assistant-keyinfo__badge--${item.type}`;
     badge.textContent = keyInfoTypeLabel(item.type);
-    text.textContent = item.text;
+    const renderedText = formatKeyInfoText(item);
+    text.textContent = renderedText;
 
     if (item.blockId && onItemClick) {
       row.classList.add("is-clickable");

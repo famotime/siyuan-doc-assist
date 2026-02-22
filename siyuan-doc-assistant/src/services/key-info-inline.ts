@@ -3,6 +3,7 @@ import {
   buildInlineRaw,
   cleanInlineText,
   extractInlineMemoHint,
+  normalizeListDecoratedText,
   normalizeSort,
   parseInlineMemoFromText,
   resolveSpanFormatType,
@@ -33,7 +34,8 @@ function getProtyleRootElement(protyle: unknown): HTMLElement | undefined {
 
 export function mapSpanRowsToItems(
   spans: SqlSpanRow[],
-  blockSortMap: Map<string, number>
+  blockSortMap: Map<string, number>,
+  resolveListLine?: (blockId?: string) => { listItem: boolean; listPrefix?: string }
 ): KeyInfoItem[] {
   const items: KeyInfoItem[] = [];
   let order = 0;
@@ -76,6 +78,10 @@ export function mapSpanRowsToItems(
     } else {
       raw = raw || buildInlineRaw(type, text);
     }
+    const listLine = resolveListLine?.(blockId) || { listItem: false };
+    if (listLine.listPrefix) {
+      text = normalizeListDecoratedText(text);
+    }
 
     items.push({
       id: `span-${span.id || blockId}-${order}`,
@@ -86,6 +92,8 @@ export function mapSpanRowsToItems(
       blockId,
       blockSort,
       order,
+      listItem: listLine.listItem,
+      listPrefix: listLine.listPrefix,
     });
     order += 1;
   });
@@ -95,7 +103,8 @@ export function mapSpanRowsToItems(
 export function extractInlineFromDom(
   protyle: unknown,
   blockSortMap: Map<string, number>,
-  docId: string
+  docId: string,
+  resolveListLine?: (blockId?: string) => { listItem: boolean; listPrefix?: string }
 ): KeyInfoItem[] {
   const root = getProtyleRootElement(protyle);
   if (!root) {
@@ -202,6 +211,10 @@ export function extractInlineFromDom(
       docId;
     const blockSort =
       blockSortMap.get(blockId) ?? blockSortMap.get(docId) ?? 0;
+    const listLine = resolveListLine?.(blockId) || { listItem: false };
+    if (listLine.listPrefix) {
+      text = normalizeListDecoratedText(text);
+    }
 
     items.push({
       id: `dom-${blockId}-${order}`,
@@ -212,6 +225,8 @@ export function extractInlineFromDom(
       blockId,
       blockSort,
       order,
+      listItem: listLine.listItem,
+      listPrefix: listLine.listPrefix,
     });
     order += 1;
   });

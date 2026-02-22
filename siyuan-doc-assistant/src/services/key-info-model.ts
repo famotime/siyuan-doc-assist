@@ -40,6 +40,8 @@ export type KeyInfoDocResult = {
     blockId?: string;
     blockSort: number;
     order: number;
+    listItem?: boolean;
+    listPrefix?: string;
   }>;
 };
 
@@ -72,6 +74,21 @@ export function normalizeSort(value: number | string, fallback: number): number 
 
 export function cleanInlineText(text: string): string {
   return (text || "").replace(/\u200B/g, "").replace(/\s+/g, " ").trim();
+}
+
+const LIST_PREFIX_PATTERN = /^\s*((?:[-+*])|(?:\d+\.))\s+/;
+const LIST_DECORATED_TEXT_PATTERN = /^\s*(?:[-+]\s*|\*\s+|\d+\.\s*)/;
+
+export function extractListPrefix(text: string): string | undefined {
+  const match = (text || "").match(LIST_PREFIX_PATTERN);
+  if (!match) {
+    return undefined;
+  }
+  return `${match[1]} `;
+}
+
+export function normalizeListDecoratedText(text: string): string {
+  return cleanInlineText((text || "").replace(LIST_DECORATED_TEXT_PATTERN, ""));
 }
 
 export function tokenizeType(value: string): string[] {

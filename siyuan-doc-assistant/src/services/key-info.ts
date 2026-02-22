@@ -12,7 +12,9 @@ import {
 import { mergePreferredInlineItems } from "@/services/key-info-merge";
 import {
   cleanInlineText,
+  extractListPrefix,
   KeyInfoDocResult,
+  normalizeListDecoratedText,
   normalizeSort,
   normalizeTitle,
   splitTags,
@@ -32,6 +34,103 @@ type OrderResolution = {
   syHitCount: number;
   syHitRatio: number;
 };
+
+function createListContextResolver(
+  rows: Array<{
+    id: string;
+    parent_id?: string;
+    type?: string;
+    subtype?: string;
+    markdown?: string;
+    content?: string;
+    sort?: number | string;
+  }>
+): {
+  isListItemBlock: (blockId?: string) => boolean;
+  getListPrefix: (blockId?: string) => string | undefined;
+  hasMappedListLineChild: (blockId?: string) => boolean;
+} {
+  const indexById = new Map<string, number>();
+  rows.forEach((row, index) => {
+    indexById.set(row.id, index);
+  });
+  const childrenByParent = new Map<string, typeof rows>();
+  rows.forEach((row) => {
+    const parentId = row.parent_id || "";
+    const siblings = childrenByParent.get(parentId) || [];
+    siblings.push(row);
+    childrenByParent.set(parentId, siblings);
+  });
+  childrenByParent.forEach((siblings, parentId) => {
+    siblings.sort((a, b) => {
+      const aSort = normalizeSort(a.sort ?? Number.MAX_SAFE_INTEGER, indexById.get(a.id) ?? 0);
+      const bSort = normalizeSort(b.sort ?? Number.MAX_SAFE_INTEGER, indexById.get(b.id) ?? 0);
+      if (aSort !== bSort) {
+        return aSort - bSort;
+      }
+      return (indexById.get(a.id) ?? 0) - (indexById.get(b.id) ?? 0);
+    });
+    childrenByParent.set(parentId, siblings);
+  });
+
+  const getComparableBlockText = (row: (typeof rows)[number]): string => {
+    const contentText = cleanInlineText(row.content || "");
+    if (contentText) {
+      return contentText;
+    }
+    return cleanInlineText(normalizeListDecoratedText(row.markdown || ""));
+  };
+
+  const listItemIds = new Set<string>();
+  const listPrefixById = new Map<string, string>();
+  const listItemIdsWithMappedChild = new Set<string>();
+  rows.forEach((row) => {
+    const type = (row.type || "").toLowerCase();
+    if (type === "i") {
+      listItemIds.add(row.id);
+      const parsedPrefix =
+        extractListPrefix((row.markdown || "").trim()) ||
+        extractListPrefix((row.content || "").trim());
+      const resolvedPrefix = parsedPrefix || "- ";
+      listPrefixById.set(row.id, resolvedPrefix);
+
+      const listItemText = getComparableBlockText(row);
+      if (!listItemText) {
+        return;
+      }
+
+      const children = childrenByParent.get(row.id) || [];
+      const firstTextChild = children.find((child) => {
+        const childType = (child.type || "").toLowerCase();
+        if (childType !== "p" && childType !== "h") {
+          return false;
+        }
+        return !!getComparableBlockText(child);
+      });
+      if (!firstTextChild) {
+        return;
+      }
+      const firstTextChildText = getComparableBlockText(firstTextChild);
+      const isListLineMatch =
+        listItemText.startsWith(firstTextChildText) ||
+        firstTextChildText.startsWith(listItemText);
+      if (!isListLineMatch) {
+        return;
+      }
+
+      listItemIds.add(firstTextChild.id);
+      listPrefixById.set(firstTextChild.id, resolvedPrefix);
+      listItemIdsWithMappedChild.add(row.id);
+    }
+  });
+
+  return {
+    isListItemBlock: (blockId?: string) => !!blockId && listItemIds.has(blockId),
+    getListPrefix: (blockId?: string) => (blockId ? listPrefixById.get(blockId) : undefined),
+    hasMappedListLineChild: (blockId?: string) =>
+      !!blockId && listItemIdsWithMappedChild.has(blockId),
+  };
+}
 
 function buildStructuralBlockOrderMap(
   rows: Array<{ id: string; parent_id?: string; sort: number | string }>,
@@ -166,16 +265,20 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   const structuralOrderMap = buildStructuralBlockOrderMap(rows, rootId);
   const syOrderMap = await getDocTreeOrderFromSy(rootId);
   const resolvedOrder = resolveBlockOrderMap(rows, syOrderMap, structuralOrderMap);
-  console.info("[DocAssistant][KeyInfo] order resolution", {
-    docId: rootId,
-    source: resolvedOrder.source,
-    rowCount: rows.length,
-    syOrderCount: syOrderMap.size,
-    syHitCount: resolvedOrder.syHitCount,
-    syHitRatio: Number(resolvedOrder.syHitRatio.toFixed(3)),
-    minHitRatio: SY_ORDER_MIN_HIT_RATIO,
-    sample: rows.slice(0, 8).map((row) => row.id),
-  });
+  const listContext = createListContextResolver(rows);
+  const resolveListLine = (blockId?: string): { listItem: boolean; listPrefix?: string } => {
+    if (!blockId) {
+      return { listItem: false };
+    }
+    if (listContext.isListItemBlock(blockId)) {
+      return {
+        listItem: true,
+        listPrefix: listContext.getListPrefix(blockId) || "- ",
+      };
+    }
+    return { listItem: false };
+  };
+
   rows.forEach((row, index) => {
     const blockSort =
       resolvedOrder.orderMap.get(row.id) ??
@@ -199,15 +302,18 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
       const level = levelMatch ? Number(levelMatch[1]) : 1;
       const text = cleanInlineText(row.content || "");
       if (text) {
+        const listLine = resolveListLine(row.id);
         items.push({
           id: `${row.id}-heading-${order}`,
           type: "title",
-          text,
+          text: listLine.listPrefix ? normalizeListDecoratedText(text) : text,
           raw: `${"#".repeat(level)} ${text}`,
           offset: 0,
           blockId: row.id,
           blockSort: blockSortMap.get(row.id) ?? 0,
           order,
+          listItem: listLine.listItem,
+          listPrefix: listLine.listPrefix,
         });
         order += 1;
       }
@@ -215,12 +321,19 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   });
 
   rows.forEach((row, index) => {
+    const rowType = (row.type || "").toLowerCase();
     const blockSort =
       blockSortMap.get(row.id) ??
       resolvedOrder.orderMap.get(row.id) ??
       index;
     const isRootDocRow = row.id === rootId && row.type === "d";
-    const shouldExtractMarkdown = !isRootDocRow || !hasChildBlocks;
+    const isListContainerRow = rowType === "l";
+    const isListItemWithMappedChild =
+      rowType === "i" && listContext.hasMappedListLineChild(row.id);
+    const shouldExtractMarkdown =
+      (!isRootDocRow || !hasChildBlocks) &&
+      !isListContainerRow &&
+      !isListItemWithMappedChild;
     const markdown = shouldExtractMarkdown
       ? (kramdownMap.get(row.id) || row.markdown || "")
       : "";
@@ -228,6 +341,10 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
       ? extractKeyInfoFromMarkdown(markdown)
       : [];
     for (const item of extracted) {
+      const listLine = resolveListLine(row.id);
+      const normalizedText = listLine.listPrefix
+        ? normalizeListDecoratedText(item.text)
+        : item.text;
       if (item.type === "title") {
         if (row.type === "h") {
           continue;
@@ -235,12 +352,14 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
         items.push({
           id: `${row.id}-${order}`,
           type: item.type,
-          text: item.text,
+          text: normalizedText,
           raw: item.raw,
           offset: item.offset,
           blockId: row.id,
           blockSort,
           order,
+          listItem: listLine.listItem,
+          listPrefix: listLine.listPrefix,
         });
         order += 1;
         continue;
@@ -248,33 +367,39 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
       markdownInlineItems.push({
         id: `${row.id}-inline-${order}`,
         type: item.type,
-        text: item.text,
+        text: normalizedText,
         raw: item.raw,
         offset: item.offset,
         blockId: row.id,
         blockSort,
         order,
+        listItem: listLine.listItem,
+        listPrefix: listLine.listPrefix,
       });
       order += 1;
     }
 
     const memoText = (row.memo || "").trim();
     if (memoText) {
+      const listLine = resolveListLine(row.id);
       items.push({
         id: `${row.id}-memo-${order}`,
         type: "remark",
-        text: memoText,
+        text: listLine.listPrefix ? normalizeListDecoratedText(memoText) : memoText,
         raw: `%%${memoText}%%`,
         offset: 1_000_000,
         blockId: row.id,
         blockSort,
         order,
+        listItem: listLine.listItem,
+        listPrefix: listLine.listPrefix,
       });
       order += 1;
     }
 
     const tags = splitTags(row.tag || "");
     tags.forEach((tag) => {
+      const listLine = resolveListLine(row.id);
       items.push({
         id: `${row.id}-tag-${order}`,
         type: "tag",
@@ -284,18 +409,26 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
         blockId: row.id,
         blockSort,
         order,
+        listItem: listLine.listItem,
+        listPrefix: listLine.listPrefix,
       });
       order += 1;
     });
   });
 
-  const spanItems = mapSpanRowsToItems(await listSpanRows(rootId), blockSortMap).filter(
+  const spanItems = mapSpanRowsToItems(
+    await listSpanRows(rootId),
+    blockSortMap,
+    resolveListLine
+  ).filter(
     (item) => !headingBlockIds.has(item.blockId || "")
   );
-  const domItems = extractInlineFromDom(protyle, blockSortMap, rootId).filter(
+  const domItems = extractInlineFromDom(protyle, blockSortMap, rootId, resolveListLine).filter(
     (item) => !headingBlockIds.has(item.blockId || "")
   );
-  items.push(...mergePreferredInlineItems(markdownInlineItems, spanItems, domItems));
+  items.push(
+    ...mergePreferredInlineItems(markdownInlineItems, spanItems, domItems)
+  );
 
   const normalizedDocTitle = normalizeTitle(docTitle);
   const hasDocTitleHeading =
@@ -315,6 +448,8 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
       blockId: rootId,
       blockSort: -1,
       order,
+      listItem: false,
+      listPrefix: undefined,
     });
   }
 

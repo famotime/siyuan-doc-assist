@@ -20,6 +20,8 @@ export type KeyInfoItem = KeyInfoExtract & {
   blockId?: string;
   blockSort: number;
   order: number;
+  listItem?: boolean;
+  listPrefix?: string;
 };
 
 const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
@@ -36,10 +38,26 @@ export function keyInfoTypeLabel(type: KeyInfoType): string {
 }
 
 export function buildKeyInfoMarkdown(
-  items: Array<Pick<KeyInfoExtract, "raw" | "text">>
+  items: Array<Pick<KeyInfoExtract, "raw" | "text"> & { listItem?: boolean; listPrefix?: string }>
 ): string {
+  const hasAnyListPrefix = (value: string) => /^\s*(?:[-+]\s*|\*\s+|\d+\.\s*)/.test(value);
   return items
-    .map((item) => (item.raw || item.text || "").trim())
+    .map((item) => {
+      const content = (item.raw || item.text || "").trim();
+      if (!content) {
+        return "";
+      }
+      if (item.listPrefix) {
+        if (content.startsWith(item.listPrefix) || hasAnyListPrefix(content)) {
+          return content;
+        }
+        return `${item.listPrefix}${content}`;
+      }
+      if (item.listItem && !hasAnyListPrefix(content)) {
+        return `- ${content}`;
+      }
+      return content;
+    })
     .filter(Boolean)
     .join("\n");
 }
@@ -57,6 +75,26 @@ function normalizeInlineText(text: string): string {
   next = next.replace(/\[\[([^\]]+)\]\]/g, "$1");
   next = next.replace(/\s+/g, " ").trim();
   return next;
+}
+
+function isFilteredKeyInfoText(type: KeyInfoType, text: string): boolean {
+  const cleaned = (text || "").trim();
+  if (!cleaned) {
+    return true;
+  }
+  if (type === "bold" && cleaned === "*") {
+    return true;
+  }
+  if (type === "italic" && cleaned === "\\") {
+    return true;
+  }
+  if (type === "italic" && cleaned === "*") {
+    return true;
+  }
+  if (type === "highlight" && cleaned === "=") {
+    return true;
+  }
+  return false;
 }
 
 function maskCodeBlocks(markdown: string): string {
@@ -166,7 +204,7 @@ function collectRegexMatches(
     const rawSlice = original.slice(match.index, match.index + matchRaw.length) || matchRaw;
     const cleaned = normalizeInlineText(match[groupIndex] || rawSlice);
     const raw = rawBuilder ? rawBuilder(rawSlice, cleaned) : rawSlice.trim();
-    if (cleaned) {
+    if (!isFilteredKeyInfoText(type, cleaned)) {
       items.push({
         type,
         text: cleaned,

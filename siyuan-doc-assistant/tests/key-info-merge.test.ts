@@ -37,4 +37,23 @@ describe("key-info merge", () => {
     const merged = mergePreferredInlineItems(markdownInlineItems, [], []);
     expect(merged).toEqual(markdownInlineItems);
   });
+
+  test("inherits list prefix metadata from markdown when preferred inline item matches", () => {
+    const markdownInlineItems = [
+      {
+        ...item("m1", "bold", "Skills 基", "p-1"),
+        listItem: true,
+        listPrefix: "- ",
+      },
+    ];
+    const spanItems = [
+      item("s1", "bold", "Skills 基", "p-1"),
+    ];
+
+    const merged = mergePreferredInlineItems(markdownInlineItems, spanItems, []);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.text).toBe("Skills 基");
+    expect((merged[0] as any)?.listPrefix).toBe("- ");
+    expect((merged[0] as any)?.listItem).toBe(true);
+  });
 });
