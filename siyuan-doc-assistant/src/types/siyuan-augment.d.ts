@@ -32,6 +32,9 @@ declare module "siyuan" {
       };
       addDock: (config: any) => void;
       addCommand: (config: any) => void;
+      loadData: (storageName: string) => Promise<any>;
+      saveData: (storageName: string, content: any) => Promise<void>;
+      removeData: (storageName: string) => Promise<any>;
     };
   };
 

@@ -1,5 +1,9 @@
 import { getActiveEditor, showMessage } from "siyuan";
 import { buildDockDocActions } from "@/core/dock-panel-core";
+import {
+  DocMenuRegistrationState,
+  isAllDocMenuRegistrationEnabled,
+} from "@/core/doc-menu-registration-core";
 import { buildKeyInfoMarkdown, KeyInfoItem } from "@/core/key-info-core";
 import { getDocKeyInfo } from "@/services/key-info";
 import { createKeyInfoDock, KeyInfoDockHandle } from "@/ui/key-info-dock";
@@ -14,6 +18,9 @@ type KeyInfoControllerDeps = {
   resolveDocId: (explicitId?: string, protyle?: ProtyleLike) => string;
   runAction: (action: ActionKey) => Promise<void>;
   actions: () => ActionConfig[];
+  getDocMenuRegistrationState: () => DocMenuRegistrationState;
+  setAllDocMenuRegistration: (enabled: boolean) => Promise<void> | void;
+  setSingleDocMenuRegistration: (key: ActionKey, enabled: boolean) => Promise<void> | void;
 };
 
 export class KeyInfoController {
@@ -54,10 +61,17 @@ export class KeyInfoController {
             }
             void this.deps.runAction(actionKey);
           },
+          onDocMenuToggleAll: (enabled) => {
+            void this.deps.setAllDocMenuRegistration(enabled);
+          },
+          onDocActionMenuToggle: (actionKey, enabled) => {
+            if (!isActionKey(actionKey)) {
+              return;
+            }
+            void this.deps.setSingleDocMenuRegistration(actionKey, enabled);
+          },
         });
-        this.keyInfoDock.setState({
-          docActions: buildDockDocActions(this.deps.actions(), this.deps.isMobile()),
-        });
+        this.syncDocActions();
         const active = getActiveEditor()?.protyle as ProtyleLike | undefined;
         void this.refresh(undefined, active);
       },
@@ -73,6 +87,21 @@ export class KeyInfoController {
   destroy() {
     this.keyInfoDock?.destroy();
     this.keyInfoDock = undefined;
+  }
+
+  syncDocActions() {
+    if (!this.keyInfoDock) {
+      return;
+    }
+    const registration = this.deps.getDocMenuRegistrationState();
+    this.keyInfoDock.setState({
+      docMenuRegisterAll: isAllDocMenuRegistrationEnabled(registration),
+      docActions: buildDockDocActions(
+        this.deps.actions(),
+        this.deps.isMobile(),
+        registration
+      ),
+    });
   }
 
   async refresh(explicitId?: string, protyle?: ProtyleLike) {

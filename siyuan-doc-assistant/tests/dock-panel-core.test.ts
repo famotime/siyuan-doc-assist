@@ -26,7 +26,11 @@ describe("dock-panel-core", () => {
           group: "organize",
         },
       ],
-      true
+      true,
+      {
+        "export-current": false,
+        "move-backlinks": true,
+      }
     );
 
     expect(actions).toEqual([
@@ -37,6 +41,8 @@ describe("dock-panel-core", () => {
         group: "export",
         groupLabel: "导出",
         disabled: false,
+        menuRegistered: false,
+        menuToggleDisabled: false,
       },
       {
         key: "move-backlinks",
@@ -46,6 +52,9 @@ describe("dock-panel-core", () => {
         groupLabel: "整理",
         disabled: true,
         disabledReason: "该操作当前仅支持桌面端",
+        menuRegistered: true,
+        menuToggleDisabled: true,
+        menuToggleDisabledReason: "该操作当前仅支持桌面端",
       },
     ]);
   });

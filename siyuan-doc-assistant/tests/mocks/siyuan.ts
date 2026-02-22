@@ -32,12 +32,29 @@ export function getFrontend(): string {
 }
 
 export class Plugin {
+  private readonly storage = new Map<string, any>();
+
   public eventBus = {
     on: () => undefined,
     off: () => undefined,
   };
 
   addCommand(): void {}
+  addDock(): void {}
+
+  async loadData(storageName: string): Promise<any> {
+    return this.storage.get(storageName);
+  }
+
+  async saveData(storageName: string, content: any): Promise<void> {
+    this.storage.set(storageName, content);
+  }
+
+  async removeData(storageName: string): Promise<any> {
+    const value = this.storage.get(storageName);
+    this.storage.delete(storageName);
+    return value;
+  }
 }
 
 export class Dialog {

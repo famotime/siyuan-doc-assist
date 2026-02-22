@@ -3,9 +3,19 @@ import {
   getActiveEditor,
   getFrontend,
   Plugin,
+  showMessage,
 } from "siyuan";
+import {
+  buildDefaultDocMenuRegistration,
+  DocMenuRegistrationState,
+  DocMenuRegistrationStorageV1,
+  filterDocMenuActions,
+  normalizeDocMenuRegistration,
+  setAllDocMenuRegistration as setAllDocMenuRegistrationState,
+  setSingleDocMenuRegistration as setSingleDocMenuRegistrationState,
+} from "@/core/doc-menu-registration-core";
 import { ActionRunner } from "@/plugin/action-runner";
-import { ACTIONS } from "@/plugin/actions";
+import { ACTIONS, ActionKey } from "@/plugin/actions";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
 import {
@@ -18,6 +28,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private currentDocId = "";
   private currentProtyle?: ProtyleLike;
   private isMobile = false;
+  private readonly docMenuRegistrationStorageName = "doc-menu-registration";
+  private docMenuRegistrationState: DocMenuRegistrationState =
+    buildDefaultDocMenuRegistration(ACTIONS);
 
   private readonly actionRunner = new ActionRunner({
     isMobile: () => this.isMobile,
@@ -35,6 +48,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.resolveDocId(explicitId, protyle),
     runAction: (action) => this.actionRunner.runAction(action),
     actions: () => ACTIONS,
+    getDocMenuRegistrationState: () => this.docMenuRegistrationState,
+    setAllDocMenuRegistration: (enabled) => this.setAllDocMenuRegistration(enabled),
+    setSingleDocMenuRegistration: (key, enabled) =>
+      this.setSingleDocMenuRegistration(key, enabled),
   });
 
   private readonly onSwitchProtyle = (event: CustomEvent<{ protyle?: ProtyleLike }>) => {
@@ -67,8 +84,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.currentProtyle = detail.protyle;
     }
 
+    const menuActions = filterDocMenuActions(ACTIONS, this.docMenuRegistrationState);
+    if (!menuActions.length) {
+      return;
+    }
     menu.addSeparator();
-    for (const action of ACTIONS) {
+    for (const action of menuActions) {
       menu.addItem({
         icon: action.icon,
         label: action.menuText,
@@ -80,6 +101,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   };
 
   async onload() {
+    await this.loadDocMenuRegistrationState();
     const frontend = getFrontend();
     this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
 
@@ -150,5 +172,43 @@ export default class DocLinkToolkitPlugin extends Plugin {
       return;
     }
     hideActionProcessingOverlay();
+  }
+
+  private async loadDocMenuRegistrationState() {
+    try {
+      const raw = await this.loadData(this.docMenuRegistrationStorageName);
+      this.docMenuRegistrationState = normalizeDocMenuRegistration(raw, ACTIONS);
+    } catch (error: unknown) {
+      this.docMenuRegistrationState = buildDefaultDocMenuRegistration(ACTIONS);
+      const message = error instanceof Error ? error.message : String(error);
+      showMessage(`读取菜单注册配置失败：${message}`, 5000, "error");
+    }
+  }
+
+  private async persistDocMenuRegistrationState() {
+    const payload: DocMenuRegistrationStorageV1 = {
+      version: 1,
+      actionEnabled: this.docMenuRegistrationState,
+    };
+    await this.saveData(this.docMenuRegistrationStorageName, payload);
+  }
+
+  async setAllDocMenuRegistration(enabled: boolean) {
+    this.docMenuRegistrationState = setAllDocMenuRegistrationState(
+      this.docMenuRegistrationState,
+      enabled
+    );
+    await this.persistDocMenuRegistrationState();
+    this.keyInfoController.syncDocActions();
+  }
+
+  async setSingleDocMenuRegistration(key: ActionKey, enabled: boolean) {
+    this.docMenuRegistrationState = setSingleDocMenuRegistrationState(
+      this.docMenuRegistrationState,
+      key,
+      enabled
+    );
+    await this.persistDocMenuRegistrationState();
+    this.keyInfoController.syncDocActions();
   }
 }

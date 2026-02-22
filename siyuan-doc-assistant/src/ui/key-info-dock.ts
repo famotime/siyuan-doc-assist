@@ -15,6 +15,7 @@ export type KeyInfoDockState = {
   isRefreshing: boolean;
   emptyText: string;
   activeTab: DockTabKey;
+  docMenuRegisterAll: boolean;
   docActions: DockDocAction[];
   scrollContextKey: string;
 };
@@ -86,6 +87,8 @@ export function createKeyInfoDock(
     onRefresh?: () => void;
     onItemClick?: (item: KeyInfoItem) => void;
     onDocActionClick?: (actionKey: string) => void;
+    onDocMenuToggleAll?: (enabled: boolean) => void;
+    onDocActionMenuToggle?: (actionKey: string, enabled: boolean) => void;
   }
 ): KeyInfoDockHandle {
   const state: KeyInfoDockState = {
@@ -96,6 +99,7 @@ export function createKeyInfoDock(
     isRefreshing: false,
     emptyText: "暂无关键内容",
     activeTab: "key-info",
+    docMenuRegisterAll: true,
     docActions: [],
     scrollContextKey: "",
   };
@@ -209,9 +213,23 @@ export function createKeyInfoDock(
 
   const docProcessPanel = document.createElement("div");
   docProcessPanel.className = "doc-assistant-keyinfo__panel doc-assistant-keyinfo__panel--doc-process";
+  const docMenuToggleRow = document.createElement("label");
+  docMenuToggleRow.className = "doc-assistant-keyinfo__menu-toggle-row";
+  const docMenuToggleLabel = document.createElement("span");
+  docMenuToggleLabel.className = "doc-assistant-keyinfo__menu-toggle-label";
+  docMenuToggleLabel.textContent = "注册到文档菜单";
+  const docMenuToggleInput = document.createElement("input");
+  docMenuToggleInput.type = "checkbox";
+  docMenuToggleInput.className = "doc-assistant-keyinfo__menu-toggle-input";
+  docMenuToggleInput.addEventListener("change", () => {
+    callbacks.onDocMenuToggleAll?.(docMenuToggleInput.checked);
+  });
+  docMenuToggleRow.appendChild(docMenuToggleLabel);
+  docMenuToggleRow.appendChild(docMenuToggleInput);
   const docProcessList = document.createElement("div");
   docProcessList.className = "doc-assistant-keyinfo__actions";
   docProcessPanel.appendChild(docProcessList);
+  docProcessPanel.appendChild(docMenuToggleRow);
 
   root.appendChild(header);
   root.appendChild(tabs);
@@ -319,6 +337,10 @@ export function createKeyInfoDock(
     docProcessPanel.classList.toggle("is-hidden", showKeyInfo);
   };
 
+  const renderDocMenuToggle = () => {
+    docMenuToggleInput.checked = state.docMenuRegisterAll;
+  };
+
   const renderDocActions = () => {
     if (!state.docActions.length) {
       const empty = document.createElement("div");
@@ -345,6 +367,10 @@ export function createKeyInfoDock(
         firstGroupLabel.textContent = action.groupLabel;
         fragment.appendChild(firstGroupLabel);
       }
+
+      const row = document.createElement("div");
+      row.className = "doc-assistant-keyinfo__action-row";
+
       const button = document.createElement("button");
       button.type = "button";
       button.className = "b3-button doc-assistant-keyinfo__action-btn";
@@ -375,7 +401,26 @@ export function createKeyInfoDock(
         }
         callbacks.onDocActionClick?.(action.key);
       });
-      fragment.appendChild(button);
+
+      const menuSwitch = document.createElement("input");
+      menuSwitch.type = "checkbox";
+      menuSwitch.className = "doc-assistant-keyinfo__action-switch";
+      menuSwitch.checked = action.menuRegistered;
+      menuSwitch.disabled = action.menuToggleDisabled;
+      if (action.menuToggleDisabledReason) {
+        menuSwitch.title = action.menuToggleDisabledReason;
+      }
+      menuSwitch.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+      menuSwitch.addEventListener("change", (event) => {
+        event.stopPropagation();
+        callbacks.onDocActionMenuToggle?.(action.key, menuSwitch.checked);
+      });
+
+      row.appendChild(button);
+      row.appendChild(menuSwitch);
+      fragment.appendChild(row);
       previousGroup = action.group;
     });
     docProcessList.replaceChildren(fragment);
@@ -553,6 +598,7 @@ export function createKeyInfoDock(
     const prevLoading = state.loading;
     const prevEmptyText = state.emptyText;
     const prevTab = state.activeTab;
+    const prevDocMenuRegisterAll = state.docMenuRegisterAll;
     const prevDocActions = state.docActions;
     const prevScrollContextKey = state.scrollContextKey;
     Object.assign(state, next);
@@ -564,6 +610,9 @@ export function createKeyInfoDock(
     updateFilterButtons();
     updateTabButtons();
     renderTabPanels();
+    if (prevDocMenuRegisterAll !== state.docMenuRegisterAll) {
+      renderDocMenuToggle();
+    }
     if (prevDocActions !== state.docActions) {
       renderDocActions();
     }
@@ -583,6 +632,7 @@ export function createKeyInfoDock(
   updateTabButtons();
   renderTabPanels();
   renderList();
+  renderDocMenuToggle();
   renderDocActions();
 
   return {
