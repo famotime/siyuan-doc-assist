@@ -89,8 +89,8 @@ export const ACTIONS: ActionConfig[] = [
   },
   {
     key: "delete-from-current-to-end",
-    commandText: "删除从此往后的全部段落（含本段）",
-    menuText: "删除从此往后的全部段落（含本段）",
+    commandText: "删除后续全部段落（含本段）",
+    menuText: "删除后续全部段落（含本段）",
     group: "edit",
     icon: "iconTrashcan",
   },
