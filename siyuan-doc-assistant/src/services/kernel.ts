@@ -291,28 +291,125 @@ export async function exportResources(
 export async function getBlockKramdowns(
   ids: string[]
 ): Promise<BlockKramdownRes[]> {
-  if (!ids.length) {
+  const normalizedIds = [...new Set((ids || []).map((id) => (id || "").trim()).filter(Boolean))];
+  if (!normalizedIds.length) {
     return [];
   }
   const chunks: string[][] = [];
   const chunkSize = 50;
-  for (let i = 0; i < ids.length; i += chunkSize) {
-    chunks.push(ids.slice(i, i + chunkSize));
+  for (let i = 0; i < normalizedIds.length; i += chunkSize) {
+    chunks.push(normalizedIds.slice(i, i + chunkSize));
   }
-  const rows: BlockKramdownRes[] = [];
+  const rowMap = new Map<string, BlockKramdownRes>();
   for (const chunk of chunks) {
-    const res = await requestApi<any>("/api/block/getBlockKramdowns", {
-      ids: chunk,
-    });
-    if (Array.isArray(res)) {
-      rows.push(...(res as BlockKramdownRes[]));
-      continue;
-    }
-    if (res && Array.isArray(res.kramdowns)) {
-      rows.push(...(res.kramdowns as BlockKramdownRes[]));
+    try {
+      const res = await requestApi<any>("/api/block/getBlockKramdowns", {
+        ids: chunk,
+      });
+      const rows = toBlockKramdownRows(res);
+      for (const row of rows) {
+        if (chunk.includes(row.id) && !rowMap.has(row.id)) {
+          rowMap.set(row.id, row);
+        }
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn("[DocAssistant][Style] getBlockKramdowns failed, fallback to single", {
+        chunkSize: chunk.length,
+        sample: chunk.slice(0, 8),
+        message,
+      });
     }
   }
-  return rows;
+
+  const missingIds = normalizedIds.filter((id) => !rowMap.has(id));
+  if (missingIds.length) {
+    for (const id of missingIds) {
+      try {
+        const row = await getBlockKramdown(id);
+        if (row && !rowMap.has(row.id)) {
+          rowMap.set(row.id, row);
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn("[DocAssistant][Style] getBlockKramdown fallback failed", {
+          id,
+          message,
+        });
+      }
+    }
+  }
+
+  return normalizedIds
+    .map((id) => rowMap.get(id))
+    .filter((row): row is BlockKramdownRes => !!row);
+}
+
+function toBlockKramdownRows(payload: unknown): BlockKramdownRes[] {
+  const rows: BlockKramdownRes[] = [];
+  const pushRow = (candidate: unknown) => {
+    if (!candidate || typeof candidate !== "object") {
+      return;
+    }
+    const record = candidate as { id?: unknown; kramdown?: unknown };
+    const id = typeof record.id === "string" ? record.id.trim() : "";
+    if (!id) {
+      return;
+    }
+    const kramdown = typeof record.kramdown === "string" ? record.kramdown : String(record.kramdown || "");
+    rows.push({ id, kramdown });
+  };
+  const pushFromArray = (value: unknown) => {
+    if (!Array.isArray(value)) {
+      return;
+    }
+    for (const item of value) {
+      pushRow(item);
+    }
+  };
+
+  pushFromArray(payload);
+  if (payload && typeof payload === "object") {
+    const source = payload as Record<string, unknown>;
+    pushFromArray(source.kramdowns);
+    pushFromArray(source.items);
+    pushFromArray(source.blocks);
+    pushFromArray(source.rows);
+    pushFromArray(source.data);
+    pushRow(source);
+  }
+
+  const deduped = new Map<string, BlockKramdownRes>();
+  for (const row of rows) {
+    if (!deduped.has(row.id)) {
+      deduped.set(row.id, row);
+    }
+  }
+  return [...deduped.values()];
+}
+
+export async function getBlockKramdown(
+  id: string
+): Promise<BlockKramdownRes | null> {
+  const normalized = (id || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  const res = await requestApi<any>("/api/block/getBlockKramdown", {
+    id: normalized,
+  });
+  const rows = toBlockKramdownRows(res);
+  if (rows.length) {
+    const exact = rows.find((item) => item.id === normalized);
+    return exact || rows[0];
+  }
+  if (typeof res === "string") {
+    return {
+      id: normalized,
+      kramdown: res,
+    };
+  }
+  return null;
 }
 
 export async function appendBlock(

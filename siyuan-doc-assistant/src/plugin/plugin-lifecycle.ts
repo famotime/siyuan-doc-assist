@@ -46,7 +46,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
     getCurrentProtyle: () => this.currentProtyle,
     resolveDocId: (explicitId?: string, protyle?: ProtyleLike) =>
       this.resolveDocId(explicitId, protyle),
-    runAction: (action) => this.actionRunner.runAction(action),
+    runAction: (action, explicitId, protyle) =>
+      this.actionRunner.runAction(action, explicitId, protyle),
     actions: () => ACTIONS,
     getDocMenuRegistrationState: () => this.docMenuRegistrationState,
     setAllDocMenuRegistration: (enabled) => this.setAllDocMenuRegistration(enabled),

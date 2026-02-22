@@ -10,7 +10,9 @@ export type ActionKey =
   | "dedupe"
   | "remove-extra-blank-lines"
   | "insert-blank-before-headings"
-  | "delete-from-current-to-end";
+  | "delete-from-current-to-end"
+  | "bold-selected-blocks"
+  | "highlight-selected-blocks";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -75,10 +77,24 @@ export const ACTIONS: ActionConfig[] = [
   },
   {
     key: "insert-blank-before-headings",
-    commandText: "为标题前补空段落",
-    menuText: "为标题前补空段落",
+    commandText: "标题前增加空段落",
+    menuText: "标题前增加空段落",
     group: "edit",
     icon: "iconList",
+  },
+  {
+    key: "bold-selected-blocks",
+    commandText: "选中块全部加粗",
+    menuText: "选中块全部加粗",
+    group: "edit",
+    icon: "iconBold",
+  },
+  {
+    key: "highlight-selected-blocks",
+    commandText: "选中块全部高亮",
+    menuText: "选中块全部高亮",
+    group: "edit",
+    icon: "iconInfo",
   },
   {
     key: "remove-extra-blank-lines",

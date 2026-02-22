@@ -55,4 +55,40 @@ describe("key-info-dock scroll interaction", () => {
     dock.destroy();
     host.remove();
   });
+
+  test("prevents default on doc action button mousedown to keep editor selection", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onDocActionClick: () => {},
+    });
+
+    dock.setState({
+      docActions: [
+        {
+          key: "bold-selected-blocks",
+          label: "选中块全部加粗",
+          icon: "iconBold",
+          group: "edit",
+          groupLabel: "编辑",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+      ],
+    });
+
+    const button = host.querySelector(".doc-assistant-keyinfo__action-btn") as HTMLButtonElement | null;
+    expect(button).toBeTruthy();
+
+    const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    button!.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+
+    dock.destroy();
+    host.remove();
+  });
 });

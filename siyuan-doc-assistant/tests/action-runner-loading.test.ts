@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const { getActiveEditorMock, showMessageMock } = vi.hoisted(() => ({
@@ -20,9 +21,11 @@ vi.mock("@/services/exporter", () => ({
 vi.mock("@/services/kernel", () => ({
   appendBlock: vi.fn(),
   deleteBlockById: vi.fn(),
+  getBlockKramdowns: vi.fn(),
   getChildBlocksByParentId: vi.fn(),
   getDocMetaByID: vi.fn(),
   insertBlockBefore: vi.fn(),
+  updateBlockMarkdown: vi.fn(),
 }));
 
 vi.mock("@/services/block-lineage", () => ({
@@ -55,14 +58,18 @@ import { exportCurrentDocMarkdown } from "@/services/exporter";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import {
   deleteBlockById,
+  getBlockKramdowns,
   getChildBlocksByParentId,
   insertBlockBefore,
+  updateBlockMarkdown,
 } from "@/services/kernel";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
 const deleteBlockByIdMock = vi.mocked(deleteBlockById);
+const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
 const insertBlockBeforeMock = vi.mocked(insertBlockBefore);
+const updateBlockMarkdownMock = vi.mocked(updateBlockMarkdown);
 const resolveDocDirectChildBlockIdMock = vi.mocked(resolveDocDirectChildBlockId);
 
 function createRunner(setBusy?: (busy: boolean) => void) {
@@ -250,5 +257,105 @@ describe("action-runner loading guard", () => {
 
     expect(deleteBlockByIdMock).not.toHaveBeenCalled();
     expect(showMessageMock).toHaveBeenCalledWith("未定位到当前段落，请将光标置于正文后重试", 5000, "error");
+  });
+
+  test("bolds all selected blocks", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">A</div>
+      <div data-node-id="b" class="protyle-wysiwyg--select">B</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "Hello" } as any,
+      { id: "b", kramdown: "# Title {: id=\"b\"}" } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "a", "**Hello**");
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "# **Title** {: id=\"b\"}");
+  });
+
+  test("highlights all selected blocks", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="c" class="protyle-wysiwyg--select">C</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "c", kramdown: "- item" } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("highlight-selected-blocks" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "c", "- ==item==");
+  });
+
+  test("shows message when no blocks are selected for styling", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `<div data-node-id="a">A</div>`;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    const runner = createRunner();
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("未选中任何块，请先选中块", 5000, "info");
+  });
+
+  test("treats data-node-selected attribute as selected block marker", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="d" data-node-selected="1">D</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "d", kramdown: "Text" } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("d", "**Text**");
+  });
+
+  test("shows source-missing reason when selected blocks cannot load kramdown", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="e" class="protyle-wysiwyg--select">E</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([]);
+    const runner = createRunner();
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    const messages = showMessageMock.mock.calls.map((call) => String(call[0] || ""));
+    expect(messages.some((item) => item.includes("读取块源码失败"))).toBe(true);
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+  });
+
+  test("shows update failure reason when block update throws", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="f" class="protyle-wysiwyg--select">F</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "f", kramdown: "hello" } as any,
+    ]);
+    updateBlockMarkdownMock.mockRejectedValue(new Error("readonly mode"));
+    const runner = createRunner();
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    const messages = showMessageMock.mock.calls.map((call) => String(call[0] || ""));
+    expect(messages.some((item) => item.includes("readonly mode"))).toBe(true);
   });
 });

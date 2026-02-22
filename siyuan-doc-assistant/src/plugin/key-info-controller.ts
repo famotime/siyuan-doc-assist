@@ -16,7 +16,7 @@ type KeyInfoControllerDeps = {
   getCurrentDocId: () => string;
   getCurrentProtyle: () => ProtyleLike | undefined;
   resolveDocId: (explicitId?: string, protyle?: ProtyleLike) => string;
-  runAction: (action: ActionKey) => Promise<void>;
+  runAction: (action: ActionKey, explicitId?: string, protyle?: ProtyleLike) => Promise<void>;
   actions: () => ActionConfig[];
   getDocMenuRegistrationState: () => DocMenuRegistrationState;
   setAllDocMenuRegistration: (enabled: boolean) => Promise<void> | void;
@@ -59,7 +59,9 @@ export class KeyInfoController {
             if (!isActionKey(actionKey)) {
               return;
             }
-            void this.deps.runAction(actionKey);
+            const currentDocId = this.deps.getCurrentDocId();
+            const currentProtyle = this.deps.getCurrentProtyle();
+            void this.deps.runAction(actionKey, currentDocId, currentProtyle);
           },
           onDocMenuToggleAll: (enabled) => {
             void this.deps.setAllDocMenuRegistration(enabled);

@@ -447,6 +447,9 @@ export function createKeyInfoDock(
       if (action.disabledReason) {
         button.title = action.disabledReason;
       }
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+      });
       button.addEventListener("click", () => {
         if (action.disabled) {
           return;

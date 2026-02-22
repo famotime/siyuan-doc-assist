@@ -11,9 +11,11 @@ import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/
 import {
   appendBlock,
   deleteBlockById,
+  getBlockKramdowns,
   getChildBlocksByParentId,
   getDocMetaByID,
   insertBlockBefore,
+  updateBlockMarkdown,
 } from "@/services/kernel";
 import {
   getBacklinkDocs,
@@ -26,6 +28,7 @@ import { moveDocsAsChildren } from "@/services/mover";
 import { openDedupeDialog } from "@/ui/dialogs";
 import { ActionConfig, ActionKey, ACTIONS } from "@/plugin/actions";
 import { ProtyleLike } from "@/plugin/doc-context";
+import { applyBlockStyle, BlockStyle } from "@/core/markdown-style-core";
 
 type ActionRunnerDeps = {
   isMobile: () => boolean;
@@ -45,6 +48,14 @@ type CurrentBlockResolveResult = {
   id: string;
   source: CurrentBlockResolveSource;
   wasDocId: boolean;
+};
+
+type StyleFailureKind = "source-missing" | "update-failed";
+
+type StyleFailureDetail = {
+  id: string;
+  kind: StyleFailureKind;
+  reason: string;
 };
 
 export class ActionRunner {
@@ -200,6 +211,12 @@ export class ActionRunner {
         case "delete-from-current-to-end":
           await this.handleDeleteFromCurrentToEnd(docId, protyle);
           break;
+        case "bold-selected-blocks":
+          await this.handleStyleSelectedBlocks(docId, protyle, "bold");
+          break;
+        case "highlight-selected-blocks":
+          await this.handleStyleSelectedBlocks(docId, protyle, "highlight");
+          break;
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -336,6 +353,149 @@ export class ActionRunner {
       },
     });
     showMessage(`识别到 ${candidates.length} 组重复候选`, 5000, "info");
+  }
+
+  private getSelectedBlockIds(protyle?: ProtyleLike): string[] {
+    const activeProtyle = protyle || (getActiveEditor()?.protyle as ProtyleLike | undefined);
+    const root = activeProtyle?.wysiwyg?.element as HTMLElement | undefined;
+    if (!root) {
+      return [];
+    }
+    const selectors = [
+      ".protyle-wysiwyg--select",
+      ".protyle-wysiwyg__select",
+      ".protyle-wysiwyg--selecting",
+      "[data-node-id][data-node-selected]",
+    ];
+    const nodes = root.querySelectorAll(selectors.join(","));
+    const ids: string[] = [];
+    const seen = new Set<string>();
+    nodes.forEach((node) => {
+      const element =
+        (node as HTMLElement).closest?.("[data-node-id]") || (node as HTMLElement);
+      const id =
+        (element as HTMLElement).dataset.nodeId || element.getAttribute("data-node-id") || "";
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+    });
+
+    if (ids.length) {
+      return ids;
+    }
+
+    const selection = window.getSelection?.();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return ids;
+    }
+    const blockNodes = root.querySelectorAll<HTMLElement>("[data-node-id]");
+    blockNodes.forEach((node) => {
+      try {
+        if (selection.containsNode(node, true)) {
+          const id = node.dataset.nodeId || node.getAttribute("data-node-id") || "";
+          if (id && !seen.has(id)) {
+            seen.add(id);
+            ids.push(id);
+          }
+        }
+      } catch {
+        // Ignore DOM selection errors in non-standard environments.
+      }
+    });
+    return ids;
+  }
+
+  private async handleStyleSelectedBlocks(
+    docId: string,
+    protyle: ProtyleLike | undefined,
+    style: BlockStyle
+  ) {
+    const selectedIds = this.getSelectedBlockIds(protyle);
+    if (!selectedIds.length) {
+      showMessage("未选中任何块，请先选中块", 5000, "info");
+      return;
+    }
+
+    const kramdowns = await getBlockKramdowns(selectedIds);
+    const kramdownMap = new Map(
+      kramdowns.map((item) => [item.id, item.kramdown || ""])
+    );
+
+    let success = 0;
+    let failed = 0;
+    let skipped = 0;
+    const failures: StyleFailureDetail[] = [];
+    for (const id of selectedIds) {
+      const source = kramdownMap.get(id);
+      if (source === undefined) {
+        failed += 1;
+        failures.push({
+          id,
+          kind: "source-missing",
+          reason: "读取块源码失败",
+        });
+        continue;
+      }
+      const next = applyBlockStyle(source, style);
+      if (next === source) {
+        skipped += 1;
+        continue;
+      }
+      try {
+        await updateBlockMarkdown(id, next);
+        success += 1;
+      } catch (error: unknown) {
+        failed += 1;
+        failures.push({
+          id,
+          kind: "update-failed",
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    if (success === 0 && failed === 0 && skipped > 0) {
+      showMessage("未发现可处理内容", 4000, "info");
+      return;
+    }
+    if (failed > 0) {
+      const sample = this.summarizeStyleFailures(failures);
+      console.warn("[DocAssistant][Style] apply failed", {
+        docId,
+        style,
+        selectedCount: selectedIds.length,
+        success,
+        failed,
+        skipped,
+        failures,
+      });
+      showMessage(
+        `处理完成，成功 ${success}，失败 ${failed}${sample ? `（${sample}）` : ""}`,
+        6000,
+        "error"
+      );
+      return;
+    }
+    showMessage(`已处理 ${success} 个块`, 5000, "info");
+  }
+
+  private summarizeStyleFailures(failures: StyleFailureDetail[]): string {
+    if (!failures.length) {
+      return "";
+    }
+    const normalized = failures
+      .slice(0, 3)
+      .map((item) => {
+        const reason = (item.reason || "").replace(/\s+/g, " ").trim();
+        if (!reason) {
+          return `${item.id}`;
+        }
+        const compact = reason.length > 24 ? `${reason.slice(0, 24)}...` : reason;
+        return `${item.id}:${compact}`;
+      })
+      .join("；");
+    return normalized;
   }
 
   private openDocByProtocol(blockId: string) {
