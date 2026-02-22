@@ -217,7 +217,7 @@ export function createKeyInfoDock(
   docMenuToggleRow.className = "doc-assistant-keyinfo__menu-toggle-row";
   const docMenuToggleLabel = document.createElement("span");
   docMenuToggleLabel.className = "doc-assistant-keyinfo__menu-toggle-label";
-  docMenuToggleLabel.textContent = "注册到文档菜单";
+  docMenuToggleLabel.textContent = "全部注册到文档菜单";
   const docMenuToggleInput = document.createElement("input");
   docMenuToggleInput.type = "checkbox";
   docMenuToggleInput.className = "doc-assistant-keyinfo__menu-toggle-input";
@@ -350,22 +350,21 @@ export function createKeyInfoDock(
       return;
     }
 
+    const buildGroupLabel = (text: string) => {
+      const separator = document.createElement("div");
+      separator.className = "doc-assistant-keyinfo__action-separator";
+      const separatorLabel = document.createElement("span");
+      separatorLabel.className = "doc-assistant-keyinfo__action-separator-label";
+      separatorLabel.textContent = text;
+      separator.appendChild(separatorLabel);
+      return separator;
+    };
+
     const fragment = document.createDocumentFragment();
     let previousGroup = "";
     state.docActions.forEach((action) => {
-      if (previousGroup && previousGroup !== action.group) {
-        const separator = document.createElement("div");
-        separator.className = "doc-assistant-keyinfo__action-separator";
-        const separatorLabel = document.createElement("span");
-        separatorLabel.className = "doc-assistant-keyinfo__action-separator-label";
-        separatorLabel.textContent = action.groupLabel;
-        separator.appendChild(separatorLabel);
-        fragment.appendChild(separator);
-      } else if (!previousGroup) {
-        const firstGroupLabel = document.createElement("div");
-        firstGroupLabel.className = "doc-assistant-keyinfo__action-group-label";
-        firstGroupLabel.textContent = action.groupLabel;
-        fragment.appendChild(firstGroupLabel);
+      if (!previousGroup || previousGroup !== action.group) {
+        fragment.appendChild(buildGroupLabel(action.groupLabel));
       }
 
       const row = document.createElement("div");
