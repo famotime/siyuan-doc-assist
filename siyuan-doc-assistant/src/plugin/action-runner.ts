@@ -1,9 +1,11 @@
-import { showMessage } from "siyuan";
+import { getActiveEditor, showMessage } from "siyuan";
 import {
+  findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
 } from "@/core/markdown-cleanup-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
+import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/exporter";
 import {
@@ -36,6 +38,19 @@ export class ActionRunner {
   private isRunning = false;
 
   constructor(private readonly deps: ActionRunnerDeps) {}
+
+  private getProtyleBlockId(protyle?: ProtyleLike): string {
+    return (protyle?.block?.id || "").trim();
+  }
+
+  private resolveCurrentBlockId(protyle?: ProtyleLike): string {
+    const fromProvided = this.getProtyleBlockId(protyle);
+    if (fromProvided) {
+      return fromProvided;
+    }
+    const activeProtyle = getActiveEditor()?.protyle as ProtyleLike | undefined;
+    return this.getProtyleBlockId(activeProtyle);
+  }
 
   private async askConfirmWithVisibleDialog(title: string, text: string): Promise<boolean> {
     this.deps.setBusy?.(false);
@@ -91,6 +106,9 @@ export class ActionRunner {
           break;
         case "insert-blank-before-headings":
           await this.handleInsertBlankBeforeHeadings(docId);
+          break;
+        case "delete-from-current-to-end":
+          await this.handleDeleteFromCurrentToEnd(docId, protyle);
           break;
       }
     } catch (error: unknown) {
@@ -298,5 +316,58 @@ export class ActionRunner {
       return;
     }
     showMessage(`已为 ${result.insertCount} 个标题补充空段落`, 5000, "info");
+  }
+
+  private async handleDeleteFromCurrentToEnd(docId: string, protyle?: ProtyleLike) {
+    const currentBlockId = this.resolveCurrentBlockId(protyle);
+    if (!currentBlockId) {
+      showMessage("未定位到当前段落，请将光标置于正文后重试", 5000, "error");
+      return;
+    }
+
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的段落", 4000, "info");
+      return;
+    }
+
+    const directChildIdSet = new Set(blocks.map((item) => item.id));
+    let deleteStartId = currentBlockId;
+    if (!directChildIdSet.has(deleteStartId)) {
+      const mapped = await resolveDocDirectChildBlockId(docId, deleteStartId);
+      if (mapped) {
+        deleteStartId = mapped;
+      }
+    }
+
+    const result = findDeleteFromCurrentBlockIds(blocks, deleteStartId);
+    if (result.deleteCount === 0) {
+      showMessage("未找到从当前段落开始的可删除内容", 5000, "error");
+      return;
+    }
+
+    const ok = await this.askConfirmWithVisibleDialog(
+      "确认删除后续段落",
+      `将删除 ${result.deleteCount} 个段落（含当前段），是否继续？`
+    );
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
+    let failed = 0;
+    for (const id of result.deleteIds) {
+      try {
+        await deleteBlockById(id);
+      } catch {
+        failed += 1;
+      }
+    }
+
+    if (failed > 0) {
+      showMessage(`已删除 ${result.deleteCount - failed} 个段落，失败 ${failed} 个`, 6000, "error");
+      return;
+    }
+    showMessage(`已删除 ${result.deleteCount} 个段落`, 5000, "info");
   }
 }

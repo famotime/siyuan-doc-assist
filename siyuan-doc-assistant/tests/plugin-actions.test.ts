@@ -11,6 +11,7 @@ describe("plugin actions", () => {
     expect(isActionKey("export-current")).toBe(true);
     expect(isActionKey("insert-backlinks")).toBe(true);
     expect(isActionKey("insert-blank-before-headings")).toBe(true);
+    expect(isActionKey("delete-from-current-to-end")).toBe(true);
     expect(isActionKey("invalid-key")).toBe(false);
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
+  findDeleteFromCurrentBlockIds,
 } from "@/core/markdown-cleanup-core";
 
 describe("markdown-cleanup-core (blocks)", () => {
@@ -81,5 +82,18 @@ describe("markdown-cleanup-core (blocks)", () => {
     const result = findHeadingMissingBlankParagraphBeforeIds(blocks);
     expect(result.insertBeforeIds).toEqual(["h2", "h4"]);
     expect(result.insertCount).toBe(2);
+  });
+
+  test("collects delete ids from current block to end", () => {
+    const blocks = [
+      { id: "a", type: "p", content: "A", markdown: "A" },
+      { id: "b", type: "h", content: "B", markdown: "# B" },
+      { id: "c", type: "p", content: "C", markdown: "C" },
+      { id: "d", type: "p", content: "D", markdown: "D" },
+    ];
+
+    const result = findDeleteFromCurrentBlockIds(blocks, "b");
+    expect(result.deleteIds).toEqual(["b", "c", "d"]);
+    expect(result.deleteCount).toBe(3);
   });
 });

@@ -9,7 +9,8 @@ export type ActionKey =
   | "move-backlinks"
   | "dedupe"
   | "remove-extra-blank-lines"
-  | "insert-blank-before-headings";
+  | "insert-blank-before-headings"
+  | "delete-from-current-to-end";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -85,6 +86,13 @@ export const ACTIONS: ActionConfig[] = [
     menuText: "为标题前补空段落",
     group: "organize",
     icon: "iconList",
+  },
+  {
+    key: "delete-from-current-to-end",
+    commandText: "删除从此往后的全部段落（含本段）",
+    menuText: "删除从此往后的全部段落（含本段）",
+    group: "organize",
+    icon: "iconTrashcan",
   },
 ];
 

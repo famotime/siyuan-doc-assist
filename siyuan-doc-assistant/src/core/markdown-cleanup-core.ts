@@ -22,6 +22,11 @@ export type HeadingBlankParagraphInsertResult = {
   insertCount: number;
 };
 
+export type DeleteFromCurrentBlockResult = {
+  deleteIds: string[];
+  deleteCount: number;
+};
+
 function isBlankLine(line: string): boolean {
   if (!line) {
     return true;
@@ -171,5 +176,32 @@ export function findHeadingMissingBlankParagraphBeforeIds(
   return {
     insertBeforeIds,
     insertCount: insertBeforeIds.length,
+  };
+}
+
+export function findDeleteFromCurrentBlockIds(
+  blocks: ParagraphBlockMeta[],
+  currentBlockId: string
+): DeleteFromCurrentBlockResult {
+  if (!currentBlockId) {
+    return { deleteIds: [], deleteCount: 0 };
+  }
+
+  const startIndex = blocks.findIndex((block) => block.id === currentBlockId);
+  if (startIndex < 0) {
+    return { deleteIds: [], deleteCount: 0 };
+  }
+
+  const deleteIds = blocks.slice(startIndex).map((block) => block.id);
+  console.info("[DocAssistant][DeleteFromCurrent] matched blocks", {
+    totalBlocks: blocks.length,
+    currentBlockId,
+    startIndex,
+    deleteCount: deleteIds.length,
+    sample: deleteIds.slice(0, 8),
+  });
+  return {
+    deleteIds,
+    deleteCount: deleteIds.length,
   };
 }

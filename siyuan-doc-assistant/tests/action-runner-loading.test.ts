@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { showMessageMock } = vi.hoisted(() => ({
+const { getActiveEditorMock, showMessageMock } = vi.hoisted(() => ({
+  getActiveEditorMock: vi.fn(),
   showMessageMock: vi.fn(),
 }));
 vi.mock(
   "siyuan",
   () => ({
+    getActiveEditor: getActiveEditorMock,
     showMessage: showMessageMock,
   })
 );
@@ -21,6 +23,10 @@ vi.mock("@/services/kernel", () => ({
   getChildBlocksByParentId: vi.fn(),
   getDocMetaByID: vi.fn(),
   insertBlockBefore: vi.fn(),
+}));
+
+vi.mock("@/services/block-lineage", () => ({
+  resolveDocDirectChildBlockId: vi.fn(),
 }));
 
 vi.mock("@/services/link-resolver", () => ({
@@ -46,11 +52,18 @@ vi.mock("@/ui/dialogs", () => ({
 
 import { ActionRunner } from "@/plugin/action-runner";
 import { exportCurrentDocMarkdown } from "@/services/exporter";
-import { getChildBlocksByParentId, insertBlockBefore } from "@/services/kernel";
+import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
+import {
+  deleteBlockById,
+  getChildBlocksByParentId,
+  insertBlockBefore,
+} from "@/services/kernel";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
+const deleteBlockByIdMock = vi.mocked(deleteBlockById);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
 const insertBlockBeforeMock = vi.mocked(insertBlockBefore);
+const resolveDocDirectChildBlockIdMock = vi.mocked(resolveDocDirectChildBlockId);
 
 function createRunner(setBusy?: (busy: boolean) => void) {
   return new ActionRunner({
@@ -148,5 +161,58 @@ describe("action-runner loading guard", () => {
     expect(insertBlockBeforeMock).toHaveBeenCalledTimes(1);
     expect(insertBlockBeforeMock).toHaveBeenCalledWith("<br />", "h2", "doc-1");
     expect(showMessageMock).toHaveBeenCalledWith("已为 1 个标题补充空段落", 5000, "info");
+  });
+
+  test("deletes all blocks from current block to end", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", content: "A", markdown: "A", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "B", resolved: true } as any,
+      { id: "c", type: "h", content: "C", markdown: "## C", resolved: true } as any,
+    ]);
+    const runner = createRunner();
+    const protyle = { block: { rootID: "doc-1", id: "b" } } as any;
+
+    await runner.runAction("delete-from-current-to-end" as any, undefined, protyle);
+
+    expect(deleteBlockByIdMock).toHaveBeenCalledTimes(2);
+    expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(1, "b");
+    expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(2, "c");
+    expect(showMessageMock).toHaveBeenCalledWith("已删除 2 个段落", 5000, "info");
+  });
+
+  test("falls back to active editor block id when protyle is missing", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", content: "A", markdown: "A", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "B", resolved: true } as any,
+      { id: "c", type: "p", content: "C", markdown: "C", resolved: true } as any,
+    ]);
+    getActiveEditorMock.mockReturnValue({
+      protyle: { block: { id: "b" } },
+    });
+    const runner = createRunner();
+
+    await runner.runAction("delete-from-current-to-end" as any);
+
+    expect(deleteBlockByIdMock).toHaveBeenCalledTimes(2);
+    expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(1, "b");
+    expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(2, "c");
+  });
+
+  test("maps nested current block to direct child block before deleting", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", content: "A", markdown: "A", resolved: true } as any,
+      { id: "b", type: "l", content: "", markdown: "", resolved: true } as any,
+      { id: "c", type: "p", content: "C", markdown: "C", resolved: true } as any,
+    ]);
+    resolveDocDirectChildBlockIdMock.mockResolvedValue("b");
+    const runner = createRunner();
+    const protyle = { block: { rootID: "doc-1", id: "b-sub-1" } } as any;
+
+    await runner.runAction("delete-from-current-to-end" as any, undefined, protyle);
+
+    expect(resolveDocDirectChildBlockIdMock).toHaveBeenCalledWith("doc-1", "b-sub-1");
+    expect(deleteBlockByIdMock).toHaveBeenCalledTimes(2);
+    expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(1, "b");
+    expect(deleteBlockByIdMock).toHaveBeenNthCalledWith(2, "c");
   });
 });
