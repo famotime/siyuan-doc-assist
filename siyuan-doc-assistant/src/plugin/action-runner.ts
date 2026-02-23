@@ -3,6 +3,7 @@ import {
   findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
+  removeTrailingWhitespaceFromMarkdown,
 } from "@/core/markdown-cleanup-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
@@ -205,6 +206,9 @@ export class ActionRunner {
           break;
         case "remove-extra-blank-lines":
           await this.handleRemoveExtraBlankLines(docId);
+          break;
+        case "trim-trailing-whitespace":
+          await this.handleTrimTrailingWhitespace(docId);
           break;
         case "insert-blank-before-headings":
           await this.handleInsertBlankBeforeHeadings(docId);
@@ -630,6 +634,70 @@ export class ActionRunner {
       return;
     }
     showMessage(`已为 ${result.insertCount} 个标题补充空段落`, 5000, "info");
+  }
+
+  private async handleTrimTrailingWhitespace(docId: string) {
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的段落", 4000, "info");
+      return;
+    }
+
+    const updates: Array<{ id: string; markdown: string; changedLines: number }> = [];
+    let affectedLineCount = 0;
+    for (const block of blocks) {
+      if (block.resolved === false) {
+        continue;
+      }
+      const source = block.markdown || "";
+      const cleaned = removeTrailingWhitespaceFromMarkdown(source);
+      if (cleaned.changedLines <= 0) {
+        continue;
+      }
+      updates.push({
+        id: block.id,
+        markdown: cleaned.markdown,
+        changedLines: cleaned.changedLines,
+      });
+      affectedLineCount += cleaned.changedLines;
+    }
+
+    if (!updates.length) {
+      showMessage("未发现需要清理的行尾空格", 4000, "info");
+      return;
+    }
+
+    const ok = await this.askConfirmWithVisibleDialog(
+      "确认清理行尾空格",
+      `将更新 ${updates.length} 个块，清理 ${affectedLineCount} 行行尾空格，是否继续？`
+    );
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
+    let successBlockCount = 0;
+    let successLineCount = 0;
+    let failedBlockCount = 0;
+    for (const item of updates) {
+      try {
+        await updateBlockMarkdown(item.id, item.markdown);
+        successBlockCount += 1;
+        successLineCount += item.changedLines;
+      } catch {
+        failedBlockCount += 1;
+      }
+    }
+
+    if (failedBlockCount > 0) {
+      showMessage(
+        `已清理 ${successBlockCount} 个块、${successLineCount} 行，失败 ${failedBlockCount} 个块`,
+        7000,
+        "error"
+      );
+      return;
+    }
+    showMessage(`已清理 ${successBlockCount} 个块、${successLineCount} 行行尾空格`, 5000, "info");
   }
 
   private async handleDeleteFromCurrentToEnd(docId: string, protyle?: ProtyleLike) {

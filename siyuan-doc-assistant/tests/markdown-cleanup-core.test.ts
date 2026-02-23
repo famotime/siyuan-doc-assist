@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { removeExtraBlankLinesFromMarkdown } from "@/core/markdown-cleanup-core";
+import {
+  removeExtraBlankLinesFromMarkdown,
+  removeTrailingWhitespaceFromMarkdown,
+} from "@/core/markdown-cleanup-core";
 
 describe("markdown-cleanup-core", () => {
   test("collapses consecutive blank lines into one", () => {
@@ -35,5 +38,29 @@ describe("markdown-cleanup-core", () => {
     const result = removeExtraBlankLinesFromMarkdown(input);
     expect(result.markdown).toBe("a\n\nb");
     expect(result.removedLines).toBe(2);
+  });
+
+  test("removes trailing spaces and tabs on each line", () => {
+    const input = "a  \n\tb\t \n c\t\t";
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe("a\n\tb\n c");
+    expect(result.changedLines).toBe(3);
+    expect(result.removedChars).toBe(6);
+  });
+
+  test("keeps content when no trailing whitespace exists", () => {
+    const input = "a\n b\n\tc";
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe(input);
+    expect(result.changedLines).toBe(0);
+    expect(result.removedChars).toBe(0);
+  });
+
+  test("treats blank lines with only spaces/tabs as changed lines", () => {
+    const input = "a\n \t \n\t\nb";
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe("a\n\n\nb");
+    expect(result.changedLines).toBe(2);
+    expect(result.removedChars).toBe(4);
   });
 });

@@ -9,6 +9,7 @@ export type ActionKey =
   | "move-backlinks"
   | "dedupe"
   | "remove-extra-blank-lines"
+  | "trim-trailing-whitespace"
   | "insert-blank-before-headings"
   | "delete-from-current-to-end"
   | "bold-selected-blocks"
@@ -100,6 +101,13 @@ export const ACTIONS: ActionConfig[] = [
     key: "remove-extra-blank-lines",
     commandText: "去除本文档空段落",
     menuText: "去除本文档空段落",
+    group: "edit",
+    icon: "iconTrashcan",
+  },
+  {
+    key: "trim-trailing-whitespace",
+    commandText: "清理每行行尾空格（含Tab）",
+    menuText: "清理每行行尾空格（含Tab）",
     group: "edit",
     icon: "iconTrashcan",
   },

@@ -3,6 +3,12 @@ type CleanupResult = {
   removedLines: number;
 };
 
+export type TrailingWhitespaceCleanupResult = {
+  markdown: string;
+  changedLines: number;
+  removedChars: number;
+};
+
 export type ParagraphBlockMeta = {
   id: string;
   type: string;
@@ -117,6 +123,40 @@ export function removeExtraBlankLinesFromMarkdown(markdown: string): CleanupResu
   }
 
   return { markdown: output.join("\n"), removedLines };
+}
+
+export function removeTrailingWhitespaceFromMarkdown(
+  markdown: string
+): TrailingWhitespaceCleanupResult {
+  if (!markdown) {
+    return {
+      markdown: "",
+      changedLines: 0,
+      removedChars: 0,
+    };
+  }
+
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+  let changedLines = 0;
+  let removedChars = 0;
+
+  for (const line of lines) {
+    const match = line.match(/[ \t]+$/);
+    if (!match) {
+      output.push(line);
+      continue;
+    }
+    output.push(line.slice(0, line.length - match[0].length));
+    changedLines += 1;
+    removedChars += match[0].length;
+  }
+
+  return {
+    markdown: output.join("\n"),
+    changedLines,
+    removedChars,
+  };
 }
 
 export function findExtraBlankParagraphIds(

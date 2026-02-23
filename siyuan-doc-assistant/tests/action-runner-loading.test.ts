@@ -170,6 +170,34 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("已为 1 个标题补充空段落", 5000, "info");
   });
 
+  test("trims trailing whitespace and updates only affected blocks", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "hello  \nworld\t", resolved: true } as any,
+      { id: "b", type: "p", markdown: "clean", resolved: true } as any,
+      { id: "c", type: "p", markdown: "skip", resolved: false } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("a", "hello\nworld");
+    expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、2 行行尾空格", 5000, "info");
+  });
+
+  test("shows no-op message when no trailing whitespace exists", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any,
+      { id: "b", type: "h", markdown: "## title", resolved: true } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("未发现需要清理的行尾空格", 4000, "info");
+  });
+
   test("deletes all blocks from current block to end", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", content: "A", markdown: "A", resolved: true } as any,
