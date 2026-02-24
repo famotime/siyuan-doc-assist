@@ -21,6 +21,7 @@ vi.mock("@/services/exporter", () => ({
 vi.mock("@/services/kernel", () => ({
   appendBlock: vi.fn(),
   deleteBlockById: vi.fn(),
+  getBlockKramdown: vi.fn(),
   getBlockKramdowns: vi.fn(),
   getChildBlocksByParentId: vi.fn(),
   getDocMetaByID: vi.fn(),
@@ -58,6 +59,7 @@ import { exportCurrentDocMarkdown } from "@/services/exporter";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import {
   deleteBlockById,
+  getBlockKramdown,
   getBlockKramdowns,
   getChildBlocksByParentId,
   insertBlockBefore,
@@ -66,6 +68,7 @@ import {
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
 const deleteBlockByIdMock = vi.mocked(deleteBlockById);
+const getBlockKramdownMock = vi.mocked(getBlockKramdown);
 const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
 const insertBlockBeforeMock = vi.mocked(insertBlockBefore);
@@ -196,6 +199,99 @@ describe("action-runner loading guard", () => {
 
     expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
     expect(showMessageMock).toHaveBeenCalledWith("未发现需要清理的行尾空格", 4000, "info");
+  });
+
+  test("trims trailing whitespace from kramdown when sql markdown is normalized", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any,
+    ]);
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "hello  \nworld\t" } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("a", "hello\nworld");
+    expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、2 行行尾空格", 5000, "info");
+  });
+
+  test("falls back to single kramdown API when batch source has no trailing whitespace", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any,
+    ]);
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "hello\nworld" } as any,
+    ]);
+    getBlockKramdownMock
+      .mockResolvedValueOnce({
+        id: "a",
+        kramdown: "hello  \nworld\t",
+      } as any)
+      .mockResolvedValueOnce({
+        id: "a",
+        kramdown: "hello\nworld",
+      } as any);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(getBlockKramdownMock).toHaveBeenCalledWith("a");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("a", "hello\nworld");
+    expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、2 行行尾空格", 5000, "info");
+  });
+
+  test("retries update when verification still finds trailing whitespace", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "text", resolved: true } as any,
+    ]);
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "text\\t{: style=\"white-space:pre\"}" } as any,
+    ]);
+    getBlockKramdownMock
+      .mockResolvedValueOnce({
+        id: "a",
+        kramdown: "text\\t{: style=\"white-space:pre\"}",
+      } as any)
+      .mockResolvedValueOnce({
+        id: "a",
+        kramdown: "text",
+      } as any);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "a", "text");
+    expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、1 行行尾空格", 5000, "info");
+  });
+
+  test("logs readable failure summary when verification remains dirty after retries", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "text", resolved: true } as any,
+    ]);
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "text\\t{: style=\"white-space:pre\"}" } as any,
+    ]);
+    getBlockKramdownMock.mockResolvedValue({
+      id: "a",
+      kramdown: "text\\t{: style=\"white-space:pre\"}",
+    } as any);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(showMessageMock).toHaveBeenCalledWith("已清理 0 个块、0 行，失败 1 个块", 7000, "error");
+    const applyLog = infoSpy.mock.calls.find(
+      (args) => args[0] === "[DocAssistant][TrailingWhitespace] apply result"
+    );
+    expect(applyLog).toBeTruthy();
+    const payload = applyLog?.[1] as any;
+    expect(payload.failedBlockCount).toBe(1);
+    expect(payload.failedSummary?.[0]).toContain("a|");
+    infoSpy.mockRestore();
   });
 
   test("deletes all blocks from current block to end", async () => {

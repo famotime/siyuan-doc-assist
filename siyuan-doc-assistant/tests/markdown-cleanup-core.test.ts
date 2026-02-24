@@ -63,4 +63,73 @@ describe("markdown-cleanup-core", () => {
     expect(result.changedLines).toBe(2);
     expect(result.removedChars).toBe(4);
   });
+
+  test("removes trailing whitespace spans persisted as white-space:pre ial", () => {
+    const input = `a\t\t{: style="white-space:pre"}\nline  \t{: style="white-space:pre"}\nend`;
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe("a\nline\nend");
+    expect(result.changedLines).toBe(2);
+    expect(result.removedChars).toBe(5);
+  });
+
+  test("removes trailing white-space:pre spans even when block ial follows", () => {
+    const input = `a\t{: style="white-space: pre;"}{: id="blk1"}\nend`;
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe(`a{: id="blk1"}\nend`);
+    expect(result.changedLines).toBe(1);
+    expect(result.removedChars).toBe(1);
+  });
+
+  test("removes trailing white-space:pre ial markers when whitespace token is elided", () => {
+    const input = `text{: style="white-space:pre"}\n{: style="white-space: pre;"}{: id="blk1"}\nend`;
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe(`text\n{: id="blk1"}\nend`);
+    expect(result.changedLines).toBe(2);
+    expect(result.removedChars).toBe(0);
+  });
+
+  test("removes trailing unicode spaces represented by white-space:pre ial", () => {
+    const input = `line\u3000{: style="white-space:pre"}\ntext\u00A0{: style="white-space: pre;"}\nend`;
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe("line\ntext\nend");
+    expect(result.changedLines).toBe(2);
+    expect(result.removedChars).toBe(2);
+  });
+
+  test("removes trailing white-space:pre span plus ial generated in markdown", () => {
+    const input = 'text<span data-type="text" style="white-space:pre">\t\t </span>{: style="white-space:pre"}';
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe("text");
+    expect(result.changedLines).toBe(1);
+    expect(result.removedChars).toBe(3);
+  });
+
+  test("removes trailing white-space:pre span plus ial when block ial follows", () => {
+    const input =
+      'text<span data-type="text" style="white-space: pre;">\t</span>{: style="white-space:pre"}{: id="blk1"}';
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe('text{: id="blk1"}');
+    expect(result.changedLines).toBe(1);
+    expect(result.removedChars).toBe(1);
+  });
+
+  test("removes trailing span+ial pattern from real-world mixed CJK line", () => {
+    const input =
+      '拉屎肯定            放假；阿里可             <span data-type="text" style="white-space:pre">\t\t   </span>{: style="white-space:pre"}';
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe("拉屎肯定            放假；阿里可");
+    expect(result.changedLines).toBe(1);
+    expect(result.removedChars).toBe(18);
+  });
+
+  test("keeps middle span+ial and removes only trailing span+ial", () => {
+    const input =
+      '塑料袋凯<span data-type="text" style="white-space:pre">\t\t\t\t</span>{: style="white-space:pre"}撒减肥<span data-type="text" style="white-space:pre">\t\t</span>{: style="white-space:pre"}';
+    const result = removeTrailingWhitespaceFromMarkdown(input);
+    expect(result.markdown).toBe(
+      '塑料袋凯<span data-type="text" style="white-space:pre">\t\t\t\t</span>{: style="white-space:pre"}撒减肥'
+    );
+    expect(result.changedLines).toBe(1);
+    expect(result.removedChars).toBe(2);
+  });
 });

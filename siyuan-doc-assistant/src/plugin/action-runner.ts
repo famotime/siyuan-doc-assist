@@ -12,6 +12,7 @@ import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/
 import {
   appendBlock,
   deleteBlockById,
+  getBlockKramdown,
   getBlockKramdowns,
   getChildBlocksByParentId,
   getDocMetaByID,
@@ -638,31 +639,95 @@ export class ActionRunner {
 
   private async handleTrimTrailingWhitespace(docId: string) {
     const blocks = await getChildBlocksByParentId(docId);
+    console.info("[DocAssistant][TrailingWhitespace] scan start", {
+      docId,
+      blockCount: blocks.length,
+    });
     if (!blocks.length) {
       showMessage("当前文档没有可处理的段落", 4000, "info");
       return;
     }
 
-    const updates: Array<{ id: string; markdown: string; changedLines: number }> = [];
-    let affectedLineCount = 0;
-    for (const block of blocks) {
-      if (block.resolved === false) {
-        continue;
+    const collectUpdatesFromSourceMap = (sourceMap: Map<string, string>) => {
+      const updates: Array<{ id: string; markdown: string; changedLines: number }> = [];
+      let affectedLineCount = 0;
+      for (const block of blocks) {
+        const sourceFromKramdown = sourceMap.get(block.id);
+        if (block.resolved === false && sourceFromKramdown === undefined) {
+          continue;
+        }
+        const source = sourceFromKramdown === undefined ? block.markdown || "" : sourceFromKramdown;
+        const cleaned = removeTrailingWhitespaceFromMarkdown(source);
+        if (cleaned.changedLines <= 0) {
+          continue;
+        }
+        updates.push({
+          id: block.id,
+          markdown: cleaned.markdown,
+          changedLines: cleaned.changedLines,
+        });
+        affectedLineCount += cleaned.changedLines;
       }
-      const source = block.markdown || "";
-      const cleaned = removeTrailingWhitespaceFromMarkdown(source);
-      if (cleaned.changedLines <= 0) {
-        continue;
-      }
-      updates.push({
-        id: block.id,
-        markdown: cleaned.markdown,
-        changedLines: cleaned.changedLines,
+      return { updates, affectedLineCount };
+    };
+
+    const batchRows = (await getBlockKramdowns(blocks.map((block) => block.id))) || [];
+    const batchMap = new Map(
+      batchRows.map((item) => [item.id, item.kramdown || ""])
+    );
+    let singleMap = new Map<string, string>();
+    let { updates, affectedLineCount } = collectUpdatesFromSourceMap(batchMap);
+    console.info("[DocAssistant][TrailingWhitespace] batch scan result", {
+      docId,
+      batchCount: batchRows.length,
+      updateCount: updates.length,
+      affectedLineCount,
+      updateSample: updates.slice(0, 8).map((item) => item.id),
+    });
+
+    if (!updates.length) {
+      console.info("[DocAssistant][TrailingWhitespace] batch no-op, fallback to single", {
+        docId,
+        blockCount: blocks.length,
+        batchCount: batchRows.length,
       });
-      affectedLineCount += cleaned.changedLines;
+      singleMap = new Map<string, string>();
+      for (const block of blocks) {
+        try {
+          const row = await getBlockKramdown(block.id);
+          if (row?.kramdown != null) {
+            singleMap.set(block.id, row.kramdown || "");
+          }
+        } catch {
+          // Fallback should be best-effort. Keep no-op behavior when source cannot be loaded.
+        }
+      }
+      ({ updates, affectedLineCount } = collectUpdatesFromSourceMap(singleMap));
+      console.info("[DocAssistant][TrailingWhitespace] single fallback result", {
+        docId,
+        singleCount: singleMap.size,
+        updateCount: updates.length,
+        affectedLineCount,
+      });
     }
 
     if (!updates.length) {
+      const probeSamples = blocks.slice(0, 8).map((block) => {
+        const source = (singleMap.get(block.id) ?? batchMap.get(block.id) ?? block.markdown) || "";
+        return {
+          id: block.id,
+          length: source.length,
+          hasWhiteSpacePre: /white-space\s*:\s*pre/i.test(source),
+          hasTailWhitespace: /[ \t]+$/.test(source),
+          hasEscapedWhitespaceToken: /(?:\\t|\\u0009|\\x09)/i.test(source),
+          preview: JSON.stringify(source.slice(0, 200)),
+        };
+      });
+      console.info("[DocAssistant][TrailingWhitespace] no-op source probe", {
+        docId,
+        sampleCount: probeSamples.length,
+        samples: probeSamples,
+      });
       showMessage("未发现需要清理的行尾空格", 4000, "info");
       return;
     }
@@ -676,18 +741,118 @@ export class ActionRunner {
     }
     this.deps.setBusy?.(true);
 
+    const maxApplyAttempts = 3;
+    const maxVerifyReadAttempts = 3;
+    const verifyReadDelayMs = 80;
+    const retryDelayMs = 120;
+    const sleep = async (ms: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+      });
+    const previewMarkdown = (value: string, max = 160) =>
+      JSON.stringify(value.length > max ? `${value.slice(0, max)}…` : value);
     let successBlockCount = 0;
     let successLineCount = 0;
     let failedBlockCount = 0;
+    const failedUpdates: Array<{
+      id: string;
+      attempts: number;
+      verifyReads: number;
+      message: string;
+      lastChangedLines: number;
+      persistedPreview: string;
+      cleanedPreview: string;
+    }> = [];
     for (const item of updates) {
-      try {
-        await updateBlockMarkdown(item.id, item.markdown);
+      let currentMarkdown = item.markdown;
+      let attempts = 0;
+      let applied = false;
+      let failureMessage = "";
+      let verifyReads = 0;
+      let lastChangedLines = 0;
+      let lastPersistedPreview = "";
+      let lastCleanedPreview = previewMarkdown(currentMarkdown);
+      for (let attempt = 1; attempt <= maxApplyAttempts; attempt += 1) {
+        attempts = attempt;
+        try {
+          await updateBlockMarkdown(item.id, currentMarkdown);
+        } catch (error: unknown) {
+          failureMessage = error instanceof Error ? error.message : String(error);
+          break;
+        }
+        try {
+          let verifiedClean = false;
+          for (let readAttempt = 1; readAttempt <= maxVerifyReadAttempts; readAttempt += 1) {
+            verifyReads = readAttempt;
+            const persisted = await getBlockKramdown(item.id);
+            const persistedMarkdown = persisted?.kramdown;
+            if (typeof persistedMarkdown !== "string") {
+              // Some kernels may not return row data immediately; keep backward-compatible success.
+              applied = true;
+              verifiedClean = true;
+              break;
+            }
+            lastPersistedPreview = previewMarkdown(persistedMarkdown);
+            const verification = removeTrailingWhitespaceFromMarkdown(persistedMarkdown);
+            lastChangedLines = verification.changedLines;
+            lastCleanedPreview = previewMarkdown(verification.markdown);
+            if (verification.changedLines <= 0) {
+              applied = true;
+              verifiedClean = true;
+              break;
+            }
+            currentMarkdown = verification.markdown;
+            failureMessage = `verification-not-clean:${verification.changedLines}`;
+            if (readAttempt < maxVerifyReadAttempts) {
+              await sleep(verifyReadDelayMs * readAttempt);
+            }
+          }
+          if (verifiedClean) {
+            break;
+          }
+          if (attempt < maxApplyAttempts) {
+            await sleep(retryDelayMs * attempt);
+          }
+        } catch (error: unknown) {
+          // Verification failures should not block the operation itself.
+          applied = true;
+          failureMessage = `verification-skipped:${error instanceof Error ? error.message : String(error)}`;
+          break;
+        }
+      }
+      if (applied) {
         successBlockCount += 1;
         successLineCount += item.changedLines;
-      } catch {
+      } else {
         failedBlockCount += 1;
+        failedUpdates.push({
+          id: item.id,
+          attempts,
+          verifyReads,
+          message: failureMessage || "unknown failure",
+          lastChangedLines,
+          persistedPreview: lastPersistedPreview,
+          cleanedPreview: lastCleanedPreview,
+        });
       }
     }
+    const failedSummary = failedUpdates
+      .slice(0, 8)
+      .map(
+        (item) =>
+          `${item.id}|attempts=${item.attempts}|reads=${item.verifyReads}|changed=${item.lastChangedLines}|${item.message}`
+      );
+    console.info("[DocAssistant][TrailingWhitespace] apply result", {
+      docId,
+      updateCount: updates.length,
+      successBlockCount,
+      successLineCount,
+      failedBlockCount,
+      maxApplyAttempts,
+      maxVerifyReadAttempts,
+      failedSummary,
+      failedSample: failedUpdates.slice(0, 8),
+    });
 
     if (failedBlockCount > 0) {
       showMessage(

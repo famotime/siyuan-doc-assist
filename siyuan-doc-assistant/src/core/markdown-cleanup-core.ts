@@ -140,16 +140,81 @@ export function removeTrailingWhitespaceFromMarkdown(
   const output: string[] = [];
   let changedLines = 0;
   let removedChars = 0;
+  const trailingWhitespaceSpanIalPattern =
+    /<span\b[^>\n]*\bstyle=(["'])[^"'\n]*white-space\s*:\s*pre\b[^"'\n]*\1[^>\n]*>((?:[^\S\r\n]|\\t|\\u0009|\\x09)*)<\/span>\s*\{:[^}\n]*white-space\s*:\s*pre\b[^}\n]*\}(?=(?:[^\S\r\n]*\{:[^}\n]*\})*[^\S\r\n]*$)/giu;
+  const trailingWhitespaceIalPattern =
+    /((?:[^\S\r\n]|\\t|\\u0009|\\x09)*)\{:[^}\n]*white-space\s*:\s*pre\b[^}\n]*\}(?=(?:[^\S\r\n]*\{:[^}\n]*\})*[^\S\r\n]*$)/giu;
+  const trailingHorizontalWhitespacePattern = /[^\S\r\n]+$/u;
+  const decodeEscapedWhitespaceLength = (value: string): number => {
+    if (!value) {
+      return 0;
+    }
+    let rest = value;
+    let decoded = 0;
+    const escapedPatterns = [/\\u0009/gi, /\\x09/gi, /\\t/g];
+    for (const pattern of escapedPatterns) {
+      const matches = rest.match(pattern);
+      if (!matches?.length) {
+        continue;
+      }
+      decoded += matches.length;
+      rest = rest.replace(pattern, "");
+    }
+    decoded += rest.length;
+    return decoded;
+  };
 
   for (const line of lines) {
-    const match = line.match(/[ \t]+$/);
-    if (!match) {
-      output.push(line);
-      continue;
+    let nextLine = line;
+    let removedInLine = 0;
+
+    // Some kernels serialize trailing whitespace as:
+    // <span data-type="text" style="white-space:pre">...</span>{: style="white-space:pre"}
+    // Remove the full span+IAL segment at line end.
+    let removedSpanIal = false;
+    do {
+      removedSpanIal = false;
+      nextLine = nextLine.replace(
+        trailingWhitespaceSpanIalPattern,
+        (_match, _quote: string, ws: string) => {
+          removedInLine += decodeEscapedWhitespaceLength(ws || "");
+          removedSpanIal = true;
+          return "";
+        }
+      );
+    } while (removedSpanIal);
+
+    const beforeInlineIal = nextLine;
+    nextLine = nextLine.replace(
+      trailingWhitespaceIalPattern,
+      (_match, ws: string) => {
+        removedInLine += decodeEscapedWhitespaceLength(ws || "");
+        return "";
+      }
+    );
+    if (nextLine !== beforeInlineIal) {
+      // Multiple trailing spans can be represented as adjacent IAL segments.
+      // Run once more to ensure any newly-adjacent matches are removed.
+      nextLine = nextLine.replace(
+        trailingWhitespaceIalPattern,
+        (_match, ws: string) => {
+          removedInLine += decodeEscapedWhitespaceLength(ws || "");
+          return "";
+        }
+      );
     }
-    output.push(line.slice(0, line.length - match[0].length));
-    changedLines += 1;
-    removedChars += match[0].length;
+
+    const tailMatch = nextLine.match(trailingHorizontalWhitespacePattern);
+    if (tailMatch) {
+      nextLine = nextLine.slice(0, nextLine.length - tailMatch[0].length);
+      removedInLine += tailMatch[0].length;
+    }
+
+    output.push(nextLine);
+    if (nextLine !== line) {
+      changedLines += 1;
+      removedChars += removedInLine;
+    }
   }
 
   return {
