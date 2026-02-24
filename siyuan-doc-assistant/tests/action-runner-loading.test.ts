@@ -217,6 +217,22 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、2 行行尾空格", 5000, "info");
   });
 
+  test("keeps leading spaces from sql markdown when kramdown is normalized", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "  hello  \n    world\t", resolved: true } as any,
+    ]);
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "hello  \nworld\t" } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("a", "  hello\n    world");
+    expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、2 行行尾空格", 5000, "info");
+  });
+
   test("falls back to single kramdown API when batch source has no trailing whitespace", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any,

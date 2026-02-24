@@ -50,6 +50,7 @@ describe("key-info-controller doc actions", () => {
       setAllDocMenuRegistration: () => {},
       setSingleDocMenuRegistration: () => {},
       setDocActionOrder: () => {},
+      resetDocActionOrder: () => {},
     });
 
     let dockConfig: any;
@@ -70,6 +71,53 @@ describe("key-info-controller doc actions", () => {
 
     await Promise.resolve();
 
+    controller.destroy();
+    host.remove();
+  });
+
+  test("calls resetDocActionOrder when clicking reset order button", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const resetDocActionOrder = vi.fn().mockResolvedValue(undefined);
+    const action: ActionConfig = {
+      key: "insert-backlinks",
+      commandText: "插入反链文档列表（去重）",
+      menuText: "插入反链文档列表（去重）",
+      group: "edit",
+      icon: "iconList",
+    };
+    const controller = new KeyInfoController({
+      isMobile: () => false,
+      getCurrentDocId: () => "doc-1",
+      getCurrentProtyle: () => undefined,
+      resolveDocId: (explicitId?: string) => explicitId || "doc-1",
+      runAction: vi.fn().mockResolvedValue(undefined),
+      actions: () => [action],
+      getDocMenuRegistrationState: () => buildDefaultDocMenuRegistration([action]),
+      setAllDocMenuRegistration: () => {},
+      setSingleDocMenuRegistration: () => {},
+      setDocActionOrder: () => {},
+      resetDocActionOrder,
+    });
+
+    let dockConfig: any;
+    controller.registerDock({
+      addDock: (config: unknown) => {
+        dockConfig = config;
+      },
+    });
+    dockConfig.init({ element: host });
+
+    const resetButton = host.querySelector(
+      ".doc-assistant-keyinfo__action-reset-btn"
+    ) as HTMLButtonElement | null;
+    expect(resetButton).toBeTruthy();
+
+    resetButton!.click();
+    expect(resetDocActionOrder).toHaveBeenCalledTimes(1);
+
+    await Promise.resolve();
     controller.destroy();
     host.remove();
   });

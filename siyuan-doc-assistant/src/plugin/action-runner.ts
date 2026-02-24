@@ -661,9 +661,14 @@ export class ActionRunner {
         if (cleaned.changedLines <= 0) {
           continue;
         }
+        let markdownForUpdate = cleaned.markdown;
+        if (sourceFromKramdown !== undefined && block.resolved !== false) {
+          // Prefer SQL markdown shape for write-back so leading indentation is preserved.
+          markdownForUpdate = removeTrailingWhitespaceFromMarkdown(block.markdown || "").markdown;
+        }
         updates.push({
           id: block.id,
-          markdown: cleaned.markdown,
+          markdown: markdownForUpdate,
           changedLines: cleaned.changedLines,
         });
         affectedLineCount += cleaned.changedLines;

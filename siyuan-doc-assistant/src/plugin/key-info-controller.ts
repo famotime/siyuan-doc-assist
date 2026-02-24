@@ -22,6 +22,7 @@ type KeyInfoControllerDeps = {
   setAllDocMenuRegistration: (enabled: boolean) => Promise<void> | void;
   setSingleDocMenuRegistration: (key: ActionKey, enabled: boolean) => Promise<void> | void;
   setDocActionOrder: (order: ActionKey[]) => Promise<void> | void;
+  resetDocActionOrder: () => Promise<void> | void;
 };
 
 export class KeyInfoController {
@@ -78,6 +79,9 @@ export class KeyInfoController {
               isActionKey(key)
             );
             void this.deps.setDocActionOrder(normalized);
+          },
+          onDocActionOrderReset: () => {
+            void this.deps.resetDocActionOrder();
           },
         });
         this.syncDocActions();

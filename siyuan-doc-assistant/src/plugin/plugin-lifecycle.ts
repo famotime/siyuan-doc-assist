@@ -58,6 +58,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     setSingleDocMenuRegistration: (key, enabled) =>
       this.setSingleDocMenuRegistration(key, enabled),
     setDocActionOrder: (order) => this.setDocActionOrder(order),
+    resetDocActionOrder: () => this.resetDocActionOrder(),
   });
 
   private readonly onSwitchProtyle = (event: CustomEvent<{ protyle?: ProtyleLike }>) => {
@@ -236,6 +237,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
       { actionOrder: order },
       ACTIONS
     );
+    await this.persistDocMenuRegistrationState();
+    this.keyInfoController.syncDocActions();
+  }
+
+  async resetDocActionOrder() {
+    this.docActionOrderState = buildDefaultDocActionOrder(ACTIONS);
     await this.persistDocMenuRegistrationState();
     this.keyInfoController.syncDocActions();
   }

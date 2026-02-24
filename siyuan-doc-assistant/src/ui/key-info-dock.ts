@@ -54,6 +54,12 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
   { key: "tag", label: "标签", icon: "签" },
 ];
 
+const MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS = new Set<string>([
+  "bold-selected-blocks",
+  "highlight-selected-blocks",
+  "delete-from-current-to-end",
+]);
+
 function filterItems(items: KeyInfoItem[], filter: KeyInfoFilter): KeyInfoItem[] {
   if (!filter.length) {
     return [];
@@ -111,6 +117,7 @@ export function createKeyInfoDock(
     onDocMenuToggleAll?: (enabled: boolean) => void;
     onDocActionMenuToggle?: (actionKey: string, enabled: boolean) => void;
     onDocActionReorder?: (order: string[]) => void;
+    onDocActionOrderReset?: () => void;
   }
 ): KeyInfoDockHandle {
   const state: KeyInfoDockState = {
@@ -248,9 +255,21 @@ export function createKeyInfoDock(
   });
   docMenuToggleRow.appendChild(docMenuToggleLabel);
   docMenuToggleRow.appendChild(docMenuToggleInput);
+  const docActionControlRow = document.createElement("div");
+  docActionControlRow.className = "doc-assistant-keyinfo__action-control-row";
+  const docActionResetBtn = document.createElement("button");
+  docActionResetBtn.type = "button";
+  docActionResetBtn.className =
+    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__action-reset-btn";
+  docActionResetBtn.textContent = "重置排序";
+  docActionResetBtn.addEventListener("click", () => {
+    callbacks.onDocActionOrderReset?.();
+  });
+  docActionControlRow.appendChild(docActionResetBtn);
   const docProcessList = document.createElement("div");
   docProcessList.className = "doc-assistant-keyinfo__actions";
   docProcessPanel.appendChild(docProcessList);
+  docProcessPanel.appendChild(docActionControlRow);
   docProcessPanel.appendChild(docMenuToggleRow);
 
   root.appendChild(header);
@@ -418,6 +437,46 @@ export function createKeyInfoDock(
           node.classList.remove("is-drop-before");
           node.classList.remove("is-drop-after");
         });
+      docProcessList
+        .querySelectorAll(".doc-assistant-keyinfo__action-separator.is-drop-target")
+        .forEach((node) => {
+          node.classList.remove("is-drop-target");
+        });
+    };
+
+    const normalizeDocActionsByGroup = (actions: DockDocAction[]) => {
+      const groupOrder: string[] = [];
+      const grouped = new Map<string, DockDocAction[]>();
+      actions.forEach((action) => {
+        if (!grouped.has(action.group)) {
+          grouped.set(action.group, []);
+          groupOrder.push(action.group);
+        }
+        grouped.get(action.group)?.push(action);
+      });
+      const normalized: DockDocAction[] = [];
+      groupOrder.forEach((group) => {
+        const entries = grouped.get(group);
+        if (!entries?.length) {
+          return;
+        }
+        normalized.push(...entries);
+      });
+      return normalized;
+    };
+
+    const docActions = normalizeDocActionsByGroup(state.docActions);
+    const actionGroupMap = new Map(docActions.map((action) => [action.key, action.group]));
+
+    const updateDocActionOrder = (next: DockDocAction[]) => {
+      const changed =
+        next.length !== docActions.length ||
+        next.some((action, index) => action.key !== docActions[index]?.key);
+      if (!changed) {
+        return;
+      }
+      setState({ docActions: next });
+      callbacks.onDocActionReorder?.(next.map((action) => action.key));
     };
 
     const reorderActionRows = (
@@ -425,17 +484,18 @@ export function createKeyInfoDock(
       targetKey: string,
       insertBefore: boolean
     ) => {
-      const sourceIndex = state.docActions.findIndex(
-        (action) => action.key === sourceKey
-      );
-      const targetIndex = state.docActions.findIndex(
-        (action) => action.key === targetKey
-      );
+      const sourceGroup = actionGroupMap.get(sourceKey);
+      const targetGroup = actionGroupMap.get(targetKey);
+      if (!sourceGroup || !targetGroup || sourceGroup !== targetGroup) {
+        return;
+      }
+      const sourceIndex = docActions.findIndex((action) => action.key === sourceKey);
+      const targetIndex = docActions.findIndex((action) => action.key === targetKey);
       if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
         return;
       }
 
-      const next = [...state.docActions];
+      const next = [...docActions];
       const [dragged] = next.splice(sourceIndex, 1);
       const currentTargetIndex = next.findIndex(
         (action) => action.key === targetKey
@@ -445,13 +505,53 @@ export function createKeyInfoDock(
       }
       const insertIndex = insertBefore ? currentTargetIndex : currentTargetIndex + 1;
       next.splice(insertIndex, 0, dragged);
-      setState({ docActions: next });
-      callbacks.onDocActionReorder?.(next.map((action) => action.key));
+      updateDocActionOrder(next);
+    };
+
+    const moveActionToGroupEnd = (sourceKey: string) => {
+      const sourceGroup = actionGroupMap.get(sourceKey);
+      if (!sourceGroup) {
+        return;
+      }
+      const sourceIndex = docActions.findIndex((action) => action.key === sourceKey);
+      if (sourceIndex < 0) {
+        return;
+      }
+      let lastInGroupIndex = -1;
+      for (let i = docActions.length - 1; i >= 0; i -= 1) {
+        if (docActions[i]?.group === sourceGroup) {
+          lastInGroupIndex = i;
+          break;
+        }
+      }
+      if (lastInGroupIndex < 0 || sourceIndex === lastInGroupIndex) {
+        return;
+      }
+      const next = [...docActions];
+      const [dragged] = next.splice(sourceIndex, 1);
+      if (!dragged) {
+        return;
+      }
+      const insertIndex = sourceIndex < lastInGroupIndex ? lastInGroupIndex : lastInGroupIndex + 1;
+      next.splice(insertIndex, 0, dragged);
+      updateDocActionOrder(next);
     };
 
     let draggingKey = "";
+    const resolveSourceKey = (event: DragEvent) =>
+      draggingKey ||
+      (event.dataTransfer?.getData("text/plain") || "").trim();
 
-    if (!state.docActions.length) {
+    const canDropToTarget = (sourceKey: string, targetKey: string) => {
+      if (!sourceKey || sourceKey === targetKey) {
+        return false;
+      }
+      const sourceGroup = actionGroupMap.get(sourceKey);
+      const targetGroup = actionGroupMap.get(targetKey);
+      return Boolean(sourceGroup && targetGroup && sourceGroup === targetGroup);
+    };
+
+    if (!docActions.length) {
       const empty = document.createElement("div");
       empty.className = "doc-assistant-keyinfo__empty ft__secondary";
       empty.textContent = "暂无文档处理命令";
@@ -471,9 +571,34 @@ export function createKeyInfoDock(
 
     const fragment = document.createDocumentFragment();
     let previousGroup = "";
-    state.docActions.forEach((action) => {
+    docActions.forEach((action) => {
       if (!previousGroup || previousGroup !== action.group) {
-        fragment.appendChild(buildGroupLabel(action.groupLabel));
+        const separator = buildGroupLabel(action.groupLabel);
+        separator.addEventListener("dragover", (event) => {
+          const sourceKey = resolveSourceKey(event as DragEvent);
+          if (!canDropToTarget(sourceKey, action.key)) {
+            clearDropIndicator();
+            return;
+          }
+          event.preventDefault();
+          clearDropIndicator();
+          separator.classList.add("is-drop-target");
+        });
+        separator.addEventListener("dragleave", () => {
+          separator.classList.remove("is-drop-target");
+        });
+        separator.addEventListener("drop", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const sourceKey = resolveSourceKey(event as DragEvent);
+          if (!canDropToTarget(sourceKey, action.key)) {
+            clearDropIndicator();
+            return;
+          }
+          reorderActionRows(sourceKey, action.key, true);
+          clearDropIndicator();
+        });
+        fragment.appendChild(separator);
       }
 
       const row = document.createElement("div");
@@ -512,6 +637,9 @@ export function createKeyInfoDock(
         button.title = action.disabledReason;
       }
       button.addEventListener("mousedown", (event) => {
+        if (!MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS.has(action.key)) {
+          return;
+        }
         event.preventDefault();
       });
       button.addEventListener("click", () => {
@@ -562,7 +690,9 @@ export function createKeyInfoDock(
       });
 
       row.addEventListener("dragover", (event) => {
-        if (!draggingKey || draggingKey === action.key) {
+        const sourceKey = resolveSourceKey(event as DragEvent);
+        if (!canDropToTarget(sourceKey, action.key)) {
+          clearDropIndicator();
           return;
         }
         event.preventDefault();
@@ -581,10 +711,9 @@ export function createKeyInfoDock(
 
       row.addEventListener("drop", (event) => {
         event.preventDefault();
-        const sourceKey =
-          draggingKey ||
-          (event.dataTransfer?.getData("text/plain") || "").trim();
-        if (!sourceKey || sourceKey === action.key) {
+        event.stopPropagation();
+        const sourceKey = resolveSourceKey(event as DragEvent);
+        if (!canDropToTarget(sourceKey, action.key)) {
           clearDropIndicator();
           return;
         }
@@ -609,28 +738,16 @@ export function createKeyInfoDock(
 
     docProcessList.ondrop = (event) => {
       event.preventDefault();
-      const sourceKey =
-        draggingKey ||
-        (event.dataTransfer?.getData("text/plain") || "").trim();
+      if (event.target instanceof Element && event.target !== docProcessList) {
+        clearDropIndicator();
+        return;
+      }
+      const sourceKey = resolveSourceKey(event as DragEvent);
       if (!sourceKey) {
         clearDropIndicator();
         return;
       }
-      const orderedKeys = state.docActions.map((action) => action.key);
-      const sourceIndex = orderedKeys.indexOf(sourceKey);
-      if (sourceIndex < 0 || sourceIndex === orderedKeys.length - 1) {
-        clearDropIndicator();
-        return;
-      }
-      const next = [...state.docActions];
-      const [dragged] = next.splice(sourceIndex, 1);
-      if (!dragged) {
-        clearDropIndicator();
-        return;
-      }
-      next.push(dragged);
-      setState({ docActions: next });
-      callbacks.onDocActionReorder?.(next.map((action) => action.key));
+      moveActionToGroupEnd(sourceKey);
       clearDropIndicator();
     };
   };
