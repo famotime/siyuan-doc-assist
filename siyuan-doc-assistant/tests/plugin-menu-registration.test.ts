@@ -116,6 +116,25 @@ describe("plugin menu registration", () => {
     expect(menu.addItem).toHaveBeenCalledTimes(ACTIONS.length - 1);
   });
 
+  test("restores custom action order from plugin data", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.saveData("doc-menu-registration", {
+      version: 1,
+      actionEnabled: {},
+      actionOrder: ["insert-backlinks", "export-current"],
+    });
+    await plugin.onload();
+
+    const menu = { addSeparator: vi.fn(), addItem: vi.fn() };
+    plugin.emitEvent("click-editortitleicon", { menu, data: { id: "doc-1" } });
+
+    const firstLabel = menu.addItem.mock.calls[0]?.[0]?.label;
+    const secondLabel = menu.addItem.mock.calls[1]?.[0]?.label;
+    expect(firstLabel).toBe("插入反链文档列表（去重）");
+    expect(secondLabel).toBe("仅导出当前文档");
+  });
+
   test("persists state when toggling single action", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;

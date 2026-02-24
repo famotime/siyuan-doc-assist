@@ -6,13 +6,16 @@ import {
   showMessage,
 } from "siyuan";
 import {
+  buildDefaultDocActionOrder,
   buildDefaultDocMenuRegistration,
   DocMenuRegistrationState,
   DocMenuRegistrationStorageV1,
   filterDocMenuActions,
+  normalizeDocActionOrder,
   normalizeDocMenuRegistration,
   setAllDocMenuRegistration as setAllDocMenuRegistrationState,
   setSingleDocMenuRegistration as setSingleDocMenuRegistrationState,
+  sortActionsByOrder,
 } from "@/core/doc-menu-registration-core";
 import { ActionRunner } from "@/plugin/action-runner";
 import { ACTIONS, ActionKey } from "@/plugin/actions";
@@ -31,6 +34,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private readonly docMenuRegistrationStorageName = "doc-menu-registration";
   private docMenuRegistrationState: DocMenuRegistrationState =
     buildDefaultDocMenuRegistration(ACTIONS);
+  private docActionOrderState: ActionKey[] = buildDefaultDocActionOrder(ACTIONS);
 
   private readonly actionRunner = new ActionRunner({
     isMobile: () => this.isMobile,
@@ -48,11 +52,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.resolveDocId(explicitId, protyle),
     runAction: (action, explicitId, protyle) =>
       this.actionRunner.runAction(action, explicitId, protyle),
-    actions: () => ACTIONS,
+    actions: () => this.getOrderedActions(),
     getDocMenuRegistrationState: () => this.docMenuRegistrationState,
     setAllDocMenuRegistration: (enabled) => this.setAllDocMenuRegistration(enabled),
     setSingleDocMenuRegistration: (key, enabled) =>
       this.setSingleDocMenuRegistration(key, enabled),
+    setDocActionOrder: (order) => this.setDocActionOrder(order),
   });
 
   private readonly onSwitchProtyle = (event: CustomEvent<{ protyle?: ProtyleLike }>) => {
@@ -85,7 +90,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.currentProtyle = detail.protyle;
     }
 
-    const menuActions = filterDocMenuActions(ACTIONS, this.docMenuRegistrationState);
+    const menuActions = filterDocMenuActions(
+      this.getOrderedActions(),
+      this.docMenuRegistrationState
+    );
     if (!menuActions.length) {
       return;
     }
@@ -110,7 +118,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.eventBus.on("click-editortitleicon", this.onEditorTitleMenu);
     this.keyInfoController.registerDock(this);
 
-    this.actionRunner.registerCommands((action, run) => {
+    this.getOrderedActions().forEach((action) => {
+      const run = () => {
+        void this.actionRunner.runAction(action.key);
+      };
       this.addCommand({
         langKey: `docLinkToolkit.${action.key}`,
         langText: action.commandText,
@@ -179,8 +190,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
     try {
       const raw = await this.loadData(this.docMenuRegistrationStorageName);
       this.docMenuRegistrationState = normalizeDocMenuRegistration(raw, ACTIONS);
+      this.docActionOrderState = normalizeDocActionOrder(raw, ACTIONS);
     } catch (error: unknown) {
       this.docMenuRegistrationState = buildDefaultDocMenuRegistration(ACTIONS);
+      this.docActionOrderState = buildDefaultDocActionOrder(ACTIONS);
       const message = error instanceof Error ? error.message : String(error);
       showMessage(`读取菜单注册配置失败：${message}`, 5000, "error");
     }
@@ -190,8 +203,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
     const payload: DocMenuRegistrationStorageV1 = {
       version: 1,
       actionEnabled: this.docMenuRegistrationState,
+      actionOrder: this.docActionOrderState,
     };
     await this.saveData(this.docMenuRegistrationStorageName, payload);
+  }
+
+  private getOrderedActions() {
+    return sortActionsByOrder(ACTIONS, this.docActionOrderState);
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {
@@ -208,6 +226,15 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.docMenuRegistrationState,
       key,
       enabled
+    );
+    await this.persistDocMenuRegistrationState();
+    this.keyInfoController.syncDocActions();
+  }
+
+  async setDocActionOrder(order: ActionKey[]) {
+    this.docActionOrderState = normalizeDocActionOrder(
+      { actionOrder: order },
+      ACTIONS
     );
     await this.persistDocMenuRegistrationState();
     this.keyInfoController.syncDocActions();

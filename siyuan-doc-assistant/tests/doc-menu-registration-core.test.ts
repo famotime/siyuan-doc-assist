@@ -1,12 +1,15 @@
 import { describe, expect, test } from "vitest";
 import { ACTIONS } from "@/plugin/actions";
 import {
+  buildDefaultDocActionOrder,
   buildDefaultDocMenuRegistration,
   filterDocMenuActions,
   isAllDocMenuRegistrationEnabled,
+  normalizeDocActionOrder,
   normalizeDocMenuRegistration,
   setAllDocMenuRegistration,
   setSingleDocMenuRegistration,
+  sortActionsByOrder,
 } from "@/core/doc-menu-registration-core";
 
 describe("doc-menu-registration-core", () => {
@@ -61,5 +64,30 @@ describe("doc-menu-registration-core", () => {
 
     expect(filtered.some((item) => item.key === "export-current")).toBe(false);
     expect(filtered).toHaveLength(ACTIONS.length - 1);
+  });
+
+  test("normalizes custom action order and appends missing keys", () => {
+    const order = normalizeDocActionOrder(
+      {
+        actionOrder: ["insert-backlinks", "export-current", "invalid-key", "insert-backlinks"],
+      },
+      ACTIONS
+    );
+    expect(order[0]).toBe("insert-backlinks");
+    expect(order[1]).toBe("export-current");
+    expect(order).toHaveLength(ACTIONS.length);
+    expect(new Set(order).size).toBe(ACTIONS.length);
+  });
+
+  test("sorts actions by saved order", () => {
+    const defaultOrder = buildDefaultDocActionOrder(ACTIONS);
+    const customOrder = normalizeDocActionOrder(
+      { actionOrder: ["insert-backlinks", "export-current"] },
+      ACTIONS
+    );
+    expect(customOrder).toHaveLength(defaultOrder.length);
+    const sorted = sortActionsByOrder(ACTIONS, customOrder);
+    expect(sorted[0]?.key).toBe("insert-backlinks");
+    expect(sorted[1]?.key).toBe("export-current");
   });
 });

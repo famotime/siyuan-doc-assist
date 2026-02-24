@@ -21,6 +21,7 @@ type KeyInfoControllerDeps = {
   getDocMenuRegistrationState: () => DocMenuRegistrationState;
   setAllDocMenuRegistration: (enabled: boolean) => Promise<void> | void;
   setSingleDocMenuRegistration: (key: ActionKey, enabled: boolean) => Promise<void> | void;
+  setDocActionOrder: (order: ActionKey[]) => Promise<void> | void;
 };
 
 export class KeyInfoController {
@@ -71,6 +72,12 @@ export class KeyInfoController {
               return;
             }
             void this.deps.setSingleDocMenuRegistration(actionKey, enabled);
+          },
+          onDocActionReorder: (order) => {
+            const normalized = order.filter((key): key is ActionKey =>
+              isActionKey(key)
+            );
+            void this.deps.setDocActionOrder(normalized);
           },
         });
         this.syncDocActions();

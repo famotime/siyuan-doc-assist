@@ -49,6 +49,7 @@ describe("key-info-controller doc actions", () => {
       getDocMenuRegistrationState: () => buildDefaultDocMenuRegistration([action]),
       setAllDocMenuRegistration: () => {},
       setSingleDocMenuRegistration: () => {},
+      setDocActionOrder: () => {},
     });
 
     let dockConfig: any;

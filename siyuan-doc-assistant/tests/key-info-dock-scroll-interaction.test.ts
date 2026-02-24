@@ -91,4 +91,61 @@ describe("key-info-dock scroll interaction", () => {
     dock.destroy();
     host.remove();
   });
+
+  test("reorders doc actions by drag and reports latest order", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const onDocActionReorder = vi.fn();
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onDocActionClick: () => {},
+      onDocActionReorder,
+    });
+
+    dock.setState({
+      docActions: [
+        {
+          key: "export-current",
+          label: "仅导出当前文档",
+          icon: "iconDownload",
+          group: "export",
+          groupLabel: "导出",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+        {
+          key: "insert-backlinks",
+          label: "插入反链文档列表（去重）",
+          icon: "iconList",
+          group: "edit",
+          groupLabel: "编辑",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+      ],
+    });
+
+    const rows = host.querySelectorAll(".doc-assistant-keyinfo__action-row");
+    const list = host.querySelector(".doc-assistant-keyinfo__actions") as HTMLDivElement | null;
+    expect(rows.length).toBe(2);
+    expect(list).toBeTruthy();
+
+    rows[0].dispatchEvent(new Event("dragstart", { bubbles: true, cancelable: true }));
+    list!.dispatchEvent(new Event("drop", { bubbles: true, cancelable: true }));
+
+    expect(onDocActionReorder).toHaveBeenCalledWith([
+      "insert-backlinks",
+      "export-current",
+    ]);
+    const labels = Array.from(
+      host.querySelectorAll(".doc-assistant-keyinfo__action-label")
+    ).map((node) => node.textContent);
+    expect(labels[0]).toBe("插入反链文档列表（去重）");
+
+    dock.destroy();
+    host.remove();
+  });
 });

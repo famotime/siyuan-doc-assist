@@ -110,6 +110,7 @@ export function createKeyInfoDock(
     onDocActionClick?: (actionKey: string) => void;
     onDocMenuToggleAll?: (enabled: boolean) => void;
     onDocActionMenuToggle?: (actionKey: string, enabled: boolean) => void;
+    onDocActionReorder?: (order: string[]) => void;
   }
 ): KeyInfoDockHandle {
   const state: KeyInfoDockState = {
@@ -410,6 +411,46 @@ export function createKeyInfoDock(
   };
 
   const renderDocActions = () => {
+    const clearDropIndicator = () => {
+      docProcessList
+        .querySelectorAll(".doc-assistant-keyinfo__action-row.is-drop-before, .doc-assistant-keyinfo__action-row.is-drop-after")
+        .forEach((node) => {
+          node.classList.remove("is-drop-before");
+          node.classList.remove("is-drop-after");
+        });
+    };
+
+    const reorderActionRows = (
+      sourceKey: string,
+      targetKey: string,
+      insertBefore: boolean
+    ) => {
+      const sourceIndex = state.docActions.findIndex(
+        (action) => action.key === sourceKey
+      );
+      const targetIndex = state.docActions.findIndex(
+        (action) => action.key === targetKey
+      );
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+        return;
+      }
+
+      const next = [...state.docActions];
+      const [dragged] = next.splice(sourceIndex, 1);
+      const currentTargetIndex = next.findIndex(
+        (action) => action.key === targetKey
+      );
+      if (currentTargetIndex < 0 || !dragged) {
+        return;
+      }
+      const insertIndex = insertBefore ? currentTargetIndex : currentTargetIndex + 1;
+      next.splice(insertIndex, 0, dragged);
+      setState({ docActions: next });
+      callbacks.onDocActionReorder?.(next.map((action) => action.key));
+    };
+
+    let draggingKey = "";
+
     if (!state.docActions.length) {
       const empty = document.createElement("div");
       empty.className = "doc-assistant-keyinfo__empty ft__secondary";
@@ -437,6 +478,14 @@ export function createKeyInfoDock(
 
       const row = document.createElement("div");
       row.className = "doc-assistant-keyinfo__action-row";
+      row.dataset.actionKey = action.key;
+      row.draggable = true;
+
+      const dragHandle = document.createElement("span");
+      dragHandle.className = "doc-assistant-keyinfo__action-drag-handle";
+      dragHandle.textContent = "⋮⋮";
+      dragHandle.title = "拖动排序";
+      dragHandle.setAttribute("aria-hidden", "true");
 
       const button = document.createElement("button");
       button.type = "button";
@@ -488,12 +537,102 @@ export function createKeyInfoDock(
         callbacks.onDocActionMenuToggle?.(action.key, menuSwitch.checked);
       });
 
+      const resolveInsertBefore = (event: DragEvent) => {
+        const rect = row.getBoundingClientRect();
+        if (!rect.height || Number.isNaN(event.clientY)) {
+          return false;
+        }
+        const centerY = rect.top + rect.height / 2;
+        return event.clientY < centerY;
+      };
+
+      row.addEventListener("dragstart", (event) => {
+        draggingKey = action.key;
+        row.classList.add("is-dragging");
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", action.key);
+        }
+      });
+
+      row.addEventListener("dragend", () => {
+        draggingKey = "";
+        row.classList.remove("is-dragging");
+        clearDropIndicator();
+      });
+
+      row.addEventListener("dragover", (event) => {
+        if (!draggingKey || draggingKey === action.key) {
+          return;
+        }
+        event.preventDefault();
+        clearDropIndicator();
+        if (resolveInsertBefore(event as DragEvent)) {
+          row.classList.add("is-drop-before");
+        } else {
+          row.classList.add("is-drop-after");
+        }
+      });
+
+      row.addEventListener("dragleave", () => {
+        row.classList.remove("is-drop-before");
+        row.classList.remove("is-drop-after");
+      });
+
+      row.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const sourceKey =
+          draggingKey ||
+          (event.dataTransfer?.getData("text/plain") || "").trim();
+        if (!sourceKey || sourceKey === action.key) {
+          clearDropIndicator();
+          return;
+        }
+        reorderActionRows(sourceKey, action.key, resolveInsertBefore(event as DragEvent));
+        clearDropIndicator();
+      });
+
+      row.appendChild(dragHandle);
       row.appendChild(button);
       row.appendChild(menuSwitch);
       fragment.appendChild(row);
       previousGroup = action.group;
     });
     docProcessList.replaceChildren(fragment);
+
+    docProcessList.ondragover = (event) => {
+      if (!draggingKey) {
+        return;
+      }
+      event.preventDefault();
+    };
+
+    docProcessList.ondrop = (event) => {
+      event.preventDefault();
+      const sourceKey =
+        draggingKey ||
+        (event.dataTransfer?.getData("text/plain") || "").trim();
+      if (!sourceKey) {
+        clearDropIndicator();
+        return;
+      }
+      const orderedKeys = state.docActions.map((action) => action.key);
+      const sourceIndex = orderedKeys.indexOf(sourceKey);
+      if (sourceIndex < 0 || sourceIndex === orderedKeys.length - 1) {
+        clearDropIndicator();
+        return;
+      }
+      const next = [...state.docActions];
+      const [dragged] = next.splice(sourceIndex, 1);
+      if (!dragged) {
+        clearDropIndicator();
+        return;
+      }
+      next.push(dragged);
+      setState({ docActions: next });
+      callbacks.onDocActionReorder?.(next.map((action) => action.key));
+      clearDropIndicator();
+    };
   };
 
   const rowCache = new Map<string, HTMLDivElement>();

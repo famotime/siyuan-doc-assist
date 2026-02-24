@@ -371,6 +371,40 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+}
+
+.doc-assistant-keyinfo__action-drag-handle {
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--b3-theme-on-surface) 42%, transparent);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0;
+  user-select: none;
+  cursor: grab;
+  padding: 0 2px;
+}
+
+.doc-assistant-keyinfo__action-row.is-dragging {
+  opacity: 0.58;
+}
+
+.doc-assistant-keyinfo__action-row.is-drop-before::before,
+.doc-assistant-keyinfo__action-row.is-drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px solid color-mix(in srgb, var(--doc-assistant-accent-strong) 68%, var(--b3-theme-primary));
+  pointer-events: none;
+}
+
+.doc-assistant-keyinfo__action-row.is-drop-before::before {
+  top: -5px;
+}
+
+.doc-assistant-keyinfo__action-row.is-drop-after::after {
+  bottom: -5px;
 }
 
 .doc-assistant-keyinfo__action-btn {
