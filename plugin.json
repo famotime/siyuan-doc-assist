@@ -1,8 +1,8 @@
 {
-  "name": "doc-assistant",
+  "name": "siyuan-doc-assist",
   "author": "",
   "url": "",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "3.5.7",
   "disabledInPublish": true,
   "backends": [
@@ -12,8 +12,8 @@
     "all"
   ],
   "displayName": {
-    "default": "文档助手 / Doc Assistant",
-    "en_US": "Doc Assistant",
+    "default": "文档助手 / Doc Assist",
+    "en_US": "Doc Assist",
     "zh_CN": "文档助手"
   },
   "description": {

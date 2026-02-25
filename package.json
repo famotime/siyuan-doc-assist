@@ -1,6 +1,6 @@
 {
-  "name": "doc-assistant",
-  "version": "1.0.0",
+  "name": "siyuan-doc-assist",
+  "version": "1.0.1",
   "type": "module",
   "description": "Doc Assistant plugin for Siyuan (https://b3log.org/siyuan)",
   "author": "",
