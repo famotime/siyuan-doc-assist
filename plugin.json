@@ -2,7 +2,7 @@
   "name": "siyuan-doc-assist",
   "author": "",
   "url": "",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "minAppVersion": "3.5.7",
   "disabledInPublish": true,
   "backends": [

@@ -2,18 +2,18 @@
 
 ## Project Structure & Module Organization
 
-- `siyuan-doc-assistant/` is the primary plugin project (Vite + Vue 3 + TypeScript).
-- `siyuan-doc-assistant/src/` contains application code:
+- Repository root (`./`) is the primary plugin project (Vite + Vue 3 + TypeScript).
+- `src/` contains application code:
   - `core/` holds core domain logic (files named `*-core.ts`).
   - `components/`, `ui/`, `services/`, `utils/`, `types/`, `i18n/` are feature areas.
-- `siyuan-doc-assistant/tests/` contains unit tests (`*.test.ts`) aligned to core modules.
-- `siyuan-doc-assistant/asset/` stores static assets.
-- `siyuan-doc-assistant/dist/` and `siyuan-doc-assistant/package.zip` are build outputs.
+- `tests/` contains unit tests (`*.test.ts`) aligned to core modules.
+- `asset/` stores static assets.
+- `dist/` and `package.zip` are build outputs.
 - `plugin-sample-vite-vue/` is a reference template; `reference_docs/` holds SiYuan docs; `memo.md` is project notes.
 
 ## Build, Test, and Development Commands
 
-Run commands from `siyuan-doc-assistant/`:
+Run commands from repository root:
 
 - `pnpm install` installs dependencies.
 - `pnpm dev` runs Vite in watch mode and outputs to the local SiYuan workspace plugin directory.
@@ -24,14 +24,14 @@ Run commands from `siyuan-doc-assistant/`:
 ## Configuration & Environment
 
 - Copy `.env.example` to `.env` and set `VITE_SIYUAN_WORKSPACE_PATH`.
-- Watch builds deploy to `<workspace>/data/plugins/<plugin.json.name>`.
+- Watch builds deploy to `<workspace>/data/plugins/siyuan-doc-assist`.
 
 ## Coding Style & Naming Conventions
 
-- Indentation: 2 spaces, trimmed trailing whitespace, final newline (`siyuan-doc-assistant/.editorconfig`).
+- Indentation: 2 spaces, trimmed trailing whitespace, final newline (`.editorconfig`).
 - Prefer kebab-case file names (e.g., `link-core.ts`, `export-media-core.ts`).
 - Tests use `*.test.ts` and mirror module names (e.g., `link-core.test.ts`).
-- ESLint config lives at `siyuan-doc-assistant/eslint.config.mjs` (based on `@antfu/eslint-config`).
+- ESLint config lives at `eslint.config.mjs` (based on `@antfu/eslint-config`).
 
 ## Testing Guidelines
 

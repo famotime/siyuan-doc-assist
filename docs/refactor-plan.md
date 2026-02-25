@@ -3,10 +3,10 @@
 ## 1. Project Snapshot
 
 - Generated on: 2026-02-25
-- Scope: `siyuan-doc-assistant` plugin project
+- Scope: `siyuan-doc-assist` plugin project
 - Goal: 在不改变现有功能行为的前提下，降低核心模块复杂度、消除重复边界、提升后续迭代可维护性
 - Baseline test:
-  - Command: `pnpm test` (run in `siyuan-doc-assistant/`)
+  - Command: `pnpm test` (run in repository root)
   - Result: pass (`34` files, `153` tests)
 
 ## 2. Architecture and Module Analysis

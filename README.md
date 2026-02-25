@@ -2,10 +2,10 @@
 
 思源笔记文档助手 siyuan-doc-assist 是一个思源笔记插件，用于增强思源笔记本体未提供的文档处理和编辑功能。
 
-- 插件 ID：`siyuan-doc-assistant`
+- 插件 ID：`siyuan-doc-assist`
 - 展示名称：`文档助手 / Doc Assist`
 - 最低思源版本：`3.5.7`
-- 当前版本：`1.0.1`
+- 当前版本：`1.2.0`
 
 ## 功能总览
 
