@@ -7,6 +7,7 @@ const STYLE_MARKERS: Record<BlockStyle, string> = {
 
 const ATTR_LINE_REGEX = /^\s*\{\:\s*[^}]+\}\s*$/;
 const ATTR_SUFFIX_REGEX = /\s*\{\:\s*[^}]+\}\s*$/;
+const ATTR_LEADING_REGEX = /^\s*(?:\{\:\s*[^}]+\}\s*)+/;
 
 type ParsedStyleLine = {
   original: string;
@@ -25,6 +26,43 @@ function splitAttrSuffix(line: string): { body: string; suffix: string } {
   return {
     body: line.slice(0, index),
     suffix: line.slice(index),
+  };
+}
+
+function splitLeadingAttrs(content: string): { body: string; attrs: string } {
+  const match = content.match(ATTR_LEADING_REGEX);
+  if (!match) {
+    return { body: content, attrs: "" };
+  }
+  const attrs = match[0].trim();
+  return {
+    body: content.slice(match[0].length),
+    attrs,
+  };
+}
+
+function toParsedStyleLine(
+  original: string,
+  prefix: string,
+  content: string
+): ParsedStyleLine {
+  const normalizedContent = content || "";
+  const { body } = splitLeadingAttrs(normalizedContent);
+  if (!body.trim()) {
+    return {
+      original,
+      stylable: false,
+      prefix: "",
+      content: "",
+      suffix: "",
+    };
+  }
+  return {
+    original,
+    stylable: true,
+    prefix,
+    content: body,
+    suffix: "",
   };
 }
 
@@ -59,96 +97,27 @@ function parseStyleLine(line: string): ParsedStyleLine {
     };
   }
 
-  const { body, suffix } = splitAttrSuffix(line);
+  const { body } = splitAttrSuffix(line);
   const headingMatch = body.match(/^(\s*#{1,6}\s+)(.*)$/);
   if (headingMatch) {
-    const content = headingMatch[2] || "";
-    if (!content.trim()) {
-      return {
-        original: line,
-        stylable: false,
-        prefix: "",
-        content: "",
-        suffix: "",
-      };
-    }
-    return {
-      original: line,
-      stylable: true,
-      prefix: headingMatch[1],
-      content,
-      suffix,
-    };
+    return toParsedStyleLine(line, headingMatch[1], headingMatch[2] || "");
   }
 
   const listMatch = body.match(/^(\s*(?:[-*+]|[0-9]+\.)\s+)(.*)$/);
   if (listMatch) {
-    const content = listMatch[2] || "";
-    if (!content.trim()) {
-      return {
-        original: line,
-        stylable: false,
-        prefix: "",
-        content: "",
-        suffix: "",
-      };
-    }
-    return {
-      original: line,
-      stylable: true,
-      prefix: listMatch[1],
-      content,
-      suffix,
-    };
+    return toParsedStyleLine(line, listMatch[1], listMatch[2] || "");
   }
 
   const quoteMatch = body.match(/^(\s*>+\s*)(.*)$/);
   if (quoteMatch) {
-    const content = quoteMatch[2] || "";
-    if (!content.trim()) {
-      return {
-        original: line,
-        stylable: false,
-        prefix: "",
-        content: "",
-        suffix: "",
-      };
-    }
-    return {
-      original: line,
-      stylable: true,
-      prefix: quoteMatch[1],
-      content,
-      suffix,
-    };
+    return toParsedStyleLine(line, quoteMatch[1], quoteMatch[2] || "");
   }
 
   const indentMatch = body.match(/^(\s*)(.*)$/);
   if (!indentMatch) {
-    return {
-      original: line,
-      stylable: true,
-      prefix: "",
-      content: body,
-      suffix,
-    };
+    return toParsedStyleLine(line, "", body);
   }
-  if (!indentMatch[2].trim()) {
-    return {
-      original: line,
-      stylable: false,
-      prefix: "",
-      content: "",
-      suffix: "",
-    };
-  }
-  return {
-    original: line,
-    stylable: true,
-    prefix: indentMatch[1],
-    content: indentMatch[2],
-    suffix,
-  };
+  return toParsedStyleLine(line, indentMatch[1], indentMatch[2]);
 }
 
 function removeMarkerTokens(content: string, marker: string): string {

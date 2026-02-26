@@ -582,7 +582,7 @@ describe("action-runner loading guard", () => {
 
     expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "a", "**Hello**");
-    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "# **Title** {: id=\"b\"}");
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "# **Title**");
   });
 
   test("normalizes partial bold content before applying full bold", async () => {
@@ -619,7 +619,27 @@ describe("action-runner loading guard", () => {
 
     expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "a", "Hello");
-    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "# Title {: id=\"b\"}");
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "# Title");
+  });
+
+  test("strips trailing kramdown attributes from selected text block when bolding", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="g" class="protyle-wysiwyg--select">G</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      {
+        id: "g",
+        kramdown: '补充对应测试。 {: id="20260225233926-3sosz6b" updated="20260225233926"}',
+      } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("g", "**补充对应测试。**");
   });
 
   test("highlights all selected blocks", async () => {
