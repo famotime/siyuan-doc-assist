@@ -59,14 +59,6 @@
   padding: 12px;
   gap: 10px;
   box-sizing: border-box;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--b3-theme-surface) 86%, #d8f3e4 14%),
-    color-mix(in srgb, var(--b3-theme-surface) 92%, #e9f8ef 8%)
-  );
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--b3-border-color) 72%, #88c7a6 28%);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
   --doc-assistant-accent: #4cae7f;
   --doc-assistant-accent-strong: #2c7a58;
   --doc-assistant-accent-soft: color-mix(in srgb, #d8f3e4 75%, var(--b3-theme-surface));

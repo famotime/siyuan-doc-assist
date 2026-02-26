@@ -31,10 +31,17 @@ import {
 } from "@/services/key-info-query";
 
 export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<KeyInfoDocResult> {
-  const rootId = await resolveRootId(docId);
+  let rootId = docId;
+  let rows = await listDocBlocks(rootId);
+  if (!rows.length) {
+    const resolvedRootId = await resolveRootId(docId);
+    if (resolvedRootId && resolvedRootId !== rootId) {
+      rootId = resolvedRootId;
+      rows = await listDocBlocks(rootId);
+    }
+  }
   const docMeta = await getDocMetaByID(rootId);
   const docTitle = docMeta?.title || "";
-  let rows = await listDocBlocks(rootId);
 
   if (!rows.length) {
     const fallbackMarkdown = await getRootDocRawMarkdown(rootId);

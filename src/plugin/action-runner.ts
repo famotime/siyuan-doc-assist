@@ -472,11 +472,15 @@ export class ActionRunner {
 
   private async handleTrimTrailingWhitespace(docId: string) {
     const blocks = await getChildBlocksByParentId(docId);
+    const paragraphBlocks = blocks.filter(
+      (block) => (block.type || "").toLowerCase() === "p"
+    );
     trailingWhitespaceLogger.debug("scan start", {
       docId,
       blockCount: blocks.length,
+      paragraphCount: paragraphBlocks.length,
     });
-    if (!blocks.length) {
+    if (!paragraphBlocks.length) {
       showMessage("当前文档没有可处理的段落", 4000, "info");
       return;
     }
@@ -484,7 +488,7 @@ export class ActionRunner {
     const collectUpdatesFromSourceMap = (sourceMap: Map<string, string>) => {
       const updates: Array<{ id: string; markdown: string; changedLines: number }> = [];
       let affectedLineCount = 0;
-      for (const block of blocks) {
+      for (const block of paragraphBlocks) {
         const sourceFromKramdown = sourceMap.get(block.id);
         if (block.resolved === false && sourceFromKramdown === undefined) {
           continue;
@@ -509,12 +513,11 @@ export class ActionRunner {
       return { updates, affectedLineCount };
     };
 
-    const batchRows = (await getBlockKramdowns(blocks.map((block) => block.id))) || [];
+    const batchRows = (await getBlockKramdowns(paragraphBlocks.map((block) => block.id))) || [];
     const batchMap = new Map(
       batchRows.map((item) => [item.id, item.kramdown || ""])
     );
-    let singleMap = new Map<string, string>();
-    let { updates, affectedLineCount } = collectUpdatesFromSourceMap(batchMap);
+    const { updates, affectedLineCount } = collectUpdatesFromSourceMap(batchMap);
     trailingWhitespaceLogger.debug("batch scan result", {
       docId,
       batchCount: batchRows.length,
@@ -524,34 +527,8 @@ export class ActionRunner {
     });
 
     if (!updates.length) {
-      trailingWhitespaceLogger.debug("batch no-op, fallback to single", {
-        docId,
-        blockCount: blocks.length,
-        batchCount: batchRows.length,
-      });
-      singleMap = new Map<string, string>();
-      for (const block of blocks) {
-        try {
-          const row = await getBlockKramdown(block.id);
-          if (row?.kramdown != null) {
-            singleMap.set(block.id, row.kramdown || "");
-          }
-        } catch {
-          // Fallback should be best-effort. Keep no-op behavior when source cannot be loaded.
-        }
-      }
-      ({ updates, affectedLineCount } = collectUpdatesFromSourceMap(singleMap));
-      trailingWhitespaceLogger.debug("single fallback result", {
-        docId,
-        singleCount: singleMap.size,
-        updateCount: updates.length,
-        affectedLineCount,
-      });
-    }
-
-    if (!updates.length) {
-      const probeSamples = blocks.slice(0, 8).map((block) => {
-        const source = (singleMap.get(block.id) ?? batchMap.get(block.id) ?? block.markdown) || "";
+      const probeSamples = paragraphBlocks.slice(0, 8).map((block) => {
+        const source = (batchMap.get(block.id) ?? block.markdown) || "";
         return {
           id: block.id,
           length: source.length,

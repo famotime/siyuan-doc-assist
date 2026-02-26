@@ -1,7 +1,7 @@
 {
   "name": "siyuan-doc-assist",
-  "author": "",
-  "url": "",
+  "author": "Quincy Zou",
+  "url": "https://github.com/famotime/siyuan-doc-assist",
   "version": "1.2.0",
   "minAppVersion": "3.5.7",
   "disabledInPublish": true,
@@ -18,13 +18,10 @@
   },
   "description": {
     "default": "Manage backlinks/forward links, export linked docs, move backlinks as children, and detect duplicate docs by title similarity.",
-    "en_US": "Manage backlinks/forward links, export linked docs, move backlinks as children, and detect duplicate docs by title similarity.",
     "zh_CN": "管理反链/正链文档，导出链接文档，移动反链为子文档，并按标题相似度识别重复文档。"
   },
   "readme": {
-    "default": "README.md",
-    "en_US": "README.md",
-    "zh_CN": "README.md"
+    "default": "README.md"
   },
   "funding": {
     "custom": []

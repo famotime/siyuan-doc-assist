@@ -20,7 +20,7 @@
 - 点击条目可在当前文档中平滑定位到对应块；
 - 支持将当前筛选结果导出为 Markdown；
 
-![image](assets/image-20260222174322-tnvviaq.png)
+![image](https://github.com/famotime/siyuan-doc-assist/blob/main/assets/image-20260222174322-tnvviaq.png?raw=1)
 
 多说一句，集市里有一个叫“关键信息导航”的插件，提供类似的功能。但我试用了有问题，很多文档的加粗内容显示不全，顺序跟原文也不一致，好像还不支持导出，作者也有几个月没更新了，所以就自己折腾一个。
 
@@ -44,7 +44,7 @@
 
   其他几个编辑功能，如去除空段落、删除从当前段到文末、选中块批量加粗等，我自己觉得挺好用。
 
-![image](assets/image-20260222174713-dh2y23m.png)
+![image](https://github.com/famotime/siyuan-doc-assist/blob/main/assets/image-20260222174713-dh2y23m.png?raw=1)
 
 ## 使用入口
 
