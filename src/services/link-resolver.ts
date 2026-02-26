@@ -4,6 +4,7 @@ import {
   dedupeDocRefs,
   extractSiyuanBlockIdsFromMarkdown,
 } from "@/core/link-core";
+import { createDocAssistantLogger } from "@/core/logger-core";
 import {
   exportMdContent,
   getDocMetasByIDs,
@@ -15,6 +16,8 @@ import {
   mapBlockIdsToRootDocIds,
 } from "@/services/kernel";
 import { DocRefItem } from "@/types/link-tool";
+
+const forwardLinksLogger = createDocAssistantLogger("ForwardLinks");
 
 function basename(hPath: string): string {
   const parts = hPath.split("/").filter(Boolean);
@@ -136,8 +139,6 @@ export function toChildDocMarkdown(items: DocRefItem[]): string {
 }
 
 export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
-  const debugPrefix = "[DocAssistant][ForwardLinks]";
-
   const resolveForwardDocIds = async (
     candidateBlockIds: string[],
     source: "refs" | "markdown"
@@ -149,11 +150,11 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
       mapBlockIdsToRootDocIds(candidateBlockIds),
       getDocMetasByIDs(candidateBlockIds),
     ]);
-    console.info(`${debugPrefix} ${source}MappedRootIds`, {
+    forwardLinksLogger.debug(`${source}MappedRootIds`, {
       count: rootIds.length,
       rootIds,
     });
-    console.info(`${debugPrefix} ${source}DocMetaFallbackIds`, {
+    forwardLinksLogger.debug(`${source}DocMetaFallbackIds`, {
       count: docMetas.length,
       docMetaIds: docMetas.map((item) => item.id),
     });
@@ -176,13 +177,13 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
           set.add(id);
         }
       }
-      console.warn(`${debugPrefix} ${source}FallbackToRawBlockIds`, {
+      forwardLinksLogger.debug(`${source}FallbackToRawBlockIds`, {
         count: set.size,
         ids: [...set],
       });
     }
     const result = [...set];
-    console.info(`${debugPrefix} ${source}FinalForwardDocIds`, {
+    forwardLinksLogger.debug(`${source}FinalForwardDocIds`, {
       count: result.length,
       ids: result,
     });
@@ -190,7 +191,7 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
   };
 
   const refTargetBlockIds = await getForwardRefTargetBlockIds(docId);
-  console.info(`${debugPrefix} refsTargetBlockIds`, {
+  forwardLinksLogger.debug("refsTargetBlockIds", {
     count: refTargetBlockIds.length,
     ids: refTargetBlockIds,
   });
@@ -210,12 +211,12 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
     getRootDocRawMarkdown(docId),
   ]);
 
-  console.info(`${debugPrefix} exportMdContent`, {
+  forwardLinksLogger.debug("exportMdContent", {
     docId,
     contentLength: (md.content || "").length,
     preview: (md.content || "").slice(0, 400),
   });
-  console.info(`${debugPrefix} rawRootMarkdown`, {
+  forwardLinksLogger.debug("rawRootMarkdown", {
     contentLength: (rawRootMarkdown || "").length,
     preview: (rawRootMarkdown || "").slice(0, 400),
   });
@@ -223,17 +224,17 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
   const fromExport = extractSiyuanBlockIdsFromMarkdown(md.content || "");
   const fromRaw = extractSiyuanBlockIdsFromMarkdown(rawRootMarkdown || "");
   const blockIds = [...new Set([...fromExport, ...fromRaw])];
-  console.info(`${debugPrefix} extractedBlockIds`, {
+  forwardLinksLogger.debug("extractedBlockIds", {
     fromExportCount: fromExport.length,
     fromRawCount: fromRaw.length,
     count: blockIds.length,
     blockIds,
   });
-  console.info(`${debugPrefix} rawIdLineEvidence`, {
+  forwardLinksLogger.debug("rawIdLineEvidence", {
     evidence: buildIdLineEvidence(rawRootMarkdown || "", blockIds),
   });
   if (!blockIds.length) {
-    console.warn(`${debugPrefix} no block ids extracted`);
+    forwardLinksLogger.debug("no block ids extracted");
     return idsFromRefs;
   }
   const idsFromMarkdown = await resolveForwardDocIds(blockIds, "markdown");
@@ -249,7 +250,7 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
   const merged = [...new Set([...idsFromRefs, ...idsFromMarkdown])];
   const markdownOnly = idsFromMarkdown.filter((id) => !refsSet.has(id));
   const refsOnly = idsFromRefs.filter((id) => !markdownSet.has(id));
-  console.info(`${debugPrefix} refsMarkdownMerge`, {
+  forwardLinksLogger.debug("refsMarkdownMerge", {
     refsCount: idsFromRefs.length,
     markdownCount: idsFromMarkdown.length,
     mergedCount: merged.length,

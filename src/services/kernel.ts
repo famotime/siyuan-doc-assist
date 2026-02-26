@@ -1,4 +1,5 @@
 import { requestApi } from "@/services/request";
+import { createDocAssistantLogger } from "@/core/logger-core";
 import { getFileTextAllowJson, getPathByID } from "@/services/kernel-file";
 import { escapeSqlLiteral, inClause, sql } from "@/services/kernel-shared";
 
@@ -114,6 +115,8 @@ type SyTreeNode = {
   };
   Children?: SyTreeNode[];
 };
+
+const keyInfoLogger = createDocAssistantLogger("KeyInfo");
 
 function toTitle(hPath: string): string {
   const parts = hPath.split("/").filter(Boolean);
@@ -342,7 +345,7 @@ export async function getDocTreeOrderFromSy(docId: string): Promise<Map<string, 
   const failures: Array<{ path: string; reason: string }> = [];
   const candidates = [...candidatePaths];
   if (!candidates.length) {
-    console.warn("[DocAssistant][KeyInfo] sy order candidates empty", { docId });
+    keyInfoLogger.debug("sy order candidates empty", { docId });
     return new Map();
   }
 
@@ -356,7 +359,7 @@ export async function getDocTreeOrderFromSy(docId: string): Promise<Map<string, 
       const parsed = JSON.parse(raw) as SyTreeNode;
       const orderMap = buildSyTreeOrderMap(parsed);
       if (orderMap.size) {
-        console.info("[DocAssistant][KeyInfo] sy order loaded", {
+        keyInfoLogger.debug("sy order loaded", {
           docId,
           path: syPath,
           count: orderMap.size,
@@ -373,7 +376,7 @@ export async function getDocTreeOrderFromSy(docId: string): Promise<Map<string, 
       // Try next candidate path.
     }
   }
-  console.warn("[DocAssistant][KeyInfo] sy order unavailable", {
+  keyInfoLogger.debug("sy order unavailable", {
     docId,
     candidates,
     failures: failures.slice(0, 6),

@@ -32,6 +32,7 @@ import { openDedupeDialog } from "@/ui/dialogs";
 import { ActionConfig, ActionKey, ACTIONS } from "@/plugin/actions";
 import { ProtyleLike } from "@/plugin/doc-context";
 import { applyBlockStyle, BlockStyle } from "@/core/markdown-style-core";
+import { createDocAssistantLogger } from "@/core/logger-core";
 import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { getSelectedBlockIds, resolveCurrentBlockId } from "@/plugin/action-runner-context";
 
@@ -49,6 +50,11 @@ type StyleFailureDetail = {
   kind: StyleFailureKind;
   reason: string;
 };
+
+const forwardLinksLogger = createDocAssistantLogger("ForwardLinks");
+const styleLogger = createDocAssistantLogger("Style");
+const trailingWhitespaceLogger = createDocAssistantLogger("TrailingWhitespace");
+const deleteFromCurrentLogger = createDocAssistantLogger("DeleteFromCurrent");
 
 export class ActionRunner {
   private isRunning = false;
@@ -174,7 +180,7 @@ export class ActionRunner {
 
   private async handleExportForwardZip(docId: string) {
     const ids = await getForwardLinkedDocIds(docId);
-    console.info("[DocAssistant][ForwardLinks] export-forward-zip trigger", {
+    forwardLinksLogger.debug("export-forward-zip trigger", {
       currentDocId: docId,
       forwardDocCount: ids.length,
       forwardDocIds: ids,
@@ -306,7 +312,7 @@ export class ActionRunner {
     }
     if (failed > 0) {
       const sample = this.summarizeStyleFailures(failures);
-      console.warn("[DocAssistant][Style] apply failed", {
+      styleLogger.warn("apply failed", {
         docId,
         style,
         selectedCount: selectedIds.length,
@@ -466,7 +472,7 @@ export class ActionRunner {
 
   private async handleTrimTrailingWhitespace(docId: string) {
     const blocks = await getChildBlocksByParentId(docId);
-    console.info("[DocAssistant][TrailingWhitespace] scan start", {
+    trailingWhitespaceLogger.debug("scan start", {
       docId,
       blockCount: blocks.length,
     });
@@ -509,7 +515,7 @@ export class ActionRunner {
     );
     let singleMap = new Map<string, string>();
     let { updates, affectedLineCount } = collectUpdatesFromSourceMap(batchMap);
-    console.info("[DocAssistant][TrailingWhitespace] batch scan result", {
+    trailingWhitespaceLogger.debug("batch scan result", {
       docId,
       batchCount: batchRows.length,
       updateCount: updates.length,
@@ -518,7 +524,7 @@ export class ActionRunner {
     });
 
     if (!updates.length) {
-      console.info("[DocAssistant][TrailingWhitespace] batch no-op, fallback to single", {
+      trailingWhitespaceLogger.debug("batch no-op, fallback to single", {
         docId,
         blockCount: blocks.length,
         batchCount: batchRows.length,
@@ -535,7 +541,7 @@ export class ActionRunner {
         }
       }
       ({ updates, affectedLineCount } = collectUpdatesFromSourceMap(singleMap));
-      console.info("[DocAssistant][TrailingWhitespace] single fallback result", {
+      trailingWhitespaceLogger.debug("single fallback result", {
         docId,
         singleCount: singleMap.size,
         updateCount: updates.length,
@@ -555,7 +561,7 @@ export class ActionRunner {
           preview: JSON.stringify(source.slice(0, 200)),
         };
       });
-      console.info("[DocAssistant][TrailingWhitespace] no-op source probe", {
+      trailingWhitespaceLogger.debug("no-op source probe", {
         docId,
         sampleCount: probeSamples.length,
         samples: probeSamples,
@@ -674,7 +680,7 @@ export class ActionRunner {
         (item) =>
           `${item.id}|attempts=${item.attempts}|reads=${item.verifyReads}|changed=${item.lastChangedLines}|${item.message}`
       );
-    console.info("[DocAssistant][TrailingWhitespace] apply result", {
+    trailingWhitespaceLogger.debug("apply result", {
       docId,
       updateCount: updates.length,
       successBlockCount,
@@ -721,7 +727,7 @@ export class ActionRunner {
         deleteStartId = mapped;
       }
     }
-    console.info("[DocAssistant][DeleteFromCurrent] resolve start block", {
+    deleteFromCurrentLogger.debug("resolve start block", {
       docId,
       source: current.source,
       currentBlockIdWasDocId: current.wasDocId,

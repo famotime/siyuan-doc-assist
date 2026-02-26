@@ -1,3 +1,5 @@
+import { createDocAssistantLogger } from "@/core/logger-core";
+
 type CleanupResult = {
   markdown: string;
   removedLines: number;
@@ -32,6 +34,9 @@ export type DeleteFromCurrentBlockResult = {
   deleteIds: string[];
   deleteCount: number;
 };
+
+const blankLinesLogger = createDocAssistantLogger("BlankLines");
+const deleteFromCurrentLogger = createDocAssistantLogger("DeleteFromCurrent");
 
 function isBlankLine(line: string): boolean {
   if (!line) {
@@ -238,7 +243,7 @@ export function findExtraBlankParagraphIds(
     }
   }
 
-  console.info("[DocAssistant][BlankLines] blank paragraphs", {
+  blankLinesLogger.debug("blank paragraphs", {
     totalBlocks: blocks.length,
     blankCount: deleteIds.length,
     sample: deleteIds.slice(0, 8),
@@ -271,7 +276,7 @@ export function findHeadingMissingBlankParagraphBeforeIds(
     insertBeforeIds.push(current.id);
   }
 
-  console.info("[DocAssistant][BlankLines] headings missing blank paragraph", {
+  blankLinesLogger.debug("headings missing blank paragraph", {
     totalBlocks: blocks.length,
     headingCount: blocks.filter((block) => isHeadingBlock(block)).length,
     insertCount: insertBeforeIds.length,
@@ -298,7 +303,7 @@ export function findDeleteFromCurrentBlockIds(
   }
 
   const deleteIds = blocks.slice(startIndex).map((block) => block.id);
-  console.info("[DocAssistant][DeleteFromCurrent] matched blocks", {
+  deleteFromCurrentLogger.debug("matched blocks", {
     totalBlocks: blocks.length,
     currentBlockId,
     startIndex,

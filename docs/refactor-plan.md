@@ -18,9 +18,11 @@
   - 完成 `RF-003`：新增 `key-info-collectors.ts`，`getDocKeyInfo` 主流程改为编排 `order/collectors/inline merge` 模块，并补齐 `key-info-collectors.test.ts`
   - 完成 `RF-004`：抽离 Dock 文档动作拖拽排序为 `key-info-dock-doc-actions.ts` + `dock-doc-action-order-core.ts`，`key-info-dock.ts` 从 `973` 行降至 `664` 行
   - 完成 `RF-005`：提取 `plugin-lifecycle-events.ts` 统一事件绑定/解绑，并补齐 `onload/onunload` 监听解绑测试
+  - 完成 `RF-006`：新增 `logger-core.ts`（可控 debug 开关），并将 `action-runner/link-resolver/kernel*/markdown-cleanup` 高频调试日志切换为统一 debug logger
+  - 完成 `RF-007`：新增 `request.test.ts`、`mover.test.ts`、`export-media-core.test.ts`，补齐工具层关键单测缺口
 - Baseline test:
   - Command: `corepack pnpm test`
-  - Result: pass (`37` files, `171` tests)
+  - Result: pass (`41` files, `183` tests)
 
 ## 2. Architecture and Module Analysis
 
@@ -31,7 +33,7 @@
 | Kernel/data access layer | `src/services/kernel.ts`, `src/services/kernel-shared.ts`, `src/services/kernel-ref.ts`, `src/services/kernel-file.ts`, `src/services/kernel-block.ts`, `src/services/request.ts`, `src/services/block-lineage.ts` | API 请求、SQL 查询、文件读写、文档树与块映射 | 已完成 query/ref/file/block 分层，仍需观察 facade 兼容期后的调用收敛 | `kernel-*` 覆盖良好；`block-lineage.test.ts` 已补齐 |
 | Key info extraction pipeline | `src/services/key-info.ts`, `src/services/key-info-order.ts`, `src/services/key-info-collectors.ts`, `src/services/key-info-query.ts`, `src/services/key-info-inline.ts`, `src/services/key-info-merge.ts`, `src/core/key-info-core.ts` | 关键内容提取、排序策略、列表前缀解析、多来源合并 | 主流程仍是编排入口，但排序/提取/合并职责已模块化，后续规则扩展成本下降 | 覆盖较好，新增 `key-info-collectors.test.ts`，sy/structural/fallback 与 list-prefix 边界持续稳定 |
 | Dock UI rendering | `src/ui/key-info-dock.ts`, `src/ui/key-info-dock-doc-actions.ts`, `src/core/dock-doc-action-order-core.ts`, `src/plugin/key-info-controller.ts` | Dock 渲染、过滤、滚动锁、动作列表拖拽与操作 | 拖拽排序已下沉到子模块，主 Dock 文件显著缩减，剩余优化以渲染复用为主 | 覆盖较好（`key-info-dock-*`, `key-info-controller-*` + `dock-doc-action-order-core`），含跨组拖拽拒绝场景 |
-| Document processing domains | `src/services/link-resolver.ts`, `src/services/exporter.ts`, `src/services/mover.ts`, `src/services/dedupe.ts`, `src/core/*-core.ts` | 链接处理、导出、移动、去重、文本清理/样式变换 | 业务逻辑整体稳定，但调试日志分散、工具层薄弱测试仍存在缺口 | 大部分有覆盖；`mover.ts`、`request.ts`、`block-lineage.ts` 仍缺直接单测 |
+| Document processing domains | `src/services/link-resolver.ts`, `src/services/exporter.ts`, `src/services/mover.ts`, `src/services/dedupe.ts`, `src/core/*-core.ts` | 链接处理、导出、移动、去重、文本清理/样式变换 | 业务逻辑整体稳定；日志治理和工具层测试基线已补齐，后续以增量规则演进为主 | 覆盖完善，`mover/request/export-media/block-lineage` 已有直接单测 |
 
 ## 3. Prioritized Refactor Backlog
 
@@ -42,8 +44,8 @@
 | RF-003 | P1 | 关键信息提取管线可维护性重构 | `src/services/key-info.ts`, `src/services/key-info-order.ts`, `src/services/key-info-collectors.ts`, `src/services/key-info-query.ts`, `src/services/key-info-model.ts`, `src/services/key-info-merge.ts`, `src/services/key-info-inline.ts` | 将“排序决策/列表上下文/来源合并”拆成可组合纯函数 | Medium-High | - [x] sy/structural/fallback 排序选择测试已覆盖<br>- [x] list-item 映射边界测试已覆盖<br>- [x] 抽取 `key-info-order.ts`（排序与 list-context 纯函数）<br>- [x] 抽取 `key-info-collectors.ts`（heading/markdown/meta 收集）<br>- [x] `getDocKeyInfo` 主流程改为编排式调用<br>- [x] `key-info-service-*`、`key-info-merge`、`key-info-core`、`key-info-collectors` 保持通过 | done |
 | RF-004 | P1 | Dock 视图层模块化 | `src/ui/key-info-dock.ts`, `src/ui/key-info-dock-doc-actions.ts`, `src/core/dock-doc-action-order-core.ts` | 拆分“过滤渲染/拖拽排序/滚动状态管理”子模块，降低认知负担 | Medium | - [x] `key-info-dock-scroll-interaction` 全通过<br>- [x] `key-info-dock-list-prefix` 通过<br>- [x] 跨组拒绝/组内重排测试已覆盖<br>- [x] 抽取 `key-info-dock-doc-actions.ts`<br>- [x] 新增 `dock-doc-action-order-core.test.ts` | done |
 | RF-005 | P1 | 生命周期状态管理收敛 | `src/plugin/plugin-lifecycle.ts`, `src/plugin/plugin-lifecycle-events.ts`, `src/core/doc-menu-registration-core.ts`, `src/plugin/key-info-controller.ts` | 提取 doc-menu 状态持久化与生命周期事件注册为独立协作对象 | Medium | - [x] `plugin-menu-registration` 通过<br>- [x] 增加 `onload/onunload` 事件解绑验证<br>- [x] 抽取 `plugin-lifecycle-events.ts`（事件绑定协作）<br>- [x] `key-info-controller-*` 通过 | done |
-| RF-006 | P2 | 调试日志治理 | `src/plugin/action-runner.ts`, `src/services/link-resolver.ts`, `src/services/kernel.ts`, `src/core/markdown-cleanup-core.ts` | 引入统一 logger（可控 debug 开关），降低生产环境日志噪声 | Low | - [ ] 新增 logger 行为测试（debug 开关）<br>- [x] 现有行为测试无回归（全量测试通过） | pending |
-| RF-007 | P2 | 补齐工具层薄弱测试 | `src/core/export-media-core.ts`, `src/services/mover.ts`, `src/services/request.ts`, `src/services/block-lineage.ts` | 为关键工具与中间层补充低成本高收益单测 | Low | - [ ] 新增 `export-media-core.test.ts`<br>- [ ] 新增 `mover.test.ts`<br>- [ ] 新增 `request.test.ts`<br>- [x] 新增 `block-lineage.test.ts` | pending |
+| RF-006 | P2 | 调试日志治理 | `src/core/logger-core.ts`, `src/plugin/action-runner.ts`, `src/services/link-resolver.ts`, `src/services/kernel.ts`, `src/services/kernel-block.ts`, `src/core/markdown-cleanup-core.ts` | 引入统一 logger（可控 debug 开关），降低生产环境日志噪声 | Low | - [x] 新增 logger 行为测试（debug 开关）<br>- [x] 高频追踪日志切为 debug 级别<br>- [x] 现有行为测试无回归（全量测试通过） | done |
+| RF-007 | P2 | 补齐工具层薄弱测试 | `src/core/export-media-core.ts`, `src/services/mover.ts`, `src/services/request.ts`, `src/services/block-lineage.ts` | 为关键工具与中间层补充低成本高收益单测 | Low | - [x] 新增 `export-media-core.test.ts`<br>- [x] 新增 `mover.test.ts`<br>- [x] 新增 `request.test.ts`<br>- [x] 新增 `block-lineage.test.ts` | done |
 
 Priority definition:
 - `P0`: 高价值且高风险/高频路径，优先处理
@@ -74,6 +76,8 @@ Status definition:
 | RF-003-PHASE2 | 2026-02-26 | 2026-02-26 | `corepack pnpm exec tsc -p tsconfig.strict.json --noEmit` + `corepack pnpm exec vitest run tests/key-info-core.test.ts tests/key-info-service-heading-inline.test.ts tests/key-info-service-list-prefix.test.ts tests/key-info-merge.test.ts tests/key-info-collectors.test.ts` | pass | 新增 `key-info-collectors.ts` 并修复编排回归，`key-info` 管线拆分完成 |
 | RF-004-IMPLEMENT | 2026-02-26 | 2026-02-26 | `corepack pnpm exec vitest run tests/dock-doc-action-order-core.test.ts tests/key-info-dock-scroll-interaction.test.ts` + `corepack pnpm test` | pass | 抽离 `key-info-dock-doc-actions.ts` 与 `dock-doc-action-order-core.ts`，保持拖拽排序与跨组拒绝行为 |
 | RF-005-IMPLEMENT | 2026-02-26 | 2026-02-26 | `corepack pnpm exec vitest run tests/plugin-menu-registration.test.ts` + `corepack pnpm test` | pass | 抽离 `plugin-lifecycle-events.ts`，补齐 `onload/onunload` 监听解绑测试 |
+| RF-006-IMPLEMENT | 2026-02-26 | 2026-02-26 | `corepack pnpm exec tsc -p tsconfig.strict.json --noEmit` + `corepack pnpm exec vitest run tests/logger-core.test.ts tests/action-runner-loading.test.ts tests/link-resolver-forward.test.ts tests/kernel-sy-order.test.ts tests/kernel-kramdown-compat.test.ts tests/markdown-cleanup-blocks.test.ts` + `corepack pnpm test` | pass | 新增 `logger-core.ts` 并接管关键链路调试日志，默认关闭 debug 追踪 |
+| RF-007-IMPLEMENT | 2026-02-26 | 2026-02-26 | `corepack pnpm exec vitest run tests/request.test.ts tests/mover.test.ts tests/export-media-core.test.ts` + `corepack pnpm test` | pass | 新增 `request/mover/export-media-core` 单测，工具层测试缺口补齐 |
 
 ## 5. Decision and Confirmation
 
@@ -83,6 +87,6 @@ Status definition:
 
 ## 6. Next Actions
 
-1. 进入 `RF-006`：设计并落地统一 logger（含 debug 开关）并补最小行为测试。
-2. 进入 `RF-007`：优先补齐 `request.ts` 与 `mover.ts` 单测，再补 `export-media-core.test.ts`。
-3. 在下一轮重构完成后刷新本文件基线测试统计与执行日志。
+1. 当前重构清单（`RF-001` 至 `RF-007`）已全部完成，后续改动按增量需求进入新条目管理。
+2. 若需开放运行时 debug 开关入口，可在插件设置页增加 `logger-core` 开关映射。
+3. 发版前执行 `corepack pnpm build` 并提交最新 `package.zip`。

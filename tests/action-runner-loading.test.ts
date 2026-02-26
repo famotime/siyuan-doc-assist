@@ -56,6 +56,10 @@ vi.mock("@/ui/dialogs", () => ({
 }));
 
 import { ActionRunner } from "@/plugin/action-runner";
+import {
+  resetDocAssistantDebugSetting,
+  setDocAssistantDebugEnabled,
+} from "@/core/logger-core";
 import { exportCurrentDocMarkdown } from "@/services/exporter";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
@@ -109,6 +113,7 @@ function createRunner(setBusy?: (busy: boolean) => void) {
 describe("action-runner loading guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetDocAssistantDebugSetting();
   });
 
   test("toggles busy flag around action execution", async () => {
@@ -445,6 +450,7 @@ describe("action-runner loading guard", () => {
   });
 
   test("logs readable failure summary when verification remains dirty after retries", async () => {
+    setDocAssistantDebugEnabled(true);
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", markdown: "text", resolved: true } as any,

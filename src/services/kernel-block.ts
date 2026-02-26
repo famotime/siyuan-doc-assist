@@ -1,4 +1,5 @@
 import { requestApi } from "@/services/request";
+import { createDocAssistantLogger } from "@/core/logger-core";
 import { inClause, sqlPaged } from "@/services/kernel-shared";
 
 type BlockKramdownRes = {
@@ -27,6 +28,9 @@ export type ChildBlockMeta = {
   markdown: string;
   resolved?: boolean;
 };
+
+const styleLogger = createDocAssistantLogger("Style");
+const blankLinesLogger = createDocAssistantLogger("BlankLines");
 
 function toBlockKramdownRows(payload: unknown): BlockKramdownRes[] {
   const rows: BlockKramdownRes[] = [];
@@ -97,7 +101,7 @@ export async function getBlockKramdowns(
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn("[DocAssistant][Style] getBlockKramdowns failed, fallback to single", {
+      styleLogger.debug("getBlockKramdowns failed, fallback to single", {
         chunkSize: chunk.length,
         sample: chunk.slice(0, 8),
         message,
@@ -115,7 +119,7 @@ export async function getBlockKramdowns(
         }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn("[DocAssistant][Style] getBlockKramdown fallback failed", {
+        styleLogger.debug("getBlockKramdown fallback failed", {
           id,
           message,
         });
@@ -216,7 +220,7 @@ export async function getChildBlocksByParentId(
       return true;
     });
   if (!orderedIds.length) {
-    console.info("[DocAssistant][BlankLines] child blocks empty", {
+    blankLinesLogger.debug("child blocks empty", {
       parentId,
       apiCount: childList?.length || 0,
     });
@@ -259,7 +263,7 @@ export async function getChildBlocksByParentId(
       });
     }
   }
-  console.info("[DocAssistant][BlankLines] child blocks loaded", {
+  blankLinesLogger.debug("child blocks loaded", {
     parentId,
     apiCount: childList?.length || 0,
     orderedCount: orderedIds.length,
