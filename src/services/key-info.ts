@@ -63,7 +63,7 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   const hasChildBlocks = rows.some((row) => row.id !== rootId);
   const blockSortMap = new Map<string, number>();
   const structuralOrderMap = buildStructuralBlockOrderMap(rows, rootId);
-  const syOrderMap = await getDocTreeOrderFromSy(rootId);
+  const syOrderMap = await getDocTreeOrderFromSy(rootId, docMeta ?? null);
   const resolvedOrder = resolveBlockOrderMap(rows, syOrderMap, structuralOrderMap);
   const listContext = createListContextResolver(rows);
   const resolveListLine = (blockId?: string): { listItem: boolean; listPrefix?: string } => {

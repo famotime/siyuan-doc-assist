@@ -106,8 +106,8 @@ export const ACTIONS: ActionConfig[] = [
   },
   {
     key: "trim-trailing-whitespace",
-    commandText: "清理每行行尾空格（含Tab）",
-    menuText: "清理每行行尾空格（含Tab）",
+    commandText: "清理行尾空格（含Tab）",
+    menuText: "清理行尾空格（含Tab）",
     group: "edit",
     icon: "iconTrashcan",
   },

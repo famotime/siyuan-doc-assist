@@ -70,6 +70,51 @@ describe("kernel getDocTreeOrderFromSy", () => {
     expect(orderMap.get("h-2")).toBe(2);
   });
 
+  test("skips metadata SQL query when doc meta is provided", async () => {
+    requestApiMock.mockImplementation(async (url: string) => {
+      if (url === "/api/query/sql") {
+        return [];
+      }
+      if (url === "/api/filetree/getPathByID") {
+        return {
+          notebook: "nb",
+          path: "/20250615202038-dc41und.sy",
+        };
+      }
+      return null as any;
+    });
+
+    globalThis.fetch = vi.fn(async () => {
+      const body = JSON.stringify({
+        ID: "doc-1",
+        Type: "NodeDocument",
+        Children: [{ ID: "h-1", Type: "NodeHeading" }],
+      });
+      return new Response(body, {
+        status: 200,
+        headers: {
+          "content-type": "application/json;charset=utf-8",
+        },
+      });
+    }) as any;
+
+    const orderMap = await (getDocTreeOrderFromSy as any)("doc-1", {
+      id: "doc-1",
+      parentId: "",
+      rootId: "doc-1",
+      box: "nb",
+      path: "/20250615202038-dc41und.sy",
+      hPath: "/doc",
+      updated: "20260222000000",
+      title: "doc",
+    });
+    const sqlCalls = requestApiMock.mock.calls.filter((args) => args[0] === "/api/query/sql");
+
+    expect(orderMap.get("doc-1")).toBe(0);
+    expect(orderMap.get("h-1")).toBe(1);
+    expect(sqlCalls).toHaveLength(0);
+  });
+
   test("returns empty map when file API returns error JSON envelope", async () => {
     requestApiMock.mockImplementation(async (url: string, data?: any) => {
       if (url === "/api/query/sql") {

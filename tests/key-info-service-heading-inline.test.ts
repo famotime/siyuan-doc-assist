@@ -76,6 +76,29 @@ describe("key-info service heading inline merge", () => {
     getRootDocRawMarkdownMock.mockResolvedValue("");
   });
 
+  test("passes loaded doc meta into sy-order query to avoid duplicate SQL lookup", async () => {
+    mockKernelSql([
+      {
+        id: "doc-1",
+        sort: 1,
+        type: "p",
+        subtype: "",
+        content: "正文",
+        markdown: "正文",
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    await getDocKeyInfo("doc-1");
+
+    expect(getDocMetaByIDMock).toHaveBeenCalledWith("doc-1");
+    expect(getDocTreeOrderFromSyMock).toHaveBeenCalledWith(
+      "doc-1",
+      expect.objectContaining({ id: "doc-1", title: "文档标题" })
+    );
+  });
+
   test("keeps heading as title and ignores heading markdown inline key info", async () => {
     mockKernelSql([
       {

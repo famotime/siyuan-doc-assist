@@ -2,7 +2,7 @@
   "name": "siyuan-doc-assist",
   "author": "Quincy Zou",
   "url": "https://github.com/famotime/siyuan-doc-assist",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "minAppVersion": "3.5.7",
   "disabledInPublish": true,
   "backends": [
@@ -17,8 +17,8 @@
     "zh_CN": "文档助手"
   },
   "description": {
-    "default": "Manage backlinks/forward links, export linked docs, move backlinks as children, and detect duplicate docs by title similarity.",
-    "zh_CN": "管理反链/正链文档，导出链接文档，移动反链为子文档，并按标题相似度识别重复文档。"
+    "default": "SiYuan Notes plugin, which provides functions such as extracting key content of documents, quickly organizing backlinked documents, and quickly editing document content.",
+    "zh_CN": "思源笔记插件，提供文档关键内容提取、反链文档快捷整理、文档内容快捷编辑等功能。"
   },
   "readme": {
     "default": "README.md"

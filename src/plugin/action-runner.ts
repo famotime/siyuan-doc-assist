@@ -12,7 +12,6 @@ import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/
 import {
   appendBlock,
   deleteBlockById,
-  getBlockKramdown,
   getBlockKramdowns,
   getChildBlocksByParentId,
   getDocMetaByID,
@@ -599,7 +598,8 @@ export class ActionRunner {
           let verifiedClean = false;
           for (let readAttempt = 1; readAttempt <= maxVerifyReadAttempts; readAttempt += 1) {
             verifyReads = readAttempt;
-            const persisted = await getBlockKramdown(item.id);
+            const persistedRows = await getBlockKramdowns([item.id]);
+            const persisted = persistedRows.find((row) => row.id === item.id) || persistedRows[0];
             const persistedMarkdown = persisted?.kramdown;
             if (typeof persistedMarkdown !== "string") {
               // Some kernels may not return row data immediately; keep backward-compatible success.

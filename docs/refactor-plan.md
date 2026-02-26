@@ -4,10 +4,10 @@
 
 - Refreshed on: 2026-02-26
 - Scope: `siyuan-doc-assist` plugin project
-- Current version: `1.2.0`
+- Current version: `1.2.1`
 - Refactor goal: 在不改变现有功能行为的前提下，降低核心模块复杂度、消除重复边界、提升后续迭代可维护性
 - Latest progress summary:
-  - 已发布 `v1.2.0`，并更新插件图标与元信息
+  - 已发布 `v1.2.1`，并更新插件图标与元信息
   - 仓库已完成结构整理（移除 `plugin-sample-vite-vue/`、`reference_docs/`、`memo.md`）
   - 新增“清理行尾空格”动作与对应测试，并修复 `white-space:pre` 相关边界
   - 文档处理动作支持拖拽排序，并修复跨组拖拽边界问题

@@ -315,20 +315,29 @@ export async function getChildDocsByParent(parentId: string): Promise<ChildDocMe
     }));
 }
 
-export async function getDocTreeOrderFromSy(docId: string): Promise<Map<string, number>> {
+export async function getDocTreeOrderFromSy(
+  docId: string,
+  docMeta?: DocMeta | null
+): Promise<Map<string, number>> {
   if (!docId) {
     return new Map();
   }
   const candidatePaths = new Set<string>();
-  try {
-    const meta = await getDocMetaByID(docId);
-    if (meta?.box && meta.path) {
-      buildDocSyCandidatePaths(meta.box, meta.path).forEach((path) =>
-        candidatePaths.add(path)
-      );
+  if (docMeta === undefined) {
+    try {
+      const meta = await getDocMetaByID(docId);
+      if (meta?.box && meta.path) {
+        buildDocSyCandidatePaths(meta.box, meta.path).forEach((path) =>
+          candidatePaths.add(path)
+        );
+      }
+    } catch {
+      // Ignore and try other strategies.
     }
-  } catch {
-    // Ignore and try other strategies.
+  } else if (docMeta?.box && docMeta.path) {
+    buildDocSyCandidatePaths(docMeta.box, docMeta.path).forEach((path) =>
+      candidatePaths.add(path)
+    );
   }
 
   try {
