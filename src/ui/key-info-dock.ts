@@ -243,8 +243,10 @@ export function createKeyInfoDock(
 
   const docProcessPanel = document.createElement("div");
   docProcessPanel.className = "doc-assistant-keyinfo__panel doc-assistant-keyinfo__panel--doc-process";
-  const docMenuToggleRow = document.createElement("label");
+  const docMenuToggleRow = document.createElement("div");
   docMenuToggleRow.className = "doc-assistant-keyinfo__menu-toggle-row";
+  const docMenuToggle = document.createElement("label");
+  docMenuToggle.className = "doc-assistant-keyinfo__menu-toggle";
   const docMenuToggleLabel = document.createElement("span");
   docMenuToggleLabel.className = "doc-assistant-keyinfo__menu-toggle-label";
   docMenuToggleLabel.textContent = "全部注册到文档菜单";
@@ -254,10 +256,8 @@ export function createKeyInfoDock(
   docMenuToggleInput.addEventListener("change", () => {
     callbacks.onDocMenuToggleAll?.(docMenuToggleInput.checked);
   });
-  docMenuToggleRow.appendChild(docMenuToggleLabel);
-  docMenuToggleRow.appendChild(docMenuToggleInput);
-  const docActionControlRow = document.createElement("div");
-  docActionControlRow.className = "doc-assistant-keyinfo__action-control-row";
+  docMenuToggle.appendChild(docMenuToggleLabel);
+  docMenuToggle.appendChild(docMenuToggleInput);
   const docActionResetBtn = document.createElement("button");
   docActionResetBtn.type = "button";
   docActionResetBtn.className =
@@ -266,11 +266,11 @@ export function createKeyInfoDock(
   docActionResetBtn.addEventListener("click", () => {
     callbacks.onDocActionOrderReset?.();
   });
-  docActionControlRow.appendChild(docActionResetBtn);
+  docMenuToggleRow.appendChild(docActionResetBtn);
+  docMenuToggleRow.appendChild(docMenuToggle);
   const docProcessList = document.createElement("div");
   docProcessList.className = "doc-assistant-keyinfo__actions";
   docProcessPanel.appendChild(docProcessList);
-  docProcessPanel.appendChild(docActionControlRow);
   docProcessPanel.appendChild(docMenuToggleRow);
 
   root.appendChild(header);

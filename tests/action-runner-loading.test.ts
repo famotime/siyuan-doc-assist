@@ -586,6 +586,43 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "# **Title** {: id=\"b\"}");
   });
 
+  test("normalizes partial bold content before applying full bold", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">A</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "Hello **World**" } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("a", "**Hello World**");
+  });
+
+  test("toggles fully bold selected blocks back to plain text", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">A</div>
+      <div data-node-id="b" class="protyle-wysiwyg--select">B</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "**Hello**" } as any,
+      { id: "b", kramdown: "# **Title** {: id=\"b\"}" } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "a", "Hello");
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "# Title {: id=\"b\"}");
+  });
+
   test("highlights all selected blocks", async () => {
     const root = document.createElement("div");
     root.innerHTML = `
@@ -601,6 +638,23 @@ describe("action-runner loading guard", () => {
 
     expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "c", "- ==item==");
+  });
+
+  test("toggles fully highlighted block back to plain text", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="c" class="protyle-wysiwyg--select">C</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "c", kramdown: "==item==" } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("highlight-selected-blocks" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "c", "item");
   });
 
   test("shows message when no blocks are selected for styling", async () => {
