@@ -474,6 +474,7 @@ export class ActionRunner {
     const paragraphBlocks = blocks.filter(
       (block) => (block.type || "").toLowerCase() === "p"
     );
+    const paragraphBlockIdSet = new Set(paragraphBlocks.map((block) => block.id));
     trailingWhitespaceLogger.debug("scan start", {
       docId,
       blockCount: blocks.length,
@@ -598,9 +599,10 @@ export class ActionRunner {
           let verifiedClean = false;
           for (let readAttempt = 1; readAttempt <= maxVerifyReadAttempts; readAttempt += 1) {
             verifyReads = readAttempt;
-            const persistedRows = await getBlockKramdowns([item.id]);
-            const persisted = persistedRows.find((row) => row.id === item.id) || persistedRows[0];
-            const persistedMarkdown = persisted?.kramdown;
+            const persistedRows = paragraphBlockIdSet.has(item.id)
+              ? (await getBlockKramdowns([item.id])) || []
+              : [];
+            const persistedMarkdown = persistedRows.find((row) => row.id === item.id)?.kramdown;
             if (typeof persistedMarkdown !== "string") {
               // Some kernels may not return row data immediately; keep backward-compatible success.
               applied = true;
