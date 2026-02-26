@@ -34,6 +34,7 @@ vi.mock("@/services/block-lineage", () => ({
 }));
 
 vi.mock("@/services/link-resolver", () => ({
+  filterDocRefsByExistingLinks: vi.fn(),
   getBacklinkDocs: vi.fn(),
   getChildDocs: vi.fn(),
   getForwardLinkedDocIds: vi.fn(),
@@ -56,8 +57,18 @@ vi.mock("@/ui/dialogs", () => ({
 
 import { ActionRunner } from "@/plugin/action-runner";
 import { exportCurrentDocMarkdown } from "@/services/exporter";
+import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import {
+  filterDocRefsByExistingLinks,
+  getBacklinkDocs,
+  getChildDocs,
+  toBacklinkMarkdown,
+  toChildDocMarkdown,
+} from "@/services/link-resolver";
+import { moveDocsAsChildren } from "@/services/mover";
+import {
+  appendBlock,
   deleteBlockById,
   getBlockKramdown,
   getBlockKramdowns,
@@ -65,15 +76,26 @@ import {
   insertBlockBefore,
   updateBlockMarkdown,
 } from "@/services/kernel";
+import { openDedupeDialog } from "@/ui/dialogs";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
+const deleteDocsByIdsMock = vi.mocked(deleteDocsByIds);
 const deleteBlockByIdMock = vi.mocked(deleteBlockById);
+const appendBlockMock = vi.mocked(appendBlock);
 const getBlockKramdownMock = vi.mocked(getBlockKramdown);
 const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
+const getBacklinkDocsMock = vi.mocked(getBacklinkDocs);
+const getChildDocsMock = vi.mocked(getChildDocs);
+const filterDocRefsByExistingLinksMock = vi.mocked(filterDocRefsByExistingLinks);
+const toBacklinkMarkdownMock = vi.mocked(toBacklinkMarkdown);
+const toChildDocMarkdownMock = vi.mocked(toChildDocMarkdown);
+const moveDocsAsChildrenMock = vi.mocked(moveDocsAsChildren);
+const findDuplicateCandidatesMock = vi.mocked(findDuplicateCandidates);
 const insertBlockBeforeMock = vi.mocked(insertBlockBefore);
 const updateBlockMarkdownMock = vi.mocked(updateBlockMarkdown);
 const resolveDocDirectChildBlockIdMock = vi.mocked(resolveDocDirectChildBlockId);
+const openDedupeDialogMock = vi.mocked(openDedupeDialog);
 
 function createRunner(setBusy?: (busy: boolean) => void) {
   return new ActionRunner({
@@ -171,6 +193,145 @@ describe("action-runner loading guard", () => {
     expect(insertBlockBeforeMock).toHaveBeenCalledTimes(1);
     expect(insertBlockBeforeMock).toHaveBeenCalledWith("<br />", "h2", "doc-1");
     expect(showMessageMock).toHaveBeenCalledWith("已为 1 个标题补充空段落", 5000, "info");
+  });
+
+  test("inserts filtered backlinks and reports skipped existing links", async () => {
+    getBacklinkDocsMock.mockResolvedValue([
+      { id: "doc-a", title: "A" } as any,
+      { id: "doc-b", title: "B" } as any,
+    ]);
+    filterDocRefsByExistingLinksMock.mockResolvedValue({
+      items: [{ id: "doc-a", title: "A" } as any],
+      skipped: [{ id: "doc-b", title: "B" } as any],
+      existingIds: ["doc-b"],
+    });
+    toBacklinkMarkdownMock.mockReturnValue("- [A](siyuan://blocks/doc-a)");
+    const runner = createRunner();
+
+    await runner.runAction("insert-backlinks");
+
+    expect(appendBlockMock).toHaveBeenCalledWith("- [A](siyuan://blocks/doc-a)", "doc-1");
+    expect(showMessageMock).toHaveBeenCalledWith("已插入 1 个反链文档链接，跳过已存在 1 个", 5000, "info");
+  });
+
+  test("shows no-op message when all backlinks already exist in current doc", async () => {
+    getBacklinkDocsMock.mockResolvedValue([{ id: "doc-a", title: "A" } as any]);
+    filterDocRefsByExistingLinksMock.mockResolvedValue({
+      items: [],
+      skipped: [{ id: "doc-a", title: "A" } as any],
+      existingIds: ["doc-a"],
+    });
+    const runner = createRunner();
+
+    await runner.runAction("insert-backlinks");
+
+    expect(appendBlockMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("当前文档已包含所有反向链接文档", 5000, "info");
+  });
+
+  test("inserts child doc links after filtering existing links", async () => {
+    getChildDocsMock.mockResolvedValue([
+      { id: "child-a", title: "Child A" } as any,
+      { id: "child-b", title: "Child B" } as any,
+    ]);
+    filterDocRefsByExistingLinksMock.mockResolvedValue({
+      items: [{ id: "child-b", title: "Child B" } as any],
+      skipped: [{ id: "child-a", title: "Child A" } as any],
+      existingIds: ["child-a"],
+    });
+    toChildDocMarkdownMock.mockReturnValue("- [Child B](siyuan://blocks/child-b)");
+    const runner = createRunner();
+
+    await runner.runAction("insert-child-docs");
+
+    expect(appendBlockMock).toHaveBeenCalledWith("- [Child B](siyuan://blocks/child-b)", "doc-1");
+    expect(showMessageMock).toHaveBeenCalledWith("已插入 1 个子文档链接，跳过已存在 1 个", 5000, "info");
+  });
+
+  test("shows no-op when move-backlinks confirmation is canceled", async () => {
+    getBacklinkDocsMock.mockResolvedValue([{ id: "doc-a", title: "A" } as any]);
+    const askConfirm = vi.fn().mockResolvedValue(false);
+    const setBusy = vi.fn();
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+      setBusy,
+    } as any);
+
+    await runner.runAction("move-backlinks");
+
+    expect(moveDocsAsChildrenMock).not.toHaveBeenCalled();
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  test("reports move-backlinks result with error severity when failures exist", async () => {
+    getBacklinkDocsMock.mockResolvedValue([
+      { id: "doc-a", title: "A" } as any,
+      { id: "doc-b", title: "B" } as any,
+      { id: "doc-c", title: "C" } as any,
+    ]);
+    moveDocsAsChildrenMock.mockResolvedValue({
+      successIds: ["doc-a"],
+      skippedIds: ["doc-c"],
+      renamed: [{ id: "doc-a", title: "A(1)" }],
+      failed: [{ id: "doc-b", error: "locked" }],
+    });
+    const runner = createRunner();
+
+    await runner.runAction("move-backlinks");
+
+    expect(moveDocsAsChildrenMock).toHaveBeenCalledWith("doc-1", ["doc-a", "doc-b", "doc-c"]);
+    expect(showMessageMock).toHaveBeenCalledWith("移动完成：成功 1，跳过 1，重命名 1，失败 1", 9000, "error");
+  });
+
+  test("wires dedupe dialog callbacks for delete, open-all and insert-links", async () => {
+    vi.useFakeTimers();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null as any);
+    findDuplicateCandidatesMock.mockResolvedValue([
+      {
+        groupId: "group-1",
+        score: 0.95,
+        docs: [
+          { id: "doc-a", title: "A", updated: "2026-02-25", hPath: "/A" },
+          { id: "doc-b", title: "B", updated: "2026-02-24", hPath: "/B" },
+        ],
+      } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("dedupe");
+
+    expect(openDedupeDialogMock).toHaveBeenCalledTimes(1);
+    const dialogArgs = openDedupeDialogMock.mock.calls[0]?.[0] as any;
+    await dialogArgs.onDelete(["doc-a"]);
+    expect(deleteDocsByIdsMock).toHaveBeenCalledWith(["doc-a"]);
+
+    dialogArgs.onOpenAll([
+      { id: "doc-a", title: "A" },
+      { id: "doc-a", title: "A (dup)" },
+      { id: "doc-b", title: "B" },
+    ]);
+    vi.runAllTimers();
+    expect(openSpy).toHaveBeenCalledTimes(2);
+    expect(showMessageMock).toHaveBeenCalledWith("已尝试打开 2 篇文档", 5000, "info");
+
+    dialogArgs.onInsertLinks([
+      { id: "doc-a", title: "A" },
+      { id: "doc-a", title: "A (dup)" },
+      { id: "doc-b", title: "B" },
+    ]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(appendBlockMock).toHaveBeenCalledWith(
+      "## 重复候选文档\n\n- [A](siyuan://blocks/doc-a)\n- [B](siyuan://blocks/doc-b)",
+      "doc-1"
+    );
+    expect(showMessageMock).toHaveBeenCalledWith("已插入 2 个文档链接", 5000, "info");
+    expect(showMessageMock).toHaveBeenCalledWith("识别到 1 组重复候选", 5000, "info");
+
+    openSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   test("trims trailing whitespace and updates only affected blocks", async () => {

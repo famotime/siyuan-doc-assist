@@ -22,6 +22,10 @@ import { ACTIONS, ActionKey } from "@/plugin/actions";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
 import {
+  bindPluginLifecycleEvents,
+  unbindPluginLifecycleEvents,
+} from "@/plugin/plugin-lifecycle-events";
+import {
   destroyActionProcessingOverlay,
   hideActionProcessingOverlay,
   showActionProcessingOverlay,
@@ -115,8 +119,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
     const frontend = getFrontend();
     this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
 
-    this.eventBus.on("switch-protyle", this.onSwitchProtyle);
-    this.eventBus.on("click-editortitleicon", this.onEditorTitleMenu);
+    bindPluginLifecycleEvents(this.eventBus, {
+      onSwitchProtyle: this.onSwitchProtyle,
+      onEditorTitleMenu: this.onEditorTitleMenu,
+    });
     this.keyInfoController.registerDock(this);
 
     this.getOrderedActions().forEach((action) => {
@@ -136,8 +142,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   onunload() {
-    this.eventBus.off("switch-protyle", this.onSwitchProtyle);
-    this.eventBus.off("click-editortitleicon", this.onEditorTitleMenu);
+    unbindPluginLifecycleEvents(this.eventBus, {
+      onSwitchProtyle: this.onSwitchProtyle,
+      onEditorTitleMenu: this.onEditorTitleMenu,
+    });
     this.keyInfoController.destroy();
     destroyActionProcessingOverlay();
   }

@@ -1,4 +1,4 @@
-import { getActiveEditor, showMessage } from "siyuan";
+import { showMessage } from "siyuan";
 import {
   findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
@@ -32,25 +32,14 @@ import { openDedupeDialog } from "@/ui/dialogs";
 import { ActionConfig, ActionKey, ACTIONS } from "@/plugin/actions";
 import { ProtyleLike } from "@/plugin/doc-context";
 import { applyBlockStyle, BlockStyle } from "@/core/markdown-style-core";
+import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { getSelectedBlockIds, resolveCurrentBlockId } from "@/plugin/action-runner-context";
 
 type ActionRunnerDeps = {
   isMobile: () => boolean;
   resolveDocId: (explicitId?: string, protyle?: ProtyleLike) => string;
   askConfirm: (title: string, text: string) => Promise<boolean>;
   setBusy?: (busy: boolean) => void;
-};
-
-type CurrentBlockResolveSource =
-  | "provided-block-id"
-  | "provided-dom"
-  | "active-block-id"
-  | "active-dom"
-  | "none";
-
-type CurrentBlockResolveResult = {
-  id: string;
-  source: CurrentBlockResolveSource;
-  wasDocId: boolean;
 };
 
 type StyleFailureKind = "source-missing" | "update-failed";
@@ -64,97 +53,26 @@ type StyleFailureDetail = {
 export class ActionRunner {
   private isRunning = false;
 
+  private readonly actionHandlers: ActionHandlerMap = {
+    "export-current": async (docId) => this.handleExportCurrent(docId),
+    "insert-backlinks": async (docId) => this.handleInsertBacklinks(docId),
+    "insert-child-docs": async (docId) => this.handleInsertChildDocs(docId),
+    "export-backlinks-zip": async (docId) => this.handleExportBacklinksZip(docId),
+    "export-forward-zip": async (docId) => this.handleExportForwardZip(docId),
+    "move-backlinks": async (docId) => this.handleMoveBacklinks(docId),
+    dedupe: async (docId) => this.handleDedupe(docId),
+    "remove-extra-blank-lines": async (docId) => this.handleRemoveExtraBlankLines(docId),
+    "trim-trailing-whitespace": async (docId) => this.handleTrimTrailingWhitespace(docId),
+    "insert-blank-before-headings": async (docId) => this.handleInsertBlankBeforeHeadings(docId),
+    "delete-from-current-to-end": async (docId, protyle) =>
+      this.handleDeleteFromCurrentToEnd(docId, protyle),
+    "bold-selected-blocks": async (docId, protyle) =>
+      this.handleStyleSelectedBlocks(docId, protyle, "bold"),
+    "highlight-selected-blocks": async (docId, protyle) =>
+      this.handleStyleSelectedBlocks(docId, protyle, "highlight"),
+  };
+
   constructor(private readonly deps: ActionRunnerDeps) {}
-
-  private getProtyleBlockId(protyle?: ProtyleLike): string {
-    return (protyle?.block?.id || "").trim();
-  }
-
-  private normalizeCandidateBlockId(candidateId: string, docId: string): CurrentBlockResolveResult {
-    const normalized = (candidateId || "").trim();
-    if (!normalized) {
-      return { id: "", source: "none", wasDocId: false };
-    }
-    if (normalized === docId) {
-      return { id: "", source: "none", wasDocId: true };
-    }
-    return { id: normalized, source: "none", wasDocId: false };
-  }
-
-  private getFocusedBlockIdFromDom(protyle?: ProtyleLike): string {
-    if (typeof window === "undefined") {
-      return "";
-    }
-    const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-    if (!root || typeof root.querySelector !== "function") {
-      return "";
-    }
-
-    const resolveFromElement = (element: Element | null | undefined) => {
-      if (!element) {
-        return "";
-      }
-      const blockElement = element.closest?.("[data-node-id]") as HTMLElement | null;
-      if (!blockElement || !root.contains(blockElement)) {
-        return "";
-      }
-      return (blockElement.dataset.nodeId || blockElement.getAttribute("data-node-id") || "").trim();
-    };
-
-    const selection = window.getSelection?.();
-    const anchorNode = selection?.anchorNode || null;
-    const anchorElement =
-      anchorNode && (anchorNode as any).nodeType === Node.ELEMENT_NODE
-        ? (anchorNode as Element)
-        : anchorNode?.parentElement || null;
-    const fromAnchor = resolveFromElement(anchorElement);
-    if (fromAnchor) {
-      return fromAnchor;
-    }
-
-    const focused = root.querySelector(":focus");
-    const fromFocused = resolveFromElement(focused);
-    if (fromFocused) {
-      return fromFocused;
-    }
-
-    return "";
-  }
-
-  private resolveCurrentBlockId(docId: string, protyle?: ProtyleLike): CurrentBlockResolveResult {
-    let wasDocId = false;
-
-    const fromProvided = this.normalizeCandidateBlockId(this.getProtyleBlockId(protyle), docId);
-    if (fromProvided.id) {
-      return { ...fromProvided, source: "provided-block-id" };
-    }
-    wasDocId = wasDocId || fromProvided.wasDocId;
-
-    const fromProvidedDom = this.normalizeCandidateBlockId(this.getFocusedBlockIdFromDom(protyle), docId);
-    if (fromProvidedDom.id) {
-      return { ...fromProvidedDom, source: "provided-dom", wasDocId };
-    }
-    wasDocId = wasDocId || fromProvidedDom.wasDocId;
-
-    const activeProtyle = getActiveEditor()?.protyle as ProtyleLike | undefined;
-    const fromActive = this.normalizeCandidateBlockId(this.getProtyleBlockId(activeProtyle), docId);
-    if (fromActive.id) {
-      return { ...fromActive, source: "active-block-id", wasDocId };
-    }
-    wasDocId = wasDocId || fromActive.wasDocId;
-
-    const fromActiveDom = this.normalizeCandidateBlockId(this.getFocusedBlockIdFromDom(activeProtyle), docId);
-    if (fromActiveDom.id) {
-      return { ...fromActiveDom, source: "active-dom", wasDocId };
-    }
-    wasDocId = wasDocId || fromActiveDom.wasDocId;
-
-    return {
-      id: "",
-      source: "none",
-      wasDocId,
-    };
-  }
 
   private async askConfirmWithVisibleDialog(title: string, text: string): Promise<boolean> {
     this.deps.setBusy?.(false);
@@ -183,47 +101,7 @@ export class ActionRunner {
     this.deps.setBusy?.(true);
 
     try {
-      switch (action) {
-        case "export-current":
-          await this.handleExportCurrent(docId);
-          break;
-        case "insert-backlinks":
-          await this.handleInsertBacklinks(docId);
-          break;
-        case "insert-child-docs":
-          await this.handleInsertChildDocs(docId);
-          break;
-        case "export-backlinks-zip":
-          await this.handleExportBacklinksZip(docId);
-          break;
-        case "export-forward-zip":
-          await this.handleExportForwardZip(docId);
-          break;
-        case "move-backlinks":
-          await this.handleMoveBacklinks(docId);
-          break;
-        case "dedupe":
-          await this.handleDedupe(docId);
-          break;
-        case "remove-extra-blank-lines":
-          await this.handleRemoveExtraBlankLines(docId);
-          break;
-        case "trim-trailing-whitespace":
-          await this.handleTrimTrailingWhitespace(docId);
-          break;
-        case "insert-blank-before-headings":
-          await this.handleInsertBlankBeforeHeadings(docId);
-          break;
-        case "delete-from-current-to-end":
-          await this.handleDeleteFromCurrentToEnd(docId, protyle);
-          break;
-        case "bold-selected-blocks":
-          await this.handleStyleSelectedBlocks(docId, protyle, "bold");
-          break;
-        case "highlight-selected-blocks":
-          await this.handleStyleSelectedBlocks(docId, protyle, "highlight");
-          break;
-      }
+      await dispatchAction(action, docId, protyle, this.actionHandlers);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       showMessage(message, 7000, "error");
@@ -373,63 +251,12 @@ export class ActionRunner {
     showMessage(`识别到 ${candidates.length} 组重复候选`, 5000, "info");
   }
 
-  private getSelectedBlockIds(protyle?: ProtyleLike): string[] {
-    const activeProtyle = protyle || (getActiveEditor()?.protyle as ProtyleLike | undefined);
-    const root = activeProtyle?.wysiwyg?.element as HTMLElement | undefined;
-    if (!root) {
-      return [];
-    }
-    const selectors = [
-      ".protyle-wysiwyg--select",
-      ".protyle-wysiwyg__select",
-      ".protyle-wysiwyg--selecting",
-      "[data-node-id][data-node-selected]",
-    ];
-    const nodes = root.querySelectorAll(selectors.join(","));
-    const ids: string[] = [];
-    const seen = new Set<string>();
-    nodes.forEach((node) => {
-      const element =
-        (node as HTMLElement).closest?.("[data-node-id]") || (node as HTMLElement);
-      const id =
-        (element as HTMLElement).dataset.nodeId || element.getAttribute("data-node-id") || "";
-      if (id && !seen.has(id)) {
-        seen.add(id);
-        ids.push(id);
-      }
-    });
-
-    if (ids.length) {
-      return ids;
-    }
-
-    const selection = window.getSelection?.();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-      return ids;
-    }
-    const blockNodes = root.querySelectorAll<HTMLElement>("[data-node-id]");
-    blockNodes.forEach((node) => {
-      try {
-        if (selection.containsNode(node, true)) {
-          const id = node.dataset.nodeId || node.getAttribute("data-node-id") || "";
-          if (id && !seen.has(id)) {
-            seen.add(id);
-            ids.push(id);
-          }
-        }
-      } catch {
-        // Ignore DOM selection errors in non-standard environments.
-      }
-    });
-    return ids;
-  }
-
   private async handleStyleSelectedBlocks(
     docId: string,
     protyle: ProtyleLike | undefined,
     style: BlockStyle
   ) {
-    const selectedIds = this.getSelectedBlockIds(protyle);
+    const selectedIds = getSelectedBlockIds(protyle);
     if (!selectedIds.length) {
       showMessage("未选中任何块，请先选中块", 5000, "info");
       return;
@@ -871,7 +698,7 @@ export class ActionRunner {
   }
 
   private async handleDeleteFromCurrentToEnd(docId: string, protyle?: ProtyleLike) {
-    const current = this.resolveCurrentBlockId(docId, protyle);
+    const current = resolveCurrentBlockId(docId, protyle);
     const currentBlockId = current.id;
     if (!currentBlockId) {
       showMessage("未定位到当前段落，请将光标置于正文后重试", 5000, "error");

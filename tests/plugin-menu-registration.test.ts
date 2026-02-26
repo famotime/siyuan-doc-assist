@@ -153,4 +153,18 @@ describe("plugin menu registration", () => {
       })
     );
   });
+
+  test("unbinds lifecycle event listeners on unload", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+
+    expect(plugin.listeners.get("switch-protyle")?.size ?? 0).toBe(1);
+    expect(plugin.listeners.get("click-editortitleicon")?.size ?? 0).toBe(1);
+
+    plugin.onunload();
+
+    expect(plugin.listeners.get("switch-protyle")?.size ?? 0).toBe(0);
+    expect(plugin.listeners.get("click-editortitleicon")?.size ?? 0).toBe(0);
+  });
 });

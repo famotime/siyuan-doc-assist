@@ -19,6 +19,9 @@ export async function resolveDocDirectChildBlockId(
   if (!targetDocId || !currentId) {
     return "";
   }
+  if (currentId === targetDocId) {
+    return "";
+  }
 
   const visited = new Set<string>();
   for (let depth = 0; depth < 64; depth += 1) {
