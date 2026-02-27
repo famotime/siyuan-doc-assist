@@ -446,15 +446,12 @@
 }
 
 .doc-assistant-keyinfo__action-icon {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
   color: color-mix(in srgb, var(--doc-assistant-accent-strong) 72%, var(--b3-theme-on-surface));
-  background: color-mix(in srgb, var(--doc-assistant-accent-soft) 72%, var(--b3-theme-surface));
-  border: 1px solid color-mix(in srgb, var(--doc-assistant-accent) 42%, transparent);
 }
 
 .doc-assistant-keyinfo__action-icon-svg {
