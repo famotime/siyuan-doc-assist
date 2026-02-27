@@ -50,10 +50,10 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
   { key: "all", label: "全部", icon: "全" },
   { key: "title", label: "标题", icon: "题" },
   { key: "bold", label: "加粗", icon: "粗" },
-  { key: "italic", label: "斜体", icon: "斜" },
   { key: "highlight", label: "高亮", icon: "亮" },
-  { key: "code", label: "代码", icon: "码" },
   { key: "remark", label: "备注", icon: "注" },
+  { key: "italic", label: "斜体", icon: "斜" },
+  { key: "code", label: "代码", icon: "码" },
   { key: "tag", label: "标签", icon: "签" },
 ];
 
