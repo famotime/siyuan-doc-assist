@@ -73,6 +73,15 @@ describe("key-info-core", () => {
     expect(inline).toHaveLength(0);
   });
 
+  test("does not extract italic from markdown link content", () => {
+    const markdown = "链接 [a_b](https://example.com/a_b) 与 [说明 _x_](https://example.com) 和 *有效*";
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+    const italicItems = items.filter((item) => item.type === "italic").map((item) => item.text);
+
+    expect(italicItems).toEqual(["有效"]);
+  });
+
   test("filters meaningless key info content", () => {
     const markdown = [
       "正文 <strong>*</strong> 与 <em>\\</em> 与 <mark>=</mark>。",

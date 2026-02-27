@@ -21,6 +21,7 @@ import {
 } from "@/services/key-info-collectors";
 import {
   buildInlineRaw,
+  cleanInlineText,
   extractHighlightInlineCodeTexts,
   formatRemarkText,
   KeyInfoDocResult,
@@ -149,6 +150,25 @@ function normalizeBoldItems(items: KeyInfoItem[]): KeyInfoItem[] {
 }
 
 function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
+  const isNear = (a: { blockSort: number; order: number }, b: { blockSort: number; order: number }) =>
+    Math.abs(a.blockSort - b.blockSort) <= 1 || Math.abs(a.order - b.order) <= 5;
+  const parseLooseRemarkPair = (value: string): { marked: string; memo: string } | null => {
+    const cleaned = cleanInlineText(value);
+    if (!cleaned || /[（(].+[）)]/.test(cleaned)) {
+      return null;
+    }
+    const parts = cleaned.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) {
+      return null;
+    }
+    const memo = parts[parts.length - 1] || "";
+    const marked = parts.slice(0, -1).join(" ").trim();
+    if (!marked || !memo) {
+      return null;
+    }
+    return { marked, memo };
+  };
+
   const normalized = items.map((item) => {
     if (item.type !== "remark") {
       return item;
@@ -162,7 +182,8 @@ function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
     };
   });
 
-  const memoOnlyBlockMap = new Map<string, Set<string>>();
+  const memoAnchorsByValue = new Map<string, Array<{ blockSort: number; order: number }>>();
+  const memoAnchorsByPair = new Map<string, Array<{ blockSort: number; order: number }>>();
   normalized.forEach((item) => {
     if (item.type !== "remark") {
       return;
@@ -171,29 +192,53 @@ function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
     if (!parsed.memo) {
       return;
     }
-    const blockId = item.blockId || "";
-    const bucket = memoOnlyBlockMap.get(blockId) || new Set<string>();
-    bucket.add(parsed.memo);
-    memoOnlyBlockMap.set(blockId, bucket);
+    const anchors = memoAnchorsByValue.get(parsed.memo) || [];
+    anchors.push({ blockSort: item.blockSort, order: item.order });
+    memoAnchorsByValue.set(parsed.memo, anchors);
+    const pairKey = `${parsed.marked}|${parsed.memo}`;
+    const pairAnchors = memoAnchorsByPair.get(pairKey) || [];
+    pairAnchors.push({ blockSort: item.blockSort, order: item.order });
+    memoAnchorsByPair.set(pairKey, pairAnchors);
   });
 
   const deduped: KeyInfoItem[] = [];
-  const seen = new Set<string>();
+  const seenBySignature = new Map<string, Array<{ blockSort: number; order: number }>>();
   normalized.forEach((item) => {
     if (item.type !== "remark") {
       deduped.push(item);
       return;
     }
     const parsed = parseRemarkText(item.text || "");
-    const blockId = item.blockId || "";
-    if (!parsed.memo && memoOnlyBlockMap.get(blockId)?.has(parsed.marked)) {
+    if (!parsed.memo) {
+      const anchors = memoAnchorsByValue.get(parsed.marked) || [];
+      const duplicatedWithPair = anchors.some((anchor) =>
+        isNear(anchor, { blockSort: item.blockSort, order: item.order })
+      );
+      if (duplicatedWithPair) {
+        return;
+      }
+      const loosePair = parseLooseRemarkPair(item.text || "");
+      if (loosePair) {
+        const pairKey = `${loosePair.marked}|${loosePair.memo}`;
+        const pairAnchors = memoAnchorsByPair.get(pairKey) || [];
+        const duplicatedWithLoosePair = pairAnchors.some((anchor) =>
+          isNear(anchor, { blockSort: item.blockSort, order: item.order })
+        );
+        if (duplicatedWithLoosePair) {
+          return;
+        }
+      }
+    }
+    const signature = `${item.type}|${item.text}`;
+    const seenAnchors = seenBySignature.get(signature) || [];
+    const isDuplicated = seenAnchors.some((anchor) =>
+      isNear(anchor, { blockSort: item.blockSort, order: item.order })
+    );
+    if (isDuplicated) {
       return;
     }
-    const key = `${blockId}|${item.type}|${item.text}`;
-    if (seen.has(key)) {
-      return;
-    }
-    seen.add(key);
+    seenAnchors.push({ blockSort: item.blockSort, order: item.order });
+    seenBySignature.set(signature, seenAnchors);
     deduped.push(item);
   });
 

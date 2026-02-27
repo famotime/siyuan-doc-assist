@@ -169,8 +169,36 @@ function maskInlineCode(markdown: string): string {
   return chars.join("");
 }
 
+function maskPatternRanges(source: string, pattern: RegExp): string {
+  const chars = source.split("");
+  pattern.lastIndex = 0;
+  let match = pattern.exec(source);
+  while (match) {
+    const start = match.index;
+    const end = start + (match[0]?.length || 0);
+    for (let i = start; i < end && i < chars.length; i += 1) {
+      chars[i] = " ";
+    }
+    if ((match[0]?.length || 0) <= 0) {
+      break;
+    }
+    match = pattern.exec(source);
+  }
+  return chars.join("");
+}
+
+function maskLinkSyntax(markdown: string): string {
+  let masked = markdown;
+  masked = maskPatternRanges(masked, /!\[[^\]]*?\]\([^)]+?\)/g);
+  masked = maskPatternRanges(masked, /\[[^\]]*?\]\([^)]+?\)/g);
+  masked = maskPatternRanges(masked, /\[\[[^\]]+?\]\]/g);
+  masked = maskPatternRanges(masked, /<a\b[^>]*>[\s\S]*?<\/a>/gi);
+  masked = maskPatternRanges(masked, /<https?:\/\/[^>]+?>/gi);
+  return masked;
+}
+
 function maskMarkdown(markdown: string): string {
-  return maskInlineCode(maskCodeBlocks(markdown));
+  return maskLinkSyntax(maskInlineCode(maskCodeBlocks(markdown)));
 }
 
 function applyMaskRanges(
