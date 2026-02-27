@@ -22,6 +22,7 @@ const ACTION_ICON_TEXT: Record<string, string> = {
   "export-backlinks-zip": "反",
   "export-forward-zip": "正",
   "move-backlinks": "移",
+  "move-forward-links": "正",
   dedupe: "重",
   "insert-backlinks": "反",
   "insert-child-docs": "子",

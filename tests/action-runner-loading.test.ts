@@ -66,6 +66,7 @@ import {
   filterDocRefsByExistingLinks,
   getBacklinkDocs,
   getChildDocs,
+  getForwardLinkedDocIds,
   toBacklinkMarkdown,
   toChildDocMarkdown,
 } from "@/services/link-resolver";
@@ -88,6 +89,7 @@ const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
 const getBacklinkDocsMock = vi.mocked(getBacklinkDocs);
 const getChildDocsMock = vi.mocked(getChildDocs);
+const getForwardLinkedDocIdsMock = vi.mocked(getForwardLinkedDocIds);
 const filterDocRefsByExistingLinksMock = vi.mocked(filterDocRefsByExistingLinks);
 const toBacklinkMarkdownMock = vi.mocked(toBacklinkMarkdown);
 const toChildDocMarkdownMock = vi.mocked(toChildDocMarkdown);
@@ -282,6 +284,39 @@ describe("action-runner loading guard", () => {
     const runner = createRunner();
 
     await runner.runAction("move-backlinks");
+
+    expect(moveDocsAsChildrenMock).toHaveBeenCalledWith("doc-1", ["doc-a", "doc-b", "doc-c"]);
+    expect(showMessageMock).toHaveBeenCalledWith("移动完成：成功 1，跳过 1，重命名 1，失败 1", 9000, "error");
+  });
+
+  test("shows no-op when move-forward-links confirmation is canceled", async () => {
+    getForwardLinkedDocIdsMock.mockResolvedValue(["doc-a"]);
+    const askConfirm = vi.fn().mockResolvedValue(false);
+    const setBusy = vi.fn();
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+      setBusy,
+    } as any);
+
+    await runner.runAction("move-forward-links");
+
+    expect(moveDocsAsChildrenMock).not.toHaveBeenCalled();
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  test("reports move-forward-links result with error severity when failures exist", async () => {
+    getForwardLinkedDocIdsMock.mockResolvedValue(["doc-a", "doc-b", "doc-c"]);
+    moveDocsAsChildrenMock.mockResolvedValue({
+      successIds: ["doc-a"],
+      skippedIds: ["doc-c"],
+      renamed: [{ id: "doc-a", title: "A(1)" }],
+      failed: [{ id: "doc-b", error: "locked" }],
+    });
+    const runner = createRunner();
+
+    await runner.runAction("move-forward-links");
 
     expect(moveDocsAsChildrenMock).toHaveBeenCalledWith("doc-1", ["doc-a", "doc-b", "doc-c"]);
     expect(showMessageMock).toHaveBeenCalledWith("移动完成：成功 1，跳过 1，重命名 1，失败 1", 9000, "error");

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@/services/kernel", () => ({
   getChildDocTitles: vi.fn(),
+  getDocMetaByID: vi.fn(),
   getDocMetasByIDs: vi.fn(),
   moveDocsByID: vi.fn(),
   renameDocByID: vi.fn(),
@@ -9,6 +10,7 @@ vi.mock("@/services/kernel", () => ({
 
 import {
   getChildDocTitles,
+  getDocMetaByID,
   getDocMetasByIDs,
   moveDocsByID,
   renameDocByID,
@@ -16,6 +18,7 @@ import {
 import { moveDocsAsChildren } from "@/services/mover";
 
 const getChildDocTitlesMock = vi.mocked(getChildDocTitles);
+const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
 const getDocMetasByIDsMock = vi.mocked(getDocMetasByIDs);
 const moveDocsByIDMock = vi.mocked(moveDocsByID);
 const renameDocByIDMock = vi.mocked(renameDocByID);
@@ -24,6 +27,11 @@ describe("mover service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getChildDocTitlesMock.mockResolvedValue([]);
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "parent-doc",
+      box: "notebook",
+      path: "/parent-doc.sy",
+    } as any);
     getDocMetasByIDsMock.mockResolvedValue([]);
     moveDocsByIDMock.mockResolvedValue(undefined as any);
     renameDocByIDMock.mockResolvedValue(undefined as any);
@@ -97,5 +105,31 @@ describe("mover service", () => {
     expect(moveDocsByIDMock).not.toHaveBeenCalled();
     expect(result.successIds).toEqual([]);
     expect(result.failed).toEqual([{ id: "doc-a", error: "readonly mode" }]);
+  });
+
+  test("skips docs that are already descendants of current document", async () => {
+    getDocMetasByIDsMock.mockResolvedValue([
+      {
+        id: "doc-a",
+        title: "标题A",
+        parentId: "other-parent",
+        box: "notebook",
+        path: "/parent-doc/child-a.sy",
+      },
+      {
+        id: "doc-b",
+        title: "标题B",
+        parentId: "other-parent",
+        box: "notebook",
+        path: "/another-root/doc-b.sy",
+      },
+    ] as any);
+
+    const result = await moveDocsAsChildren("parent-doc", ["doc-a", "doc-b"]);
+
+    expect(moveDocsByIDMock).toHaveBeenCalledTimes(1);
+    expect(moveDocsByIDMock).toHaveBeenCalledWith(["doc-b"], "parent-doc");
+    expect(result.successIds).toEqual(["doc-b"]);
+    expect(result.skippedIds).toEqual(["doc-a"]);
   });
 });

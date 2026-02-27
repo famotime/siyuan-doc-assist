@@ -7,6 +7,7 @@ export type ActionKey =
   | "export-backlinks-zip"
   | "export-forward-zip"
   | "move-backlinks"
+  | "move-forward-links"
   | "dedupe"
   | "remove-extra-blank-lines"
   | "trim-trailing-whitespace"
@@ -50,6 +51,14 @@ export const ACTIONS: ActionConfig[] = [
     key: "move-backlinks",
     commandText: "移动反链文档为子文档",
     menuText: "移动反链文档为子文档",
+    group: "organize",
+    desktopOnly: true,
+    icon: "iconMove",
+  },
+  {
+    key: "move-forward-links",
+    commandText: "移动正链文档为子文档",
+    menuText: "移动正链文档为子文档",
     group: "organize",
     desktopOnly: true,
     icon: "iconMove",

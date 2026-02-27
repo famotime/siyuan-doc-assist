@@ -65,6 +65,7 @@ export class ActionRunner {
     "export-backlinks-zip": async (docId) => this.handleExportBacklinksZip(docId),
     "export-forward-zip": async (docId) => this.handleExportForwardZip(docId),
     "move-backlinks": async (docId) => this.handleMoveBacklinks(docId),
+    "move-forward-links": async (docId) => this.handleMoveForwardLinks(docId),
     dedupe: async (docId) => this.handleDedupe(docId),
     "remove-extra-blank-lines": async (docId) => this.handleRemoveExtraBlankLines(docId),
     "trim-trailing-whitespace": async (docId) => this.handleTrimTrailingWhitespace(docId),
@@ -227,6 +228,31 @@ export class ActionRunner {
       docId,
       backlinks.map((item) => item.id)
     );
+    const message = [
+      `移动完成：成功 ${report.successIds.length}`,
+      `跳过 ${report.skippedIds.length}`,
+      `重命名 ${report.renamed.length}`,
+      `失败 ${report.failed.length}`,
+    ].join("，");
+    showMessage(message, 9000, report.failed.length ? "error" : "info");
+  }
+
+  private async handleMoveForwardLinks(docId: string) {
+    const forwardLinkedIds = await getForwardLinkedDocIds(docId);
+    if (!forwardLinkedIds.length) {
+      showMessage("当前文档没有正链文档可移动", 5000, "info");
+      return;
+    }
+    const ok = await this.askConfirmWithVisibleDialog(
+      "确认移动",
+      `将尝试把 ${forwardLinkedIds.length} 篇正链文档移动为当前文档子文档，是否继续？`
+    );
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
+    const report = await moveDocsAsChildren(docId, forwardLinkedIds);
     const message = [
       `移动完成：成功 ${report.successIds.length}`,
       `跳过 ${report.skippedIds.length}`,

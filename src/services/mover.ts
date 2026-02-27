@@ -1,11 +1,38 @@
 import { planMoveWithConflictHandling } from "@/core/move-core";
 import {
   getChildDocTitles,
+  getDocMetaByID,
   getDocMetasByIDs,
   moveDocsByID,
   renameDocByID,
 } from "@/services/kernel";
 import { OperationReport } from "@/types/link-tool";
+
+function trimDocPathSuffix(path: string): string {
+  const value = (path || "").trim();
+  return value.endsWith(".sy") ? value.slice(0, -3) : value;
+}
+
+function isDescendantDocPath(
+  currentDocMeta: { box: string; path: string } | null,
+  candidateMeta: { box: string; path: string }
+): boolean {
+  if (!currentDocMeta) {
+    return false;
+  }
+  const currentBox = (currentDocMeta.box || "").trim();
+  const candidateBox = (candidateMeta.box || "").trim();
+  if (!currentBox || !candidateBox || currentBox !== candidateBox) {
+    return false;
+  }
+  const currentPath = trimDocPathSuffix(currentDocMeta.path || "");
+  const candidatePath = trimDocPathSuffix(candidateMeta.path || "");
+  if (!currentPath || !candidatePath || currentPath === candidatePath) {
+    return false;
+  }
+  const prefix = currentPath.endsWith("/") ? currentPath : `${currentPath}/`;
+  return candidatePath.startsWith(prefix);
+}
 
 export async function moveDocsAsChildren(
   currentDocId: string,
@@ -19,7 +46,10 @@ export async function moveDocsAsChildren(
   };
 
   const sourceIds = [...new Set(sourceDocIds)].filter(Boolean);
-  const metas = await getDocMetasByIDs(sourceIds);
+  const [currentDocMeta, metas] = await Promise.all([
+    getDocMetaByID(currentDocId),
+    getDocMetasByIDs(sourceIds),
+  ]);
   const metaMap = new Map(metas.map((meta) => [meta.id, meta]));
   const existingChildTitles = new Set(await getChildDocTitles(currentDocId));
 
@@ -32,6 +62,10 @@ export async function moveDocsAsChildren(
     const meta = metaMap.get(docId);
     if (!meta) {
       report.failed.push({ id: docId, error: "Document metadata not found" });
+      continue;
+    }
+    if (isDescendantDocPath(currentDocMeta, meta)) {
+      report.skippedIds.push(docId);
       continue;
     }
 

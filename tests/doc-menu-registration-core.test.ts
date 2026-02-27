@@ -39,6 +39,7 @@ describe("doc-menu-registration-core", () => {
     expect(state["export-current"]).toBe(false);
     expect(state["insert-backlinks"]).toBe(true);
     expect(state["move-backlinks"]).toBe(true);
+    expect(state["move-forward-links"]).toBe(true);
   });
 
   test("switches all and single action states", () => {
