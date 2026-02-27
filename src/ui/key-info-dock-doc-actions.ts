@@ -17,6 +17,56 @@ type RenderDocActionsOptions = {
   selectionPreservedActionKeys?: ReadonlySet<string>;
 };
 
+const ACTION_ICON_TEXT: Record<string, string> = {
+  "export-current": "导",
+  "export-backlinks-zip": "反",
+  "export-forward-zip": "正",
+  "move-backlinks": "移",
+  dedupe: "重",
+  "insert-backlinks": "反",
+  "insert-child-docs": "子",
+  "insert-blank-before-headings": "空",
+  "bold-selected-blocks": "粗",
+  "highlight-selected-blocks": "亮",
+  "remove-extra-blank-lines": "空",
+  "trim-trailing-whitespace": "尾",
+  "delete-from-current-to-end": "删",
+};
+
+function resolveActionIconText(action: DockDocAction): string {
+  const preset = ACTION_ICON_TEXT[action.key];
+  if (preset) {
+    return preset;
+  }
+  const label = (action.label || "").trim();
+  return label ? label[0] : "•";
+}
+
+function hasSvgSymbol(iconId: string): boolean {
+  if (!iconId) {
+    return false;
+  }
+  return !!document.getElementById(iconId);
+}
+
+function createActionIconNode(action: DockDocAction): SVGSVGElement | HTMLSpanElement {
+  if (hasSvgSymbol(action.icon)) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("doc-assistant-keyinfo__action-icon-svg");
+    svg.setAttribute("aria-hidden", "true");
+    const useNode = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    const href = `#${action.icon}`;
+    useNode.setAttribute("href", href);
+    useNode.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", href);
+    svg.appendChild(useNode);
+    return svg;
+  }
+  const iconText = document.createElement("span");
+  iconText.className = "doc-assistant-keyinfo__action-icon-text";
+  iconText.textContent = resolveActionIconText(action);
+  return iconText;
+}
+
 function buildGroupLabel(text: string): HTMLDivElement {
   const separator = document.createElement("div");
   separator.className = "doc-assistant-keyinfo__action-separator";
@@ -135,13 +185,7 @@ export function renderKeyInfoDockDocActions({
 
     const iconWrap = document.createElement("span");
     iconWrap.className = "doc-assistant-keyinfo__action-icon";
-    const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    iconSvg.setAttribute("aria-hidden", "true");
-    const useNode = document.createElementNS("http://www.w3.org/1999/xlink", "use");
-    useNode.setAttributeNS("http://www.w3.org/1999/xlink", "href", `#${action.icon}`);
-    useNode.setAttribute("xlink:href", `#${action.icon}`);
-    iconSvg.appendChild(useNode);
-    iconWrap.appendChild(iconSvg);
+    iconWrap.appendChild(createActionIconNode(action));
 
     const label = document.createElement("span");
     label.className = "doc-assistant-keyinfo__action-label";

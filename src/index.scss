@@ -446,18 +446,28 @@
 }
 
 .doc-assistant-keyinfo__action-icon {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: color-mix(in srgb, var(--doc-assistant-accent) 82%, var(--b3-theme-on-surface));
+  border-radius: 5px;
+  color: color-mix(in srgb, var(--doc-assistant-accent-strong) 72%, var(--b3-theme-on-surface));
+  background: color-mix(in srgb, var(--doc-assistant-accent-soft) 72%, var(--b3-theme-surface));
+  border: 1px solid color-mix(in srgb, var(--doc-assistant-accent) 42%, transparent);
 }
 
-.doc-assistant-keyinfo__action-icon svg {
-  width: 14px;
-  height: 14px;
+.doc-assistant-keyinfo__action-icon-svg {
+  width: 12px;
+  height: 12px;
   fill: currentcolor;
+}
+
+.doc-assistant-keyinfo__action-icon-text {
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  user-select: none;
 }
 
 .doc-assistant-keyinfo__action-label {

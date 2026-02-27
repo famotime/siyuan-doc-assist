@@ -379,4 +379,90 @@ describe("key-info-dock scroll interaction", () => {
     dock.destroy();
     host.remove();
   });
+
+  test("renders semantic icon text on the left side of each doc action button", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onDocActionClick: () => {},
+    });
+
+    dock.setState({
+      docActions: [
+        {
+          key: "export-current",
+          label: "仅导出当前文档",
+          icon: "iconDownload",
+          group: "export",
+          groupLabel: "导出",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+        {
+          key: "delete-from-current-to-end",
+          label: "删除后续段落（含本段）",
+          icon: "iconTrashcan",
+          group: "edit",
+          groupLabel: "编辑",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+      ],
+    });
+
+    const iconTexts = Array.from(
+      host.querySelectorAll(".doc-assistant-keyinfo__action-icon-text")
+    ).map((node) => (node.textContent || "").trim());
+
+    expect(iconTexts).toEqual(["导", "删"]);
+
+    dock.destroy();
+    host.remove();
+  });
+
+  test("prefers svg icon when matching symbol exists", () => {
+    const sprite = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const symbol = document.createElementNS("http://www.w3.org/2000/svg", "symbol");
+    symbol.setAttribute("id", "iconDownload");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M0 0h10v10H0z");
+    symbol.appendChild(path);
+    sprite.appendChild(symbol);
+    document.body.appendChild(sprite);
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onDocActionClick: () => {},
+    });
+
+    dock.setState({
+      docActions: [
+        {
+          key: "export-current",
+          label: "仅导出当前文档",
+          icon: "iconDownload",
+          group: "export",
+          groupLabel: "导出",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+      ],
+    });
+
+    const svgIcon = host.querySelector(".doc-assistant-keyinfo__action-icon-svg");
+    const textFallback = host.querySelector(".doc-assistant-keyinfo__action-icon-text");
+    expect(svgIcon).toBeTruthy();
+    expect(textFallback).toBeNull();
+
+    dock.destroy();
+    host.remove();
+    sprite.remove();
+  });
 });
