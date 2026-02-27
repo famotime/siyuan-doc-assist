@@ -69,6 +69,7 @@
   --keyinfo-bold: #f06d5e;
   --keyinfo-italic: #9b5de5;
   --keyinfo-highlight: #f2b705;
+  --keyinfo-code: #4f9dff;
   --keyinfo-remark: #2bb673;
   --keyinfo-tag: #00a3c4;
 }
@@ -213,6 +214,10 @@
 
 .doc-assistant-keyinfo__filter[data-type="highlight"] {
   --keyinfo-filter-color: var(--keyinfo-highlight);
+}
+
+.doc-assistant-keyinfo__filter[data-type="code"] {
+  --keyinfo-filter-color: var(--keyinfo-code);
 }
 
 .doc-assistant-keyinfo__filter[data-type="remark"] {
@@ -539,6 +544,12 @@
   color: var(--keyinfo-highlight);
   background: color-mix(in srgb, var(--keyinfo-highlight) 16%, transparent);
   border-color: color-mix(in srgb, var(--keyinfo-highlight) 35%, transparent);
+}
+
+.doc-assistant-keyinfo__badge--code {
+  color: var(--keyinfo-code);
+  background: color-mix(in srgb, var(--keyinfo-code) 16%, transparent);
+  border-color: color-mix(in srgb, var(--keyinfo-code) 35%, transparent);
 }
 
 .doc-assistant-keyinfo__badge--remark {

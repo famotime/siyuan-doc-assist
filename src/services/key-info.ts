@@ -20,7 +20,12 @@ import {
   collectMarkdownAndMetaItems,
 } from "@/services/key-info-collectors";
 import {
+  buildInlineRaw,
+  extractHighlightInlineCodeTexts,
+  formatRemarkText,
   KeyInfoDocResult,
+  normalizeHighlightTextWithoutLinksAndCode,
+  parseRemarkText,
   normalizeTitle,
 } from "@/services/key-info-model";
 import {
@@ -29,6 +34,90 @@ import {
   listSpanRows,
   resolveRootId,
 } from "@/services/key-info-query";
+
+function normalizeHighlightItems(items: KeyInfoItem[]): KeyInfoItem[] {
+  const normalized: KeyInfoItem[] = [];
+  items.forEach((item) => {
+    if (item.type !== "highlight") {
+      normalized.push(item);
+      return;
+    }
+    const source = item.raw || item.text || "";
+    const text = normalizeHighlightTextWithoutLinksAndCode(source, item.text);
+    if (text) {
+      normalized.push({
+        ...item,
+        text,
+        raw: buildInlineRaw("highlight", text),
+      });
+    }
+    const codeTexts = extractHighlightInlineCodeTexts(source, item.text);
+    codeTexts.forEach((code, index) => {
+      normalized.push({
+        ...item,
+        id: `${item.id}-code-${index}`,
+        type: "code",
+        text: code,
+        raw: buildInlineRaw("code", code),
+        offset: item.offset + (index + 1) * 0.001,
+        order: item.order + (index + 1) * 0.001,
+      });
+    });
+  });
+  return normalized;
+}
+
+function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
+  const normalized = items.map((item) => {
+    if (item.type !== "remark") {
+      return item;
+    }
+    const parsed = parseRemarkText(item.text || item.raw || "");
+    const text = formatRemarkText(parsed.marked, parsed.memo);
+    return {
+      ...item,
+      text,
+      raw: item.raw || text,
+    };
+  });
+
+  const memoOnlyBlockMap = new Map<string, Set<string>>();
+  normalized.forEach((item) => {
+    if (item.type !== "remark") {
+      return;
+    }
+    const parsed = parseRemarkText(item.text || "");
+    if (!parsed.memo) {
+      return;
+    }
+    const blockId = item.blockId || "";
+    const bucket = memoOnlyBlockMap.get(blockId) || new Set<string>();
+    bucket.add(parsed.memo);
+    memoOnlyBlockMap.set(blockId, bucket);
+  });
+
+  const deduped: KeyInfoItem[] = [];
+  const seen = new Set<string>();
+  normalized.forEach((item) => {
+    if (item.type !== "remark") {
+      deduped.push(item);
+      return;
+    }
+    const parsed = parseRemarkText(item.text || "");
+    const blockId = item.blockId || "";
+    if (!parsed.memo && memoOnlyBlockMap.get(blockId)?.has(parsed.marked)) {
+      return;
+    }
+    const key = `${blockId}|${item.type}|${item.text}`;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    deduped.push(item);
+  });
+
+  return deduped;
+}
 
 export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<KeyInfoDocResult> {
   let rootId = docId;
@@ -145,7 +234,9 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     });
   }
 
-  items.sort((a, b) => {
+  const normalizedItems = normalizeRemarkItems(normalizeHighlightItems(items));
+
+  normalizedItems.sort((a, b) => {
     if (a.blockSort !== b.blockSort) {
       return a.blockSort - b.blockSort;
     }
@@ -158,6 +249,6 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   return {
     docId: rootId,
     docTitle,
-    items,
+    items: normalizedItems,
   };
 }

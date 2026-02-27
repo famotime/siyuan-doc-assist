@@ -118,6 +118,33 @@ export function parseInlineMemoFromText(
   return { marked: cleaned, memo: "" };
 }
 
+export function formatRemarkText(marked: string, memo = ""): string {
+  const normalizedMarked = cleanInlineText(marked);
+  const normalizedMemo = cleanInlineText(memo);
+  if (!normalizedMemo) {
+    return normalizedMarked;
+  }
+  if (!normalizedMarked) {
+    return normalizedMemo;
+  }
+  return `${normalizedMarked}（${normalizedMemo}）`;
+}
+
+export function parseRemarkText(value: string): { marked: string; memo: string } {
+  const cleaned = cleanInlineText(value);
+  if (!cleaned) {
+    return { marked: "", memo: "" };
+  }
+  const pairMatch = cleaned.match(/^(.+?)\s*[（(]\s*(.+?)\s*[）)]$/);
+  if (pairMatch) {
+    return {
+      marked: cleanInlineText(pairMatch[1] || ""),
+      memo: cleanInlineText(pairMatch[2] || ""),
+    };
+  }
+  return { marked: cleaned, memo: "" };
+}
+
 export function buildInlineRaw(type: KeyInfoType, text: string): string {
   if (type === "bold") {
     return `**${text}**`;
@@ -128,10 +155,149 @@ export function buildInlineRaw(type: KeyInfoType, text: string): string {
   if (type === "highlight") {
     return `==${text}==`;
   }
+  if (type === "code") {
+    return `\`${text}\``;
+  }
   if (type === "tag") {
     return `#${text}`;
   }
   return text;
+}
+
+type TextRange = [number, number];
+
+function maskRanges(text: string, ranges: TextRange[]): string {
+  if (!ranges.length) {
+    return text;
+  }
+  const chars = text.split("");
+  ranges.forEach(([start, end]) => {
+    for (let i = start; i < end && i < chars.length; i += 1) {
+      chars[i] = " ";
+    }
+  });
+  return chars.join("");
+}
+
+function collectMarkdownInlineCode(source: string): { ranges: TextRange[]; segments: string[] } {
+  const ranges: TextRange[] = [];
+  const segments: string[] = [];
+  let i = 0;
+  while (i < source.length) {
+    if (source[i] !== "`") {
+      i += 1;
+      continue;
+    }
+    let tickLen = 1;
+    while (i + tickLen < source.length && source[i + tickLen] === "`") {
+      tickLen += 1;
+    }
+    let j = i + tickLen;
+    let found = -1;
+    while (j < source.length) {
+      if (source[j] !== "`") {
+        j += 1;
+        continue;
+      }
+      let run = 1;
+      while (j + run < source.length && source[j + run] === "`") {
+        run += 1;
+      }
+      if (run === tickLen) {
+        found = j;
+        break;
+      }
+      j += run;
+    }
+    if (found !== -1) {
+      ranges.push([i, found + tickLen]);
+      const code = cleanInlineText(source.slice(i + tickLen, found));
+      if (code) {
+        segments.push(code);
+      }
+      i = found + tickLen;
+      continue;
+    }
+    i += tickLen;
+  }
+  return { ranges, segments };
+}
+
+function collectHtmlCode(source: string): { ranges: TextRange[]; segments: string[] } {
+  const ranges: TextRange[] = [];
+  const segments: string[] = [];
+  const pattern = /<code\b[^>]*>([\s\S]*?)<\/code>/gi;
+  let match = pattern.exec(source);
+  while (match) {
+    ranges.push([match.index, match.index + match[0].length]);
+    const code = cleanInlineText((match[1] || "").replace(/<[^>]+>/g, " "));
+    if (code) {
+      segments.push(code);
+    }
+    match = pattern.exec(source);
+  }
+  return { ranges, segments };
+}
+
+function stripLinks(source: string): string {
+  let next = source;
+  next = next.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, " ");
+  next = next.replace(/!?\[[^\]]*?\]\([^)]+\)/g, " ");
+  next = next.replace(/\[\[[^\]]+\]\]/g, " ");
+  next = next.replace(/<https?:\/\/[^>]+>/gi, " ");
+  return next;
+}
+
+function unwrapHighlightRaw(source: string): string {
+  let next = (source || "").trim();
+  let prev = "";
+  while (next && next !== prev) {
+    prev = next;
+    next = next.replace(/^==([\s\S]*?)==$/g, "$1").trim();
+    next = next.replace(/^<mark\b[^>]*>([\s\S]*?)<\/mark>$/gi, "$1").trim();
+    next = next
+      .replace(/^<span\b[^>]*data-type=["']mark["'][^>]*>([\s\S]*?)<\/span>$/gi, "$1")
+      .trim();
+  }
+  return next;
+}
+
+function dedupePreserveOrder(items: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  items.forEach((item) => {
+    if (!item || seen.has(item)) {
+      return;
+    }
+    seen.add(item);
+    result.push(item);
+  });
+  return result;
+}
+
+export function extractHighlightInlineCodeTexts(raw: string, fallbackText = ""): string[] {
+  const source = unwrapHighlightRaw(raw || fallbackText || "");
+  if (!source) {
+    return [];
+  }
+  const markdownCodes = collectMarkdownInlineCode(source).segments;
+  const htmlCodes = collectHtmlCode(source).segments;
+  return dedupePreserveOrder([...markdownCodes, ...htmlCodes]);
+}
+
+export function normalizeHighlightTextWithoutLinksAndCode(raw: string, fallbackText = ""): string {
+  const source = unwrapHighlightRaw(raw || fallbackText || "");
+  if (!source) {
+    return "";
+  }
+  const markdownCodeRanges = collectMarkdownInlineCode(source).ranges;
+  let next = maskRanges(source, markdownCodeRanges);
+  const htmlCodeRanges = collectHtmlCode(next).ranges;
+  next = maskRanges(next, htmlCodeRanges);
+  next = stripLinks(next);
+  next = next.replace(/==/g, " ");
+  next = next.replace(/<[^>]+>/g, " ");
+  return cleanInlineText(next);
 }
 
 export function resolveSpanFormatType(spanType: string, ial?: string): KeyInfoType | null {

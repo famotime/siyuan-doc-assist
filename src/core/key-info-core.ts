@@ -3,6 +3,7 @@ export type KeyInfoType =
   | "bold"
   | "italic"
   | "highlight"
+  | "code"
   | "remark"
   | "tag";
 
@@ -29,6 +30,7 @@ const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
   bold: "加粗",
   italic: "斜体",
   highlight: "高亮",
+  code: "代码",
   remark: "备注",
   tag: "标签",
 };

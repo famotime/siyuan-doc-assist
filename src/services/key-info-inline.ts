@@ -3,6 +3,7 @@ import {
   buildInlineRaw,
   cleanInlineText,
   extractInlineMemoHint,
+  formatRemarkText,
   normalizeListDecoratedText,
   normalizeSort,
   parseInlineMemoFromText,
@@ -71,10 +72,8 @@ export function mapSpanRowsToItems(
     } else if (type === "remark") {
       const memoHint = extractInlineMemoHint(span.ial);
       const memoResult = parseInlineMemoFromText(content, memoHint);
-      text = memoResult.memo
-        ? `${memoResult.marked} (${memoResult.memo})`
-        : memoResult.marked;
-      raw = raw || (memoResult.memo ? `${memoResult.marked}(${memoResult.memo})` : memoResult.marked);
+      text = formatRemarkText(memoResult.marked, memoResult.memo);
+      raw = raw || text;
     } else {
       raw = raw || buildInlineRaw(type, text);
     }
@@ -160,12 +159,8 @@ export function extractInlineFromDom(
     if (hasInlineMemo) {
       type = "remark";
       const memoResult = parseInlineMemoFromText(textContent, memoHint);
-      text = memoResult.memo
-        ? `${memoResult.marked} (${memoResult.memo})`
-        : memoResult.marked;
-      raw = memoResult.memo
-        ? `${memoResult.marked}(${memoResult.memo})`
-        : memoResult.marked;
+      text = formatRemarkText(memoResult.marked, memoResult.memo);
+      raw = text;
     } else if (dataType === "tag" || hasToken("tag")) {
       type = "tag";
       const tagText = textContent.replace(/^#+/, "");
@@ -197,7 +192,8 @@ export function extractInlineFromDom(
       hasToken("text")
     ) {
       type = "highlight";
-      raw = buildInlineRaw(type, text);
+      const innerHtml = (element as HTMLElement).innerHTML || "";
+      raw = innerHtml ? `==${innerHtml}==` : buildInlineRaw(type, text);
     }
 
     if (!type) {

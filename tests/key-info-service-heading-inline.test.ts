@@ -42,6 +42,7 @@ type SpanRow = {
   content: string;
   markdown: string;
   type: string;
+  ial?: string;
   block_sort?: number;
 };
 
@@ -538,5 +539,70 @@ describe("key-info service heading inline merge", () => {
         (item) => item.blockId === "doc-1" && item.type === "tag" && item.text === "末尾标签"
       )
     ).toBe(false);
+  });
+
+  test("removes links from highlight and splits inline code into code type", async () => {
+    mockKernelSql([
+      {
+        id: "p-1",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "p",
+        subtype: "",
+        content: "正文",
+        markdown: "==[官网](https://example.com)==\n==示例 `pnpm test` [文档](https://example.com/doc)==",
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const result = await getDocKeyInfo("doc-1");
+    const paragraphItems = result.items.filter((item) => item.blockId === "p-1");
+
+    expect(
+      paragraphItems.some((item) => item.type === "highlight" && item.text === "官网")
+    ).toBe(false);
+    expect(
+      paragraphItems.some((item) => item.type === "highlight" && item.text === "示例")
+    ).toBe(true);
+    expect(
+      paragraphItems.some((item) => item.type === "code" && item.text === "pnpm test")
+    ).toBe(true);
+  });
+
+  test("keeps only one remark item and formats as 原文（备注）", async () => {
+    mockKernelSql(
+      [
+        {
+          id: "p-1",
+          parent_id: "doc-1",
+          sort: 1,
+          type: "p",
+          subtype: "",
+          content: "原文标注内容",
+          markdown: "原文标注内容",
+          memo: "备注内容",
+          tag: "",
+        },
+      ],
+      [
+        {
+          id: "s-memo-1",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "原文标注内容",
+          markdown: "原文标注内容",
+          type: "inline-memo",
+          ial: `inline-memo="备注内容"`,
+          block_sort: 1,
+        },
+      ]
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const remarks = result.items.filter((item) => item.blockId === "p-1" && item.type === "remark");
+
+    expect(remarks).toHaveLength(1);
+    expect(remarks[0]?.text).toBe("原文标注内容（备注内容）");
   });
 });
