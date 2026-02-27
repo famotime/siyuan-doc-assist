@@ -570,18 +570,18 @@ describe("key-info service heading inline merge", () => {
     ).toBe(true);
   });
 
-  test("keeps only one remark item and formats as 原文（备注）", async () => {
+  test("formats inline-memo remark as 原文（备注）", async () => {
     mockKernelSql(
       [
         {
-          id: "i-1",
+          id: "p-1",
           parent_id: "doc-1",
           sort: 1,
           type: "p",
           subtype: "",
           content: "原文标注内容",
           markdown: "原文标注内容",
-          memo: "备注内容",
+          memo: "",
           tag: "",
         },
       ],
@@ -600,7 +600,7 @@ describe("key-info service heading inline merge", () => {
     );
 
     const result = await getDocKeyInfo("doc-1");
-    const remarks = result.items.filter((item) => item.type === "remark");
+    const remarks = result.items.filter((item) => item.blockId === "p-1" && item.type === "remark");
 
     expect(remarks).toHaveLength(1);
     expect(remarks[0]?.text).toBe("原文标注内容（备注内容）");
@@ -672,7 +672,7 @@ describe("key-info service heading inline merge", () => {
     expect(highlightItems[0]?.text).toBe("456");
   });
 
-  test("prefers 原文（备注） and removes weaker 原文 备注 duplicate", async () => {
+  test("keeps richer inline-memo remark and suppresses nearby weak inline duplicate in same block", async () => {
     mockKernelSql(
       [
         {
@@ -681,8 +681,8 @@ describe("key-info service heading inline merge", () => {
           sort: 1,
           type: "p",
           subtype: "",
-          content: "原文内容",
-          markdown: "原文内容",
+          content: "正文内容正文内容",
+          markdown: "正文内容正文内容",
           memo: "",
           tag: "",
         },
@@ -692,8 +692,8 @@ describe("key-info service heading inline merge", () => {
           id: "s-memo-weak",
           block_id: "p-1",
           root_id: "doc-1",
-          content: "原文内容 备注",
-          markdown: "原文内容 备注",
+          content: "正文内容正文内容",
+          markdown: "正文内容正文内容",
           type: "inline-memo",
           block_sort: 1,
         },
@@ -701,10 +701,10 @@ describe("key-info service heading inline merge", () => {
           id: "s-memo-strong",
           block_id: "p-1",
           root_id: "doc-1",
-          content: "原文内容",
-          markdown: "原文内容",
+          content: "内容正文",
+          markdown: "内容正文",
           type: "inline-memo",
-          ial: `inline-memo="备注"`,
+          ial: `inline-memo="XXXXX"`,
           block_sort: 1,
         },
       ]
@@ -714,6 +714,42 @@ describe("key-info service heading inline merge", () => {
     const remarks = result.items.filter((item) => item.blockId === "p-1" && item.type === "remark");
 
     expect(remarks).toHaveLength(1);
-    expect(remarks[0]?.text).toBe("原文内容（备注）");
+    expect(remarks[0]?.text).toBe("内容正文（XXXXX）");
+  });
+
+  test("suppresses block memo duplicate when same block already has rich inline-memo remark", async () => {
+    mockKernelSql(
+      [
+        {
+          id: "p-1",
+          parent_id: "doc-1",
+          sort: 1,
+          type: "p",
+          subtype: "",
+          content: "文档内容",
+          markdown: "-文档<sup>（是是是）</sup>更新版本号",
+          memo: "文档是是是",
+          tag: "",
+        },
+      ],
+      [
+        {
+          id: "s-memo-strong",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "文档",
+          markdown: "文档",
+          type: "inline-memo",
+          ial: `inline-memo="是是是"`,
+          block_sort: 1,
+        },
+      ]
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const remarks = result.items.filter((item) => item.blockId === "p-1" && item.type === "remark");
+
+    expect(remarks).toHaveLength(1);
+    expect(remarks[0]?.text).toBe("文档（是是是）");
   });
 });

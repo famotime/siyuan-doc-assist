@@ -21,7 +21,6 @@ import {
 } from "@/services/key-info-collectors";
 import {
   buildInlineRaw,
-  cleanInlineText,
   extractHighlightInlineCodeTexts,
   formatRemarkText,
   KeyInfoDocResult,
@@ -152,21 +151,15 @@ function normalizeBoldItems(items: KeyInfoItem[]): KeyInfoItem[] {
 function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
   const isNear = (a: { blockSort: number; order: number }, b: { blockSort: number; order: number }) =>
     Math.abs(a.blockSort - b.blockSort) <= 1 || Math.abs(a.order - b.order) <= 5;
-  const parseLooseRemarkPair = (value: string): { marked: string; memo: string } | null => {
-    const cleaned = cleanInlineText(value);
-    if (!cleaned || /[（(].+[）)]/.test(cleaned)) {
-      return null;
+  const isInlineRemark = (item: KeyInfoItem): boolean =>
+    item.id.startsWith("span-") || item.id.startsWith("dom-");
+  const isBlockMetaRemark = (item: KeyInfoItem): boolean =>
+    item.id.includes("-memo-") || item.offset >= 1_000_000;
+  const isSameBlockAnchor = (a: KeyInfoItem, b: KeyInfoItem): boolean => {
+    if (a.blockId && b.blockId) {
+      return a.blockId === b.blockId;
     }
-    const parts = cleaned.split(/\s+/).filter(Boolean);
-    if (parts.length < 2) {
-      return null;
-    }
-    const memo = parts[parts.length - 1] || "";
-    const marked = parts.slice(0, -1).join(" ").trim();
-    if (!marked || !memo) {
-      return null;
-    }
-    return { marked, memo };
+    return a.blockSort === b.blockSort;
   };
 
   const normalized = items.map((item) => {
@@ -182,23 +175,36 @@ function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
     };
   });
 
-  const memoAnchorsByValue = new Map<string, Array<{ blockSort: number; order: number }>>();
-  const memoAnchorsByPair = new Map<string, Array<{ blockSort: number; order: number }>>();
+  const parsedRemarkMap = new Map<string, { marked: string; memo: string }>();
   normalized.forEach((item) => {
     if (item.type !== "remark") {
       return;
     }
-    const parsed = parseRemarkText(item.text || "");
-    if (!parsed.memo) {
+    parsedRemarkMap.set(item.id, parseRemarkText(item.text || ""));
+  });
+  const remarkItems = normalized.filter((item) => item.type === "remark");
+  const suppressedWeakInlineRemarkIds = new Set<string>();
+  remarkItems.forEach((item) => {
+    const parsed = parsedRemarkMap.get(item.id) || { marked: "", memo: "" };
+    const isWeakInlineOrBlockMeta =
+      !parsed.memo &&
+      (isInlineRemark(item) || isBlockMetaRemark(item));
+    if (!isWeakInlineOrBlockMeta) {
       return;
     }
-    const anchors = memoAnchorsByValue.get(parsed.memo) || [];
-    anchors.push({ blockSort: item.blockSort, order: item.order });
-    memoAnchorsByValue.set(parsed.memo, anchors);
-    const pairKey = `${parsed.marked}|${parsed.memo}`;
-    const pairAnchors = memoAnchorsByPair.get(pairKey) || [];
-    pairAnchors.push({ blockSort: item.blockSort, order: item.order });
-    memoAnchorsByPair.set(pairKey, pairAnchors);
+    const hasSameBlockRichInlineRemark = remarkItems.some((candidate) => {
+      if (candidate.id === item.id || !isInlineRemark(candidate)) {
+        return false;
+      }
+      const candidateParsed = parsedRemarkMap.get(candidate.id) || { marked: "", memo: "" };
+      if (!candidateParsed.memo) {
+        return false;
+      }
+      return isSameBlockAnchor(item, candidate);
+    });
+    if (hasSameBlockRichInlineRemark) {
+      suppressedWeakInlineRemarkIds.add(item.id);
+    }
   });
 
   const deduped: KeyInfoItem[] = [];
@@ -208,26 +214,8 @@ function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
       deduped.push(item);
       return;
     }
-    const parsed = parseRemarkText(item.text || "");
-    if (!parsed.memo) {
-      const anchors = memoAnchorsByValue.get(parsed.marked) || [];
-      const duplicatedWithPair = anchors.some((anchor) =>
-        isNear(anchor, { blockSort: item.blockSort, order: item.order })
-      );
-      if (duplicatedWithPair) {
-        return;
-      }
-      const loosePair = parseLooseRemarkPair(item.text || "");
-      if (loosePair) {
-        const pairKey = `${loosePair.marked}|${loosePair.memo}`;
-        const pairAnchors = memoAnchorsByPair.get(pairKey) || [];
-        const duplicatedWithLoosePair = pairAnchors.some((anchor) =>
-          isNear(anchor, { blockSort: item.blockSort, order: item.order })
-        );
-        if (duplicatedWithLoosePair) {
-          return;
-        }
-      }
+    if (suppressedWeakInlineRemarkIds.has(item.id)) {
+      return;
     }
     const signature = `${item.type}|${item.text}`;
     const seenAnchors = seenBySignature.get(signature) || [];
