@@ -67,6 +67,87 @@ function normalizeHighlightItems(items: KeyInfoItem[]): KeyInfoItem[] {
   return normalized;
 }
 
+function normalizeBoldItems(items: KeyInfoItem[]): KeyInfoItem[] {
+  const nonBold: KeyInfoItem[] = [];
+  const buckets = new Map<string, KeyInfoItem[]>();
+
+  items.forEach((item) => {
+    if (item.type !== "bold") {
+      nonBold.push(item);
+      return;
+    }
+    const blockKey = `${item.blockId || ""}|${item.blockSort}`;
+    const bucket = buckets.get(blockKey) || [];
+    bucket.push({ ...item });
+    buckets.set(blockKey, bucket);
+  });
+
+  const mergedBold: KeyInfoItem[] = [];
+  buckets.forEach((bucket) => {
+    bucket.sort((a, b) => {
+      if (a.offset !== b.offset) {
+        return a.offset - b.offset;
+      }
+      return a.order - b.order;
+    });
+
+    let current: KeyInfoItem | null = null;
+    let currentEnd = 0;
+    const flush = () => {
+      if (!current) {
+        return;
+      }
+      current.raw = buildInlineRaw("bold", current.text);
+      mergedBold.push(current);
+      current = null;
+      currentEnd = 0;
+    };
+
+    bucket.forEach((item) => {
+      const text = item.text || "";
+      const start = item.offset;
+      const end = start + text.length;
+      if (!current) {
+        current = { ...item };
+        currentEnd = end;
+        return;
+      }
+      if (start <= currentEnd) {
+        if (text.includes(current.text)) {
+          current.text = text;
+        } else if (!current.text.includes(text)) {
+          let overlap = 0;
+          const maxOverlap = Math.min(current.text.length, text.length);
+          for (let size = maxOverlap; size > 0; size -= 1) {
+            if (current.text.endsWith(text.slice(0, size))) {
+              overlap = size;
+              break;
+            }
+          }
+          current.text = `${current.text}${text.slice(overlap)}`;
+        }
+        currentEnd = Math.max(currentEnd, end);
+        if (!current.listPrefix && item.listPrefix) {
+          current.listPrefix = item.listPrefix;
+        }
+        if (!current.listItem && item.listItem) {
+          current.listItem = item.listItem;
+        }
+        current.order = Math.min(current.order, item.order);
+        current.offset = Math.min(current.offset, item.offset);
+        return;
+      }
+      flush();
+      current = { ...item };
+      currentEnd = end;
+    });
+
+    flush();
+  });
+
+  return [...nonBold, ...mergedBold];
+}
+
 function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
   const normalized = items.map((item) => {
     if (item.type !== "remark") {
@@ -234,7 +315,7 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     });
   }
 
-  const normalizedItems = normalizeRemarkItems(normalizeHighlightItems(items));
+  const normalizedItems = normalizeRemarkItems(normalizeBoldItems(normalizeHighlightItems(items)));
 
   normalizedItems.sort((a, b) => {
     if (a.blockSort !== b.blockSort) {

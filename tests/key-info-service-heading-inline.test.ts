@@ -605,4 +605,70 @@ describe("key-info service heading inline merge", () => {
     expect(remarks).toHaveLength(1);
     expect(remarks[0]?.text).toBe("原文标注内容（备注内容）");
   });
+
+  test("keeps bold complete when block has both bold and highlight", async () => {
+    mockKernelSql(
+      [
+        {
+          id: "p-1",
+          parent_id: "doc-1",
+          sort: 1,
+          type: "p",
+          subtype: "",
+          content: "123456789",
+          markdown: "**123****==456==****789**",
+          memo: "",
+          tag: "",
+        },
+      ],
+      [
+        {
+          id: "s-b-1",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "123",
+          markdown: "**123**",
+          type: "strong",
+          block_sort: 1,
+        },
+        {
+          id: "s-h-1",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "456",
+          markdown: "==456==",
+          type: "mark",
+          block_sort: 1,
+        },
+        {
+          id: "s-b-2",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "456",
+          markdown: "**==456==**",
+          type: "strong",
+          block_sort: 1,
+        },
+        {
+          id: "s-b-3",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "789",
+          markdown: "**789**",
+          type: "strong",
+          block_sort: 1,
+        },
+      ]
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const blockItems = result.items.filter((item) => item.blockId === "p-1");
+    const boldItems = blockItems.filter((item) => item.type === "bold");
+    const highlightItems = blockItems.filter((item) => item.type === "highlight");
+
+    expect(boldItems).toHaveLength(1);
+    expect(boldItems[0]?.text).toBe("123456789");
+    expect(highlightItems).toHaveLength(1);
+    expect(highlightItems[0]?.text).toBe("456");
+  });
 });

@@ -61,6 +61,18 @@ describe("key-info-core", () => {
     expect(bodyInline).toHaveLength(2);
   });
 
+  test("keeps heading title complete when heading contains bold and highlight", () => {
+    const markdown = "## **123****==456==****789**";
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+    const titles = items.filter((item) => item.type === "title");
+    const inline = items.filter((item) => item.type === "bold" || item.type === "highlight");
+
+    expect(titles).toHaveLength(1);
+    expect(titles[0]?.text).toBe("123456789");
+    expect(inline).toHaveLength(0);
+  });
+
   test("filters meaningless key info content", () => {
     const markdown = [
       "正文 <strong>*</strong> 与 <em>\\</em> 与 <mark>=</mark>。",
