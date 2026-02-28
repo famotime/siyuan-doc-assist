@@ -319,7 +319,13 @@ export function resolveSpanFormatType(spanType: string, ial?: string): KeyInfoTy
   if (hasToken("em")) {
     return "italic";
   }
-  if (hasToken("mark") || hasToken("textmark") || hasToken("text")) {
+  const hasHighlightToken = hasToken("mark") || hasToken("textmark") || hasToken("text");
+  const hasSuperOrSubscriptToken =
+    hasToken("sup") || hasToken("superscript") || hasToken("sub") || hasToken("subscript");
+  if (hasHighlightToken && hasSuperOrSubscriptToken) {
+    return null;
+  }
+  if (hasHighlightToken) {
     return "highlight";
   }
   return null;

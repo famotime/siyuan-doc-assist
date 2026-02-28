@@ -135,6 +135,13 @@ export function extractInlineFromDom(
     const tagName = element.tagName.toLowerCase();
     const tokens = tokenizeType(`${dataType} ${dataSubtype}`);
     const hasToken = (token: string) => tokens.includes(token);
+    const hasSuperOrSubscriptToken =
+      tagName === "sup" ||
+      tagName === "sub" ||
+      hasToken("sup") ||
+      hasToken("superscript") ||
+      hasToken("sub") ||
+      hasToken("subscript");
     const textContent = cleanInlineText(element.textContent || "");
     if (!textContent) {
       return;
@@ -191,6 +198,9 @@ export function extractInlineFromDom(
       hasToken("textmark") ||
       hasToken("text")
     ) {
+      if (hasSuperOrSubscriptToken) {
+        return;
+      }
       type = "highlight";
       const innerHtml = (element as HTMLElement).innerHTML || "";
       raw = innerHtml ? `==${innerHtml}==` : buildInlineRaw(type, text);
