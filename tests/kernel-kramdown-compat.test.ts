@@ -27,7 +27,7 @@ describe("kernel kramdown compatibility", () => {
     expect(rows).toEqual([{ id: "a", kramdown: "A" }]);
   });
 
-  test("falls back to single-block API for ids missing in batch response", async () => {
+  test("does not call single-block API when batch endpoint succeeds", async () => {
     requestApiMock.mockImplementation((url: string, data?: any) => {
       if (url === "/api/block/getBlockKramdowns") {
         return Promise.resolve({
@@ -41,11 +41,8 @@ describe("kernel kramdown compatibility", () => {
     });
 
     const rows = await getBlockKramdowns(["a", "b"]);
-    expect(rows).toEqual([
-      { id: "a", kramdown: "A" },
-      { id: "b", kramdown: "B" },
-    ]);
-    expect(requestApiMock).toHaveBeenCalledWith("/api/block/getBlockKramdown", {
+    expect(rows).toEqual([{ id: "a", kramdown: "A" }]);
+    expect(requestApiMock).not.toHaveBeenCalledWith("/api/block/getBlockKramdown", {
       id: "b",
     });
   });

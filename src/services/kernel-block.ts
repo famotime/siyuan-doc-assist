@@ -88,6 +88,7 @@ export async function getBlockKramdowns(
     chunks.push(normalizedIds.slice(i, i + chunkSize));
   }
   const rowMap = new Map<string, BlockKramdownRes>();
+  const fallbackIds = new Set<string>();
   for (const chunk of chunks) {
     try {
       const res = await requestApi<any>("/api/block/getBlockKramdowns", {
@@ -106,10 +107,11 @@ export async function getBlockKramdowns(
         sample: chunk.slice(0, 8),
         message,
       });
+      chunk.forEach((id) => fallbackIds.add(id));
     }
   }
 
-  const missingIds = normalizedIds.filter((id) => !rowMap.has(id));
+  const missingIds = normalizedIds.filter((id) => fallbackIds.has(id) && !rowMap.has(id));
   if (missingIds.length) {
     for (const id of missingIds) {
       try {
