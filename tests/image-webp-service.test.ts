@@ -71,6 +71,7 @@ describe("image-webp service", () => {
       scannedImageCount: 2,
       convertedImageCount: 2,
       skippedImageCount: 0,
+      skippedGifCount: 0,
       failedImageCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
@@ -78,11 +79,11 @@ describe("image-webp service", () => {
     });
   });
 
-  test("skips rewrite when conversion has no output changes", async () => {
+  test("skips gif images for webp conversion", async () => {
     sqlPagedMock.mockResolvedValue([
       {
         id: "b1",
-        markdown: "![a](assets/a.png)\n![w](/assets/c.webp)",
+        markdown: "![a](assets/a.png)\n![g](/assets/anim.gif)\n![w](/assets/c.webp)",
       } as any,
     ]);
     convertLocalAssetImageToWebpMock.mockResolvedValue({
@@ -95,11 +96,13 @@ describe("image-webp service", () => {
 
     const report = await convertDocImagesToWebp("doc-1");
 
+    expect(convertLocalAssetImageToWebpMock).toHaveBeenCalledTimes(1);
     expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
     expect(report).toEqual({
-      scannedImageCount: 2,
+      scannedImageCount: 3,
       convertedImageCount: 0,
-      skippedImageCount: 2,
+      skippedImageCount: 3,
+      skippedGifCount: 1,
       failedImageCount: 0,
       replacedLinkCount: 0,
       updatedBlockCount: 0,

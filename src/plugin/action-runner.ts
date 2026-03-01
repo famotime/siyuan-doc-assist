@@ -619,10 +619,10 @@ export class ActionRunner {
       return;
     }
     const savedKb = (report.totalSavedBytes / 1024).toFixed(1);
-    const suffix =
-      report.failedImageCount > 0 ? `，失败 ${report.failedImageCount} 张` : "";
+    const gifSuffix = report.skippedGifCount > 0 ? `（已忽略 GIF ${report.skippedGifCount} 张）` : "";
+    const suffix = report.failedImageCount > 0 ? `，失败 ${report.failedImageCount} 张` : "";
     showMessage(
-      `图片转换完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，转换 ${report.convertedImageCount} 张，节省 ${savedKb} KB${suffix}`,
+      `图片转换完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，转换 ${report.convertedImageCount} 张，节省 ${savedKb} KB${gifSuffix}${suffix}`,
       report.failedImageCount > 0 ? 7000 : 6000,
       report.failedImageCount > 0 ? "error" : "info"
     );

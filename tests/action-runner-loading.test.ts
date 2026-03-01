@@ -341,9 +341,10 @@ describe("action-runner loading guard", () => {
 
   test("converts local images to webp for current doc", async () => {
     convertDocImagesToWebpMock.mockResolvedValue({
-      scannedImageCount: 2,
+      scannedImageCount: 3,
       convertedImageCount: 2,
-      skippedImageCount: 0,
+      skippedImageCount: 1,
+      skippedGifCount: 1,
       failedImageCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
@@ -355,7 +356,7 @@ describe("action-runner loading guard", () => {
 
     expect(convertDocImagesToWebpMock).toHaveBeenCalledWith("doc-1");
     expect(showMessageMock).toHaveBeenCalledWith(
-      "图片转换完成：替换 3 处，更新 2 个块，转换 2 张，节省 2.0 KB",
+      "图片转换完成：替换 3 处，更新 2 个块，转换 2 张，节省 2.0 KB（已忽略 GIF 1 张）",
       6000,
       "info"
     );

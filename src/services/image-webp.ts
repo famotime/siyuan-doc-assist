@@ -16,6 +16,7 @@ export type ConvertDocImagesToWebpReport = {
   scannedImageCount: number;
   convertedImageCount: number;
   skippedImageCount: number;
+  skippedGifCount: number;
   failedImageCount: number;
   replacedLinkCount: number;
   updatedBlockCount: number;
@@ -26,11 +27,16 @@ const EMPTY_REPORT: ConvertDocImagesToWebpReport = {
   scannedImageCount: 0,
   convertedImageCount: 0,
   skippedImageCount: 0,
+  skippedGifCount: 0,
   failedImageCount: 0,
   replacedLinkCount: 0,
   updatedBlockCount: 0,
   totalSavedBytes: 0,
 };
+
+function isGifAssetPath(assetPath: string): boolean {
+  return /\.gif$/i.test(assetPath || "");
+}
 
 export async function convertDocImagesToWebp(docId: string): Promise<ConvertDocImagesToWebpReport> {
   const normalizedDocId = (docId || "").trim();
@@ -64,12 +70,16 @@ export async function convertDocImagesToWebp(docId: string): Promise<ConvertDocI
   const replacementMap = new Map<string, string>();
   let convertedImageCount = 0;
   let skippedImageCount = 0;
+  let skippedGifCount = 0;
   let failedImageCount = 0;
   let totalSavedBytes = 0;
 
   for (const assetPath of allImagePaths) {
     if (!isConvertibleImageAssetPath(assetPath)) {
       skippedImageCount += 1;
+      if (isGifAssetPath(assetPath)) {
+        skippedGifCount += 1;
+      }
       continue;
     }
     try {
@@ -109,6 +119,7 @@ export async function convertDocImagesToWebp(docId: string): Promise<ConvertDocI
     scannedImageCount: allImagePaths.length,
     convertedImageCount,
     skippedImageCount,
+    skippedGifCount,
     failedImageCount,
     replacedLinkCount,
     updatedBlockCount,
