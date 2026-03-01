@@ -47,6 +47,25 @@ describe("kernel kramdown compatibility", () => {
     });
   });
 
+  test("parses dict format { blockId: kramdownString } returned by some SiYuan versions", async () => {
+    requestApiMock.mockImplementation((url: string) => {
+      if (url === "/api/block/getBlockKramdowns") {
+        return Promise.resolve({
+          "20260224194151-rzj7ze5": "拉屎肯定可                \n{: id=\"20260224194151-rzj7ze5\"}",
+          "20260225000004-0dh7y6p": "吞吞吐吐   \n{: id=\"20260225000004-0dh7y6p\"}",
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    const rows = await getBlockKramdowns(["20260224194151-rzj7ze5", "20260225000004-0dh7y6p"]);
+    expect(rows).toHaveLength(2);
+    const r1 = rows.find((r) => r.id === "20260224194151-rzj7ze5");
+    const r2 = rows.find((r) => r.id === "20260225000004-0dh7y6p");
+    expect(r1?.kramdown).toContain("可                ");
+    expect(r2?.kramdown).toContain("吞吞吐吐   ");
+  });
+
   test("falls back to single-block API when batch endpoint throws", async () => {
     requestApiMock.mockImplementation((url: string, data?: any) => {
       if (url === "/api/block/getBlockKramdowns") {

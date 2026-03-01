@@ -3,6 +3,7 @@ import {
   findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
+  removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
 } from "@/core/markdown-cleanup-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
@@ -12,10 +13,12 @@ import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/
 import {
   appendBlock,
   deleteBlockById,
+  getBlockDOMs,
   getBlockKramdowns,
   getChildBlocksByParentId,
   getDocMetaByID,
   insertBlockBefore,
+  updateBlockDom,
   updateBlockMarkdown,
 } from "@/services/kernel";
 import {
@@ -54,6 +57,42 @@ const forwardLinksLogger = createDocAssistantLogger("ForwardLinks");
 const styleLogger = createDocAssistantLogger("Style");
 const trailingWhitespaceLogger = createDocAssistantLogger("TrailingWhitespace");
 const deleteFromCurrentLogger = createDocAssistantLogger("DeleteFromCurrent");
+
+/**
+ * Extracts block-level IAL lines from a cleaned kramdown string.
+ * The block-level IAL (e.g. `{: id="..." memo="..."}`) appears at the end of the
+ * per-block kramdown. Returning it allows callers to append it to a different
+ * content string so that block attributes such as `memo` are preserved when
+ * calling updateBlock.
+ */
+function extractBlockLevelIal(kramdown: string): string | null {
+  if (!kramdown) return null;
+  const lines = kramdown.split(/\r?\n/);
+  const ialLines: string[] = [];
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const trimmed = lines[i].trim();
+    if (trimmed === "") continue;
+    if (/^\{:/.test(trimmed)) {
+      ialLines.unshift(trimmed);
+    } else {
+      break;
+    }
+  }
+  return ialLines.length > 0 ? ialLines.join("\n") : null;
+}
+
+function isHighRiskForMarkdownWrite(value: string): boolean {
+  if (!value) {
+    return false;
+  }
+  return (
+    /inline-memo/i.test(value) ||
+    /data-inline-memo-content/i.test(value) ||
+    /data-memo-content/i.test(value) ||
+    /data-memo=/i.test(value) ||
+    /\(\([^)]+\)\)\{:/.test(value)
+  );
+}
 
 export class ActionRunner {
   private isRunning = false;
@@ -511,44 +550,103 @@ export class ActionRunner {
       return;
     }
 
-    const collectUpdatesFromSourceMap = (sourceMap: Map<string, string>) => {
-      const updates: Array<{ id: string; markdown: string; changedLines: number }> = [];
+    const collectUpdatesFromSourceMap = (
+      sourceMap: Map<string, string>,
+      domMap: Map<string, string>
+    ) => {
+      const updates: Array<{
+        id: string;
+        dataType: "markdown" | "dom";
+        data: string;
+        changedLines: number;
+      }> = [];
+      const skippedRiskyIds: string[] = [];
       let affectedLineCount = 0;
       for (const block of paragraphBlocks) {
         const sourceFromKramdown = sourceMap.get(block.id);
+        const sourceDom = domMap.get(block.id) || "";
         if (block.resolved === false && sourceFromKramdown === undefined) {
           continue;
         }
         const source = sourceFromKramdown === undefined ? block.markdown || "" : sourceFromKramdown;
-        const cleaned = removeTrailingWhitespaceFromMarkdown(source);
-        if (cleaned.changedLines <= 0) {
+        const markdownCleaned = removeTrailingWhitespaceFromMarkdown(source);
+        const hasHighRiskFormat =
+          isHighRiskForMarkdownWrite(source) ||
+          isHighRiskForMarkdownWrite(block.markdown || "") ||
+          isHighRiskForMarkdownWrite(sourceDom);
+        if (hasHighRiskFormat) {
+          if (!sourceDom) {
+            if (markdownCleaned.changedLines > 0) {
+              skippedRiskyIds.push(block.id);
+            }
+            continue;
+          }
+          const domCleaned = removeTrailingWhitespaceFromDom(sourceDom);
+          if (domCleaned.changedLines <= 0) {
+            continue;
+          }
+          updates.push({
+            id: block.id,
+            dataType: "dom",
+            data: domCleaned.dom,
+            changedLines: domCleaned.changedLines,
+          });
+          affectedLineCount += domCleaned.changedLines;
           continue;
         }
+        if (markdownCleaned.changedLines <= 0) {
+          continue;
+        }
+        const cleaned = markdownCleaned;
         let markdownForUpdate = cleaned.markdown;
         if (sourceFromKramdown !== undefined && block.resolved !== false) {
-          // Prefer SQL markdown shape for write-back so leading indentation is preserved.
-          markdownForUpdate = removeTrailingWhitespaceFromMarkdown(block.markdown || "").markdown;
+          // Blocks containing block references with inline IALs (((ref)){: ...}) are known to have
+          // their IAL corrupted by updateBlock reconstruction — the IAL becomes literal text.
+          // Skip such blocks unconditionally to prevent content corruption.
+          if (/\(\([^)]+\)\)\{:/.test(block.markdown || "")) {
+            trailingWhitespaceLogger.debug("skip block with block-ref inline IAL to prevent corruption", {
+              id: block.id,
+            });
+            continue;
+          }
+          // Prefer SQL markdown for write-back to preserve leading indentation.
+          // Also append the block-level IAL from the cleaned per-block kramdown so that
+          // block attributes (e.g. memo/备注) are not lost on reconstruction.
+          const sqlCleaned = removeTrailingWhitespaceFromMarkdown(block.markdown || "");
+          markdownForUpdate = sqlCleaned.markdown;
+          const blockIal = extractBlockLevelIal(cleaned.markdown);
+          if (blockIal) {
+            markdownForUpdate = `${markdownForUpdate}\n${blockIal}`;
+          }
         }
         updates.push({
           id: block.id,
-          markdown: markdownForUpdate,
+          dataType: "markdown",
+          data: markdownForUpdate,
           changedLines: cleaned.changedLines,
         });
         affectedLineCount += cleaned.changedLines;
       }
-      return { updates, affectedLineCount };
+      return { updates, affectedLineCount, skippedRiskyIds };
     };
 
     const batchRows = (await getBlockKramdowns(paragraphBlocks.map((block) => block.id))) || [];
     const batchMap = new Map(
       batchRows.map((item) => [item.id, item.kramdown || ""])
     );
-    const { updates, affectedLineCount } = collectUpdatesFromSourceMap(batchMap);
+    const domRows = (await getBlockDOMs(paragraphBlocks.map((block) => block.id))) || [];
+    const domMap = new Map(
+      domRows.map((item) => [item.id, item.dom || ""])
+    );
+    const { updates, affectedLineCount, skippedRiskyIds } = collectUpdatesFromSourceMap(batchMap, domMap);
     trailingWhitespaceLogger.debug("batch scan result", {
       docId,
       batchCount: batchRows.length,
+      domCount: domRows.length,
       updateCount: updates.length,
       affectedLineCount,
+      skippedRiskyCount: skippedRiskyIds.length,
+      skippedRiskySample: skippedRiskyIds.slice(0, 8),
       updateSample: updates.slice(0, 8).map((item) => item.id),
     });
 
@@ -605,20 +703,28 @@ export class ActionRunner {
       cleanedPreview: string;
     }> = [];
     for (const item of updates) {
-      let currentMarkdown = item.markdown;
+      let currentData = item.data;
       let attempts = 0;
       let applied = false;
       let failureMessage = "";
       let verifyReads = 0;
       let lastChangedLines = 0;
       let lastPersistedPreview = "";
-      let lastCleanedPreview = previewMarkdown(currentMarkdown);
+      let lastCleanedPreview = previewMarkdown(currentData);
       for (let attempt = 1; attempt <= maxApplyAttempts; attempt += 1) {
         attempts = attempt;
         try {
-          await updateBlockMarkdown(item.id, currentMarkdown);
+          if (item.dataType === "dom") {
+            await updateBlockDom(item.id, currentData);
+          } else {
+            await updateBlockMarkdown(item.id, currentData);
+          }
         } catch (error: unknown) {
           failureMessage = error instanceof Error ? error.message : String(error);
+          break;
+        }
+        if (item.dataType === "dom") {
+          applied = true;
           break;
         }
         try {
@@ -644,7 +750,7 @@ export class ActionRunner {
               verifiedClean = true;
               break;
             }
-            currentMarkdown = verification.markdown;
+            currentData = verification.markdown;
             failureMessage = `verification-not-clean:${verification.changedLines}`;
             if (readAttempt < maxVerifyReadAttempts) {
               await sleep(verifyReadDelayMs * readAttempt);

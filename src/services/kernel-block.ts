@@ -7,6 +7,11 @@ type BlockKramdownRes = {
   kramdown: string;
 };
 
+type BlockDomRes = {
+  id: string;
+  dom: string;
+};
+
 type ChildBlockListItem = {
   id: string;
   type: string;
@@ -64,9 +69,70 @@ function toBlockKramdownRows(payload: unknown): BlockKramdownRes[] {
     pushFromArray(source.rows);
     pushFromArray(source.data);
     pushRow(source);
+    // Handle dict format: { [blockId]: kramdownString }
+    // as returned by /api/block/getBlockKramdowns in some SiYuan versions.
+    if (!Array.isArray(payload)) {
+      const siyuanIdPattern = /^\d{14}-[a-z0-9]{7}$/;
+      for (const [key, value] of Object.entries(source)) {
+        if (siyuanIdPattern.test(key) && typeof value === "string") {
+          rows.push({ id: key, kramdown: value });
+        }
+      }
+    }
   }
 
   const deduped = new Map<string, BlockKramdownRes>();
+  for (const row of rows) {
+    if (!deduped.has(row.id)) {
+      deduped.set(row.id, row);
+    }
+  }
+  return [...deduped.values()];
+}
+
+function toBlockDomRows(payload: unknown): BlockDomRes[] {
+  const rows: BlockDomRes[] = [];
+  const pushRow = (candidate: unknown) => {
+    if (!candidate || typeof candidate !== "object") {
+      return;
+    }
+    const record = candidate as { id?: unknown; dom?: unknown };
+    const id = typeof record.id === "string" ? record.id.trim() : "";
+    if (!id) {
+      return;
+    }
+    const dom = typeof record.dom === "string" ? record.dom : String(record.dom || "");
+    rows.push({ id, dom });
+  };
+  const pushFromArray = (value: unknown) => {
+    if (!Array.isArray(value)) {
+      return;
+    }
+    for (const item of value) {
+      pushRow(item);
+    }
+  };
+
+  pushFromArray(payload);
+  if (payload && typeof payload === "object") {
+    const source = payload as Record<string, unknown>;
+    pushFromArray(source.doms);
+    pushFromArray(source.items);
+    pushFromArray(source.blocks);
+    pushFromArray(source.rows);
+    pushFromArray(source.data);
+    pushRow(source);
+    if (!Array.isArray(payload)) {
+      const siyuanIdPattern = /^\d{14}-[a-z0-9]{7}$/;
+      for (const [key, value] of Object.entries(source)) {
+        if (siyuanIdPattern.test(key) && typeof value === "string") {
+          rows.push({ id: key, dom: value });
+        }
+      }
+    }
+  }
+
+  const deduped = new Map<string, BlockDomRes>();
   for (const row of rows) {
     if (!deduped.has(row.id)) {
       deduped.set(row.id, row);
@@ -158,6 +224,81 @@ export async function getBlockKramdown(
   return null;
 }
 
+export async function getBlockDOMs(ids: string[]): Promise<BlockDomRes[]> {
+  const normalizedIds = [...new Set((ids || []).map((id) => (id || "").trim()).filter(Boolean))];
+  if (!normalizedIds.length) {
+    return [];
+  }
+  const chunks: string[][] = [];
+  const chunkSize = 50;
+  for (let i = 0; i < normalizedIds.length; i += chunkSize) {
+    chunks.push(normalizedIds.slice(i, i + chunkSize));
+  }
+  const rowMap = new Map<string, BlockDomRes>();
+  const fallbackIds = new Set<string>();
+  for (const chunk of chunks) {
+    try {
+      const res = await requestApi<any>("/api/block/getBlockDOMs", {
+        ids: chunk,
+      });
+      const rows = toBlockDomRows(res);
+      for (const row of rows) {
+        if (chunk.includes(row.id) && !rowMap.has(row.id)) {
+          rowMap.set(row.id, row);
+        }
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      styleLogger.debug("getBlockDOMs failed, fallback to single", {
+        chunkSize: chunk.length,
+        sample: chunk.slice(0, 8),
+        message,
+      });
+      chunk.forEach((id) => fallbackIds.add(id));
+    }
+  }
+  const missingIds = normalizedIds.filter((id) => fallbackIds.has(id) && !rowMap.has(id));
+  if (missingIds.length) {
+    for (const id of missingIds) {
+      try {
+        const row = await getBlockDOM(id);
+        if (row && !rowMap.has(row.id)) {
+          rowMap.set(row.id, row);
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        styleLogger.debug("getBlockDOM fallback failed", {
+          id,
+          message,
+        });
+      }
+    }
+  }
+  return normalizedIds.map((id) => rowMap.get(id)).filter((row): row is BlockDomRes => !!row);
+}
+
+export async function getBlockDOM(id: string): Promise<BlockDomRes | null> {
+  const normalized = (id || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  const res = await requestApi<any>("/api/block/getBlockDOM", {
+    id: normalized,
+  });
+  const rows = toBlockDomRows(res);
+  if (rows.length) {
+    const exact = rows.find((item) => item.id === normalized);
+    return exact || rows[0];
+  }
+  if (typeof res === "string") {
+    return {
+      id: normalized,
+      dom: res,
+    };
+  }
+  return null;
+}
+
 export async function appendBlock(
   data: string,
   parentID: string
@@ -193,6 +334,17 @@ export async function updateBlockMarkdown(
 ): Promise<void> {
   await requestApi("/api/block/updateBlock", {
     dataType: "markdown",
+    data,
+    id,
+  });
+}
+
+export async function updateBlockDom(
+  id: string,
+  data: string
+): Promise<void> {
+  await requestApi("/api/block/updateBlock", {
+    dataType: "dom",
     data,
     id,
   });

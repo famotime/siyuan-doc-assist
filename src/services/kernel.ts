@@ -6,10 +6,13 @@ import { escapeSqlLiteral, inClause, sql } from "@/services/kernel-shared";
 export {
   appendBlock,
   deleteBlockById,
+  getBlockDOM,
+  getBlockDOMs,
   getBlockKramdown,
   getBlockKramdowns,
   getChildBlocksByParentId,
   insertBlockBefore,
+  updateBlockDom,
   updateBlockMarkdown,
 } from "@/services/kernel-block";
 export {

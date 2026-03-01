@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   removeExtraBlankLinesFromMarkdown,
+  removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
 } from "@/core/markdown-cleanup-core";
 
@@ -131,5 +132,25 @@ describe("markdown-cleanup-core", () => {
     );
     expect(result.changedLines).toBe(1);
     expect(result.removedChars).toBe(2);
+  });
+
+  test("removes trailing whitespace inside contenteditable dom without touching inline-memo", () => {
+    const input =
+      '<div data-node-id="a" data-type="NodeParagraph" class="p"><div contenteditable="true" spellcheck="false">原文<span data-type="inline-memo" data-inline-memo-content="备注内容">注</span>   </div><div class="protyle-attr" contenteditable="false"></div></div>';
+    const result = removeTrailingWhitespaceFromDom(input);
+    expect(result.dom).toBe(
+      '<div data-node-id="a" data-type="NodeParagraph" class="p"><div contenteditable="true" spellcheck="false">原文<span data-type="inline-memo" data-inline-memo-content="备注内容">注</span></div><div class="protyle-attr" contenteditable="false"></div></div>'
+    );
+    expect(result.changedLines).toBe(1);
+    expect(result.removedChars).toBe(3);
+  });
+
+  test("keeps dom unchanged when there is no trailing whitespace", () => {
+    const input =
+      '<div data-node-id="a" data-type="NodeParagraph" class="p"><div contenteditable="true" spellcheck="false">原文<span data-type="inline-memo" data-inline-memo-content="备注内容">注</span></div><div class="protyle-attr" contenteditable="false"></div></div>';
+    const result = removeTrailingWhitespaceFromDom(input);
+    expect(result.dom).toBe(input);
+    expect(result.changedLines).toBe(0);
+    expect(result.removedChars).toBe(0);
   });
 });

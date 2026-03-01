@@ -21,10 +21,13 @@ vi.mock("@/services/exporter", () => ({
 vi.mock("@/services/kernel", () => ({
   appendBlock: vi.fn(),
   deleteBlockById: vi.fn(),
+  getBlockDOM: vi.fn(),
+  getBlockDOMs: vi.fn(),
   getBlockKramdowns: vi.fn(),
   getChildBlocksByParentId: vi.fn(),
   getDocMetaByID: vi.fn(),
   insertBlockBefore: vi.fn(),
+  updateBlockDom: vi.fn(),
   updateBlockMarkdown: vi.fn(),
 }));
 
@@ -74,9 +77,12 @@ import { moveDocsAsChildren } from "@/services/mover";
 import {
   appendBlock,
   deleteBlockById,
+  getBlockDOM,
+  getBlockDOMs,
   getBlockKramdowns,
   getChildBlocksByParentId,
   insertBlockBefore,
+  updateBlockDom,
   updateBlockMarkdown,
 } from "@/services/kernel";
 import { openDedupeDialog } from "@/ui/dialogs";
@@ -85,6 +91,8 @@ const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
 const deleteDocsByIdsMock = vi.mocked(deleteDocsByIds);
 const deleteBlockByIdMock = vi.mocked(deleteBlockById);
 const appendBlockMock = vi.mocked(appendBlock);
+const getBlockDOMMock = vi.mocked(getBlockDOM);
+const getBlockDOMsMock = vi.mocked(getBlockDOMs);
 const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
 const getBacklinkDocsMock = vi.mocked(getBacklinkDocs);
@@ -96,6 +104,7 @@ const toChildDocMarkdownMock = vi.mocked(toChildDocMarkdown);
 const moveDocsAsChildrenMock = vi.mocked(moveDocsAsChildren);
 const findDuplicateCandidatesMock = vi.mocked(findDuplicateCandidates);
 const insertBlockBeforeMock = vi.mocked(insertBlockBefore);
+const updateBlockDomMock = vi.mocked(updateBlockDom);
 const updateBlockMarkdownMock = vi.mocked(updateBlockMarkdown);
 const resolveDocDirectChildBlockIdMock = vi.mocked(resolveDocDirectChildBlockId);
 const openDedupeDialogMock = vi.mocked(openDedupeDialog);
@@ -416,6 +425,41 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、2 行行尾空格", 5000, "info");
   });
 
+  test("uses dom update for inline-memo block to avoid markdown downgrade", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        markdown: "原文<sup>（备注内容）</sup>   ",
+        resolved: true,
+      } as any,
+    ]);
+    getBlockKramdownsMock.mockResolvedValueOnce([
+      {
+        id: "a",
+        kramdown: "原文<sup>（备注内容）</sup>   \n{: id=\"20260224194151-abc1234\"}",
+      } as any,
+    ]);
+    getBlockDOMsMock.mockResolvedValueOnce([
+      {
+        id: "a",
+        dom: '<div data-node-id="a" data-type="NodeParagraph" class="p"><div contenteditable="true" spellcheck="false">原文<span data-type="inline-memo" data-inline-memo-content="备注内容">内容</span>   </div><div class="protyle-attr" contenteditable="false"></div></div>',
+      } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(updateBlockDomMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockDomMock).toHaveBeenCalledWith(
+      "a",
+      '<div data-node-id="a" data-type="NodeParagraph" class="p"><div contenteditable="true" spellcheck="false">原文<span data-type="inline-memo" data-inline-memo-content="备注内容">内容</span></div><div class="protyle-attr" contenteditable="false"></div></div>'
+    );
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(getBlockDOMMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、1 行行尾空格", 5000, "info");
+  });
+
   test("keeps leading spaces from sql markdown when kramdown is normalized", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", markdown: "  hello  \n    world\t", resolved: true } as any,
@@ -488,6 +532,45 @@ describe("action-runner loading guard", () => {
     expect(payload.failedBlockCount).toBe(1);
     expect(payload.failedSummary?.[0]).toContain("a|");
     infoSpy.mockRestore();
+  });
+
+  test("preserves block-level IAL (memo) when cleaning trailing whitespace", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "hello", resolved: true } as any,
+    ]);
+    getBlockKramdownsMock
+      .mockResolvedValueOnce([{ id: "a", kramdown: 'hello   \n{: id="20260224194151-abc1234" memo="my note"}' } as any])
+      .mockResolvedValueOnce([{ id: "a", kramdown: 'hello\n{: id="20260224194151-abc1234" memo="my note"}' } as any]);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
+      "a",
+      'hello\n{: id="20260224194151-abc1234" memo="my note"}'
+    );
+    expect(showMessageMock).toHaveBeenCalledWith("已清理 1 个块、1 行行尾空格", 5000, "info");
+  });
+
+  test("skips block-ref inline IAL block even when sql markdown has trailing whitespace", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        markdown: '((20260224194151-abc1234)){: style="white-space:pre"}text  ',
+        resolved: true,
+      } as any,
+    ]);
+    getBlockKramdownsMock.mockResolvedValueOnce([
+      { id: "a", kramdown: '((20260224194151-abc1234)){: style="white-space:pre"}text  ' } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("trim-trailing-whitespace" as any);
+
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("未发现需要清理的行尾空格", 4000, "info");
   });
 
   test("deletes all blocks from current block to end", async () => {

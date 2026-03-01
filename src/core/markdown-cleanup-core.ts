@@ -11,6 +11,12 @@ export type TrailingWhitespaceCleanupResult = {
   removedChars: number;
 };
 
+export type TrailingWhitespaceDomCleanupResult = {
+  dom: string;
+  changedLines: number;
+  removedChars: number;
+};
+
 export type ParagraphBlockMeta = {
   id: string;
   type: string;
@@ -225,6 +231,82 @@ export function removeTrailingWhitespaceFromMarkdown(
   return {
     markdown: output.join("\n"),
     changedLines,
+    removedChars,
+  };
+}
+
+function decodeHtmlWhitespaceLength(value: string): number {
+  if (!value) {
+    return 0;
+  }
+  const entityPattern = /&nbsp;|&#160;|&#xA0;/giu;
+  const entityMatches = value.match(entityPattern);
+  const entityCount = entityMatches?.length || 0;
+  const plain = value.replace(entityPattern, "");
+  return entityCount + plain.length;
+}
+
+export function removeTrailingWhitespaceFromDom(dom: string): TrailingWhitespaceDomCleanupResult {
+  if (!dom) {
+    return {
+      dom: "",
+      changedLines: 0,
+      removedChars: 0,
+    };
+  }
+
+  const editablePattern = /(<div\b[^>]*\bcontenteditable=(["'])true\2[^>]*>)([\s\S]*?)(<\/div>)/iu;
+  const editableMatch = editablePattern.exec(dom);
+  if (!editableMatch || editableMatch.index < 0) {
+    return {
+      dom,
+      changedLines: 0,
+      removedChars: 0,
+    };
+  }
+
+  const openTag = editableMatch[1];
+  const innerHtml = editableMatch[3] || "";
+  const closeTag = editableMatch[4];
+  let nextInner = innerHtml;
+  let removedChars = 0;
+  const trailingWhitespaceTokenPattern = /(?:[^\S\r\n]|&nbsp;|&#160;|&#xA0;)+$/iu;
+  const trailingPreSpanPattern =
+    /<span\b[^>\n]*\bstyle=(["'])[^"'\n]*white-space\s*:\s*pre\b[^"'\n]*\1[^>\n]*>((?:[^\S\r\n]|&nbsp;|&#160;|&#xA0;)*)<\/span>((?:[^\S\r\n]|&nbsp;|&#160;|&#xA0;)*)$/iu;
+
+  let removedSpan = false;
+  do {
+    removedSpan = false;
+    nextInner = nextInner.replace(
+      trailingPreSpanPattern,
+      (_match, _quote: string, spanWs: string, tailWs: string) => {
+        removedChars += decodeHtmlWhitespaceLength(spanWs || "");
+        removedChars += decodeHtmlWhitespaceLength(tailWs || "");
+        removedSpan = true;
+        return "";
+      }
+    );
+  } while (removedSpan);
+
+  const tailMatch = nextInner.match(trailingWhitespaceTokenPattern);
+  if (tailMatch) {
+    nextInner = nextInner.slice(0, nextInner.length - tailMatch[0].length);
+    removedChars += decodeHtmlWhitespaceLength(tailMatch[0]);
+  }
+
+  if (nextInner === innerHtml) {
+    return {
+      dom,
+      changedLines: 0,
+      removedChars: 0,
+    };
+  }
+
+  const head = dom.slice(0, editableMatch.index);
+  const tail = dom.slice(editableMatch.index + editableMatch[0].length);
+  return {
+    dom: `${head}${openTag}${nextInner}${closeTag}${tail}`,
+    changedLines: 1,
     removedChars,
   };
 }
