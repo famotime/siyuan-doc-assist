@@ -248,6 +248,18 @@ function stripLinks(source: string): string {
   return next;
 }
 
+function normalizeBlockRefText(source: string): string {
+  let next = source || "";
+  const blockRefWithAliasPattern =
+    /\(\(\s*[0-9]{14}-[a-z0-9]{7,}\s+(?:"([^"]+)"|'([^']+)')\s*\)\)/gi;
+  next = next.replace(blockRefWithAliasPattern, (_all, doubleQuoted, singleQuoted) => {
+    return cleanInlineText(doubleQuoted || singleQuoted || "");
+  });
+  const blockRefOnlyIdPattern = /\(\(\s*[0-9]{14}-[a-z0-9]{7,}\s*\)\)/gi;
+  next = next.replace(blockRefOnlyIdPattern, " ");
+  return next;
+}
+
 function unwrapHighlightRaw(source: string): string {
   let next = (source || "").trim();
   let prev = "";
@@ -295,6 +307,7 @@ export function normalizeHighlightTextWithoutLinksAndCode(raw: string, fallbackT
   const htmlCodeRanges = collectHtmlCode(next).ranges;
   next = maskRanges(next, htmlCodeRanges);
   next = stripLinks(next);
+  next = normalizeBlockRefText(next);
   next = next.replace(/==/g, " ");
   next = next.replace(/<[^>]+>/g, " ");
   return cleanInlineText(next);

@@ -570,6 +570,34 @@ describe("key-info service heading inline merge", () => {
     ).toBe(true);
   });
 
+  test("uses block-ref alias as highlight text instead of showing block id", async () => {
+    mockKernelSql([
+      {
+        id: "p-1",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "p",
+        subtype: "",
+        content: "引用",
+        markdown: '==((20260228222318-0xudh3j "料袋凯"))==',
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const result = await getDocKeyInfo("doc-1");
+    const paragraphItems = result.items.filter((item) => item.blockId === "p-1");
+
+    expect(
+      paragraphItems.some(
+        (item) => item.type === "highlight" && item.text === "((20260228222318-0xudh3j \"料袋凯\"))"
+      )
+    ).toBe(false);
+    expect(
+      paragraphItems.some((item) => item.type === "highlight" && item.text === "料袋凯")
+    ).toBe(true);
+  });
+
   test("formats inline-memo remark as 原文（备注）", async () => {
     mockKernelSql(
       [
