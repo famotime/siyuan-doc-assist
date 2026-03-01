@@ -46,4 +46,17 @@ describe("dedupe-core", () => {
 
     expect(keep).toBe("2");
   });
+
+  test("supports suggesting keep earliest updated doc id", () => {
+    const keep = (suggestKeepDocId as any)(
+      [
+        { id: "1", updated: "20260101101010" },
+        { id: "2", updated: "20260101101011" },
+        { id: "3", updated: "20250101101011" },
+      ],
+      "earliest"
+    );
+
+    expect(keep).toBe("3");
+  });
 });

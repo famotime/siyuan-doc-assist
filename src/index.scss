@@ -12,6 +12,14 @@
   flex-wrap: wrap;
 }
 
+.link-tool-dedupe__keep-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--b3-theme-on-surface);
+  font-size: 13px;
+}
+
 .link-tool-dedupe__groups {
   overflow: auto;
   border: 1px solid var(--b3-border-color);

@@ -167,12 +167,17 @@ export function buildDuplicateGroups(
 }
 
 export function suggestKeepDocId(
-  docs: Array<{ id: string; updated: string }>
+  docs: Array<{ id: string; updated: string }>,
+  mode: "latest" | "earliest" = "latest"
 ): string {
   if (docs.length === 0) {
     return "";
   }
-  return docs
+  const sorted = docs
     .slice()
-    .sort((a, b) => (a.updated < b.updated ? 1 : -1))[0].id;
+    .sort((a, b) => (a.updated < b.updated ? 1 : -1));
+  if (mode === "earliest") {
+    return sorted[sorted.length - 1].id;
+  }
+  return sorted[0].id;
 }

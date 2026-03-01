@@ -62,37 +62,64 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
 
   const selectAllBtn = createButton("全选");
   const clearBtn = createButton("清空选择");
+  const keepEarliestWrap = document.createElement("label");
+  keepEarliestWrap.className = "link-tool-dedupe__keep-mode";
+  const keepEarliestSwitch = document.createElement("input");
+  keepEarliestSwitch.type = "checkbox";
+  keepEarliestSwitch.className = "b3-switch";
+  keepEarliestSwitch.dataset.role = "keep-earliest-switch";
+  const keepEarliestText = document.createElement("span");
+  keepEarliestText.textContent = "保留最早更新";
+  keepEarliestWrap.append(keepEarliestSwitch, keepEarliestText);
   const openAllBtn = createButton("打开全部文档");
   const insertLinksBtn = createButton("插入全部文档链接");
   const deleteBtn = createButton("删除选中");
   const cancelBtn = createButton("取消");
   deleteBtn.classList.add("b3-button--error");
-  toolbar.append(selectAllBtn, clearBtn, openAllBtn, insertLinksBtn, deleteBtn, cancelBtn);
+  toolbar.append(
+    selectAllBtn,
+    clearBtn,
+    keepEarliestWrap,
+    openAllBtn,
+    insertLinksBtn,
+    deleteBtn,
+    cancelBtn
+  );
 
   const dedupeDocs = new Map<string, { id: string; title: string }>();
   for (const candidate of args.candidates) {
-    const section = document.createElement("section");
-    section.className = "link-tool-dedupe__group";
-
-    const keepId = suggestKeepDocId(candidate.docs);
-    const heading = document.createElement("h4");
-    heading.textContent = `相似组 ${candidate.groupId}（score: ${candidate.score.toFixed(
-      2
-    )}，默认保留最新更新）`;
-    section.appendChild(heading);
-
     for (const doc of candidate.docs) {
       if (doc.id && !dedupeDocs.has(doc.id)) {
         dedupeDocs.set(doc.id, { id: doc.id, title: doc.title || doc.id });
       }
-      section.appendChild(createDocRow(candidate.groupId, doc, keepId));
     }
-    groups.appendChild(section);
   }
 
   const queryCheckboxes = () =>
     [...groups.querySelectorAll<HTMLInputElement>('input[type="checkbox"][data-id]')];
   const getAllDocs = () => Array.from(dedupeDocs.values());
+
+  const renderGroups = (keepMode: "latest" | "earliest") => {
+    groups.innerHTML = "";
+    for (const candidate of args.candidates) {
+      const section = document.createElement("section");
+      section.className = "link-tool-dedupe__group";
+
+      const keepId = suggestKeepDocId(candidate.docs, keepMode);
+      const heading = document.createElement("h4");
+      heading.textContent = `相似组 ${candidate.groupId}（score: ${candidate.score.toFixed(
+        2
+      )}，保留${keepMode === "earliest" ? "最早" : "最后"}更新）`;
+      section.appendChild(heading);
+
+      for (const doc of candidate.docs) {
+        section.appendChild(createDocRow(candidate.groupId, doc, keepId));
+      }
+      groups.appendChild(section);
+    }
+  };
+
+  renderGroups("latest");
 
   selectAllBtn.addEventListener("click", () => {
     for (const checkbox of queryCheckboxes()) {
@@ -104,6 +131,10 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
     for (const checkbox of queryCheckboxes()) {
       checkbox.checked = false;
     }
+  });
+
+  keepEarliestSwitch.addEventListener("change", () => {
+    renderGroups(keepEarliestSwitch.checked ? "earliest" : "latest");
   });
 
   openAllBtn.addEventListener("click", () => {
