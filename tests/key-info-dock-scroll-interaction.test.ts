@@ -128,6 +128,54 @@ describe("key-info-dock scroll interaction", () => {
     host.remove();
   });
 
+  test("renders tooltip for every doc action command button", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onDocActionClick: () => {},
+    });
+
+    dock.setState({
+      docActions: [
+        {
+          key: "export-current",
+          label: "仅导出当前文档",
+          icon: "iconDownload",
+          group: "export",
+          groupLabel: "导出",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+        {
+          key: "move-backlinks",
+          label: "移动反链文档为子文档",
+          icon: "iconMove",
+          group: "organize",
+          groupLabel: "整理",
+          disabled: true,
+          disabledReason: "该操作当前仅支持桌面端",
+          menuRegistered: true,
+          menuToggleDisabled: true,
+          menuToggleDisabledReason: "该操作当前仅支持桌面端",
+        },
+      ],
+    });
+
+    const buttons = Array.from(
+      host.querySelectorAll(".doc-assistant-keyinfo__action-btn")
+    ) as HTMLButtonElement[];
+
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0].title).toBe("仅导出当前文档");
+    expect(buttons[1].title).toBe("移动反链文档为子文档（该操作当前仅支持桌面端）");
+
+    dock.destroy();
+    host.remove();
+  });
+
   test("reorders doc actions within same group and reports latest order", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);

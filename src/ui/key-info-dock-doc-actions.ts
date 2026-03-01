@@ -199,9 +199,9 @@ export function renderKeyInfoDockDocActions({
     button.appendChild(iconWrap);
     button.appendChild(label);
     button.disabled = action.disabled;
-    if (action.disabledReason) {
-      button.title = action.disabledReason;
-    }
+    button.title = action.disabledReason
+      ? `${action.label}（${action.disabledReason}）`
+      : action.label;
     button.addEventListener("mousedown", (event) => {
       if (!selectionPreservedActionKeys.has(action.key)) {
         return;
