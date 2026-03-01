@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  convertSiyuanLinksAndRefsInMarkdown,
   buildBacklinkListMarkdown,
   buildChildDocListMarkdown,
   dedupeDocRefs,
@@ -93,5 +94,45 @@ describe("link-core", () => {
       "20260101101010-abcdef1",
       "20260202121212-bcdefg2",
     ]);
+  });
+
+  test("converts siyuan doc links to refs by default", () => {
+    const markdown = [
+      "- [Doc A](siyuan://blocks/20260101101010-abcdef1)",
+      "- [Doc B](SiYuan://blocks/20260202121212-bcdefg2?focus=1#L2)",
+      "- [Outside](https://example.com)",
+    ].join("\n");
+
+    const result = convertSiyuanLinksAndRefsInMarkdown(markdown);
+
+    expect(result).toEqual({
+      markdown: [
+        '- ((20260101101010-abcdef1 "Doc A"))',
+        '- ((20260202121212-bcdefg2 "Doc B"))',
+        "- [Outside](https://example.com)",
+      ].join("\n"),
+      mode: "link-to-ref",
+      convertedCount: 2,
+    });
+  });
+
+  test("converts refs to siyuan doc links when markdown only has refs", () => {
+    const markdown = [
+      '- ((20260101101010-abcdef1 "Doc A"))',
+      "- ((20260202121212-bcdefg2))",
+      '- [[20260303131313-cdefgh3 "Doc C"]]',
+    ].join("\n");
+
+    const result = convertSiyuanLinksAndRefsInMarkdown(markdown);
+
+    expect(result).toEqual({
+      markdown: [
+        "- [Doc A](siyuan://blocks/20260101101010-abcdef1)",
+        "- [20260202121212-bcdefg2](siyuan://blocks/20260202121212-bcdefg2)",
+        "- [Doc C](siyuan://blocks/20260303131313-cdefgh3)",
+      ].join("\n"),
+      mode: "ref-to-link",
+      convertedCount: 3,
+    });
   });
 });
