@@ -11,6 +11,10 @@ export type ActionKey =
   | "dedupe"
   | "remove-extra-blank-lines"
   | "trim-trailing-whitespace"
+  | "convert-images-to-webp"
+  | "convert-images-to-png"
+  | "remove-doc-images"
+  | "toggle-links-refs"
   | "insert-blank-before-headings"
   | "delete-from-current-to-end"
   | "bold-selected-blocks"
@@ -93,6 +97,13 @@ export const ACTIONS: ActionConfig[] = [
     icon: "iconList",
   },
   {
+    key: "toggle-links-refs",
+    commandText: "链接<->引用批量互转",
+    menuText: "链接<->引用批量互转",
+    group: "edit",
+    icon: "iconLink",
+  },
+  {
     key: "bold-selected-blocks",
     commandText: "选中块全部加粗",
     menuText: "选中块全部加粗",
@@ -126,6 +137,27 @@ export const ACTIONS: ActionConfig[] = [
     menuText: "删除后续段落（含本段）",
     group: "edit",
     icon: "iconTrashcan",
+  },
+  {
+    key: "convert-images-to-webp",
+    commandText: "批量转换为WebP",
+    menuText: "批量转换为WebP",
+    group: "image",
+    icon: "iconImage",
+  },
+  {
+    key: "convert-images-to-png",
+    commandText: "批量转换为PNG",
+    menuText: "批量转换为PNG",
+    group: "image",
+    icon: "iconImage",
+  },
+  {
+    key: "remove-doc-images",
+    commandText: "删除本文档图片",
+    menuText: "删除本文档图片",
+    group: "image",
+    icon: "iconImage",
   },
 ];
 

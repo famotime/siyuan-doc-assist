@@ -11,6 +11,10 @@ describe("plugin actions", () => {
     expect(isActionKey("export-current")).toBe(true);
     expect(isActionKey("insert-backlinks")).toBe(true);
     expect(isActionKey("move-forward-links")).toBe(true);
+    expect(isActionKey("toggle-links-refs")).toBe(true);
+    expect(isActionKey("convert-images-to-webp")).toBe(true);
+    expect(isActionKey("convert-images-to-png")).toBe(true);
+    expect(isActionKey("remove-doc-images")).toBe(true);
     expect(isActionKey("trim-trailing-whitespace")).toBe(true);
     expect(isActionKey("insert-blank-before-headings")).toBe(true);
     expect(isActionKey("delete-from-current-to-end")).toBe(true);

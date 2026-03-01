@@ -1,4 +1,5 @@
 import { showMessage } from "siyuan";
+import { convertSiyuanLinksAndRefsInMarkdown } from "@/core/link-core";
 import {
   findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
@@ -37,6 +38,9 @@ import { applyBlockStyle, BlockStyle } from "@/core/markdown-style-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { getSelectedBlockIds, resolveCurrentBlockId } from "@/plugin/action-runner-context";
+import { convertDocImagesToWebp } from "@/services/image-webp";
+import { convertDocImagesToPng } from "@/services/image-png";
+import { removeDocImageLinks } from "@/services/image-remove";
 
 type ActionRunnerDeps = {
   isMobile: () => boolean;
@@ -108,6 +112,10 @@ export class ActionRunner {
     dedupe: async (docId) => this.handleDedupe(docId),
     "remove-extra-blank-lines": async (docId) => this.handleRemoveExtraBlankLines(docId),
     "trim-trailing-whitespace": async (docId) => this.handleTrimTrailingWhitespace(docId),
+    "convert-images-to-webp": async (docId) => this.handleConvertImagesToWebp(docId),
+    "convert-images-to-png": async (docId) => this.handleConvertImagesToPng(docId),
+    "remove-doc-images": async (docId) => this.handleRemoveDocImages(docId),
+    "toggle-links-refs": async (docId) => this.handleToggleLinksRefs(docId),
     "insert-blank-before-headings": async (docId) => this.handleInsertBlankBeforeHeadings(docId),
     "delete-from-current-to-end": async (docId, protyle) =>
       this.handleDeleteFromCurrentToEnd(docId, protyle),
@@ -532,6 +540,133 @@ export class ActionRunner {
       return;
     }
     showMessage(`已为 ${result.insertCount} 个标题补充空段落`, 5000, "info");
+  }
+
+  private async handleToggleLinksRefs(docId: string) {
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的段落", 4000, "info");
+      return;
+    }
+
+    const docMarkdown = blocks.map((block) => block.markdown || "").join("\n");
+    const modeResult = convertSiyuanLinksAndRefsInMarkdown(docMarkdown);
+    if (modeResult.mode === "none" || modeResult.convertedCount <= 0) {
+      showMessage("当前文档未发现可互转的思源文档链接或引用", 4000, "info");
+      return;
+    }
+
+    let convertedCount = 0;
+    let updatedBlockCount = 0;
+    let failedBlockCount = 0;
+    const skippedRiskyIds: string[] = [];
+    for (const block of blocks) {
+      const source = block.markdown || "";
+      if (!source) {
+        continue;
+      }
+      if (isHighRiskForMarkdownWrite(source)) {
+        skippedRiskyIds.push(block.id);
+        continue;
+      }
+      const converted = convertSiyuanLinksAndRefsInMarkdown(source, modeResult.mode);
+      if (converted.convertedCount <= 0 || converted.markdown === source) {
+        continue;
+      }
+      try {
+        await updateBlockMarkdown(block.id, converted.markdown);
+        updatedBlockCount += 1;
+        convertedCount += converted.convertedCount;
+      } catch {
+        failedBlockCount += 1;
+      }
+    }
+
+    if (!updatedBlockCount) {
+      if (skippedRiskyIds.length) {
+        showMessage("检测到高风险块，未执行互转（可先移除复杂内联后重试）", 5000, "error");
+        return;
+      }
+      showMessage("当前文档未发现可互转的思源文档链接或引用", 4000, "info");
+      return;
+    }
+
+    const actionLabel =
+      modeResult.mode === "link-to-ref" ? "文档链接转换为引用" : "引用转换为文档链接";
+    if (failedBlockCount > 0) {
+      showMessage(
+        `已将 ${convertedCount} 处${actionLabel}，共更新 ${updatedBlockCount} 个块，失败 ${failedBlockCount} 个块`,
+        7000,
+        "error"
+      );
+      return;
+    }
+    showMessage(`已将 ${convertedCount} 处${actionLabel}，共更新 ${updatedBlockCount} 个块`, 5000, "info");
+  }
+
+  private async handleConvertImagesToWebp(docId: string) {
+    const report = await convertDocImagesToWebp(docId);
+    if (report.scannedImageCount <= 0) {
+      showMessage("当前文档未发现可转换的本地图片", 5000, "info");
+      return;
+    }
+    if (report.replacedLinkCount <= 0) {
+      if (report.failedImageCount > 0) {
+        showMessage(`未完成任何替换，失败 ${report.failedImageCount} 张图片`, 7000, "error");
+        return;
+      }
+      showMessage("未完成任何替换（可能已是 WebP 或压缩收益不足）", 5000, "info");
+      return;
+    }
+    const savedKb = (report.totalSavedBytes / 1024).toFixed(1);
+    const suffix =
+      report.failedImageCount > 0 ? `，失败 ${report.failedImageCount} 张` : "";
+    showMessage(
+      `图片转换完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，转换 ${report.convertedImageCount} 张，节省 ${savedKb} KB${suffix}`,
+      report.failedImageCount > 0 ? 7000 : 6000,
+      report.failedImageCount > 0 ? "error" : "info"
+    );
+  }
+
+  private async handleConvertImagesToPng(docId: string) {
+    const report = await convertDocImagesToPng(docId);
+    if (report.scannedImageCount <= 0) {
+      showMessage("当前文档未发现可转换的本地图片", 5000, "info");
+      return;
+    }
+    if (report.replacedLinkCount <= 0) {
+      if (report.failedImageCount > 0) {
+        showMessage(`未完成任何替换，失败 ${report.failedImageCount} 张图片`, 7000, "error");
+        return;
+      }
+      showMessage("未完成任何替换（已是 PNG 或仅包含 GIF）", 5000, "info");
+      return;
+    }
+    const suffix =
+      report.failedImageCount > 0 ? `，失败 ${report.failedImageCount} 张` : "";
+    showMessage(
+      `PNG 转换完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，转换 ${report.convertedImageCount} 张（已忽略 GIF）${suffix}`,
+      report.failedImageCount > 0 ? 7000 : 6000,
+      report.failedImageCount > 0 ? "error" : "info"
+    );
+  }
+
+  private async handleRemoveDocImages(docId: string) {
+    const report = await removeDocImageLinks(docId);
+    if (report.scannedImageLinkCount <= 0) {
+      showMessage("当前文档未发现可删除的图片链接", 5000, "info");
+      return;
+    }
+    if (report.removedLinkCount <= 0) {
+      showMessage(`未删除任何图片链接，失败 ${report.failedBlockCount} 个块`, 7000, "error");
+      return;
+    }
+    const suffix = report.failedBlockCount > 0 ? `，失败 ${report.failedBlockCount} 个块` : "";
+    showMessage(
+      `图片链接删除完成：删除 ${report.removedLinkCount} 处，更新 ${report.updatedBlockCount} 个块${suffix}`,
+      report.failedBlockCount > 0 ? 7000 : 6000,
+      report.failedBlockCount > 0 ? "error" : "info"
+    );
   }
 
   private async handleTrimTrailingWhitespace(docId: string) {

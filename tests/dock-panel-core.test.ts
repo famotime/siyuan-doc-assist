@@ -25,11 +25,32 @@ describe("dock-panel-core", () => {
           icon: "iconMove",
           group: "organize",
         },
+        {
+          key: "convert-images-to-webp",
+          commandText: "批量转换为WebP",
+          icon: "iconImage",
+          group: "image",
+        },
+        {
+          key: "convert-images-to-png",
+          commandText: "批量转换为PNG",
+          icon: "iconImage",
+          group: "image",
+        },
+        {
+          key: "remove-doc-images",
+          commandText: "删除本文档图片",
+          icon: "iconImage",
+          group: "image",
+        },
       ],
       true,
       {
         "export-current": false,
         "move-backlinks": true,
+        "convert-images-to-webp": true,
+        "convert-images-to-png": true,
+        "remove-doc-images": true,
       }
     );
 
@@ -55,6 +76,36 @@ describe("dock-panel-core", () => {
         menuRegistered: true,
         menuToggleDisabled: true,
         menuToggleDisabledReason: "该操作当前仅支持桌面端",
+      },
+      {
+        key: "convert-images-to-webp",
+        label: "批量转换为WebP",
+        icon: "iconImage",
+        group: "image",
+        groupLabel: "图片",
+        disabled: false,
+        menuRegistered: true,
+        menuToggleDisabled: false,
+      },
+      {
+        key: "convert-images-to-png",
+        label: "批量转换为PNG",
+        icon: "iconImage",
+        group: "image",
+        groupLabel: "图片",
+        disabled: false,
+        menuRegistered: true,
+        menuToggleDisabled: false,
+      },
+      {
+        key: "remove-doc-images",
+        label: "删除本文档图片",
+        icon: "iconImage",
+        group: "image",
+        groupLabel: "图片",
+        disabled: false,
+        menuRegistered: true,
+        menuToggleDisabled: false,
       },
     ]);
   });

@@ -13,7 +13,7 @@ export type DockDocActionSource<T extends string = string> = {
   desktopOnly?: boolean;
 };
 
-export type DockDocActionGroup = "export" | "insert" | "organize" | "edit";
+export type DockDocActionGroup = "export" | "insert" | "organize" | "edit" | "image";
 
 export type DockDocAction<T extends string = string> = {
   key: T;
@@ -37,6 +37,7 @@ const DOCK_ACTION_GROUP_LABELS: Record<DockDocActionGroup, string> = {
   export: "导出",
   insert: "插入",
   organize: "整理",
+  image: "图片",
   edit: "编辑",
 };
 

@@ -27,10 +27,14 @@ const ACTION_ICON_TEXT: Record<string, string> = {
   "insert-backlinks": "反",
   "insert-child-docs": "子",
   "insert-blank-before-headings": "空",
+  "convert-images-to-webp": "图",
+  "convert-images-to-png": "图",
+  "remove-doc-images": "删",
   "bold-selected-blocks": "粗",
   "highlight-selected-blocks": "亮",
   "remove-extra-blank-lines": "空",
   "trim-trailing-whitespace": "尾",
+  "toggle-links-refs": "转",
   "delete-from-current-to-end": "删",
 };
 

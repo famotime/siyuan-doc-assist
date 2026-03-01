@@ -53,6 +53,18 @@ vi.mock("@/services/mover", () => ({
   moveDocsAsChildren: vi.fn(),
 }));
 
+vi.mock("@/services/image-webp", () => ({
+  convertDocImagesToWebp: vi.fn(),
+}));
+
+vi.mock("@/services/image-png", () => ({
+  convertDocImagesToPng: vi.fn(),
+}));
+
+vi.mock("@/services/image-remove", () => ({
+  removeDocImageLinks: vi.fn(),
+}));
+
 vi.mock("@/ui/dialogs", () => ({
   openDedupeDialog: vi.fn(),
 }));
@@ -74,6 +86,9 @@ import {
   toChildDocMarkdown,
 } from "@/services/link-resolver";
 import { moveDocsAsChildren } from "@/services/mover";
+import { convertDocImagesToWebp } from "@/services/image-webp";
+import { convertDocImagesToPng } from "@/services/image-png";
+import { removeDocImageLinks } from "@/services/image-remove";
 import {
   appendBlock,
   deleteBlockById,
@@ -108,6 +123,9 @@ const updateBlockDomMock = vi.mocked(updateBlockDom);
 const updateBlockMarkdownMock = vi.mocked(updateBlockMarkdown);
 const resolveDocDirectChildBlockIdMock = vi.mocked(resolveDocDirectChildBlockId);
 const openDedupeDialogMock = vi.mocked(openDedupeDialog);
+const convertDocImagesToWebpMock = vi.mocked(convertDocImagesToWebp);
+const convertDocImagesToPngMock = vi.mocked(convertDocImagesToPng);
+const removeDocImageLinksMock = vi.mocked(removeDocImageLinks);
 
 function createRunner(setBusy?: (busy: boolean) => void) {
   return new ActionRunner({
@@ -259,6 +277,129 @@ describe("action-runner loading guard", () => {
 
     expect(appendBlockMock).toHaveBeenCalledWith("- [Child B](siyuan://blocks/child-b)", "doc-1");
     expect(showMessageMock).toHaveBeenCalledWith("已插入 1 个子文档链接，跳过已存在 1 个", 5000, "info");
+  });
+
+  test("converts doc links to refs in current document by default", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        markdown: "- [Doc A](siyuan://blocks/20260101101010-abcdef1)",
+        resolved: true,
+      } as any,
+      {
+        id: "b",
+        type: "p",
+        markdown: '- ((20260202121212-bcdefg2 "Doc B"))',
+        resolved: true,
+      } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("toggle-links-refs" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
+      "a",
+      '- ((20260101101010-abcdef1 "Doc A"))'
+    );
+    expect(showMessageMock).toHaveBeenCalledWith("已将 1 处文档链接转换为引用，共更新 1 个块", 5000, "info");
+  });
+
+  test("converts refs to doc links when current document only has refs", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        markdown: '- ((20260101101010-abcdef1 "Doc A"))',
+        resolved: true,
+      } as any,
+      {
+        id: "b",
+        type: "p",
+        markdown: "- ((20260202121212-bcdefg2))",
+        resolved: true,
+      } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("toggle-links-refs" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
+      1,
+      "a",
+      "- [Doc A](siyuan://blocks/20260101101010-abcdef1)"
+    );
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
+      2,
+      "b",
+      "- [20260202121212-bcdefg2](siyuan://blocks/20260202121212-bcdefg2)"
+    );
+    expect(showMessageMock).toHaveBeenCalledWith("已将 2 处引用转换为文档链接，共更新 2 个块", 5000, "info");
+  });
+
+  test("converts local images to webp for current doc", async () => {
+    convertDocImagesToWebpMock.mockResolvedValue({
+      scannedImageCount: 2,
+      convertedImageCount: 2,
+      skippedImageCount: 0,
+      failedImageCount: 0,
+      replacedLinkCount: 3,
+      updatedBlockCount: 2,
+      totalSavedBytes: 2048,
+    });
+    const runner = createRunner();
+
+    await runner.runAction("convert-images-to-webp" as any);
+
+    expect(convertDocImagesToWebpMock).toHaveBeenCalledWith("doc-1");
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "图片转换完成：替换 3 处，更新 2 个块，转换 2 张，节省 2.0 KB",
+      6000,
+      "info"
+    );
+  });
+
+  test("converts local images to png for current doc and ignores gif", async () => {
+    convertDocImagesToPngMock.mockResolvedValue({
+      scannedImageCount: 3,
+      convertedImageCount: 2,
+      skippedImageCount: 1,
+      failedImageCount: 0,
+      replacedLinkCount: 2,
+      updatedBlockCount: 1,
+      totalSavedBytes: 0,
+    });
+    const runner = createRunner();
+
+    await runner.runAction("convert-images-to-png" as any);
+
+    expect(convertDocImagesToPngMock).toHaveBeenCalledWith("doc-1");
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "PNG 转换完成：替换 2 处，更新 1 个块，转换 2 张（已忽略 GIF）",
+      6000,
+      "info"
+    );
+  });
+
+  test("removes image links in current doc", async () => {
+    removeDocImageLinksMock.mockResolvedValue({
+      scannedImageLinkCount: 3,
+      removedLinkCount: 3,
+      updatedBlockCount: 2,
+      failedBlockCount: 0,
+    });
+    const runner = createRunner();
+
+    await runner.runAction("remove-doc-images" as any);
+
+    expect(removeDocImageLinksMock).toHaveBeenCalledWith("doc-1");
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "图片链接删除完成：删除 3 处，更新 2 个块",
+      6000,
+      "info"
+    );
   });
 
   test("shows no-op when move-backlinks confirmation is canceled", async () => {
