@@ -153,8 +153,8 @@ describe("link-core", () => {
     expect(result).toEqual({
       markdown: [
         "- [Valid](siyuan://blocks/20260101101010-abcdef1)",
-        "- ~~==[Invalid](siyuan://blocks/20260202121212-bcdefg2)==~~",
-        "- ~~==((20260303131313-cdefgh3))==~~",
+        "- [==~~Invalid~~==](siyuan://blocks/20260202121212-bcdefg2)",
+        "- ==~~((20260303131313-cdefgh3))~~==",
         '- [[20260404141414-defghi4 "Alias D"]]',
       ].join("\n"),
       markedCount: 2,
@@ -163,8 +163,8 @@ describe("link-core", () => {
 
   test("does not double-wrap when invalid refs are already marked", () => {
     const markdown = [
-      "- ~~==[Invalid](siyuan://blocks/20260202121212-bcdefg2)==~~",
-      "- ~~==((20260303131313-cdefgh3))==~~",
+      "- [==~~Invalid~~==](siyuan://blocks/20260202121212-bcdefg2)",
+      "- ==~~((20260303131313-cdefgh3))~~==",
       "- [Valid](siyuan://blocks/20260101101010-abcdef1)",
     ].join("\n");
 

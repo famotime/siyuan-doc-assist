@@ -381,12 +381,12 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
       1,
       "a",
-      "- ~~==[Invalid Link](siyuan://blocks/20260101101010-abcdef1)==~~\n- [Valid Link](siyuan://blocks/20260202121212-bcdefg2)"
+      "- [==~~Invalid Link~~==](siyuan://blocks/20260101101010-abcdef1)\n- [Valid Link](siyuan://blocks/20260202121212-bcdefg2)"
     );
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
       2,
       "b",
-      "- ~~==((20260303131313-cdefgh3))==~~\n- ~~==[[20260404141414-defghi4]]==~~"
+      "- ==~~((20260303131313-cdefgh3))~~==\n- ==~~[[20260404141414-defghi4]]~~=="
     );
     expect(showMessageMock).toHaveBeenCalledWith(
       "已标示 3 处无效链接/引用，共更新 2 个块",

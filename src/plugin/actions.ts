@@ -101,7 +101,7 @@ export const ACTIONS: ActionConfig[] = [
     key: "mark-invalid-links-refs",
     commandText: "标示无效链接/引用",
     menuText: "标示无效链接/引用",
-    group: "insert",
+    group: "organize",
     icon: "iconLink",
   },
   {

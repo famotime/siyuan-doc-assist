@@ -34,6 +34,11 @@ export type InvalidLinkRefMarkResult = {
   markedCount: number;
 };
 
+const INVALID_MARK_PREFIX = "==~~";
+const INVALID_MARK_SUFFIX = "~~==";
+const INVALID_MARK_LEGACY_PREFIX = "~~==";
+const INVALID_MARK_LEGACY_SUFFIX = "==~~";
+
 function countMatches(markdown: string, pattern: RegExp): number {
   const source = new RegExp(
     pattern.source,
@@ -56,10 +61,90 @@ function isAlreadyMarked(
 ): boolean {
   const before = fullSource.slice(Math.max(0, start - 4), start);
   const after = fullSource.slice(end, end + 4);
-  if (before === "~~==" && after === "==~~") {
+  if (
+    (before === INVALID_MARK_PREFIX && after === INVALID_MARK_SUFFIX) ||
+    (before === INVALID_MARK_LEGACY_PREFIX && after === INVALID_MARK_LEGACY_SUFFIX)
+  ) {
     return true;
   }
-  return before === "==~~" && after === "~~==";
+  return (
+    (before === INVALID_MARK_SUFFIX && after === INVALID_MARK_PREFIX) ||
+    (before === INVALID_MARK_LEGACY_SUFFIX && after === INVALID_MARK_LEGACY_PREFIX)
+  );
+}
+
+function isMarkedInlineText(value: string): boolean {
+  const trimmed = (value || "").trim();
+  if (!trimmed) {
+    return false;
+  }
+  return (
+    (trimmed.startsWith(INVALID_MARK_PREFIX) && trimmed.endsWith(INVALID_MARK_SUFFIX)) ||
+    (trimmed.startsWith(INVALID_MARK_LEGACY_PREFIX) && trimmed.endsWith(INVALID_MARK_LEGACY_SUFFIX))
+  );
+}
+
+function markInlineText(value: string): string {
+  const trimmed = (value || "").trim();
+  if (!trimmed) {
+    return `${INVALID_MARK_PREFIX}${INVALID_MARK_SUFFIX}`;
+  }
+  if (isMarkedInlineText(trimmed)) {
+    if (trimmed.startsWith(INVALID_MARK_PREFIX) && trimmed.endsWith(INVALID_MARK_SUFFIX)) {
+      return trimmed;
+    }
+    const inner = trimmed.slice(
+      INVALID_MARK_LEGACY_PREFIX.length,
+      trimmed.length - INVALID_MARK_LEGACY_SUFFIX.length
+    );
+    return `${INVALID_MARK_PREFIX}${inner}${INVALID_MARK_SUFFIX}`;
+  }
+  return `${INVALID_MARK_PREFIX}${trimmed}${INVALID_MARK_SUFFIX}`;
+}
+
+function markInvalidLinks(
+  markdown: string,
+  invalidIds: ReadonlySet<string>
+): InvalidLinkRefMarkResult {
+  const sourcePattern = new RegExp(
+    SIYUAN_DOC_LINK_PATTERN.source,
+    SIYUAN_DOC_LINK_PATTERN.flags.includes("g")
+      ? SIYUAN_DOC_LINK_PATTERN.flags
+      : `${SIYUAN_DOC_LINK_PATTERN.flags}g`
+  );
+  let markedCount = 0;
+  const next = markdown.replace(sourcePattern, (...args: unknown[]) => {
+    const matched = String(args[0] || "");
+    const label = String(args[1] || "");
+    const id = String(args[2] || "").trim();
+    const offset = Number(args[args.length - 2] || 0);
+    const fullSource = String(args[args.length - 1] || "");
+    if (!id || !invalidIds.has(id)) {
+      return matched;
+    }
+    const end = offset + matched.length;
+    if (isAlreadyMarked(fullSource, offset, end)) {
+      return matched;
+    }
+    const startBracketIndex = matched.indexOf("[");
+    const labelCloseIndex = matched.indexOf("](", startBracketIndex + 1);
+    if (startBracketIndex < 0 || labelCloseIndex < 0) {
+      markedCount += 1;
+      return markInlineText(matched);
+    }
+    const currentLabel = matched.slice(startBracketIndex + 1, labelCloseIndex);
+    if (isMarkedInlineText(currentLabel)) {
+      return matched;
+    }
+    const displayLabel = (label || "").trim() || id;
+    const nextLabel = markInlineText(displayLabel);
+    markedCount += 1;
+    return `${matched.slice(0, startBracketIndex + 1)}${nextLabel}${matched.slice(labelCloseIndex)}`;
+  });
+  return {
+    markdown: next,
+    markedCount,
+  };
 }
 
 function markInvalidWithPattern(
@@ -86,7 +171,7 @@ function markInvalidWithPattern(
       return matched;
     }
     markedCount += 1;
-    return `~~==${matched}==~~`;
+    return markInlineText(matched);
   });
   return {
     markdown: next,
@@ -217,7 +302,7 @@ export function markInvalidSiyuanLinkRefsInMarkdown(
     };
   }
 
-  const linkMarked = markInvalidWithPattern(source, SIYUAN_DOC_LINK_PATTERN, invalidIds, 2);
+  const linkMarked = markInvalidLinks(source, invalidIds);
   const blockRefMarked = markInvalidWithPattern(
     linkMarked.markdown,
     BLOCK_REF_PATTERN,

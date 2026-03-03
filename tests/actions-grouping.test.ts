@@ -8,7 +8,7 @@ describe("actions grouping", () => {
     expect(groups.get("insert-backlinks")).toBe("insert");
     expect(groups.get("insert-child-docs")).toBe("insert");
     expect(groups.get("insert-blank-before-headings")).toBe("insert");
-    expect(groups.get("mark-invalid-links-refs")).toBe("insert");
+    expect(groups.get("mark-invalid-links-refs")).toBe("organize");
     expect(groups.get("convert-images-to-webp")).toBe("image");
     expect(groups.get("convert-images-to-png")).toBe("image");
     expect(groups.get("remove-doc-images")).toBe("image");
