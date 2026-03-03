@@ -13,6 +13,12 @@ import {
 import type { KeyInfoListScrollLock } from "@/core/key-info-scroll-lock-core";
 import { DockDocAction, DockTabKey, DOCK_TABS } from "@/core/dock-panel-core";
 import { renderKeyInfoDockDocActions } from "@/ui/key-info-dock-doc-actions";
+import {
+  deriveKeyInfoDockRenderFlags,
+  isKeyInfoDockFilterKeyActive,
+  isKeyInfoDockTabActive,
+  type KeyInfoDockStateSnapshot,
+} from "@/ui/key-info-dock-state";
 
 export type KeyInfoDockState = {
   docTitle: string;
@@ -405,18 +411,9 @@ export function createKeyInfoDock(
     : undefined;
 
   const updateFilterButtons = () => {
-    const active = new Set(state.filter);
-    const isAll = active.size >= FILTER_TYPES.length;
     filterButtons.forEach((button, key) => {
-      if (key === "all") {
-        if (isAll) {
-          button.classList.add("is-active");
-        } else {
-          button.classList.remove("is-active");
-        }
-        return;
-      }
-      if (active.has(key)) {
+      const isActive = isKeyInfoDockFilterKeyActive(state.filter, key, FILTER_TYPES.length);
+      if (isActive) {
         button.classList.add("is-active");
       } else {
         button.classList.remove("is-active");
@@ -426,7 +423,7 @@ export function createKeyInfoDock(
 
   const updateTabButtons = () => {
     tabButtons.forEach((button, key) => {
-      if (key === state.activeTab) {
+      if (isKeyInfoDockTabActive(state.activeTab, key)) {
         button.classList.add("is-active");
       } else {
         button.classList.remove("is-active");
@@ -639,41 +636,34 @@ export function createKeyInfoDock(
   };
 
   const setState = (next: Partial<KeyInfoDockState>) => {
-    const prevItems = state.items;
-    const prevFilter = state.filter;
-    const prevLoading = state.loading;
-    const prevEmptyText = state.emptyText;
-    const prevTab = state.activeTab;
-    const prevDocMenuRegisterAll = state.docMenuRegisterAll;
-    const prevDocActions = state.docActions;
-    const prevFavoriteActionKeys = state.favoriteActionKeys;
-    const prevScrollContextKey = state.scrollContextKey;
+    const prevState: KeyInfoDockStateSnapshot = {
+      items: state.items,
+      filter: state.filter,
+      loading: state.loading,
+      emptyText: state.emptyText,
+      activeTab: state.activeTab,
+      docMenuRegisterAll: state.docMenuRegisterAll,
+      docActions: state.docActions,
+      favoriteActionKeys: state.favoriteActionKeys,
+      scrollContextKey: state.scrollContextKey,
+    };
     Object.assign(state, next);
+    const renderFlags = deriveKeyInfoDockRenderFlags(prevState, state);
     scrollState = updateKeyInfoListScrollContext(scrollState, state.scrollContextKey);
-    if (prevScrollContextKey !== state.scrollContextKey) {
+    if (renderFlags.scrollContextChanged) {
       scrollLock = null;
     }
     renderHeader();
     updateFilterButtons();
     updateTabButtons();
     renderTabPanels();
-    if (prevDocMenuRegisterAll !== state.docMenuRegisterAll) {
+    if (renderFlags.renderDocMenuToggle) {
       renderDocMenuToggle();
     }
-    if (
-      prevDocActions !== state.docActions ||
-      prevFavoriteActionKeys !== state.favoriteActionKeys
-    ) {
+    if (renderFlags.renderDocActions) {
       renderDocActions();
     }
-    const shouldRenderList =
-      prevItems !== state.items ||
-      prevFilter !== state.filter ||
-      prevLoading !== state.loading ||
-      prevEmptyText !== state.emptyText ||
-      prevTab !== state.activeTab ||
-      prevScrollContextKey !== state.scrollContextKey;
-    if (shouldRenderList) {
+    if (renderFlags.renderList) {
       renderList();
     }
   };

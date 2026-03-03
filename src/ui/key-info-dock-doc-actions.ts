@@ -7,6 +7,7 @@ import {
   buildDocActionGroupMap,
 } from "@/core/dock-doc-action-order-core";
 import { DockDocAction } from "@/core/dock-panel-core";
+import { getActionDockIconTextByKey } from "@/plugin/actions";
 
 type RenderDocActionsOptions = {
   container: HTMLDivElement;
@@ -26,31 +27,8 @@ const collapsedDocActionGroupsByContainer = new WeakMap<
   Set<string>
 >();
 
-const ACTION_ICON_TEXT: Record<string, string> = {
-  "export-current": "导",
-  "export-backlinks-zip": "反",
-  "export-forward-zip": "正",
-  "move-backlinks": "移",
-  "move-forward-links": "正",
-  dedupe: "重",
-  "insert-backlinks": "反",
-  "insert-child-docs": "子",
-  "insert-blank-before-headings": "空",
-  "mark-invalid-links-refs": "标",
-  "convert-images-to-webp": "图",
-  "convert-images-to-png": "图",
-  "remove-doc-images": "删",
-  "bold-selected-blocks": "粗",
-  "highlight-selected-blocks": "亮",
-  "remove-extra-blank-lines": "空",
-  "clean-ai-output": "净",
-  "trim-trailing-whitespace": "尾",
-  "toggle-links-refs": "转",
-  "delete-from-current-to-end": "删",
-};
-
 function resolveActionIconText(action: DockDocAction): string {
-  const preset = ACTION_ICON_TEXT[action.key];
+  const preset = action.dockIconText || getActionDockIconTextByKey(action.key);
   if (preset) {
     return preset;
   }

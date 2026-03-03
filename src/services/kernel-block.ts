@@ -1,6 +1,10 @@
 import { requestApi } from "@/services/request";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { inClause, sqlPaged } from "@/services/kernel-shared";
+import {
+  parseKernelTextRows,
+  requestBatchRowsWithSingleFallback,
+} from "@/services/kernel-adapter-core";
 
 type BlockKramdownRes = {
   id: string;
@@ -38,166 +42,47 @@ const styleLogger = createDocAssistantLogger("Style");
 const blankLinesLogger = createDocAssistantLogger("BlankLines");
 
 function toBlockKramdownRows(payload: unknown): BlockKramdownRes[] {
-  const rows: BlockKramdownRes[] = [];
-  const pushRow = (candidate: unknown) => {
-    if (!candidate || typeof candidate !== "object") {
-      return;
-    }
-    const record = candidate as { id?: unknown; kramdown?: unknown };
-    const id = typeof record.id === "string" ? record.id.trim() : "";
-    if (!id) {
-      return;
-    }
-    const kramdown = typeof record.kramdown === "string" ? record.kramdown : String(record.kramdown || "");
-    rows.push({ id, kramdown });
-  };
-  const pushFromArray = (value: unknown) => {
-    if (!Array.isArray(value)) {
-      return;
-    }
-    for (const item of value) {
-      pushRow(item);
-    }
-  };
-
-  pushFromArray(payload);
-  if (payload && typeof payload === "object") {
-    const source = payload as Record<string, unknown>;
-    pushFromArray(source.kramdowns);
-    pushFromArray(source.items);
-    pushFromArray(source.blocks);
-    pushFromArray(source.rows);
-    pushFromArray(source.data);
-    pushRow(source);
-    // Handle dict format: { [blockId]: kramdownString }
-    // as returned by /api/block/getBlockKramdowns in some SiYuan versions.
-    if (!Array.isArray(payload)) {
-      const siyuanIdPattern = /^\d{14}-[a-z0-9]{7}$/;
-      for (const [key, value] of Object.entries(source)) {
-        if (siyuanIdPattern.test(key) && typeof value === "string") {
-          rows.push({ id: key, kramdown: value });
-        }
-      }
-    }
-  }
-
-  const deduped = new Map<string, BlockKramdownRes>();
-  for (const row of rows) {
-    if (!deduped.has(row.id)) {
-      deduped.set(row.id, row);
-    }
-  }
-  return [...deduped.values()];
+  return parseKernelTextRows(payload, "kramdown").map((row) => ({
+    id: row.id,
+    kramdown: row.text,
+  }));
 }
 
 function toBlockDomRows(payload: unknown): BlockDomRes[] {
-  const rows: BlockDomRes[] = [];
-  const pushRow = (candidate: unknown) => {
-    if (!candidate || typeof candidate !== "object") {
-      return;
-    }
-    const record = candidate as { id?: unknown; dom?: unknown };
-    const id = typeof record.id === "string" ? record.id.trim() : "";
-    if (!id) {
-      return;
-    }
-    const dom = typeof record.dom === "string" ? record.dom : String(record.dom || "");
-    rows.push({ id, dom });
-  };
-  const pushFromArray = (value: unknown) => {
-    if (!Array.isArray(value)) {
-      return;
-    }
-    for (const item of value) {
-      pushRow(item);
-    }
-  };
-
-  pushFromArray(payload);
-  if (payload && typeof payload === "object") {
-    const source = payload as Record<string, unknown>;
-    pushFromArray(source.doms);
-    pushFromArray(source.items);
-    pushFromArray(source.blocks);
-    pushFromArray(source.rows);
-    pushFromArray(source.data);
-    pushRow(source);
-    if (!Array.isArray(payload)) {
-      const siyuanIdPattern = /^\d{14}-[a-z0-9]{7}$/;
-      for (const [key, value] of Object.entries(source)) {
-        if (siyuanIdPattern.test(key) && typeof value === "string") {
-          rows.push({ id: key, dom: value });
-        }
-      }
-    }
-  }
-
-  const deduped = new Map<string, BlockDomRes>();
-  for (const row of rows) {
-    if (!deduped.has(row.id)) {
-      deduped.set(row.id, row);
-    }
-  }
-  return [...deduped.values()];
+  return parseKernelTextRows(payload, "dom").map((row) => ({
+    id: row.id,
+    dom: row.text,
+  }));
 }
 
 export async function getBlockKramdowns(
   ids: string[]
 ): Promise<BlockKramdownRes[]> {
-  const normalizedIds = [...new Set((ids || []).map((id) => (id || "").trim()).filter(Boolean))];
-  if (!normalizedIds.length) {
-    return [];
-  }
-  const chunks: string[][] = [];
-  const chunkSize = 50;
-  for (let i = 0; i < normalizedIds.length; i += chunkSize) {
-    chunks.push(normalizedIds.slice(i, i + chunkSize));
-  }
-  const rowMap = new Map<string, BlockKramdownRes>();
-  const fallbackIds = new Set<string>();
-  for (const chunk of chunks) {
-    try {
-      const res = await requestApi<any>("/api/block/getBlockKramdowns", {
+  return requestBatchRowsWithSingleFallback({
+    ids,
+    chunkSize: 50,
+    requestBatch: (chunk) =>
+      requestApi<any>("/api/block/getBlockKramdowns", {
         ids: chunk,
-      });
-      const rows = toBlockKramdownRows(res);
-      for (const row of rows) {
-        if (chunk.includes(row.id) && !rowMap.has(row.id)) {
-          rowMap.set(row.id, row);
-        }
-      }
-    } catch (error: unknown) {
+      }),
+    parseBatchRows: toBlockKramdownRows,
+    requestSingle: getBlockKramdown,
+    onBatchError: (error, chunk) => {
       const message = error instanceof Error ? error.message : String(error);
       styleLogger.debug("getBlockKramdowns failed, fallback to single", {
         chunkSize: chunk.length,
         sample: chunk.slice(0, 8),
         message,
       });
-      chunk.forEach((id) => fallbackIds.add(id));
-    }
-  }
-
-  const missingIds = normalizedIds.filter((id) => fallbackIds.has(id) && !rowMap.has(id));
-  if (missingIds.length) {
-    for (const id of missingIds) {
-      try {
-        const row = await getBlockKramdown(id);
-        if (row && !rowMap.has(row.id)) {
-          rowMap.set(row.id, row);
-        }
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        styleLogger.debug("getBlockKramdown fallback failed", {
-          id,
-          message,
-        });
-      }
-    }
-  }
-
-  return normalizedIds
-    .map((id) => rowMap.get(id))
-    .filter((row): row is BlockKramdownRes => !!row);
+    },
+    onSingleError: (error, id) => {
+      const message = error instanceof Error ? error.message : String(error);
+      styleLogger.debug("getBlockKramdown fallback failed", {
+        id,
+        message,
+      });
+    },
+  });
 }
 
 export async function getBlockKramdown(
@@ -225,56 +110,31 @@ export async function getBlockKramdown(
 }
 
 export async function getBlockDOMs(ids: string[]): Promise<BlockDomRes[]> {
-  const normalizedIds = [...new Set((ids || []).map((id) => (id || "").trim()).filter(Boolean))];
-  if (!normalizedIds.length) {
-    return [];
-  }
-  const chunks: string[][] = [];
-  const chunkSize = 50;
-  for (let i = 0; i < normalizedIds.length; i += chunkSize) {
-    chunks.push(normalizedIds.slice(i, i + chunkSize));
-  }
-  const rowMap = new Map<string, BlockDomRes>();
-  const fallbackIds = new Set<string>();
-  for (const chunk of chunks) {
-    try {
-      const res = await requestApi<any>("/api/block/getBlockDOMs", {
+  return requestBatchRowsWithSingleFallback({
+    ids,
+    chunkSize: 50,
+    requestBatch: (chunk) =>
+      requestApi<any>("/api/block/getBlockDOMs", {
         ids: chunk,
-      });
-      const rows = toBlockDomRows(res);
-      for (const row of rows) {
-        if (chunk.includes(row.id) && !rowMap.has(row.id)) {
-          rowMap.set(row.id, row);
-        }
-      }
-    } catch (error: unknown) {
+      }),
+    parseBatchRows: toBlockDomRows,
+    requestSingle: getBlockDOM,
+    onBatchError: (error, chunk) => {
       const message = error instanceof Error ? error.message : String(error);
       styleLogger.debug("getBlockDOMs failed, fallback to single", {
         chunkSize: chunk.length,
         sample: chunk.slice(0, 8),
         message,
       });
-      chunk.forEach((id) => fallbackIds.add(id));
-    }
-  }
-  const missingIds = normalizedIds.filter((id) => fallbackIds.has(id) && !rowMap.has(id));
-  if (missingIds.length) {
-    for (const id of missingIds) {
-      try {
-        const row = await getBlockDOM(id);
-        if (row && !rowMap.has(row.id)) {
-          rowMap.set(row.id, row);
-        }
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        styleLogger.debug("getBlockDOM fallback failed", {
-          id,
-          message,
-        });
-      }
-    }
-  }
-  return normalizedIds.map((id) => rowMap.get(id)).filter((row): row is BlockDomRes => !!row);
+    },
+    onSingleError: (error, id) => {
+      const message = error instanceof Error ? error.message : String(error);
+      styleLogger.debug("getBlockDOM fallback failed", {
+        id,
+        message,
+      });
+    },
+  });
 }
 
 export async function getBlockDOM(id: string): Promise<BlockDomRes | null> {

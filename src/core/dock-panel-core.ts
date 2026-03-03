@@ -9,6 +9,7 @@ export type DockDocActionSource<T extends string = string> = {
   key: T;
   commandText: string;
   icon: string;
+  dockIconText?: string;
   group: DockDocActionGroup;
   desktopOnly?: boolean;
 };
@@ -19,6 +20,7 @@ export type DockDocAction<T extends string = string> = {
   key: T;
   label: string;
   icon: string;
+  dockIconText?: string;
   group: DockDocActionGroup;
   groupLabel: string;
   disabled: boolean;
@@ -53,6 +55,7 @@ export function buildDockDocActions<T extends string>(
       key: action.key,
       label: action.commandText,
       icon: action.icon,
+      ...(action.dockIconText ? { dockIconText: action.dockIconText } : {}),
       group: action.group,
       groupLabel: DOCK_ACTION_GROUP_LABELS[action.group],
       disabled,

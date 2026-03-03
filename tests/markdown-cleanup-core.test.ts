@@ -193,4 +193,26 @@ describe("markdown-cleanup-core", () => {
       removedCount: 0,
     });
   });
+
+  test("applies ai cleanup rules in stable order and remains idempotent", () => {
+    const input = "正文^^ <sup>1</sup> [A](https://example.com/a) https://example.com/b";
+
+    const first = cleanupAiOutputArtifactsInMarkdown(input);
+    expect(first).toEqual({
+      markdown: "正文",
+      removedSupCount: 1,
+      removedCaretCount: 1,
+      removedInternetLinkCount: 2,
+      removedCount: 4,
+    });
+
+    const second = cleanupAiOutputArtifactsInMarkdown(first.markdown);
+    expect(second).toEqual({
+      markdown: "正文",
+      removedSupCount: 0,
+      removedCaretCount: 0,
+      removedInternetLinkCount: 0,
+      removedCount: 0,
+    });
+  });
 });

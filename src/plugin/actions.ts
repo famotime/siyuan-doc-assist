@@ -29,9 +29,35 @@ export type ActionConfig = {
   group: DockDocActionGroup;
   desktopOnly?: boolean;
   icon: string;
+  dockIconText: string;
 };
 
-export const ACTIONS: ActionConfig[] = [
+type BaseActionConfig = Omit<ActionConfig, "dockIconText">;
+
+const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
+  "export-current": "导",
+  "export-backlinks-zip": "反",
+  "export-forward-zip": "正",
+  "move-backlinks": "移",
+  "move-forward-links": "正",
+  dedupe: "重",
+  "insert-backlinks": "反",
+  "insert-child-docs": "子",
+  "insert-blank-before-headings": "空",
+  "mark-invalid-links-refs": "标",
+  "convert-images-to-webp": "图",
+  "convert-images-to-png": "图",
+  "remove-doc-images": "删",
+  "bold-selected-blocks": "粗",
+  "highlight-selected-blocks": "亮",
+  "remove-extra-blank-lines": "空",
+  "clean-ai-output": "净",
+  "trim-trailing-whitespace": "尾",
+  "toggle-links-refs": "转",
+  "delete-from-current-to-end": "删",
+};
+
+const BASE_ACTIONS: BaseActionConfig[] = [
   {
     key: "export-current",
     commandText: "仅导出当前文档",
@@ -177,8 +203,29 @@ export const ACTIONS: ActionConfig[] = [
   },
 ];
 
+export const ACTIONS: ActionConfig[] = BASE_ACTIONS.map((action) => ({
+  ...action,
+  dockIconText: ACTION_DOCK_ICON_TEXT[action.key],
+}));
+
+export const ACTION_CONFIG_BY_KEY = new Map<ActionKey, ActionConfig>(
+  ACTIONS.map((action) => [action.key, action])
+);
+
 const ACTION_KEY_SET = new Set<ActionKey>(ACTIONS.map((action) => action.key));
 
 export function isActionKey(value: string): value is ActionKey {
   return ACTION_KEY_SET.has(value as ActionKey);
+}
+
+export function getActionConfigByKey(key: ActionKey): ActionConfig {
+  const action = ACTION_CONFIG_BY_KEY.get(key);
+  if (!action) {
+    throw new Error(`Unknown action key: ${key}`);
+  }
+  return action;
+}
+
+export function getActionDockIconTextByKey(key: string): string | undefined {
+  return ACTION_CONFIG_BY_KEY.get(key as ActionKey)?.dockIconText;
 }

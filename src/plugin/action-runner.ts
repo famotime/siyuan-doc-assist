@@ -43,6 +43,7 @@ import { applyBlockStyle, BlockStyle } from "@/core/markdown-style-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { getSelectedBlockIds, resolveCurrentBlockId } from "@/plugin/action-runner-context";
+import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
 import { convertDocImagesToWebp } from "@/services/image-webp";
 import { convertDocImagesToPng } from "@/services/image-png";
 import { removeDocImageLinks } from "@/services/image-remove";
@@ -591,31 +592,22 @@ export class ActionRunner {
       return;
     }
 
-    let markedCount = 0;
-    let updatedBlockCount = 0;
-    let failedBlockCount = 0;
-    const skippedRiskyIds: string[] = [];
-    for (const block of blocks) {
-      const source = block.markdown || "";
-      if (!source) {
-        continue;
-      }
-      if (isHighRiskForMarkdownWrite(source)) {
-        skippedRiskyIds.push(block.id);
-        continue;
-      }
-      const marked = markInvalidSiyuanLinkRefsInMarkdown(source, invalidIds);
-      if (marked.markedCount <= 0 || marked.markdown === source) {
-        continue;
-      }
-      try {
-        await updateBlockMarkdown(block.id, marked.markdown);
-        updatedBlockCount += 1;
-        markedCount += marked.markedCount;
-      } catch {
-        failedBlockCount += 1;
-      }
-    }
+    const report = await applyMarkdownTransformToBlocks({
+      blocks,
+      isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
+      updateBlockMarkdown,
+      transform: (source) => {
+        const marked = markInvalidSiyuanLinkRefsInMarkdown(source, invalidIds);
+        return {
+          markdown: marked.markdown,
+          changedCount: marked.markedCount,
+        };
+      },
+    });
+    const markedCount = report.changedCount;
+    const updatedBlockCount = report.updatedBlockCount;
+    const failedBlockCount = report.failedBlockCount;
+    const skippedRiskyIds = report.skippedRiskyIds;
 
     if (!updatedBlockCount) {
       if (skippedRiskyIds.length) {
@@ -647,32 +639,26 @@ export class ActionRunner {
     let removedSupCount = 0;
     let removedCaretCount = 0;
     let removedInternetLinkCount = 0;
-    let updatedBlockCount = 0;
-    let failedBlockCount = 0;
-    const skippedRiskyIds: string[] = [];
-    for (const block of blocks) {
-      const source = block.markdown || "";
-      if (!source) {
-        continue;
-      }
-      if (isHighRiskForMarkdownWrite(source)) {
-        skippedRiskyIds.push(block.id);
-        continue;
-      }
-      const cleaned = cleanupAiOutputArtifactsInMarkdown(source);
-      if (cleaned.removedCount <= 0 || cleaned.markdown === source) {
-        continue;
-      }
-      try {
-        await updateBlockMarkdown(block.id, cleaned.markdown);
-        updatedBlockCount += 1;
+    const report = await applyMarkdownTransformToBlocks({
+      blocks,
+      isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
+      updateBlockMarkdown,
+      transform: (source) => {
+        const cleaned = cleanupAiOutputArtifactsInMarkdown(source);
+        return {
+          ...cleaned,
+          changedCount: cleaned.removedCount,
+        };
+      },
+      onUpdated: (cleaned) => {
         removedSupCount += cleaned.removedSupCount;
         removedCaretCount += cleaned.removedCaretCount;
         removedInternetLinkCount += cleaned.removedInternetLinkCount;
-      } catch {
-        failedBlockCount += 1;
-      }
-    }
+      },
+    });
+    const updatedBlockCount = report.updatedBlockCount;
+    const failedBlockCount = report.failedBlockCount;
+    const skippedRiskyIds = report.skippedRiskyIds;
 
     if (!updatedBlockCount) {
       if (skippedRiskyIds.length) {
@@ -705,31 +691,22 @@ export class ActionRunner {
       return;
     }
 
-    let convertedCount = 0;
-    let updatedBlockCount = 0;
-    let failedBlockCount = 0;
-    const skippedRiskyIds: string[] = [];
-    for (const block of blocks) {
-      const source = block.markdown || "";
-      if (!source) {
-        continue;
-      }
-      if (isHighRiskForMarkdownWrite(source)) {
-        skippedRiskyIds.push(block.id);
-        continue;
-      }
-      const converted = convertSiyuanLinksAndRefsInMarkdown(source, modeResult.mode);
-      if (converted.convertedCount <= 0 || converted.markdown === source) {
-        continue;
-      }
-      try {
-        await updateBlockMarkdown(block.id, converted.markdown);
-        updatedBlockCount += 1;
-        convertedCount += converted.convertedCount;
-      } catch {
-        failedBlockCount += 1;
-      }
-    }
+    const report = await applyMarkdownTransformToBlocks({
+      blocks,
+      isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
+      updateBlockMarkdown,
+      transform: (source) => {
+        const converted = convertSiyuanLinksAndRefsInMarkdown(source, modeResult.mode);
+        return {
+          markdown: converted.markdown,
+          changedCount: converted.convertedCount,
+        };
+      },
+    });
+    const convertedCount = report.changedCount;
+    const updatedBlockCount = report.updatedBlockCount;
+    const failedBlockCount = report.failedBlockCount;
+    const skippedRiskyIds = report.skippedRiskyIds;
 
     if (!updatedBlockCount) {
       if (skippedRiskyIds.length) {

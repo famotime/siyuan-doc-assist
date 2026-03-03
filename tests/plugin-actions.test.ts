@@ -22,4 +22,12 @@ describe("plugin actions", () => {
     expect(isActionKey("delete-from-current-to-end")).toBe(true);
     expect(isActionKey("invalid-key")).toBe(false);
   });
+
+  test("defines consistent command/menu labels and dock icon text", () => {
+    for (const action of ACTIONS) {
+      expect(action.commandText.trim().length).toBeGreaterThan(0);
+      expect(action.menuText).toBe(action.commandText);
+      expect(action.dockIconText?.trim().length).toBe(1);
+    }
+  });
 });

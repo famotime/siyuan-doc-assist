@@ -178,4 +178,33 @@ describe("link-core", () => {
       markedCount: 0,
     });
   });
+
+  test("marks mixed invalid link/ref targets deterministically and stays idempotent", () => {
+    const input = [
+      "- [A](siyuan://blocks/20260101101010-abcdef1)",
+      "- ((20260202121212-bcdefg2))",
+      "- [[20260303131313-cdefgh3]]",
+    ].join("\n");
+    const invalidIds = new Set([
+      "20260101101010-abcdef1",
+      "20260202121212-bcdefg2",
+      "20260303131313-cdefgh3",
+    ]);
+
+    const first = markInvalidSiyuanLinkRefsInMarkdown(input, invalidIds);
+    expect(first).toEqual({
+      markdown: [
+        "- [==~~A~~==](siyuan://blocks/20260101101010-abcdef1)",
+        "- ==~~((20260202121212-bcdefg2))~~==",
+        "- ==~~[[20260303131313-cdefgh3]]~~==",
+      ].join("\n"),
+      markedCount: 3,
+    });
+
+    const second = markInvalidSiyuanLinkRefsInMarkdown(first.markdown, invalidIds);
+    expect(second).toEqual({
+      markdown: first.markdown,
+      markedCount: 0,
+    });
+  });
 });

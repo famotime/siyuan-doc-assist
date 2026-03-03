@@ -34,6 +34,11 @@ export type InvalidLinkRefMarkResult = {
   markedCount: number;
 };
 
+type InvalidMarkRule = (
+  markdown: string,
+  invalidIds: ReadonlySet<string>
+) => InvalidLinkRefMarkResult;
+
 const INVALID_MARK_PREFIX = "==~~";
 const INVALID_MARK_SUFFIX = "~~==";
 const INVALID_MARK_LEGACY_PREFIX = "~~==";
@@ -302,23 +307,28 @@ export function markInvalidSiyuanLinkRefsInMarkdown(
     };
   }
 
-  const linkMarked = markInvalidLinks(source, invalidIds);
-  const blockRefMarked = markInvalidWithPattern(
-    linkMarked.markdown,
-    BLOCK_REF_PATTERN,
-    invalidIds,
-    1
-  );
-  const wikiRefMarked = markInvalidWithPattern(
-    blockRefMarked.markdown,
-    WIKI_REF_PATTERN,
-    invalidIds,
-    1
+  const rules: InvalidMarkRule[] = [
+    markInvalidLinks,
+    (text, ids) => markInvalidWithPattern(text, BLOCK_REF_PATTERN, ids, 1),
+    (text, ids) => markInvalidWithPattern(text, WIKI_REF_PATTERN, ids, 1),
+  ];
+  const merged = rules.reduce<InvalidLinkRefMarkResult>(
+    (current, rule) => {
+      const next = rule(current.markdown, invalidIds);
+      return {
+        markdown: next.markdown,
+        markedCount: current.markedCount + next.markedCount,
+      };
+    },
+    {
+      markdown: source,
+      markedCount: 0,
+    }
   );
 
   return {
-    markdown: wikiRefMarked.markdown,
-    markedCount: linkMarked.markedCount + blockRefMarked.markedCount + wikiRefMarked.markedCount,
+    markdown: merged.markdown,
+    markedCount: merged.markedCount,
   };
 }
 

@@ -25,6 +25,15 @@ export type AiOutputCleanupResult = {
   removedCount: number;
 };
 
+type AiOutputCleanupMetrics = Omit<AiOutputCleanupResult, "markdown" | "removedCount">;
+
+type AiOutputLineRuleResult = {
+  line: string;
+  metrics: AiOutputCleanupMetrics;
+};
+
+type AiOutputLineRule = (line: string) => AiOutputLineRuleResult;
+
 export type ParagraphBlockMeta = {
   id: string;
   type: string;
@@ -254,6 +263,29 @@ function decodeHtmlWhitespaceLength(value: string): number {
   return entityCount + plain.length;
 }
 
+function createEmptyAiOutputCleanupMetrics(): AiOutputCleanupMetrics {
+  return {
+    removedSupCount: 0,
+    removedCaretCount: 0,
+    removedInternetLinkCount: 0,
+  };
+}
+
+function sumAiOutputCleanupMetrics(metrics: AiOutputCleanupMetrics): number {
+  return metrics.removedSupCount + metrics.removedCaretCount + metrics.removedInternetLinkCount;
+}
+
+function mergeAiOutputCleanupMetrics(
+  base: AiOutputCleanupMetrics,
+  add: AiOutputCleanupMetrics
+): AiOutputCleanupMetrics {
+  return {
+    removedSupCount: base.removedSupCount + add.removedSupCount,
+    removedCaretCount: base.removedCaretCount + add.removedCaretCount,
+    removedInternetLinkCount: base.removedInternetLinkCount + add.removedInternetLinkCount,
+  };
+}
+
 function stripTrailingInternetLinksInLine(
   line: string
 ): { line: string; removedCount: number } {
@@ -290,24 +322,44 @@ function stripTrailingInternetLinksInLine(
   };
 }
 
-function cleanupAiOutputLine(line: string): AiOutputCleanupResult {
+function applySupRule(line: string): AiOutputLineRuleResult {
   const supPattern = /[ \t]*<sup\b[^>\n]*>[\s\S]*?<\/sup>/giu;
-  const caretPattern = /[ \t]*\^\^[ \t]*/g;
-
   let removedSupCount = 0;
-  let removedCaretCount = 0;
-  const removedSup = line.replace(supPattern, () => {
+  const nextLine = line.replace(supPattern, () => {
     removedSupCount += 1;
     return "";
   });
-  const removedCaret = removedSup.replace(caretPattern, () => {
+
+  return {
+    line: nextLine,
+    metrics: {
+      ...createEmptyAiOutputCleanupMetrics(),
+      removedSupCount,
+    },
+  };
+}
+
+function applyCaretRule(line: string): AiOutputLineRuleResult {
+  const caretPattern = /[ \t]*\^\^[ \t]*/g;
+  let removedCaretCount = 0;
+  const nextLine = line.replace(caretPattern, () => {
     removedCaretCount += 1;
     return "";
   });
 
-  const tableSuffixMatch = removedCaret.match(/^([\s\S]*?)(\s*\|\s*)$/u);
+  return {
+    line: nextLine,
+    metrics: {
+      ...createEmptyAiOutputCleanupMetrics(),
+      removedCaretCount,
+    },
+  };
+}
+
+function applyTrailingInternetLinkRule(line: string): AiOutputLineRuleResult {
+  const tableSuffixMatch = line.match(/^([\s\S]*?)(\s*\|\s*)$/u);
   let removedInternetLinkCount = 0;
-  let nextLine = removedCaret;
+  let nextLine = line;
   if (tableSuffixMatch) {
     const tableBody = tableSuffixMatch[1] || "";
     const tableSuffix = tableSuffixMatch[2] || "";
@@ -315,17 +367,38 @@ function cleanupAiOutputLine(line: string): AiOutputCleanupResult {
     nextLine = `${stripped.line}${tableSuffix}`;
     removedInternetLinkCount += stripped.removedCount;
   } else {
-    const stripped = stripTrailingInternetLinksInLine(removedCaret);
+    const stripped = stripTrailingInternetLinksInLine(line);
     nextLine = stripped.line;
     removedInternetLinkCount += stripped.removedCount;
   }
 
-  const removedCount = removedSupCount + removedCaretCount + removedInternetLinkCount;
+  return {
+    line: nextLine,
+    metrics: {
+      ...createEmptyAiOutputCleanupMetrics(),
+      removedInternetLinkCount,
+    },
+  };
+}
+
+const AI_OUTPUT_LINE_RULES: AiOutputLineRule[] = [
+  applySupRule,
+  applyCaretRule,
+  applyTrailingInternetLinkRule,
+];
+
+function cleanupAiOutputLine(line: string): AiOutputCleanupResult {
+  let nextLine = line;
+  let metrics = createEmptyAiOutputCleanupMetrics();
+  for (const rule of AI_OUTPUT_LINE_RULES) {
+    const result = rule(nextLine);
+    nextLine = result.line;
+    metrics = mergeAiOutputCleanupMetrics(metrics, result.metrics);
+  }
+  const removedCount = sumAiOutputCleanupMetrics(metrics);
   return {
     markdown: nextLine,
-    removedSupCount,
-    removedCaretCount,
-    removedInternetLinkCount,
+    ...metrics,
     removedCount,
   };
 }
@@ -344,24 +417,18 @@ export function cleanupAiOutputArtifactsInMarkdown(markdown: string): AiOutputCl
 
   const lines = source.split(/\r?\n/);
   const output: string[] = [];
-  let removedSupCount = 0;
-  let removedCaretCount = 0;
-  let removedInternetLinkCount = 0;
+  let metrics = createEmptyAiOutputCleanupMetrics();
 
   for (const line of lines) {
     const cleaned = cleanupAiOutputLine(line);
     output.push(cleaned.markdown);
-    removedSupCount += cleaned.removedSupCount;
-    removedCaretCount += cleaned.removedCaretCount;
-    removedInternetLinkCount += cleaned.removedInternetLinkCount;
+    metrics = mergeAiOutputCleanupMetrics(metrics, cleaned);
   }
 
-  const removedCount = removedSupCount + removedCaretCount + removedInternetLinkCount;
+  const removedCount = sumAiOutputCleanupMetrics(metrics);
   return {
     markdown: output.join("\n"),
-    removedSupCount,
-    removedCaretCount,
-    removedInternetLinkCount,
+    ...metrics,
     removedCount,
   };
 }
