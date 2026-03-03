@@ -16,14 +16,14 @@ import {
 } from "@/core/doc-menu-registration-core";
 
 describe("doc-menu-registration-core", () => {
-  test("builds default state with all actions enabled", () => {
+  test("builds default state with all actions disabled", () => {
     const state = buildDefaultDocMenuRegistration(ACTIONS);
 
     expect(Object.keys(state)).toHaveLength(ACTIONS.length);
     for (const action of ACTIONS) {
-      expect(state[action.key]).toBe(true);
+      expect(state[action.key]).toBe(false);
     }
-    expect(isAllDocMenuRegistrationEnabled(state)).toBe(true);
+    expect(isAllDocMenuRegistrationEnabled(state)).toBe(false);
   });
 
   test("normalizes invalid storage data with defaults", () => {
@@ -40,34 +40,36 @@ describe("doc-menu-registration-core", () => {
     );
 
     expect(state["export-current"]).toBe(false);
-    expect(state["insert-backlinks"]).toBe(true);
-    expect(state["move-backlinks"]).toBe(true);
-    expect(state["move-forward-links"]).toBe(true);
+    expect(state["insert-backlinks"]).toBe(false);
+    expect(state["move-backlinks"]).toBe(false);
+    expect(state["move-forward-links"]).toBe(false);
   });
 
   test("switches all and single action states", () => {
     const defaultState = buildDefaultDocMenuRegistration(ACTIONS);
-    const allOff = setAllDocMenuRegistration(defaultState, false);
-    expect(isAllDocMenuRegistrationEnabled(allOff)).toBe(false);
+    expect(isAllDocMenuRegistrationEnabled(defaultState)).toBe(false);
+
+    const allOn = setAllDocMenuRegistration(defaultState, true);
+    expect(isAllDocMenuRegistrationEnabled(allOn)).toBe(true);
     for (const action of ACTIONS) {
-      expect(allOff[action.key]).toBe(false);
+      expect(allOn[action.key]).toBe(true);
     }
 
-    const singleOn = setSingleDocMenuRegistration(allOff, "export-current", true);
-    expect(singleOn["export-current"]).toBe(true);
-    expect(isAllDocMenuRegistrationEnabled(singleOn)).toBe(false);
+    const singleOff = setSingleDocMenuRegistration(allOn, "export-current", false);
+    expect(singleOff["export-current"]).toBe(false);
+    expect(isAllDocMenuRegistrationEnabled(singleOff)).toBe(false);
   });
 
   test("filters menu actions by registration state", () => {
     const state = setSingleDocMenuRegistration(
       buildDefaultDocMenuRegistration(ACTIONS),
       "export-current",
-      false
+      true
     );
     const filtered = filterDocMenuActions(ACTIONS, state);
 
-    expect(filtered.some((item) => item.key === "export-current")).toBe(false);
-    expect(filtered).toHaveLength(ACTIONS.length - 1);
+    expect(filtered.some((item) => item.key === "export-current")).toBe(true);
+    expect(filtered).toHaveLength(1);
   });
 
   test("normalizes custom action order and appends missing keys", () => {

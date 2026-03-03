@@ -140,7 +140,7 @@ export function createKeyInfoDock(
     isRefreshing: false,
     emptyText: "暂无关键内容",
     activeTab: "key-info",
-    docMenuRegisterAll: true,
+    docMenuRegisterAll: false,
     docActions: [],
     favoriteActionKeys: [],
     scrollContextKey: "",

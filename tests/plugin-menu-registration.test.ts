@@ -56,7 +56,7 @@ describe("plugin menu registration", () => {
     vi.clearAllMocks();
   });
 
-  test("registers all actions in title menu by default", async () => {
+  test("does not register actions in title menu by default", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
@@ -64,14 +64,15 @@ describe("plugin menu registration", () => {
     const menu = { addSeparator: vi.fn(), addItem: vi.fn() };
     plugin.emitEvent("click-editortitleicon", { menu, data: { id: "doc-1" } });
 
-    expect(menu.addSeparator).toHaveBeenCalledTimes(1);
-    expect(menu.addItem).toHaveBeenCalledTimes(ACTIONS.length);
+    expect(menu.addSeparator).not.toHaveBeenCalled();
+    expect(menu.addItem).not.toHaveBeenCalled();
   });
 
   test("does not register disabled single action to title menu", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
+    await plugin.setAllDocMenuRegistration(true);
     await plugin.setSingleDocMenuRegistration("export-current", false);
 
     const menu = { addSeparator: vi.fn(), addItem: vi.fn() };
@@ -103,6 +104,7 @@ describe("plugin menu registration", () => {
       version: 1,
       actionEnabled: {
         "export-current": false,
+        "insert-backlinks": true,
       },
     });
     await plugin.onload();
@@ -113,7 +115,7 @@ describe("plugin menu registration", () => {
     expect(menu.addItem).not.toHaveBeenCalledWith(
       expect.objectContaining({ label: "仅导出当前文档" })
     );
-    expect(menu.addItem).toHaveBeenCalledTimes(ACTIONS.length - 1);
+    expect(menu.addItem).toHaveBeenCalledTimes(1);
   });
 
   test("restores custom action order from plugin data", async () => {
@@ -121,7 +123,10 @@ describe("plugin menu registration", () => {
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.saveData("doc-menu-registration", {
       version: 1,
-      actionEnabled: {},
+      actionEnabled: {
+        "insert-backlinks": true,
+        "export-current": true,
+      },
       actionOrder: ["insert-backlinks", "export-current"],
     });
     await plugin.onload();

@@ -14,7 +14,7 @@ export function buildDefaultDocMenuRegistration(
 ): DocMenuRegistrationState {
   const state = {} as DocMenuRegistrationState;
   for (const action of actions) {
-    state[action.key] = true;
+    state[action.key] = false;
   }
   return state;
 }
@@ -34,7 +34,7 @@ export function normalizeDocMenuRegistration(
   const normalized = { ...defaultState };
   for (const action of actions) {
     const value = (source as Record<string, unknown>)[action.key];
-    normalized[action.key] = typeof value === "boolean" ? value : true;
+    normalized[action.key] = typeof value === "boolean" ? value : false;
   }
   return normalized;
 }
@@ -71,7 +71,7 @@ export function filterDocMenuActions<T extends Pick<ActionConfig, "key">>(
   actions: T[],
   state: DocMenuRegistrationState
 ): T[] {
-  return actions.filter((action) => state[action.key] !== false);
+  return actions.filter((action) => state[action.key] === true);
 }
 
 export function buildDefaultDocActionOrder(
