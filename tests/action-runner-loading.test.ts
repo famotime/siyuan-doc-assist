@@ -341,6 +341,41 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("已将 2 处引用转换为文档链接，共更新 2 个块", 5000, "info");
   });
 
+  test("cleans ai output artifacts in current doc", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        markdown: "正文 <sup>1</sup> ^^ [外链](https://example.com/a)",
+        resolved: true,
+      } as any,
+      {
+        id: "b",
+        type: "p",
+        markdown: "| col1 | [官网](https://example.com) |",
+        resolved: true,
+      } as any,
+      {
+        id: "c",
+        type: "p",
+        markdown: "保留 [Doc](siyuan://blocks/20260101101010-abcdef1)",
+        resolved: true,
+      } as any,
+    ]);
+    const runner = createRunner();
+
+    await runner.runAction("clean-ai-output" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "a", "正文");
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "| col1 | |");
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已清理 AI 输出残留：上标 1 处，^^ 1 处，互联网链接 2 处，共更新 2 个块",
+      5000,
+      "info"
+    );
+  });
+
   test("marks invalid links and refs in current doc with strike and highlight", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       {

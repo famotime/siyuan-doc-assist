@@ -43,6 +43,7 @@ const ACTION_ICON_TEXT: Record<string, string> = {
   "bold-selected-blocks": "粗",
   "highlight-selected-blocks": "亮",
   "remove-extra-blank-lines": "空",
+  "clean-ai-output": "净",
   "trim-trailing-whitespace": "尾",
   "toggle-links-refs": "转",
   "delete-from-current-to-end": "删",

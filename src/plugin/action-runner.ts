@@ -5,6 +5,7 @@ import {
   markInvalidSiyuanLinkRefsInMarkdown,
 } from "@/core/link-core";
 import {
+  cleanupAiOutputArtifactsInMarkdown,
   findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
@@ -120,6 +121,7 @@ export class ActionRunner {
     "convert-images-to-png": async (docId) => this.handleConvertImagesToPng(docId),
     "remove-doc-images": async (docId) => this.handleRemoveDocImages(docId),
     "toggle-links-refs": async (docId) => this.handleToggleLinksRefs(docId),
+    "clean-ai-output": async (docId) => this.handleCleanAiOutput(docId),
     "mark-invalid-links-refs": async (docId) => this.handleMarkInvalidLinksRefs(docId),
     "insert-blank-before-headings": async (docId) => this.handleInsertBlankBeforeHeadings(docId),
     "delete-from-current-to-end": async (docId, protyle) =>
@@ -633,6 +635,60 @@ export class ActionRunner {
       return;
     }
     showMessage(`已标示 ${markedCount} 处无效链接/引用，共更新 ${updatedBlockCount} 个块`, 5000, "info");
+  }
+
+  private async handleCleanAiOutput(docId: string) {
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的段落", 4000, "info");
+      return;
+    }
+
+    let removedSupCount = 0;
+    let removedCaretCount = 0;
+    let removedInternetLinkCount = 0;
+    let updatedBlockCount = 0;
+    let failedBlockCount = 0;
+    const skippedRiskyIds: string[] = [];
+    for (const block of blocks) {
+      const source = block.markdown || "";
+      if (!source) {
+        continue;
+      }
+      if (isHighRiskForMarkdownWrite(source)) {
+        skippedRiskyIds.push(block.id);
+        continue;
+      }
+      const cleaned = cleanupAiOutputArtifactsInMarkdown(source);
+      if (cleaned.removedCount <= 0 || cleaned.markdown === source) {
+        continue;
+      }
+      try {
+        await updateBlockMarkdown(block.id, cleaned.markdown);
+        updatedBlockCount += 1;
+        removedSupCount += cleaned.removedSupCount;
+        removedCaretCount += cleaned.removedCaretCount;
+        removedInternetLinkCount += cleaned.removedInternetLinkCount;
+      } catch {
+        failedBlockCount += 1;
+      }
+    }
+
+    if (!updatedBlockCount) {
+      if (skippedRiskyIds.length) {
+        showMessage("检测到高风险块，未执行清理（可先移除复杂内联后重试）", 5000, "error");
+        return;
+      }
+      showMessage("未发现可清理的 AI 输出内容", 4000, "info");
+      return;
+    }
+
+    const summary = `已清理 AI 输出残留：上标 ${removedSupCount} 处，^^ ${removedCaretCount} 处，互联网链接 ${removedInternetLinkCount} 处，共更新 ${updatedBlockCount} 个块`;
+    if (failedBlockCount > 0) {
+      showMessage(`${summary}，失败 ${failedBlockCount} 个块`, 7000, "error");
+      return;
+    }
+    showMessage(summary, 5000, "info");
   }
 
   private async handleToggleLinksRefs(docId: string) {

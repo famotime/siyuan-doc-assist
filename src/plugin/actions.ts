@@ -15,6 +15,7 @@ export type ActionKey =
   | "convert-images-to-png"
   | "remove-doc-images"
   | "toggle-links-refs"
+  | "clean-ai-output"
   | "mark-invalid-links-refs"
   | "insert-blank-before-headings"
   | "delete-from-current-to-end"
@@ -110,6 +111,13 @@ export const ACTIONS: ActionConfig[] = [
     menuText: "链接<->引用批量互转",
     group: "edit",
     icon: "iconLink",
+  },
+  {
+    key: "clean-ai-output",
+    commandText: "清理AI输出内容",
+    menuText: "清理AI输出内容",
+    group: "edit",
+    icon: "iconTrashcan",
   },
   {
     key: "bold-selected-blocks",

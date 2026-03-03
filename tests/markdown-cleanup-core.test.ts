@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  cleanupAiOutputArtifactsInMarkdown,
   removeExtraBlankLinesFromMarkdown,
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
@@ -152,5 +153,44 @@ describe("markdown-cleanup-core", () => {
     expect(result.dom).toBe(input);
     expect(result.changedLines).toBe(0);
     expect(result.removedChars).toBe(0);
+  });
+
+  test("cleans sup, ^^ and trailing internet links while preserving siyuan links", () => {
+    const input = [
+      "段落内容 <sup>1</sup> ^^ [ref](https://example.com/a)",
+      "| col1 | col2 [官网](https://example.com) |",
+      "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)",
+    ].join("\n");
+
+    const result = cleanupAiOutputArtifactsInMarkdown(input);
+
+    expect(result).toEqual({
+      markdown: [
+        "段落内容",
+        "| col1 | col2 |",
+        "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)",
+      ].join("\n"),
+      removedSupCount: 1,
+      removedCaretCount: 1,
+      removedInternetLinkCount: 2,
+      removedCount: 4,
+    });
+  });
+
+  test("keeps markdown unchanged when no ai artifact exists", () => {
+    const input = [
+      "正文 [文档](siyuan://blocks/20260101101010-abcdef1)",
+      "| a | b |",
+    ].join("\n");
+
+    const result = cleanupAiOutputArtifactsInMarkdown(input);
+
+    expect(result).toEqual({
+      markdown: input,
+      removedSupCount: 0,
+      removedCaretCount: 0,
+      removedInternetLinkCount: 0,
+      removedCount: 0,
+    });
   });
 });

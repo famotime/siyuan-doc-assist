@@ -17,6 +17,14 @@ export type TrailingWhitespaceDomCleanupResult = {
   removedChars: number;
 };
 
+export type AiOutputCleanupResult = {
+  markdown: string;
+  removedSupCount: number;
+  removedCaretCount: number;
+  removedInternetLinkCount: number;
+  removedCount: number;
+};
+
 export type ParagraphBlockMeta = {
   id: string;
   type: string;
@@ -244,6 +252,118 @@ function decodeHtmlWhitespaceLength(value: string): number {
   const entityCount = entityMatches?.length || 0;
   const plain = value.replace(entityPattern, "");
   return entityCount + plain.length;
+}
+
+function stripTrailingInternetLinksInLine(
+  line: string
+): { line: string; removedCount: number } {
+  if (!line) {
+    return { line: "", removedCount: 0 };
+  }
+
+  const markdownLinkPattern =
+    /[ \t]*\[[^\]\n]*\]\((https?:\/\/[^)\s]+(?:\s+["'][^"'\n]*["'])?)\)[ \t]*$/iu;
+  const autolinkPattern = /[ \t]*<https?:\/\/[^>\s]+>[ \t]*$/iu;
+  const bareLinkPattern = /[ \t]*https?:\/\/[^\s<>()]+[ \t]*$/iu;
+  const patterns = [markdownLinkPattern, autolinkPattern, bareLinkPattern];
+
+  let next = line;
+  let removedCount = 0;
+  let removed = false;
+  do {
+    removed = false;
+    for (const pattern of patterns) {
+      const match = pattern.exec(next);
+      if (!match || match.index < 0) {
+        continue;
+      }
+      next = next.slice(0, match.index);
+      removedCount += 1;
+      removed = true;
+      break;
+    }
+  } while (removed);
+
+  return {
+    line: next,
+    removedCount,
+  };
+}
+
+function cleanupAiOutputLine(line: string): AiOutputCleanupResult {
+  const supPattern = /[ \t]*<sup\b[^>\n]*>[\s\S]*?<\/sup>/giu;
+  const caretPattern = /[ \t]*\^\^[ \t]*/g;
+
+  let removedSupCount = 0;
+  let removedCaretCount = 0;
+  const removedSup = line.replace(supPattern, () => {
+    removedSupCount += 1;
+    return "";
+  });
+  const removedCaret = removedSup.replace(caretPattern, () => {
+    removedCaretCount += 1;
+    return "";
+  });
+
+  const tableSuffixMatch = removedCaret.match(/^([\s\S]*?)(\s*\|\s*)$/u);
+  let removedInternetLinkCount = 0;
+  let nextLine = removedCaret;
+  if (tableSuffixMatch) {
+    const tableBody = tableSuffixMatch[1] || "";
+    const tableSuffix = tableSuffixMatch[2] || "";
+    const stripped = stripTrailingInternetLinksInLine(tableBody);
+    nextLine = `${stripped.line}${tableSuffix}`;
+    removedInternetLinkCount += stripped.removedCount;
+  } else {
+    const stripped = stripTrailingInternetLinksInLine(removedCaret);
+    nextLine = stripped.line;
+    removedInternetLinkCount += stripped.removedCount;
+  }
+
+  const removedCount = removedSupCount + removedCaretCount + removedInternetLinkCount;
+  return {
+    markdown: nextLine,
+    removedSupCount,
+    removedCaretCount,
+    removedInternetLinkCount,
+    removedCount,
+  };
+}
+
+export function cleanupAiOutputArtifactsInMarkdown(markdown: string): AiOutputCleanupResult {
+  const source = markdown || "";
+  if (!source) {
+    return {
+      markdown: "",
+      removedSupCount: 0,
+      removedCaretCount: 0,
+      removedInternetLinkCount: 0,
+      removedCount: 0,
+    };
+  }
+
+  const lines = source.split(/\r?\n/);
+  const output: string[] = [];
+  let removedSupCount = 0;
+  let removedCaretCount = 0;
+  let removedInternetLinkCount = 0;
+
+  for (const line of lines) {
+    const cleaned = cleanupAiOutputLine(line);
+    output.push(cleaned.markdown);
+    removedSupCount += cleaned.removedSupCount;
+    removedCaretCount += cleaned.removedCaretCount;
+    removedInternetLinkCount += cleaned.removedInternetLinkCount;
+  }
+
+  const removedCount = removedSupCount + removedCaretCount + removedInternetLinkCount;
+  return {
+    markdown: output.join("\n"),
+    removedSupCount,
+    removedCaretCount,
+    removedInternetLinkCount,
+    removedCount,
+  };
 }
 
 export function removeTrailingWhitespaceFromDom(dom: string): TrailingWhitespaceDomCleanupResult {
