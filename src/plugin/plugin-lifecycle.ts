@@ -50,6 +50,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.resolveDocId(explicitId, protyle),
     askConfirm: (title, text) => this.askConfirm(title, text),
     setBusy: (busy) => this.setActionBusy(busy),
+    getKeyInfoFilter: () => this.keyInfoController.getCurrentFilter(),
   });
 
   private readonly keyInfoController = new KeyInfoController({

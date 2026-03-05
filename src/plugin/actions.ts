@@ -4,6 +4,7 @@ export type ActionKey =
   | "export-current"
   | "insert-backlinks"
   | "insert-child-docs"
+  | "export-child-key-info-zip"
   | "export-backlinks-zip"
   | "export-forward-zip"
   | "move-backlinks"
@@ -37,6 +38,7 @@ type BaseActionConfig = Omit<ActionConfig, "dockIconText">;
 
 const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "export-current": "导",
+  "export-child-key-info-zip": "键",
   "export-backlinks-zip": "反",
   "export-forward-zip": "正",
   "move-backlinks": "移",
@@ -64,6 +66,13 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     key: "export-current",
     commandText: "仅导出当前文档",
     menuText: "仅导出当前文档",
+    group: "export",
+    icon: "iconDownload",
+  },
+  {
+    key: "export-child-key-info-zip",
+    commandText: "打包导出子文档关键内容",
+    menuText: "打包导出子文档关键内容",
     group: "export",
     icon: "iconDownload",
   },

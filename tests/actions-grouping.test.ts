@@ -12,6 +12,7 @@ describe("actions grouping", () => {
     expect(groups.get("convert-images-to-webp")).toBe("image");
     expect(groups.get("convert-images-to-png")).toBe("image");
     expect(groups.get("remove-doc-images")).toBe("image");
+    expect(groups.get("export-child-key-info-zip")).toBe("export");
     expect(groups.get("toggle-links-refs")).toBe("edit");
     expect(groups.get("clean-ai-output")).toBe("edit");
     expect(groups.get("bold-selected-blocks")).toBe("edit");

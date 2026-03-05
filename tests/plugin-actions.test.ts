@@ -21,6 +21,7 @@ describe("plugin actions", () => {
     expect(isActionKey("mark-invalid-links-refs")).toBe(true);
     expect(isActionKey("delete-from-current-to-end")).toBe(true);
     expect(isActionKey("toggle-linebreaks-paragraphs")).toBe(true);
+    expect(isActionKey("export-child-key-info-zip")).toBe(true);
     expect(isActionKey("invalid-key")).toBe(false);
   });
 

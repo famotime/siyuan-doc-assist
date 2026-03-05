@@ -16,6 +16,7 @@ vi.mock(
 vi.mock("@/services/exporter", () => ({
   exportCurrentDocMarkdown: vi.fn(),
   exportDocIdsAsMarkdownZip: vi.fn(),
+  exportDocAndChildKeyInfoAsZip: vi.fn(),
 }));
 
 vi.mock("@/services/kernel", () => ({
@@ -74,7 +75,10 @@ import {
   resetDocAssistantDebugSetting,
   setDocAssistantDebugEnabled,
 } from "@/core/logger-core";
-import { exportCurrentDocMarkdown } from "@/services/exporter";
+import {
+  exportCurrentDocMarkdown,
+  exportDocAndChildKeyInfoAsZip,
+} from "@/services/exporter";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import {
@@ -104,6 +108,7 @@ import {
 import { openDedupeDialog } from "@/ui/dialogs";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
+const exportDocAndChildKeyInfoAsZipMock = vi.mocked(exportDocAndChildKeyInfoAsZip);
 const deleteDocsByIdsMock = vi.mocked(deleteDocsByIds);
 const deleteBlockByIdMock = vi.mocked(deleteBlockById);
 const appendBlockMock = vi.mocked(appendBlock);
@@ -181,6 +186,35 @@ describe("action-runner loading guard", () => {
 
     resolveExport({ mode: "md", fileName: "doc-1.md" });
     await Promise.all([first, second]);
+  });
+
+  test("exports current and child docs key info zip with current key-info filter", async () => {
+    exportDocAndChildKeyInfoAsZipMock.mockResolvedValue({
+      name: "doc-1-key-info",
+      zip: "temp/export/doc-1-key-info.zip",
+      docCount: 3,
+      itemCount: 8,
+    } as any);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm: async () => true,
+      getKeyInfoFilter: () => ["bold", "highlight"],
+    } as any);
+
+    await runner.runAction("export-child-key-info-zip" as any);
+
+    expect(exportDocAndChildKeyInfoAsZipMock).toHaveBeenCalledTimes(1);
+    expect(exportDocAndChildKeyInfoAsZipMock).toHaveBeenCalledWith({
+      docId: "doc-1",
+      filter: ["bold", "highlight"],
+      protyle: undefined,
+    });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "导出完成：3 篇文档，8 条关键内容",
+      6000,
+      "info"
+    );
   });
 
   test("hides busy overlay while waiting for confirmation", async () => {

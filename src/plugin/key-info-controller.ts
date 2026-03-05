@@ -4,7 +4,7 @@ import {
   DocMenuRegistrationState,
   isAllDocMenuRegistrationEnabled,
 } from "@/core/doc-menu-registration-core";
-import { buildKeyInfoMarkdown, KeyInfoItem } from "@/core/key-info-core";
+import { buildKeyInfoMarkdown, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
 import { getDocKeyInfo } from "@/services/key-info";
 import { createKeyInfoDock, KeyInfoDockHandle } from "@/ui/key-info-dock";
 import { ActionConfig, ActionKey, isActionKey } from "@/plugin/actions";
@@ -131,6 +131,11 @@ export class KeyInfoController {
       ),
       favoriteActionKeys: this.deps.getDocFavoriteActionKeys(),
     });
+  }
+
+  getCurrentFilter(): KeyInfoFilter | undefined {
+    const filter = this.keyInfoDock?.getState().filter;
+    return filter ? [...filter] : undefined;
   }
 
   async refresh(explicitId?: string, protyle?: ProtyleLike) {

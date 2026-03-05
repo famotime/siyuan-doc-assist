@@ -13,9 +13,14 @@ import {
   removeTrailingWhitespaceFromMarkdown,
 } from "@/core/markdown-cleanup-core";
 import { decodeURIComponentSafe } from "@/core/workspace-path-core";
+import { KeyInfoFilter } from "@/core/key-info-core";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
-import { exportCurrentDocMarkdown, exportDocIdsAsMarkdownZip } from "@/services/exporter";
+import {
+  exportCurrentDocMarkdown,
+  exportDocAndChildKeyInfoAsZip,
+  exportDocIdsAsMarkdownZip,
+} from "@/services/exporter";
 import {
   appendBlock,
   deleteBlockById,
@@ -53,6 +58,7 @@ type ActionRunnerDeps = {
   resolveDocId: (explicitId?: string, protyle?: ProtyleLike) => string;
   askConfirm: (title: string, text: string) => Promise<boolean>;
   setBusy?: (busy: boolean) => void;
+  getKeyInfoFilter?: () => KeyInfoFilter | undefined;
 };
 
 type StyleFailureKind = "source-missing" | "update-failed";
@@ -140,6 +146,8 @@ export class ActionRunner {
     "export-current": async (docId) => this.handleExportCurrent(docId),
     "insert-backlinks": async (docId) => this.handleInsertBacklinks(docId),
     "insert-child-docs": async (docId) => this.handleInsertChildDocs(docId),
+    "export-child-key-info-zip": async (docId, protyle) =>
+      this.handleExportChildKeyInfoZip(docId, protyle),
     "export-backlinks-zip": async (docId) => this.handleExportBacklinksZip(docId),
     "export-forward-zip": async (docId) => this.handleExportForwardZip(docId),
     "move-backlinks": async (docId) => this.handleMoveBacklinks(docId),
@@ -256,6 +264,15 @@ export class ActionRunner {
     await appendBlock(markdown, docId);
     const skipSuffix = filtered.skipped.length ? `，跳过已存在 ${filtered.skipped.length} 个` : "";
     showMessage(`已插入 ${filtered.items.length} 个子文档链接${skipSuffix}`, 5000, "info");
+  }
+
+  private async handleExportChildKeyInfoZip(docId: string, protyle?: ProtyleLike) {
+    const result = await exportDocAndChildKeyInfoAsZip({
+      docId,
+      filter: this.deps.getKeyInfoFilter?.(),
+      protyle,
+    });
+    showMessage(`导出完成：${result.docCount} 篇文档，${result.itemCount} 条关键内容`, 6000, "info");
   }
 
   private async handleExportBacklinksZip(docId: string) {

@@ -1,10 +1,12 @@
 import {
   assetPathBasename,
-  getExportResourceAssetPaths,
   normalizeUploadFileName,
+  getExportResourceAssetPaths,
   rewriteMarkdownAssetLinksToBasename,
 } from "@/core/export-media-core";
+import { buildKeyInfoMarkdown, KeyInfoFilter, KeyInfoItem, KeyInfoType } from "@/core/key-info-core";
 import { buildGetFileRequest, decodeURIComponentSafe } from "@/core/workspace-path-core";
+import { getDocKeyInfo } from "@/services/key-info";
 import {
   exportMdContent,
   exportResources,
@@ -13,6 +15,7 @@ import {
   putFile,
   removeFile,
 } from "@/services/kernel";
+import { getChildDocs } from "@/services/link-resolver";
 
 function basename(hPath: string): string {
   const parts = hPath.split("/").filter(Boolean);
@@ -137,6 +140,33 @@ const EXPORT_MD_OPTIONS = {
   yfm: false,
 } as const;
 
+const KEY_INFO_FILTER_TYPES: KeyInfoType[] = [
+  "title",
+  "bold",
+  "italic",
+  "highlight",
+  "code",
+  "remark",
+  "tag",
+];
+
+function filterKeyInfoItemsByFilter(
+  items: KeyInfoItem[],
+  filter?: KeyInfoFilter
+): KeyInfoItem[] {
+  if (filter === undefined) {
+    return items;
+  }
+  if (!filter.length) {
+    return [];
+  }
+  if (filter.length >= KEY_INFO_FILTER_TYPES.length) {
+    return items;
+  }
+  const active = new Set(filter);
+  return items.filter((item) => active.has(item.type));
+}
+
 export async function exportCurrentDocMarkdown(
   docId: string
 ): Promise<ExportCurrentDocResult> {
@@ -239,6 +269,72 @@ export async function exportDocIdsAsMarkdownZip(
     return {
       name: zipBaseName,
       zip: zip.path,
+    };
+  } finally {
+    void Promise.resolve(removeFile(tempDir)).catch(() => undefined);
+  }
+}
+
+export async function exportDocAndChildKeyInfoAsZip(options: {
+  docId: string;
+  filter?: KeyInfoFilter;
+  protyle?: unknown;
+  preferredDownloadBaseName?: string;
+}): Promise<{ name: string; zip: string; docCount: number; itemCount: number }> {
+  const docId = (options.docId || "").trim();
+  if (!docId) {
+    throw new Error("未找到可导出的文档");
+  }
+
+  const childDocs = await getChildDocs(docId);
+  const docIds = [...new Set([docId, ...childDocs.map((item) => item?.id || "").filter(Boolean)])];
+  if (!docIds.length) {
+    throw new Error("未找到可导出的文档");
+  }
+
+  const tempDir = `/temp/export/doc-link-tool-${randomId()}`;
+  const usedDocNames = new Set<string>();
+  const packPaths: string[] = [];
+  let preferredTitle = "";
+  let exportedItemCount = 0;
+
+  for (let index = 0; index < docIds.length; index += 1) {
+    const id = docIds[index];
+    const data = await getDocKeyInfo(id, index === 0 ? options.protyle : undefined);
+    if (!preferredTitle) {
+      preferredTitle = data.docTitle || id;
+    }
+    const filteredItems = filterKeyInfoItemsByFilter(data.items || [], options.filter);
+    exportedItemCount += filteredItems.length;
+    const markdown = buildKeyInfoMarkdown(filteredItems);
+
+    const title = data.docTitle || id;
+    const safeBase = sanitizePathSegment(title) || id;
+    const baseName = normalizeUploadFileName(`${safeBase}-key-info.md`, `${id}-key-info.md`);
+    let uniqueName = baseName;
+    let suffix = 2;
+    while (usedDocNames.has(uniqueName)) {
+      uniqueName = normalizeUploadFileName(`${safeBase}-key-info-${suffix}.md`, `${id}-key-info-${suffix}.md`);
+      suffix += 1;
+    }
+    usedDocNames.add(uniqueName);
+    const markdownPath = `${tempDir}/${uniqueName}`;
+    await putFile(markdownPath, markdown);
+    packPaths.push(markdownPath);
+  }
+
+  const preferredDownloadBaseName = (options.preferredDownloadBaseName || "").trim();
+  const zipBaseName = preferredDownloadBaseName
+    ? sanitizeArchiveBaseName(preferredDownloadBaseName)
+    : sanitizeArchiveBaseName(`${preferredTitle || docId}-key-info`);
+  try {
+    const zip = await exportResources(packPaths, zipBaseName);
+    await triggerWorkspaceFileDownload(zip.path, withZipExtension(zipBaseName));
+    return {
+      name: zipBaseName,
+      zip: zip.path,
+      docCount: docIds.length,
+      itemCount: exportedItemCount,
     };
   } finally {
     void Promise.resolve(removeFile(tempDir)).catch(() => undefined);
