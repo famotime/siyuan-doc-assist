@@ -20,6 +20,7 @@ describe("plugin actions", () => {
     expect(isActionKey("insert-blank-before-headings")).toBe(true);
     expect(isActionKey("mark-invalid-links-refs")).toBe(true);
     expect(isActionKey("delete-from-current-to-end")).toBe(true);
+    expect(isActionKey("toggle-linebreaks-paragraphs")).toBe(true);
     expect(isActionKey("invalid-key")).toBe(false);
   });
 

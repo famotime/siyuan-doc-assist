@@ -20,7 +20,8 @@ export type ActionKey =
   | "insert-blank-before-headings"
   | "delete-from-current-to-end"
   | "bold-selected-blocks"
-  | "highlight-selected-blocks";
+  | "highlight-selected-blocks"
+  | "toggle-linebreaks-paragraphs";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -50,6 +51,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "remove-doc-images": "删",
   "bold-selected-blocks": "粗",
   "highlight-selected-blocks": "亮",
+  "toggle-linebreaks-paragraphs": "段",
   "remove-extra-blank-lines": "空",
   "clean-ai-output": "净",
   "trim-trailing-whitespace": "尾",
@@ -158,6 +160,13 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     menuText: "选中块全部高亮",
     group: "edit",
     icon: "iconInfo",
+  },
+  {
+    key: "toggle-linebreaks-paragraphs",
+    commandText: "选中内容换行-分段互转",
+    menuText: "选中内容换行-分段互转",
+    group: "edit",
+    icon: "iconList",
   },
   {
     key: "remove-extra-blank-lines",

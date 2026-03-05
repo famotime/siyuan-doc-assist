@@ -71,6 +71,8 @@ type AiOutputCleanupPreview = {
   removedInternetLinkCount: number;
 };
 
+type LinebreakToggleMode = "linebreak-to-paragraph" | "paragraph-to-line";
+
 const forwardLinksLogger = createDocAssistantLogger("ForwardLinks");
 const styleLogger = createDocAssistantLogger("Style");
 const trailingWhitespaceLogger = createDocAssistantLogger("TrailingWhitespace");
@@ -112,6 +114,25 @@ function isHighRiskForMarkdownWrite(value: string): boolean {
   );
 }
 
+function normalizeLineEndings(value: string): string {
+  return (value || "").replace(/\r\n/g, "\n");
+}
+
+function countSingleLineBreaks(value: string): number {
+  const normalized = normalizeLineEndings(value);
+  const matches = normalized.match(/(?<!\n)\n(?!\n)/g);
+  return matches?.length || 0;
+}
+
+function convertSingleLineBreaksToParagraphMarks(value: string): string {
+  const normalized = normalizeLineEndings(value);
+  return normalized.replace(/(?<!\n)\n(?!\n)/g, "\n\n");
+}
+
+function isParagraphBlockType(type: string): boolean {
+  return (type || "").toLowerCase() === "p";
+}
+
 export class ActionRunner {
   private isRunning = false;
 
@@ -139,6 +160,8 @@ export class ActionRunner {
       this.handleStyleSelectedBlocks(docId, protyle, "bold"),
     "highlight-selected-blocks": async (docId, protyle) =>
       this.handleStyleSelectedBlocks(docId, protyle, "highlight"),
+    "toggle-linebreaks-paragraphs": async (docId, protyle) =>
+      this.handleToggleLinebreaksParagraphs(docId, protyle),
   };
 
   constructor(private readonly deps: ActionRunnerDeps) {}
@@ -361,14 +384,12 @@ export class ActionRunner {
       kramdowns.map((item) => [item.id, item.kramdown || ""])
     );
 
-    let success = 0;
-    let failed = 0;
+    const pendingUpdates: Array<{ id: string; next: string }> = [];
     let skipped = 0;
     const failures: StyleFailureDetail[] = [];
     for (const id of selectedIds) {
       const source = kramdownMap.get(id);
       if (source === undefined) {
-        failed += 1;
         failures.push({
           id,
           kind: "source-missing",
@@ -381,18 +402,43 @@ export class ActionRunner {
         skipped += 1;
         continue;
       }
+      pendingUpdates.push({ id, next });
+    }
+
+    if (pendingUpdates.length > 0) {
+      const styleLabel = style === "bold" ? "加粗" : "高亮";
+      const confirmLines = [
+        `模式：选中块${styleLabel}`,
+        `选中 ${selectedIds.length} 个块，预计更新 ${pendingUpdates.length} 个块。`,
+      ];
+      if (skipped > 0) {
+        confirmLines.push(`无变化 ${skipped} 个块。`);
+      }
+      if (failures.length > 0) {
+        confirmLines.push(`读取失败 ${failures.length} 个块，本次将跳过。`);
+      }
+      confirmLines.push("是否继续？");
+      const ok = await this.askConfirmWithVisibleDialog("确认批量样式处理", confirmLines.join("\n"));
+      if (!ok) {
+        return;
+      }
+      this.deps.setBusy?.(true);
+    }
+
+    let success = 0;
+    for (const item of pendingUpdates) {
       try {
-        await updateBlockMarkdown(id, next);
+        await updateBlockMarkdown(item.id, item.next);
         success += 1;
       } catch (error: unknown) {
-        failed += 1;
         failures.push({
-          id,
+          id: item.id,
           kind: "update-failed",
           reason: error instanceof Error ? error.message : String(error),
         });
       }
     }
+    const failed = failures.length;
 
     if (success === 0 && failed === 0 && skipped > 0) {
       showMessage("未发现可处理内容", 4000, "info");
@@ -417,6 +463,132 @@ export class ActionRunner {
       return;
     }
     showMessage(`已处理 ${success} 个块`, 5000, "info");
+  }
+
+  private async handleToggleLinebreaksParagraphs(docId: string, protyle?: ProtyleLike) {
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的内容", 4000, "info");
+      return;
+    }
+
+    const selectedIds = getSelectedBlockIds(protyle);
+    const selectedSet = new Set(selectedIds);
+    const targetBlocks = selectedIds.length
+      ? blocks.filter((block) => selectedSet.has(block.id))
+      : blocks;
+    const useAllDoc = selectedIds.length === 0;
+    if (useAllDoc) {
+      showMessage("未选中任何内容，将按本文档所有内容进行操作", 5000, "info");
+    }
+    if (!targetBlocks.length) {
+      showMessage("未在当前文档定位到选中内容，请调整选区后重试", 5000, "error");
+      return;
+    }
+
+    const shouldMergeParagraphs =
+      targetBlocks.length > 1 && targetBlocks.every((block) => isParagraphBlockType(block.type));
+    const mode: LinebreakToggleMode = shouldMergeParagraphs
+      ? "paragraph-to-line"
+      : "linebreak-to-paragraph";
+
+    if (mode === "paragraph-to-line") {
+      const first = targetBlocks[0];
+      const mergedMarkdown = targetBlocks
+        .map((block) => normalizeLineEndings(block.markdown || ""))
+        .join("\n");
+      const confirmLines = [
+        useAllDoc ? "范围：本文档所有内容（未选中内容）" : `范围：选中块 ${targetBlocks.length} 个`,
+        "模式：分段转换行",
+        `预计更新 1 个块，删除 ${targetBlocks.length - 1} 个块。`,
+        "是否继续？",
+      ];
+      const ok = await this.askConfirmWithVisibleDialog("确认执行换行-分段互转", confirmLines.join("\n"));
+      if (!ok) {
+        return;
+      }
+      this.deps.setBusy?.(true);
+
+      let deleted = 0;
+      let failed = 0;
+      try {
+        await updateBlockMarkdown(first.id, mergedMarkdown);
+      } catch {
+        failed += 1;
+      }
+      for (const block of targetBlocks.slice(1)) {
+        try {
+          await deleteBlockById(block.id);
+          deleted += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+
+      if (failed > 0) {
+        showMessage(`处理完成：已合并并删除 ${deleted} 个块，失败 ${failed} 个操作`, 7000, "error");
+        return;
+      }
+      showMessage(`已将 ${targetBlocks.length} 个段落块合并为 1 个块`, 5000, "info");
+      return;
+    }
+
+    const updates = targetBlocks
+      .map((block) => {
+        const source = normalizeLineEndings(block.markdown || "");
+        const replaced = countSingleLineBreaks(source);
+        if (replaced <= 0) {
+          return null;
+        }
+        const next = convertSingleLineBreaksToParagraphMarks(source);
+        if (next === source) {
+          return null;
+        }
+        return {
+          id: block.id,
+          next,
+          replaced,
+        };
+      })
+      .filter((item): item is { id: string; next: string; replaced: number } => !!item);
+
+    if (!updates.length) {
+      showMessage("未发现可转换的单个换行", 4000, "info");
+      return;
+    }
+    const replacedCount = updates.reduce((sum, item) => sum + item.replaced, 0);
+    const confirmLines = [
+      useAllDoc ? "范围：本文档所有内容（未选中内容）" : `范围：选中块 ${targetBlocks.length} 个`,
+      "模式：换行转分段",
+      `预计替换单个换行 ${replacedCount} 处，更新 ${updates.length} 个块。`,
+      "是否继续？",
+    ];
+    const ok = await this.askConfirmWithVisibleDialog("确认执行换行-分段互转", confirmLines.join("\n"));
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
+    let success = 0;
+    let failed = 0;
+    for (const item of updates) {
+      try {
+        await updateBlockMarkdown(item.id, item.next);
+        success += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    if (failed > 0) {
+      showMessage(
+        `处理完成：已替换单个换行 ${replacedCount} 处，成功更新 ${success} 个块，失败 ${failed} 个块`,
+        7000,
+        "error"
+      );
+      return;
+    }
+    showMessage(`已替换单个换行 ${replacedCount} 处，共更新 ${success} 个块`, 5000, "info");
   }
 
   private summarizeStyleFailures(failures: StyleFailureDetail[]): string {
@@ -756,6 +928,52 @@ export class ActionRunner {
       return;
     }
 
+    let previewConvertedCount = 0;
+    let previewUpdatableBlockCount = 0;
+    let previewRiskyBlockCount = 0;
+    for (const block of blocks) {
+      const source = block.markdown || "";
+      if (!source) {
+        continue;
+      }
+      const converted = convertSiyuanLinksAndRefsInMarkdown(source, modeResult.mode);
+      const hasChanges = converted.convertedCount > 0 && converted.markdown !== source;
+      if (!hasChanges) {
+        continue;
+      }
+      if (isHighRiskForMarkdownWrite(source)) {
+        previewRiskyBlockCount += 1;
+        continue;
+      }
+      previewUpdatableBlockCount += 1;
+      previewConvertedCount += converted.convertedCount;
+    }
+
+    if (!previewUpdatableBlockCount) {
+      if (previewRiskyBlockCount > 0) {
+        showMessage("检测到高风险块，未执行互转（可先移除复杂内联后重试）", 5000, "error");
+        return;
+      }
+      showMessage("当前文档未发现可互转的思源文档链接或引用", 4000, "info");
+      return;
+    }
+
+    const actionLabel =
+      modeResult.mode === "link-to-ref" ? "文档链接转换为引用" : "引用转换为文档链接";
+    const confirmLines = [
+      `互转方向：${actionLabel}`,
+      `预计转换 ${previewConvertedCount} 处，共更新 ${previewUpdatableBlockCount} 个块。`,
+    ];
+    if (previewRiskyBlockCount > 0) {
+      confirmLines.push(`另有 ${previewRiskyBlockCount} 个高风险块将跳过。`);
+    }
+    confirmLines.push("是否继续？");
+    const ok = await this.askConfirmWithVisibleDialog("确认链接/引用互转", confirmLines.join("\n"));
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
     const report = await applyMarkdownTransformToBlocks({
       blocks,
       isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
@@ -782,8 +1000,6 @@ export class ActionRunner {
       return;
     }
 
-    const actionLabel =
-      modeResult.mode === "link-to-ref" ? "文档链接转换为引用" : "引用转换为文档链接";
     if (failedBlockCount > 0) {
       showMessage(
         `已将 ${convertedCount} 处${actionLabel}，共更新 ${updatedBlockCount} 个块，失败 ${failedBlockCount} 个块`,

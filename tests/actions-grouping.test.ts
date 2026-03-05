@@ -15,5 +15,6 @@ describe("actions grouping", () => {
     expect(groups.get("toggle-links-refs")).toBe("edit");
     expect(groups.get("clean-ai-output")).toBe("edit");
     expect(groups.get("bold-selected-blocks")).toBe("edit");
+    expect(groups.get("toggle-linebreaks-paragraphs")).toBe("edit");
   });
 });
