@@ -3,23 +3,33 @@
 ## Project Structure & Module Organization
 
 - Repository root (`./`) is the primary plugin project (Vite + Vue 3 + TypeScript).
+- Main entry: `src/index.ts` (loads `index.scss`, exports plugin from `src/plugin/plugin-lifecycle.ts`).
 - `src/` contains application code:
-  - `core/` holds core domain logic (files named `*-core.ts`).
-  - `components/`, `ui/`, `services/`, `utils/`, `types/`, `i18n/` are feature areas.
-- `tests/` contains unit tests (`*.test.ts`) aligned to core modules.
-- `asset/` stores static assets.
-- `dist/` and `package.zip` are build outputs.
-- `plugin-sample-vite-vue/` is a reference template; `reference_docs/` holds SiYuan docs; `memo.md` is project notes.
+  - `core/`: pure domain logic (`*-core.ts`), designed for direct unit testing.
+  - `plugin/`: lifecycle wiring, action registry, command/menu registration, action dispatch.
+  - `services/`: SiYuan kernel/data access and feature services (export, dedupe, image conversion, link resolving, etc.).
+  - `ui/`: Dock/dialog/overlay UI assembly.
+  - `types/`, `i18n/`: type declarations and localization resources.
+  - `components/`, `utils/`: reserved/minimal directories at present.
+- `tests/` contains Vitest suites (`*.test.ts`) and mocks under `tests/mocks/`.
+- `assets/` stores static images used by README/docs.
+- `docs/` stores internal docs (current structure snapshot: `docs/project-structure.md`).
+- `dist/` and `package.zip` are build artifacts.
+- `plugin-sample-vite-vue/` is a template/reference project.
+- `reference_docs/` stores local SiYuan API/reference materials.
 
 ## Build, Test, and Development Commands
 
 Run commands from repository root:
 
 - `pnpm install` installs dependencies.
-- `pnpm dev` runs Vite in watch mode and outputs to the local SiYuan workspace plugin directory.
+- `pnpm dev` runs `vite build --watch`.
+  - Output target: `<VITE_SIYUAN_WORKSPACE_PATH>/data/plugins/siyuan-doc-assist` (from `.env`).
 - `pnpm build` produces `dist/` and `package.zip`.
 - `pnpm test` runs Vitest once; `pnpm test:watch` runs in watch mode.
-- `pnpm release:*` runs `release.js` to bump versions, tag, and push (use with care).
+- `pnpm typecheck:strict` runs strict TypeScript checks with `tsconfig.strict.json`.
+- `pnpm release`, `pnpm release:patch|minor|major|manual` run `release.js`.
+  - Side effects: update `plugin.json` + `package.json`, create commit, push branch, create/push tag (`v*`).
 
 ## Configuration & Environment
 
@@ -38,9 +48,16 @@ Run commands from repository root:
 - Framework: Vitest.
 - No explicit coverage gate in repo; add or update tests alongside core logic changes.
 - Keep tests close to the behavior they validate and favor deterministic inputs.
+- Prefer covering `core/` and service adapters when changing behavior in `plugin/action-runner` flows.
 
 ## Commit & Pull Request Guidelines
 
 - History shows concise summary commits, including Chinese messages and occasional `type:` prefixes (e.g., `fix:`). Follow the same: short, direct summary; optional `type:` when helpful.
 - PRs should include: a clear description, test results (`pnpm test` or reason skipped), and screenshots or GIFs for UI changes.
 - If releasing, use `pnpm release:*` so `plugin.json` and `package.json` stay in sync.
+
+## CI/Release Notes
+
+- GitHub Actions workflow: `.github/workflows/release.yml`.
+- Trigger: pushing a tag matching `v*`.
+- Pipeline: install dependencies -> run tests -> build -> upload `package.zip` to GitHub Release.
