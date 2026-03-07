@@ -73,6 +73,32 @@ function resolveActiveProtyle(): ProtyleLike | undefined {
   return getActiveEditor()?.protyle as ProtyleLike | undefined;
 }
 
+function resolveSelectionRoot(protyle?: ProtyleLike): HTMLElement | undefined {
+  const activeProtyle = protyle || resolveActiveProtyle();
+  return activeProtyle?.wysiwyg?.element as HTMLElement | undefined;
+}
+
+function collectExplicitSelectedBlockIds(root: HTMLElement): string[] {
+  const selectors = [
+    ".protyle-wysiwyg--select",
+    ".protyle-wysiwyg__select",
+    ".protyle-wysiwyg--selecting",
+    "[data-node-id][data-node-selected]",
+  ];
+  const nodes = root.querySelectorAll(selectors.join(","));
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  nodes.forEach((node) => {
+    const element = (node as HTMLElement).closest?.("[data-node-id]") || (node as HTMLElement);
+    const id = (element as HTMLElement).dataset.nodeId || element.getAttribute("data-node-id") || "";
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  });
+  return ids;
+}
+
 export function resolveCurrentBlockId(docId: string, protyle?: ProtyleLike): CurrentBlockResolveResult {
   let wasDocId = false;
 
@@ -108,29 +134,21 @@ export function resolveCurrentBlockId(docId: string, protyle?: ProtyleLike): Cur
   };
 }
 
-export function getSelectedBlockIds(protyle?: ProtyleLike): string[] {
-  const activeProtyle = protyle || resolveActiveProtyle();
-  const root = activeProtyle?.wysiwyg?.element as HTMLElement | undefined;
+export function getExplicitlySelectedBlockIds(protyle?: ProtyleLike): string[] {
+  const root = resolveSelectionRoot(protyle);
   if (!root) {
     return [];
   }
-  const selectors = [
-    ".protyle-wysiwyg--select",
-    ".protyle-wysiwyg__select",
-    ".protyle-wysiwyg--selecting",
-    "[data-node-id][data-node-selected]",
-  ];
-  const nodes = root.querySelectorAll(selectors.join(","));
-  const ids: string[] = [];
-  const seen = new Set<string>();
-  nodes.forEach((node) => {
-    const element = (node as HTMLElement).closest?.("[data-node-id]") || (node as HTMLElement);
-    const id = (element as HTMLElement).dataset.nodeId || element.getAttribute("data-node-id") || "";
-    if (id && !seen.has(id)) {
-      seen.add(id);
-      ids.push(id);
-    }
-  });
+  return collectExplicitSelectedBlockIds(root);
+}
+
+export function getSelectedBlockIds(protyle?: ProtyleLike): string[] {
+  const root = resolveSelectionRoot(protyle);
+  if (!root) {
+    return [];
+  }
+  const ids = collectExplicitSelectedBlockIds(root);
+  const seen = new Set<string>(ids);
 
   if (ids.length) {
     return ids;

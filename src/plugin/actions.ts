@@ -23,7 +23,8 @@ export type ActionKey =
   | "delete-from-current-to-end"
   | "bold-selected-blocks"
   | "highlight-selected-blocks"
-  | "toggle-linebreaks-paragraphs";
+  | "toggle-linebreaks-paragraphs"
+  | "remove-selected-spacing";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -56,6 +57,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "bold-selected-blocks": "粗",
   "highlight-selected-blocks": "亮",
   "toggle-linebreaks-paragraphs": "段",
+  "remove-selected-spacing": "格",
   "remove-extra-blank-lines": "空",
   "clean-ai-output": "净",
   "trim-trailing-whitespace": "尾",
@@ -171,6 +173,13 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     menuText: "选中内容换行-分段互转",
     group: "edit",
     icon: "iconList",
+  },
+  {
+    key: "remove-selected-spacing",
+    commandText: "选中内容删除空格",
+    menuText: "选中内容删除空格",
+    group: "edit",
+    icon: "iconTrashcan",
   },
   {
     key: "trim-trailing-whitespace",

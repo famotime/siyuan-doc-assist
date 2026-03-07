@@ -67,6 +67,7 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
 const MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS = new Set<string>([
   "bold-selected-blocks",
   "highlight-selected-blocks",
+  "remove-selected-spacing",
   "delete-from-current-to-end",
 ]);
 

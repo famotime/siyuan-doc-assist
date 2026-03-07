@@ -47,7 +47,11 @@ import { ProtyleLike } from "@/plugin/doc-context";
 import { applyBlockStyle, BlockStyle } from "@/core/markdown-style-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
-import { getSelectedBlockIds, resolveCurrentBlockId } from "@/plugin/action-runner-context";
+import {
+  getExplicitlySelectedBlockIds,
+  getSelectedBlockIds,
+  resolveCurrentBlockId,
+} from "@/plugin/action-runner-context";
 import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
 import { convertDocImagesToWebp } from "@/services/image-webp";
 import { convertDocImagesToPng } from "@/services/image-png";
@@ -84,6 +88,7 @@ const forwardLinksLogger = createDocAssistantLogger("ForwardLinks");
 const styleLogger = createDocAssistantLogger("Style");
 const trailingWhitespaceLogger = createDocAssistantLogger("TrailingWhitespace");
 const deleteFromCurrentLogger = createDocAssistantLogger("DeleteFromCurrent");
+const INLINE_SPACE_LIKE_PATTERN = /[ \t\u00A0\u1680\u2000-\u200D\u202F\u205F\u3000\uFEFF]/gu;
 
 /**
  * Extracts block-level IAL lines from a cleaned kramdown string.
@@ -151,6 +156,15 @@ function isParagraphBlockType(type: string): boolean {
   );
 }
 
+function removeSpaceLikeChars(value: string): { next: string; removedCount: number } {
+  let removedCount = 0;
+  const next = (value || "").replace(INLINE_SPACE_LIKE_PATTERN, () => {
+    removedCount += 1;
+    return "";
+  });
+  return { next, removedCount };
+}
+
 export class ActionRunner {
   private isRunning = false;
 
@@ -183,6 +197,8 @@ export class ActionRunner {
       this.handleStyleSelectedBlocks(docId, protyle, "highlight"),
     "toggle-linebreaks-paragraphs": async (docId, protyle) =>
       this.handleToggleLinebreaksParagraphs(docId, protyle),
+    "remove-selected-spacing": async (docId, protyle) =>
+      this.handleRemoveSelectedSpacing(docId, protyle),
   };
 
   constructor(private readonly deps: ActionRunnerDeps) {}
@@ -493,6 +509,221 @@ export class ActionRunner {
       return;
     }
     showMessage(`已处理 ${success} 个块`, 5000, "info");
+  }
+
+  private async handleRemoveSelectedSpacing(_docId: string, protyle?: ProtyleLike) {
+    const explicitSelectedIds = getExplicitlySelectedBlockIds(protyle);
+    if (!explicitSelectedIds.length) {
+      const partialResult = this.applyPartialSelectionSpacingCleanup(protyle);
+      if (partialResult.handled) {
+        if (partialResult.removedCount > 0) {
+          showMessage(`已清理选中内容，移除 ${partialResult.removedCount} 个字符`, 5000, "info");
+        } else {
+          showMessage("选中内容未发现可清理字符", 4000, "info");
+        }
+        return;
+      }
+    }
+
+    if (explicitSelectedIds.length > 0) {
+      const selectedBlockResult = this.applySelectedBlocksSpacingCleanupFromDom(
+        protyle,
+        explicitSelectedIds
+      );
+      if (selectedBlockResult) {
+        if (selectedBlockResult.removedCount > 0) {
+          showMessage(
+            `已清理 ${selectedBlockResult.cleanedBlockCount} 个块，移除 ${selectedBlockResult.removedCount} 个字符`,
+            5000,
+            "info"
+          );
+        } else {
+          showMessage("未发现可清理字符", 4000, "info");
+        }
+        return;
+      }
+    }
+
+    const selectedIds = explicitSelectedIds.length
+      ? explicitSelectedIds
+      : getSelectedBlockIds(protyle);
+    if (!selectedIds.length) {
+      showMessage("未选中任何内容，请先选中后再操作", 5000, "info");
+      return;
+    }
+
+    const rows = await getBlockKramdowns(selectedIds);
+    const sourceMap = new Map(rows.map((item) => [item.id, item.kramdown || ""]));
+    const updates: Array<{ id: string; next: string; removedCount: number }> = [];
+    let missingSourceCount = 0;
+    for (const id of selectedIds) {
+      const source = sourceMap.get(id);
+      if (source === undefined) {
+        missingSourceCount += 1;
+        continue;
+      }
+      const cleaned = removeSpaceLikeChars(source);
+      if (cleaned.removedCount <= 0 || cleaned.next === source) {
+        continue;
+      }
+      updates.push({
+        id,
+        next: cleaned.next,
+        removedCount: cleaned.removedCount,
+      });
+    }
+
+    if (!updates.length) {
+      if (missingSourceCount > 0) {
+        showMessage(`读取块源码失败，已跳过 ${missingSourceCount} 个块`, 6000, "error");
+        return;
+      }
+      showMessage("未发现可清理字符", 4000, "info");
+      return;
+    }
+
+    let success = 0;
+    let failed = 0;
+    let removedCount = 0;
+    for (const item of updates) {
+      try {
+        await updateBlockMarkdown(item.id, item.next);
+        success += 1;
+        removedCount += item.removedCount;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    if (failed > 0 || missingSourceCount > 0) {
+      showMessage(
+        `处理完成：成功 ${success} 个块，失败 ${failed} 个块，跳过 ${missingSourceCount} 个块`,
+        7000,
+        "error"
+      );
+      return;
+    }
+    showMessage(`已清理 ${success} 个块，移除 ${removedCount} 个字符`, 5000, "info");
+  }
+
+  private applySelectedBlocksSpacingCleanupFromDom(
+    protyle: ProtyleLike | undefined,
+    selectedIds: string[]
+  ): { cleanedBlockCount: number; removedCount: number } | null {
+    const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+    if (!root || !selectedIds.length) {
+      return null;
+    }
+
+    const blockElements: HTMLElement[] = [];
+    for (const id of selectedIds) {
+      const block = this.findBlockElementById(root, id);
+      if (!block) {
+        return null;
+      }
+      blockElements.push(block);
+    }
+
+    let cleanedBlockCount = 0;
+    let removedCount = 0;
+    for (const block of blockElements) {
+      const editable =
+        (block.querySelector('[contenteditable="true"]') as HTMLElement | null) || block;
+      const removedInBlock = this.removeSpaceLikeCharsInTextNodes(editable);
+      if (removedInBlock > 0) {
+        cleanedBlockCount += 1;
+        removedCount += removedInBlock;
+        editable.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+    return { cleanedBlockCount, removedCount };
+  }
+
+  private applyPartialSelectionSpacingCleanup(
+    protyle?: ProtyleLike
+  ): { handled: boolean; removedCount: number } {
+    if (typeof window === "undefined") {
+      return { handled: false, removedCount: 0 };
+    }
+
+    const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+    if (!root) {
+      return { handled: false, removedCount: 0 };
+    }
+    const selection = window.getSelection?.();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return { handled: false, removedCount: 0 };
+    }
+
+    const range = selection.getRangeAt(0);
+    const startBlockId = this.resolveRangeBoundaryBlockId(root, range.startContainer);
+    const endBlockId = this.resolveRangeBoundaryBlockId(root, range.endContainer);
+    if (!startBlockId || !endBlockId || startBlockId !== endBlockId) {
+      return { handled: false, removedCount: 0 };
+    }
+
+    const blockElement = this.findBlockElementById(root, startBlockId);
+    if (!blockElement) {
+      return { handled: false, removedCount: 0 };
+    }
+
+    const selectedText = range.toString();
+    const cleaned = removeSpaceLikeChars(selectedText);
+    const removedCount = cleaned.removedCount;
+
+    if (removedCount > 0) {
+      range.deleteContents();
+      range.insertNode(document.createTextNode(cleaned.next));
+      const editable =
+        (blockElement.querySelector('[contenteditable="true"]') as HTMLElement | null) ||
+        blockElement;
+      editable.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    selection.removeAllRanges();
+    return { handled: true, removedCount };
+  }
+
+  private findBlockElementById(root: HTMLElement, blockId: string): HTMLElement | null {
+    const nodes = root.querySelectorAll<HTMLElement>("[data-node-id]");
+    for (const node of nodes) {
+      const id = node.dataset.nodeId || node.getAttribute("data-node-id") || "";
+      if (id === blockId) {
+        return node;
+      }
+    }
+    return null;
+  }
+
+  private resolveRangeBoundaryBlockId(root: HTMLElement, container: Node): string {
+    const baseElement =
+      container.nodeType === Node.ELEMENT_NODE
+        ? (container as Element)
+        : container.parentElement;
+    if (!baseElement) {
+      return "";
+    }
+    const blockElement = baseElement.closest?.("[data-node-id]") as HTMLElement | null;
+    if (!blockElement || !root.contains(blockElement)) {
+      return "";
+    }
+    return (blockElement.dataset.nodeId || blockElement.getAttribute("data-node-id") || "").trim();
+  }
+
+  private removeSpaceLikeCharsInTextNodes(root: HTMLElement): number {
+    let removedCount = 0;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let current = walker.nextNode();
+    while (current) {
+      const textNode = current as Text;
+      const source = textNode.nodeValue || "";
+      const cleaned = removeSpaceLikeChars(source);
+      if (cleaned.removedCount > 0) {
+        textNode.nodeValue = cleaned.next;
+        removedCount += cleaned.removedCount;
+      }
+      current = walker.nextNode();
+    }
+    return removedCount;
   }
 
   private async handleToggleLinebreaksParagraphs(docId: string, protyle?: ProtyleLike) {

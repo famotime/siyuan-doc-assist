@@ -1163,6 +1163,54 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("未选中任何块，请先选中块", 5000, "info");
   });
 
+  test("removes spaces-like chars only inside partial text selection within a single block", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `<div data-node-id="a">前缀A B\tC\u200BD后缀</div>`;
+    document.body.appendChild(root);
+    const textNode = root.querySelector("[data-node-id='a']")?.firstChild as Text | null;
+    expect(textNode).toBeTruthy();
+
+    const source = textNode?.nodeValue || "";
+    const start = source.indexOf("A");
+    const end = source.indexOf("D") + 1;
+    const range = document.createRange();
+    range.setStart(textNode as Text, start);
+    range.setEnd(textNode as Text, end);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    const runner = createRunner();
+
+    await runner.runAction("remove-selected-spacing" as any, undefined, protyle);
+
+    const blockText = root.querySelector("[data-node-id='a']")?.textContent || "";
+    expect(blockText).toBe("前缀ABCD后缀");
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(getBlockKramdownsMock).not.toHaveBeenCalled();
+
+    selection?.removeAllRanges();
+    root.remove();
+  });
+
+  test("removes spaces-like chars from whole selected blocks", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">甲 乙\t丙</div>
+      <div data-node-id="b" class="protyle-wysiwyg--select">丁\u200B 戊</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    const runner = createRunner();
+
+    await runner.runAction("remove-selected-spacing" as any, undefined, protyle);
+
+    expect(root.querySelector("[data-node-id='a']")?.textContent).toBe("甲乙丙");
+    expect(root.querySelector("[data-node-id='b']")?.textContent).toBe("丁戊");
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(getBlockKramdownsMock).not.toHaveBeenCalled();
+  });
+
   test("treats data-node-selected attribute as selected block marker", async () => {
     const root = document.createElement("div");
     root.innerHTML = `
