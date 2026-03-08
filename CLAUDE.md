@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A SiYuan Notes plugin (v1.3.8, minAppVersion 3.5.7) that adds document extraction, organization, and editing tools. Built with TypeScript + Vite 6, compiled to CommonJS format as required by SiYuan's plugin system.
+A SiYuan Notes plugin (v1.3.9, minAppVersion 3.5.7) that adds document extraction, organization, and editing tools. Built with TypeScript + Vite 6, compiled to CommonJS format as required by SiYuan's plugin system.
 
 ## Commands
 
