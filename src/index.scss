@@ -80,6 +80,8 @@
   --keyinfo-code: #4f9dff;
   --keyinfo-remark: #a73766;
   --keyinfo-tag: #2bb673;
+  --keyinfo-link: #3aa5b6;
+  --keyinfo-ref: #8f67d8;
 }
 
 .doc-assistant-keyinfo__header {
@@ -197,12 +199,17 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 28px;
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--b3-border-color);
   background: color-mix(in srgb, var(--b3-theme-surface) 85%, transparent);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   --keyinfo-filter-color: var(--keyinfo-all);
+}
+
+.doc-assistant-keyinfo__filter.is-collapsed-filter {
+  display: none;
 }
 
 .doc-assistant-keyinfo__filter.is-active {
@@ -254,6 +261,14 @@
 
 .doc-assistant-keyinfo__filter[data-type="tag"] {
   --keyinfo-filter-color: var(--keyinfo-tag);
+}
+
+.doc-assistant-keyinfo__filter[data-type="link"] {
+  --keyinfo-filter-color: var(--keyinfo-link);
+}
+
+.doc-assistant-keyinfo__filter[data-type="ref"] {
+  --keyinfo-filter-color: var(--keyinfo-ref);
 }
 
 .doc-assistant-keyinfo__list {
@@ -702,6 +717,18 @@
   color: var(--keyinfo-tag);
   background: color-mix(in srgb, var(--keyinfo-tag) 16%, transparent);
   border-color: color-mix(in srgb, var(--keyinfo-tag) 35%, transparent);
+}
+
+.doc-assistant-keyinfo__badge--link {
+  color: var(--keyinfo-link);
+  background: color-mix(in srgb, var(--keyinfo-link) 16%, transparent);
+  border-color: color-mix(in srgb, var(--keyinfo-link) 35%, transparent);
+}
+
+.doc-assistant-keyinfo__badge--ref {
+  color: var(--keyinfo-ref);
+  background: color-mix(in srgb, var(--keyinfo-ref) 16%, transparent);
+  border-color: color-mix(in srgb, var(--keyinfo-ref) 35%, transparent);
 }
 
 .doc-assistant-keyinfo__text {
@@ -1171,6 +1198,14 @@
 
 .doc-assistant-keyinfo__row[data-type="tag"] {
   --row-accent: var(--keyinfo-tag);
+}
+
+.doc-assistant-keyinfo__row[data-type="link"] {
+  --row-accent: var(--keyinfo-link);
+}
+
+.doc-assistant-keyinfo__row[data-type="ref"] {
+  --row-accent: var(--keyinfo-ref);
 }
 
 .doc-assistant-keyinfo__row.is-clickable:hover {

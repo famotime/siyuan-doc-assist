@@ -14,6 +14,7 @@ import type { KeyInfoListScrollLock } from "@/core/key-info-scroll-lock-core";
 import { DockDocAction, DockTabKey } from "@/core/dock-panel-core";
 import {
   buildKeyInfoDockRow,
+  COLLAPSIBLE_FILTER_TYPES,
   createKeyInfoDockChrome,
   FILTER_TYPES,
   filterKeyInfoDockItems,
@@ -31,6 +32,7 @@ export type KeyInfoDockState = {
   docTitle: string;
   items: KeyInfoItem[];
   filter: KeyInfoFilter;
+  filtersExpanded: boolean;
   loading: boolean;
   isRefreshing: boolean;
   emptyText: string;
@@ -77,6 +79,7 @@ export function createKeyInfoDock(
     docTitle: "",
     items: [],
     filter: [...FILTER_TYPES],
+    filtersExpanded: false,
     loading: false,
     isRefreshing: false,
     emptyText: "暂无关键内容",
@@ -94,6 +97,7 @@ export function createKeyInfoDock(
     meta,
     tabButtons,
     filterButtons,
+    filterToggleButton,
     refreshButton,
     exportButton,
     list,
@@ -119,6 +123,9 @@ export function createKeyInfoDock(
         current.add(filterKey);
       }
       setState({ filter: Array.from(current) });
+    },
+    onFilterToggleExpanded: () => {
+      setState({ filtersExpanded: !state.filtersExpanded });
     },
     onRefresh: () => callbacks.onRefresh?.(),
     onExport: () => callbacks.onExport(),
@@ -239,6 +246,11 @@ export function createKeyInfoDock(
   const updateFilterButtons = () => {
     filterButtons.forEach((button, key) => {
       const isActive = isKeyInfoDockFilterKeyActive(state.filter, key, FILTER_TYPES.length);
+      const shouldCollapse = key !== "all" && COLLAPSIBLE_FILTER_TYPES.includes(key as KeyInfoItem["type"]);
+      const isCollapsed = shouldCollapse && !state.filtersExpanded;
+      button.hidden = isCollapsed;
+      button.classList.toggle("is-collapsed-filter", isCollapsed);
+      button.setAttribute("aria-hidden", isCollapsed ? "true" : "false");
       button.disabled = state.loading;
       if (isActive) {
         button.classList.add("is-active");
@@ -246,6 +258,10 @@ export function createKeyInfoDock(
         button.classList.remove("is-active");
       }
     });
+    filterToggleButton.disabled = state.loading;
+    filterToggleButton.setAttribute("aria-expanded", state.filtersExpanded ? "true" : "false");
+    filterToggleButton.setAttribute("aria-pressed", state.filtersExpanded ? "true" : "false");
+    filterToggleButton.classList.toggle("is-active", state.filtersExpanded);
   };
 
   const updateTabButtons = () => {

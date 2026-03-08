@@ -95,6 +95,109 @@ describe("key-info-dock controls", () => {
     host.remove();
   });
 
+  test("toggles collapsed filters via more button and preserves hidden active filters", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, { onExport: () => {} });
+    dock.setState({
+      items: [
+        buildItem("1", "bold"),
+        buildItem("2", "tag"),
+        buildItem("3", "link"),
+        buildItem("4", "ref"),
+      ],
+      filter: ["tag", "link"],
+    });
+
+    const moreFilter = host.querySelector(
+      ".doc-assistant-keyinfo__filter-toggle"
+    ) as HTMLButtonElement | null;
+    const tagFilter = host.querySelector(
+      '.doc-assistant-keyinfo__filter[data-type="tag"]'
+    ) as HTMLButtonElement | null;
+    const linkFilter = host.querySelector(
+      '.doc-assistant-keyinfo__filter[data-type="link"]'
+    ) as HTMLButtonElement | null;
+    const refFilter = host.querySelector(
+      '.doc-assistant-keyinfo__filter[data-type="ref"]'
+    ) as HTMLButtonElement | null;
+
+    const rowTypes = () =>
+      Array.from(host.querySelectorAll(".doc-assistant-keyinfo__row")).map(
+        (row) => (row as HTMLDivElement).dataset.type
+      );
+    const filterOrder = () =>
+      Array.from(host.querySelectorAll(".doc-assistant-keyinfo__filters > button")).map(
+        (button) => {
+          const element = button as HTMLButtonElement;
+          return element.dataset.type || element.dataset.role || "";
+        }
+      );
+
+    expect(moreFilter).not.toBeNull();
+    expect(moreFilter?.getAttribute("aria-expanded")).toBe("false");
+    expect(moreFilter?.classList.contains("is-active")).toBe(false);
+    expect(moreFilter?.textContent?.replace(/\s+/g, "")).toBe("多更多");
+    expect(filterOrder()).toEqual([
+      "all",
+      "title",
+      "bold",
+      "highlight",
+      "remark",
+      "italic",
+      "code",
+      "more",
+      "link",
+      "ref",
+      "tag",
+    ]);
+    expect(tagFilter?.classList.contains("is-collapsed-filter")).toBe(true);
+    expect(linkFilter?.classList.contains("is-collapsed-filter")).toBe(true);
+    expect(refFilter?.classList.contains("is-collapsed-filter")).toBe(true);
+    expect(tagFilter?.hidden).toBe(true);
+    expect(linkFilter?.hidden).toBe(true);
+    expect(refFilter?.hidden).toBe(true);
+    expect(rowTypes()).toEqual(["tag", "link"]);
+
+    moreFilter?.click();
+
+    expect(moreFilter?.getAttribute("aria-expanded")).toBe("true");
+    expect(moreFilter?.classList.contains("is-active")).toBe(true);
+    expect(tagFilter?.classList.contains("is-collapsed-filter")).toBe(false);
+    expect(linkFilter?.classList.contains("is-collapsed-filter")).toBe(false);
+    expect(refFilter?.classList.contains("is-collapsed-filter")).toBe(false);
+    expect(tagFilter?.hidden).toBe(false);
+    expect(linkFilter?.hidden).toBe(false);
+    expect(refFilter?.hidden).toBe(false);
+    expect(tagFilter?.classList.contains("is-active")).toBe(true);
+    expect(linkFilter?.classList.contains("is-active")).toBe(true);
+    expect(refFilter?.classList.contains("is-active")).toBe(false);
+
+    moreFilter?.click();
+
+    expect(moreFilter?.getAttribute("aria-expanded")).toBe("false");
+    expect(moreFilter?.classList.contains("is-active")).toBe(false);
+    expect(tagFilter?.hidden).toBe(true);
+    expect(linkFilter?.hidden).toBe(true);
+    expect(refFilter?.hidden).toBe(true);
+    expect(rowTypes()).toEqual(["tag", "link"]);
+
+    moreFilter?.click();
+    const allFilter = host.querySelector(
+      '.doc-assistant-keyinfo__filter[data-type="all"]'
+    ) as HTMLButtonElement | null;
+
+    allFilter?.click();
+
+    expect(tagFilter?.classList.contains("is-active")).toBe(true);
+    expect(linkFilter?.classList.contains("is-active")).toBe(true);
+    expect(refFilter?.classList.contains("is-active")).toBe(true);
+
+    dock.destroy();
+    host.remove();
+  });
+
   test("shows loading spinner and blocks key info actions while loading a new document", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);

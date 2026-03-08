@@ -82,6 +82,69 @@ describe("key-info-core", () => {
     expect(italicItems).toEqual(["有效"]);
   });
 
+  test("extracts links and refs as key info", () => {
+    const markdown = [
+      "普通链接 [官网](https://example.com/docs)",
+      "文档链接 [文档别名](siyuan://blocks/20260202121212-bcdefg2)",
+      "自动链接 <https://example.com/plain>",
+      '块引用 ((20260202121212-bcdefg2 "引用别名"))',
+      '双向链接 [[20260303131313-cdefgh3 "双向别名"]]',
+    ].join("\n");
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+    const texts = items.map((item) => `${item.type}:${item.text}`);
+
+    expect(texts).toContain("link:[官网](https://example.com/docs)");
+    expect(texts).toContain("link:[文档别名](siyuan://blocks/20260202121212-bcdefg2)");
+    expect(texts).toContain("link:<https://example.com/plain>");
+    expect(texts).toContain('ref:((20260202121212-bcdefg2 "引用别名"))');
+    expect(texts).toContain('ref:[[20260303131313-cdefgh3 "双向别名"]]');
+  });
+
+  test("does not extract inline formatting from inside links and refs", () => {
+    const markdown = [
+      "[**加粗链接**](https://example.com)",
+      '[==高亮文档链接==](siyuan://blocks/20260202121212-bcdefg2)',
+      '((20260202121212-bcdefg2 "**引用加粗**"))',
+      '[[20260303131313-cdefgh3 "*引用斜体*"]]',
+    ].join("\n");
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+    const texts = items.map((item) => `${item.type}:${item.text}`);
+
+    expect(texts).toContain("link:[**加粗链接**](https://example.com)");
+    expect(texts).toContain("link:[==高亮文档链接==](siyuan://blocks/20260202121212-bcdefg2)");
+    expect(texts).toContain('ref:((20260202121212-bcdefg2 "**引用加粗**"))');
+    expect(texts).toContain('ref:[[20260303131313-cdefgh3 "*引用斜体*"]]');
+    expect(items.filter((item) => item.type === "bold")).toHaveLength(0);
+    expect(items.filter((item) => item.type === "italic")).toHaveLength(0);
+    expect(items.filter((item) => item.type === "highlight")).toHaveLength(0);
+  });
+
+  test("normalizes wrapped markdown links without surfacing extra opening bracket", () => {
+    const markdown = "[[官网](https://example.com/path)]";
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+    const linkTexts = items.filter((item) => item.type === "link").map((item) => item.text);
+
+    expect(linkTexts).toEqual(["[官网](https://example.com/path)"]);
+  });
+
+  test("ignores links and refs inside code blocks and inline code", () => {
+    const markdown = [
+      "正文 `[inline](https://example.com) ((20260202121212-bcdefg2 \"引用\"))`",
+      "```",
+      "[code](https://example.com)",
+      '((20260202121212-bcdefg2 "引用"))',
+      '[[20260303131313-cdefgh3 "双向别名"]]',
+      "```",
+    ].join("\n");
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+
+    expect(items).toHaveLength(0);
+  });
+
   test("does not extract escaped markdown markers as bold or italic", () => {
     const markdown = [
       "正文 \\*不是斜体\\* 与 \\_也不是斜体\\_。",

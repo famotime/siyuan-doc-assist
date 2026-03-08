@@ -120,6 +120,15 @@ describe("key-info-dock-state", () => {
     expect(isKeyInfoDockFilterKeyActive(filter, "code", 2)).toBe(false);
   });
 
+  test("derives filter button active state for collapsed link/ref/tag keys", () => {
+    const filter: KeyInfoType[] = ["tag", "link", "ref"];
+
+    expect(isKeyInfoDockAllFilterActive(filter, 3)).toBe(true);
+    expect(isKeyInfoDockFilterKeyActive(filter, "tag", 3)).toBe(true);
+    expect(isKeyInfoDockFilterKeyActive(filter, "link", 3)).toBe(true);
+    expect(isKeyInfoDockFilterKeyActive(filter, "ref", 3)).toBe(true);
+  });
+
   test("derives tab button active state", () => {
     expect(isKeyInfoDockTabActive("key-info", "key-info")).toBe(true);
     expect(isKeyInfoDockTabActive("key-info", "doc-process")).toBe(false);

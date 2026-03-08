@@ -5,7 +5,9 @@ export type KeyInfoType =
   | "highlight"
   | "code"
   | "remark"
-  | "tag";
+  | "tag"
+  | "link"
+  | "ref";
 
 export type KeyInfoFilter = KeyInfoType[];
 
@@ -33,6 +35,8 @@ const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
   code: "代码",
   remark: "备注",
   tag: "标签",
+  link: "链接",
+  ref: "引用",
 };
 
 export function keyInfoTypeLabel(type: KeyInfoType): string {
@@ -169,36 +173,18 @@ function maskInlineCode(markdown: string): string {
   return chars.join("");
 }
 
-function maskPatternRanges(source: string, pattern: RegExp): string {
-  const chars = source.split("");
-  pattern.lastIndex = 0;
-  let match = pattern.exec(source);
-  while (match) {
-    const start = match.index;
-    const end = start + (match[0]?.length || 0);
-    for (let i = start; i < end && i < chars.length; i += 1) {
-      chars[i] = " ";
-    }
-    if ((match[0]?.length || 0) <= 0) {
-      break;
-    }
-    match = pattern.exec(source);
-  }
-  return chars.join("");
-}
-
-function maskLinkSyntax(markdown: string): string {
-  let masked = markdown;
-  masked = maskPatternRanges(masked, /!\[[^\]]*?\]\([^)]+?\)/g);
-  masked = maskPatternRanges(masked, /\[[^\]]*?\]\([^)]+?\)/g);
-  masked = maskPatternRanges(masked, /\[\[[^\]]+?\]\]/g);
-  masked = maskPatternRanges(masked, /<a\b[^>]*>[\s\S]*?<\/a>/gi);
-  masked = maskPatternRanges(masked, /<https?:\/\/[^>]+?>/gi);
-  return masked;
-}
+const BLOCK_ID_PATTERN = "[0-9]{14}-[a-z0-9]{7,}";
+const BLOCK_REF_PATTERN = new RegExp(
+  `\\(\\(\\s*(${BLOCK_ID_PATTERN})(?:\\s+(?:\"((?:\\\\.|[^\"\\\\])*)\"|'((?:\\\\.|[^'\\\\])*)'))?\\s*\\)\\)`,
+  "gi"
+);
+const WIKI_REF_PATTERN = new RegExp(
+  `\\[\\[\\s*(${BLOCK_ID_PATTERN})(?:\\s+(?:\"((?:\\\\.|[^\"\\\\])*)\"|'((?:\\\\.|[^'\\\\])*)'))?\\s*\\]\\]`,
+  "gi"
+);
 
 function maskMarkdown(markdown: string): string {
-  return maskLinkSyntax(maskInlineCode(maskCodeBlocks(markdown)));
+  return maskInlineCode(maskCodeBlocks(markdown));
 }
 
 function applyMaskRanges(
@@ -339,6 +325,88 @@ function extractTags(original: string, masked: string): KeyInfoExtract[] {
   return items;
 }
 
+function extractLinksAndRefs(
+  original: string,
+  masked: string
+): { items: KeyInfoExtract[]; ranges: Array<[number, number]> } {
+  const items: KeyInfoExtract[] = [];
+  const ranges: Array<[number, number]> = [];
+  const isIgnoredLinkTarget = (href: string) => /^zotero:\/\//i.test((href || "").trim());
+
+  const pushItem = (type: "link" | "ref", raw: string, offset: number, length: number) => {
+    const cleaned = (raw || "").trim();
+    if (!cleaned) {
+      return;
+    }
+    items.push({
+      type,
+      text: cleaned,
+      raw: cleaned,
+      offset,
+    });
+    ranges.push([offset, offset + length]);
+  };
+
+  const markdownLinkPattern = /(?<!!)\[([^\]]+?)\]\(\s*([^)]+?)\s*\)/g;
+  let match = markdownLinkPattern.exec(masked);
+  while (match) {
+    const raw = original.slice(match.index, match.index + match[0].length) || match[0];
+    const href = (match[2] || "").trim();
+    if (href && !isIgnoredLinkTarget(href)) {
+      const trailingChar = original[match.index + match[0].length] || "";
+      const isWrappedMarkdownLink = raw.startsWith("[[") && trailingChar === "]";
+      const normalizedRaw = isWrappedMarkdownLink ? raw.slice(1) : raw;
+      const rangeLength = match[0].length + (isWrappedMarkdownLink ? 1 : 0);
+      pushItem("link", normalizedRaw, match.index, rangeLength);
+    }
+    match = markdownLinkPattern.exec(masked);
+  }
+
+  const autoLinkPattern = /<((?:https?:\/\/|siyuan:\/\/blocks\/)[^>\s]+)>/gi;
+  match = autoLinkPattern.exec(masked);
+  while (match) {
+    const raw = original.slice(match.index, match.index + match[0].length) || match[0];
+    const href = (match[1] || "").trim();
+    if (href) {
+      pushItem("link", raw, match.index, match[0].length);
+    }
+    match = autoLinkPattern.exec(masked);
+  }
+
+  const htmlLinkPattern = /<a\b[^>]*href=(['"])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
+  match = htmlLinkPattern.exec(masked);
+  while (match) {
+    const raw = original.slice(match.index, match.index + match[0].length) || match[0];
+    const href = (match[2] || "").trim();
+    if (href && !isIgnoredLinkTarget(href)) {
+      pushItem("link", raw, match.index, match[0].length);
+    }
+    match = htmlLinkPattern.exec(masked);
+  }
+
+  BLOCK_REF_PATTERN.lastIndex = 0;
+  match = BLOCK_REF_PATTERN.exec(masked);
+  while (match) {
+    const raw = original.slice(match.index, match.index + match[0].length) || match[0];
+    if ((match[1] || "").trim()) {
+      pushItem("ref", raw, match.index, match[0].length);
+    }
+    match = BLOCK_REF_PATTERN.exec(masked);
+  }
+
+  WIKI_REF_PATTERN.lastIndex = 0;
+  match = WIKI_REF_PATTERN.exec(masked);
+  while (match) {
+    const raw = original.slice(match.index, match.index + match[0].length) || match[0];
+    if ((match[1] || "").trim()) {
+      pushItem("ref", raw, match.index, match[0].length);
+    }
+    match = WIKI_REF_PATTERN.exec(masked);
+  }
+
+  return { items, ranges };
+}
+
 export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   if (!markdown) {
     return [];
@@ -349,9 +417,12 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   const headingExtract = extractHeadings(markdown, masked);
   items.push(...headingExtract.items);
   const maskedWithoutHeadings = applyMaskRanges(masked, headingExtract.ranges);
+  const linkRefExtract = extractLinksAndRefs(markdown, maskedWithoutHeadings);
+  items.push(...linkRefExtract.items);
+  const maskedWithoutLinksRefs = applyMaskRanges(maskedWithoutHeadings, linkRefExtract.ranges);
 
   const highlightMarks = collectRegexMatches(
-    maskedWithoutHeadings,
+    maskedWithoutLinksRefs,
     markdown,
     /==([^\n]+?)==/g,
     "highlight",
@@ -360,7 +431,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...highlightMarks.items);
 
   const highlightTags = collectHtmlWrappedMatches(
-    maskedWithoutHeadings,
+    maskedWithoutLinksRefs,
     markdown,
     "mark",
     "highlight",
@@ -369,7 +440,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...highlightTags.items);
 
   const highlightSpans = collectRegexMatches(
-    maskedWithoutHeadings,
+    maskedWithoutLinksRefs,
     markdown,
     /<span[^>]*data-type=["']mark["'][^>]*>([\s\S]+?)<\/span>/gi,
     "highlight",
@@ -379,7 +450,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...highlightSpans.items);
 
   const remarkMatches = collectRegexMatches(
-    maskedWithoutHeadings,
+    maskedWithoutLinksRefs,
     markdown,
     /%%([^\n]+?)%%/g,
     "remark",
@@ -388,7 +459,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...remarkMatches.items);
 
   const boldMatches = collectRegexMatches(
-    maskedWithoutHeadings,
+    maskedWithoutLinksRefs,
     markdown,
     /(?<!\\)(\*\*|__)([^\n]+?)(?<!\\)\1/g,
     "bold",
@@ -397,7 +468,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...boldMatches.items);
 
   const strongMatches = collectHtmlWrappedMatches(
-    maskedWithoutHeadings,
+    maskedWithoutLinksRefs,
     markdown,
     "strong",
     "bold",
@@ -405,7 +476,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   );
   items.push(...strongMatches.items);
 
-  const maskedWithoutBold = applyMaskRanges(maskedWithoutHeadings, boldMatches.ranges);
+  const maskedWithoutBold = applyMaskRanges(maskedWithoutLinksRefs, boldMatches.ranges);
   const italicMatches = collectRegexMatches(
     maskedWithoutBold,
     markdown,
@@ -416,7 +487,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...italicMatches.items);
 
   const emMatches = collectHtmlWrappedMatches(
-    maskedWithoutHeadings,
+    maskedWithoutLinksRefs,
     markdown,
     "em",
     "italic",
@@ -425,7 +496,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   items.push(...emMatches.items);
 
   const italicTagMatches = collectHtmlWrappedMatches(
-    maskedWithoutHeadings,
+    maskedWithoutLinksRefs,
     markdown,
     "i",
     "italic",
@@ -433,7 +504,7 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
   );
   items.push(...italicTagMatches.items);
 
-  items.push(...extractTags(markdown, maskedWithoutHeadings));
+  items.push(...extractTags(markdown, maskedWithoutLinksRefs));
 
   items.sort((a, b) => a.offset - b.offset);
   return items;

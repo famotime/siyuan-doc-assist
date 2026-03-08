@@ -11,7 +11,11 @@ export const FILTER_TYPES: KeyInfoType[] = [
   "code",
   "remark",
   "tag",
+  "link",
+  "ref",
 ];
+
+export const COLLAPSIBLE_FILTER_TYPES: KeyInfoType[] = ["link", "ref", "tag"];
 
 const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
   { key: "all", label: "全部", icon: "全" },
@@ -22,6 +26,8 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
   { key: "italic", label: "斜体", icon: "斜" },
   { key: "code", label: "代码", icon: "码" },
   { key: "tag", label: "标签", icon: "签" },
+  { key: "link", label: "链接", icon: "链" },
+  { key: "ref", label: "引用", icon: "引" },
 ];
 
 export type KeyInfoDockChrome = {
@@ -31,6 +37,7 @@ export type KeyInfoDockChrome = {
   meta: HTMLDivElement;
   tabButtons: Map<DockTabKey, HTMLButtonElement>;
   filterButtons: Map<FilterKey, HTMLButtonElement>;
+  filterToggleButton: HTMLButtonElement;
   refreshButton: HTMLButtonElement;
   exportButton: HTMLButtonElement;
   list: HTMLDivElement;
@@ -44,6 +51,7 @@ export type KeyInfoDockChrome = {
 type KeyInfoDockChromeCallbacks = {
   onTabSelect: (tab: DockTabKey) => void;
   onFilterSelect: (key: FilterKey) => void;
+  onFilterToggleExpanded: () => void;
   onRefresh: () => void;
   onExport: () => void;
   onDocMenuToggleAll: (enabled: boolean) => void;
@@ -149,7 +157,7 @@ export function createKeyInfoDockChrome(
   const filters = document.createElement("div");
   filters.className = "doc-assistant-keyinfo__filters";
   const filterButtons = new Map<FilterKey, HTMLButtonElement>();
-  FILTERS.forEach((filter) => {
+  const appendFilterButton = (filter: { key: FilterKey; label: string; icon: string }) => {
     const button = document.createElement("button");
     button.className = "b3-button b3-button--small doc-assistant-keyinfo__filter";
     button.dataset.type = filter.key;
@@ -166,6 +174,31 @@ export function createKeyInfoDockChrome(
     });
     filters.appendChild(button);
     filterButtons.set(filter.key, button);
+  };
+  FILTERS.filter((filter) => !COLLAPSIBLE_FILTER_TYPES.includes(filter.key as KeyInfoType)).forEach(
+    appendFilterButton
+  );
+  const filterToggleButton = document.createElement("button");
+  filterToggleButton.type = "button";
+  filterToggleButton.className =
+    "b3-button b3-button--small doc-assistant-keyinfo__filter doc-assistant-keyinfo__filter-toggle";
+  filterToggleButton.dataset.role = "more";
+  filterToggleButton.setAttribute("aria-expanded", "false");
+  const filterToggleIcon = document.createElement("span");
+  filterToggleIcon.className = "doc-assistant-keyinfo__filter-icon";
+  filterToggleIcon.textContent = "多";
+  const filterToggleLabel = document.createElement("span");
+  filterToggleLabel.className = "doc-assistant-keyinfo__filter-label";
+  filterToggleLabel.textContent = "更多";
+  filterToggleButton.appendChild(filterToggleIcon);
+  filterToggleButton.appendChild(filterToggleLabel);
+  filterToggleButton.addEventListener("click", callbacks.onFilterToggleExpanded);
+  filters.appendChild(filterToggleButton);
+  COLLAPSIBLE_FILTER_TYPES.forEach((key) => {
+    const filter = FILTERS.find((item) => item.key === key);
+    if (filter) {
+      appendFilterButton(filter);
+    }
   });
 
   const list = document.createElement("div");
@@ -264,6 +297,7 @@ export function createKeyInfoDockChrome(
     meta,
     tabButtons,
     filterButtons,
+    filterToggleButton,
     refreshButton: refreshBtn,
     exportButton: exportBtn,
     list,
