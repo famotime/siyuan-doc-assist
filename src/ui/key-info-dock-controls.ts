@@ -31,8 +31,11 @@ export type KeyInfoDockChrome = {
   meta: HTMLDivElement;
   tabButtons: Map<DockTabKey, HTMLButtonElement>;
   filterButtons: Map<FilterKey, HTMLButtonElement>;
+  refreshButton: HTMLButtonElement;
+  exportButton: HTMLButtonElement;
   list: HTMLDivElement;
   keyInfoPanel: HTMLDivElement;
+  keyInfoLoadingOverlay: HTMLDivElement;
   docProcessPanel: HTMLDivElement;
   docMenuToggleInput: HTMLInputElement;
   docProcessList: HTMLDivElement;
@@ -201,6 +204,22 @@ export function createKeyInfoDockChrome(
   keyInfoPanel.appendChild(list);
   keyInfoPanel.appendChild(footer);
 
+  const keyInfoLoadingOverlay = document.createElement("div");
+  keyInfoLoadingOverlay.className = "doc-assistant-keyinfo__loading-overlay";
+  keyInfoLoadingOverlay.setAttribute("aria-hidden", "true");
+  const keyInfoLoadingCard = document.createElement("div");
+  keyInfoLoadingCard.className = "doc-assistant-keyinfo__loading-card";
+  const keyInfoLoadingSpinner = document.createElement("span");
+  keyInfoLoadingSpinner.className = "doc-assistant-keyinfo__loading-spinner";
+  keyInfoLoadingSpinner.setAttribute("aria-hidden", "true");
+  const keyInfoLoadingText = document.createElement("span");
+  keyInfoLoadingText.className = "doc-assistant-keyinfo__loading-text";
+  keyInfoLoadingText.textContent = "加载中...";
+  keyInfoLoadingCard.appendChild(keyInfoLoadingSpinner);
+  keyInfoLoadingCard.appendChild(keyInfoLoadingText);
+  keyInfoLoadingOverlay.appendChild(keyInfoLoadingCard);
+  keyInfoPanel.appendChild(keyInfoLoadingOverlay);
+
   const docProcessPanel = document.createElement("div");
   docProcessPanel.className = "doc-assistant-keyinfo__panel doc-assistant-keyinfo__panel--doc-process";
   const docMenuToggleRow = document.createElement("div");
@@ -245,8 +264,11 @@ export function createKeyInfoDockChrome(
     meta,
     tabButtons,
     filterButtons,
+    refreshButton: refreshBtn,
+    exportButton: exportBtn,
     list,
     keyInfoPanel,
+    keyInfoLoadingOverlay,
     docProcessPanel,
     docMenuToggleInput,
     docProcessList,

@@ -94,4 +94,89 @@ describe("key-info-dock controls", () => {
     dock.destroy();
     host.remove();
   });
+
+  test("shows loading spinner and blocks key info actions while loading a new document", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const onRefresh = vi.fn();
+    const onExport = vi.fn();
+    const onItemClick = vi.fn();
+    const dock = createKeyInfoDock(host, { onRefresh, onExport, onItemClick });
+
+    dock.setState({
+      items: [buildItem("1", "bold"), buildItem("2", "title")],
+      loading: false,
+      isRefreshing: false,
+      scrollContextKey: "doc-a",
+    });
+
+    const row = host.querySelector(".doc-assistant-keyinfo__row") as HTMLDivElement | null;
+    const refreshBtn = host.querySelector(
+      ".doc-assistant-keyinfo__footer-btn--refresh"
+    ) as HTMLButtonElement | null;
+    const exportBtn = host.querySelector(
+      ".doc-assistant-keyinfo__footer-btn--export"
+    ) as HTMLButtonElement | null;
+    const boldFilter = host.querySelector(
+      '.doc-assistant-keyinfo__filter[data-type="bold"]'
+    ) as HTMLButtonElement | null;
+
+    expect(row).toBeTruthy();
+    expect(refreshBtn?.disabled).toBe(false);
+    expect(exportBtn?.disabled).toBe(false);
+    expect(boldFilter?.disabled).toBe(false);
+
+    row!.click();
+    refreshBtn!.click();
+    exportBtn!.click();
+
+    expect(onItemClick).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(onExport).toHaveBeenCalledTimes(1);
+
+    dock.setState({
+      loading: true,
+      isRefreshing: true,
+      scrollContextKey: "doc-b",
+    });
+
+    const loadingOverlay = host.querySelector(
+      ".doc-assistant-keyinfo__loading-overlay"
+    ) as HTMLDivElement | null;
+    const loadingSpinner = host.querySelector(
+      ".doc-assistant-keyinfo__loading-spinner"
+    ) as HTMLSpanElement | null;
+    const loadingRow = host.querySelector(".doc-assistant-keyinfo__row") as HTMLDivElement | null;
+
+    expect(loadingOverlay?.classList.contains("is-visible")).toBe(true);
+    expect(loadingSpinner).toBeTruthy();
+    expect(refreshBtn?.disabled).toBe(true);
+    expect(exportBtn?.disabled).toBe(true);
+    expect(boldFilter?.disabled).toBe(true);
+    expect(loadingRow?.classList.contains("is-clickable")).toBe(false);
+    expect(loadingRow?.tabIndex).toBe(-1);
+
+    loadingRow?.click();
+    refreshBtn?.click();
+    exportBtn?.click();
+
+    expect(onItemClick).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(onExport).toHaveBeenCalledTimes(1);
+
+    dock.setState({
+      loading: false,
+      isRefreshing: false,
+      scrollContextKey: "doc-b",
+    });
+
+    expect(loadingOverlay?.classList.contains("is-visible")).toBe(false);
+    expect(refreshBtn?.disabled).toBe(false);
+    expect(exportBtn?.disabled).toBe(false);
+    expect(boldFilter?.disabled).toBe(false);
+
+    dock.destroy();
+    host.remove();
+  });
 });

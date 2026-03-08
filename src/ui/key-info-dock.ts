@@ -94,8 +94,11 @@ export function createKeyInfoDock(
     meta,
     tabButtons,
     filterButtons,
+    refreshButton,
+    exportButton,
     list,
     keyInfoPanel,
+    keyInfoLoadingOverlay,
     docProcessPanel,
     docMenuToggleInput,
     docProcessList,
@@ -236,6 +239,7 @@ export function createKeyInfoDock(
   const updateFilterButtons = () => {
     filterButtons.forEach((button, key) => {
       const isActive = isKeyInfoDockFilterKeyActive(state.filter, key, FILTER_TYPES.length);
+      button.disabled = state.loading;
       if (isActive) {
         button.classList.add("is-active");
       } else {
@@ -264,6 +268,15 @@ export function createKeyInfoDock(
     docMenuToggleInput.checked = state.docMenuRegisterAll;
   };
 
+  const renderLoadingState = () => {
+    list.setAttribute("aria-busy", state.loading ? "true" : "false");
+    keyInfoPanel.classList.toggle("is-loading", state.loading);
+    keyInfoLoadingOverlay.classList.toggle("is-visible", state.loading);
+    keyInfoLoadingOverlay.setAttribute("aria-hidden", state.loading ? "false" : "true");
+    refreshButton.disabled = state.loading;
+    exportButton.disabled = state.loading;
+  };
+
   const renderDocActions = () => {
     renderKeyInfoDockDocActions({
       container: docProcessList,
@@ -286,6 +299,7 @@ export function createKeyInfoDock(
   const rowCache = new Map<string, HTMLDivElement>();
   let lastRenderIds: string[] = [];
   let lastRenderFilterSignature = "";
+  let lastRenderLoading = state.loading;
 
   const updateRow = (
     row: HTMLDivElement,
@@ -319,8 +333,10 @@ export function createKeyInfoDock(
     text.textContent = renderedText;
 
     if (item.blockId && onItemClick) {
+      row.classList.remove("is-disabled");
       row.classList.add("is-clickable");
       row.setAttribute("role", "button");
+      row.setAttribute("aria-disabled", "false");
       row.tabIndex = 0;
       row.onmousedown = (event) => {
         event.preventDefault();
@@ -335,8 +351,10 @@ export function createKeyInfoDock(
         }
       };
     } else {
+      row.classList.remove("is-clickable");
       row.classList.add("is-disabled");
       row.removeAttribute("role");
+      row.setAttribute("aria-disabled", "true");
       row.tabIndex = -1;
       row.onclick = null;
       row.onkeydown = null;
@@ -370,6 +388,7 @@ export function createKeyInfoDock(
       list.appendChild(empty);
       lastRenderIds = [];
       lastRenderFilterSignature = getFilterSignature();
+      lastRenderLoading = state.loading;
       applyPostRenderScroll();
       return;
     }
@@ -382,6 +401,7 @@ export function createKeyInfoDock(
       list.appendChild(empty);
       lastRenderIds = [];
       lastRenderFilterSignature = getFilterSignature();
+      lastRenderLoading = state.loading;
       applyPostRenderScroll();
       return;
     }
@@ -390,6 +410,7 @@ export function createKeyInfoDock(
     const canAppend =
       lastRenderIds.length > 0 &&
       filterSignature === lastRenderFilterSignature &&
+      state.loading === lastRenderLoading &&
       visible.length >= lastRenderIds.length &&
       lastRenderIds.every((id, index) => visible[index]?.id === id);
 
@@ -409,6 +430,7 @@ export function createKeyInfoDock(
       }
       lastRenderIds = visible.map((item) => item.id);
       lastRenderFilterSignature = filterSignature;
+      lastRenderLoading = state.loading;
       applyPostRenderScroll();
       return;
     }
@@ -422,7 +444,7 @@ export function createKeyInfoDock(
         row = buildKeyInfoDockRow(item);
         rowCache.set(item.id, row);
       }
-      updateRow(row, item, handleItemClick);
+      updateRow(row, item, state.loading ? undefined : handleItemClick);
       fragment.appendChild(row);
     });
 
@@ -438,6 +460,7 @@ export function createKeyInfoDock(
     list.replaceChildren(fragment);
     lastRenderIds = visible.map((item) => item.id);
     lastRenderFilterSignature = filterSignature;
+    lastRenderLoading = state.loading;
     applyPostRenderScroll();
   };
 
@@ -477,6 +500,7 @@ export function createKeyInfoDock(
       scrollLock = null;
     }
     renderHeader();
+    renderLoadingState();
     updateFilterButtons();
     updateTabButtons();
     renderTabPanels();
@@ -495,6 +519,7 @@ export function createKeyInfoDock(
   updateTabButtons();
   renderTabPanels();
   renderHeader();
+  renderLoadingState();
   renderList();
   renderDocMenuToggle();
   renderDocActions();
