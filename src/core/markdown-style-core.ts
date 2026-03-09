@@ -149,6 +149,53 @@ function isFullyWrapped(content: string, marker: string): boolean {
   return !inner.includes(marker);
 }
 
+function renderStyledLines(
+  parsed: ParsedStyleLine[],
+  marker: string,
+  enabled: boolean
+): string {
+  const styled = parsed.map((line) => {
+    if (!line.stylable) {
+      return line.original;
+    }
+    const normalized = normalizeContentWithoutMarker(line.content, marker);
+    if (!normalized) {
+      return line.original;
+    }
+    const nextContent = enabled
+      ? wrapContent(normalized, marker)
+      : normalized;
+    return `${line.prefix}${nextContent}${line.suffix}`;
+  });
+  return styled.join("\n");
+}
+
+export function hasBlockStyleMarker(markdown: string, style: BlockStyle): boolean {
+  const marker = STYLE_MARKERS[style];
+  const parsed = (markdown || "").split(/\r?\n/).map((line) => parseStyleLine(line));
+  return parsed.some((line) => {
+    if (!line.stylable) {
+      return false;
+    }
+    const trimmed = line.content.trim();
+    if (!trimmed) {
+      return false;
+    }
+    return normalizeContentWithoutMarker(line.content, marker) !== trimmed;
+  });
+}
+
+export function setBlockStyle(markdown: string, style: BlockStyle, enabled: boolean): string {
+  const marker = STYLE_MARKERS[style];
+  const lines = (markdown || "").split(/\r?\n/);
+  const parsed = lines.map((line) => parseStyleLine(line));
+  const stylable = parsed.filter((line) => line.stylable);
+  if (!stylable.length) {
+    return lines.join("\n");
+  }
+  return renderStyledLines(parsed, marker, enabled);
+}
+
 export function applyBlockStyle(markdown: string, style: BlockStyle): string {
   const marker = STYLE_MARKERS[style];
   const lines = (markdown || "").split(/\r?\n/);
@@ -161,18 +208,5 @@ export function applyBlockStyle(markdown: string, style: BlockStyle): string {
   const shouldRemoveStyle = stylable.every((line) =>
     isFullyWrapped(line.content, marker)
   );
-  const styled = parsed.map((line) => {
-    if (!line.stylable) {
-      return line.original;
-    }
-    const normalized = normalizeContentWithoutMarker(line.content, marker);
-    if (!normalized) {
-      return line.original;
-    }
-    const nextContent = shouldRemoveStyle
-      ? normalized
-      : wrapContent(normalized, marker);
-    return `${line.prefix}${nextContent}${line.suffix}`;
-  });
-  return styled.join("\n");
+  return renderStyledLines(parsed, marker, !shouldRemoveStyle);
 }

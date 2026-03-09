@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { applyBlockStyle } from "@/core/markdown-style-core";
+import {
+  applyBlockStyle,
+  hasBlockStyleMarker,
+  setBlockStyle,
+} from "@/core/markdown-style-core";
 
 describe("markdown-style-core", () => {
   test("bolds heading content and strips trailing attributes", () => {
@@ -46,5 +50,18 @@ describe("markdown-style-core", () => {
   test("strips trailing attributes from normal text block when styling", () => {
     const input = '补充对应测试。 {: id="20260225233926-3sosz6b" updated="20260225233926"}';
     expect(applyBlockStyle(input, "bold")).toBe("**补充对应测试。**");
+  });
+
+  test("detects bold markers inside heading content", () => {
+    expect(hasBlockStyleMarker("# Hello **World**", "bold")).toBe(true);
+    expect(hasBlockStyleMarker("# Hello World", "bold")).toBe(false);
+  });
+
+  test("forces heading content plain when bold is disabled", () => {
+    expect(setBlockStyle("# Hello **World** {: id=\"abc\"}", "bold", false)).toBe("# Hello World");
+  });
+
+  test("forces heading content bold when bold is enabled", () => {
+    expect(setBlockStyle("## Heading", "bold", true)).toBe("## **Heading**");
   });
 });

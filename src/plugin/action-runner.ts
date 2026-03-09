@@ -5,6 +5,7 @@ import {
   markInvalidSiyuanLinkRefsInMarkdown,
 } from "@/core/link-core";
 import { KeyInfoFilter } from "@/core/key-info-core";
+import { buildHeadingBoldTogglePreview } from "@/core/heading-bold-toggle-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import {
   cleanupAiOutputArtifactsInMarkdown,
@@ -173,6 +174,7 @@ export class ActionRunner {
       "clean-ai-output": async (docId) => this.handleCleanAiOutput(docId),
       "mark-invalid-links-refs": async (docId) => this.handleMarkInvalidLinksRefs(docId),
       "insert-blank-before-headings": async (docId) => this.handleInsertBlankBeforeHeadings(docId),
+      "toggle-heading-bold": async (docId) => this.handleToggleHeadingBold(docId),
       "delete-from-current-to-end": async (docId, protyle) =>
         this.handleDeleteFromCurrentToEnd(docId, protyle),
       "bold-selected-blocks": async (docId, protyle) =>
@@ -976,6 +978,66 @@ export class ActionRunner {
       return;
     }
     showMessage(`已为 ${result.insertCount} 个标题补充空段落`, 5000, "info");
+  }
+
+  private async handleToggleHeadingBold(docId: string) {
+    const blocks = await getChildBlocksByParentId(docId);
+    const preview = buildHeadingBoldTogglePreview(blocks);
+    if (preview.totalHeadingCount === 0) {
+      showMessage("当前文档没有标题块", 4000, "info");
+      return;
+    }
+    if (preview.updateCount === 0) {
+      showMessage("未发现可处理的标题块", 4000, "info");
+      return;
+    }
+
+    const operationText = preview.mode === "remove-bold"
+      ? "取消所有标题块加粗"
+      : "加粗所有标题块";
+    const ok = await this.askConfirmWithVisibleDialog(
+      "确认标题块加粗状态切换",
+      [
+        `标题总数 ${preview.totalHeadingCount} 个`,
+        `含加粗 ${preview.boldHeadingCount} 个`,
+        `未加粗 ${preview.plainHeadingCount} 个`,
+        `操作：${operationText}`,
+        `预计更新 ${preview.updateCount} 个块`,
+        "是否继续？",
+      ].join("\n")
+    );
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
+    let success = 0;
+    let failed = 0;
+    for (const item of preview.updates) {
+      try {
+        await updateBlockMarkdown(item.id, item.next);
+        success += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    if (failed > 0) {
+      showMessage(
+        `标题块处理完成：成功 ${success} 个，失败 ${failed} 个`,
+        7000,
+        "error"
+      );
+      return;
+    }
+
+    showMessage(
+      preview.mode === "remove-bold"
+        ? `已取消 ${success} 个标题块的加粗`
+        : `已为 ${success} 个标题块加粗`,
+      5000,
+      "info"
+    );
   }
 
   private async handleMarkInvalidLinksRefs(docId: string) {

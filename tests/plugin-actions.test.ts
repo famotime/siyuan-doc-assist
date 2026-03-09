@@ -19,6 +19,7 @@ describe("plugin actions", () => {
     expect(isActionKey("trim-trailing-whitespace")).toBe(true);
     expect(isActionKey("clean-ai-output")).toBe(true);
     expect(isActionKey("insert-blank-before-headings")).toBe(true);
+    expect(isActionKey("toggle-heading-bold")).toBe(true);
     expect(isActionKey("mark-invalid-links-refs")).toBe(true);
     expect(isActionKey("delete-from-current-to-end")).toBe(true);
     expect(isActionKey("toggle-linebreaks-paragraphs")).toBe(true);

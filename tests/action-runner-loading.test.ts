@@ -1084,6 +1084,55 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
   });
 
+  test("shows heading bold stats and removes bold from all heading blocks after confirmation", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "h1", type: "h", markdown: "# **标题一**", resolved: true } as any,
+      { id: "p1", type: "p", markdown: "正文", resolved: true } as any,
+      { id: "h2", type: "h", markdown: "## 普通 **标题二**", resolved: true } as any,
+      { id: "h3", type: "h", markdown: "### 标题三", resolved: true } as any,
+    ]);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("toggle-heading-bold" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    const confirmText = String(askConfirm.mock.calls[0]?.[1] || "");
+    expect(confirmText).toContain("标题总数 3 个");
+    expect(confirmText).toContain("含加粗 2 个");
+    expect(confirmText).toContain("未加粗 1 个");
+    expect(confirmText).toContain("操作：取消所有标题块加粗");
+    expect(confirmText).toContain("预计更新 2 个块");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "h1", "# 标题一");
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "h2", "## 普通 标题二");
+  });
+
+  test("adds bold to all heading blocks when none of them are bold", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "h1", type: "h", markdown: "# 标题一", resolved: true } as any,
+      { id: "h2", type: "h", markdown: "## 标题二 {: id=\"h2\"}", resolved: true } as any,
+    ]);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("toggle-heading-bold" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(String(askConfirm.mock.calls[0]?.[1] || "")).toContain("操作：加粗所有标题块");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "h1", "# **标题一**");
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "h2", "## **标题二**");
+  });
+
   test("normalizes partial bold content before applying full bold", async () => {
     const root = document.createElement("div");
     root.innerHTML = `

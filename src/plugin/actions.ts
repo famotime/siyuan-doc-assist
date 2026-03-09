@@ -20,6 +20,7 @@ export type ActionKey =
   | "clean-ai-output"
   | "mark-invalid-links-refs"
   | "insert-blank-before-headings"
+  | "toggle-heading-bold"
   | "delete-from-current-to-end"
   | "bold-selected-blocks"
   | "highlight-selected-blocks"
@@ -50,6 +51,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "insert-backlinks": "反",
   "insert-child-docs": "子",
   "insert-blank-before-headings": "空",
+  "toggle-heading-bold": "题",
   "mark-invalid-links-refs": "标",
   "convert-images-to-webp": "图",
   "convert-images-to-png": "图",
@@ -154,6 +156,13 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     menuText: "标题前增加空段落",
     group: "insert",
     icon: "iconList",
+  },
+  {
+    key: "toggle-heading-bold",
+    commandText: "标题块加粗状态切换",
+    menuText: "标题块加粗状态切换",
+    group: "edit",
+    icon: "iconBold",
   },
   {
     key: "bold-selected-blocks",
