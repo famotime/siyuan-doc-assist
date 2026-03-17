@@ -9,6 +9,7 @@ export type ActionKey =
   | "export-forward-zip"
   | "move-backlinks"
   | "move-forward-links"
+  | "create-open-docs-summary"
   | "dedupe"
   | "remove-extra-blank-lines"
   | "trim-trailing-whitespace"
@@ -48,6 +49,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "export-forward-zip": "正",
   "move-backlinks": "移",
   "move-forward-links": "正",
+  "create-open-docs-summary": "汇",
   dedupe: "重",
   "insert-backlinks": "反",
   "insert-child-docs": "子",
@@ -115,6 +117,13 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     group: "organize",
     desktopOnly: true,
     icon: "iconMove",
+  },
+  {
+    key: "create-open-docs-summary",
+    commandText: "生成已打开文档的汇总页",
+    menuText: "生成已打开文档的汇总页",
+    group: "organize",
+    icon: "iconList",
   },
   {
     key: "dedupe",

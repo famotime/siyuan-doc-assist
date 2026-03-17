@@ -3,6 +3,7 @@ import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import { appendBlock } from "@/services/kernel";
 import { getBacklinkDocs, getForwardLinkedDocIds } from "@/services/link-resolver";
 import { moveDocsAsChildren } from "@/services/mover";
+import { createOpenedDocsSummaryDoc } from "@/services/open-doc-summary";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { openDedupeDialog } from "@/ui/dialogs";
 
@@ -110,6 +111,11 @@ export function createOrganizeActionHandlers(
         `失败 ${report.failed.length}`,
       ].join("，");
       showMessage(message, 9000, report.failed.length ? "error" : "info");
+    },
+    "create-open-docs-summary": async (docId) => {
+      const summary = await createOpenedDocsSummaryDoc(docId);
+      openDocByProtocol(summary.id);
+      showMessage(`已生成汇总页，包含 ${summary.docCount} 篇已打开文档`, 5000, "info");
     },
     dedupe: async (docId) => {
       const candidates = await findDuplicateCandidates(docId, 0.85);

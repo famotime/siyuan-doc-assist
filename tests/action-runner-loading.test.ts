@@ -21,6 +21,7 @@ vi.mock("@/services/exporter", () => ({
 
 vi.mock("@/services/kernel", () => ({
   appendBlock: vi.fn(),
+  createDocWithMd: vi.fn(),
   deleteBlocksByIds: vi.fn(),
   deleteBlockById: vi.fn(),
   getBlockDOM: vi.fn(),
@@ -103,6 +104,7 @@ import { resizeDocImagesToDisplay } from "@/services/image-display-size";
 import { removeDocImageLinks } from "@/services/image-remove";
 import {
   appendBlock,
+  createDocWithMd,
   deleteBlocksByIds,
   deleteBlockById,
   getBlockDOM,
@@ -123,6 +125,7 @@ const deleteDocsByIdsMock = vi.mocked(deleteDocsByIds);
 const deleteBlockByIdMock = vi.mocked(deleteBlockById);
 const deleteBlocksByIdsMock = vi.mocked(deleteBlocksByIds);
 const appendBlockMock = vi.mocked(appendBlock);
+const createDocWithMdMock = vi.mocked(createDocWithMd);
 const getBlockDOMMock = vi.mocked(getBlockDOM);
 const getBlockDOMsMock = vi.mocked(getBlockDOMs);
 const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
@@ -368,6 +371,69 @@ describe("action-runner loading guard", () => {
 
     expect(appendBlockMock).toHaveBeenCalledWith("- [Child B](siyuan://blocks/child-b)", "doc-1");
     expect(showMessageMock).toHaveBeenCalledWith("已插入 1 个子文档链接，跳过已存在 1 个", 5000, "info");
+  });
+
+  test("creates a summary page from opened unpinned docs", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-17T09:08:07+08:00"));
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      box: "notebook-1",
+      hPath: "/项目/当前文档",
+      title: "当前文档",
+    } as any);
+    createDocWithMdMock.mockResolvedValue("summary-doc");
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    (window as any).siyuan = {
+      layout: {
+        centerLayout: {
+          children: [
+            {
+              children: [
+                {
+                  pin: false,
+                  title: "当前文档",
+                  model: {
+                    notebookId: "notebook-1",
+                    rootId: "doc-1",
+                  },
+                },
+                {
+                  pin: true,
+                  title: "已钉住文档",
+                  model: {
+                    notebookId: "notebook-1",
+                    rootId: "doc-pinned",
+                  },
+                },
+                {
+                  pin: false,
+                  title: "资料页",
+                  model: {
+                    notebookId: "notebook-1",
+                    rootId: "doc-2",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const runner = createRunner();
+
+    await runner.runAction("create-open-docs-summary" as any);
+
+    expect(createDocWithMdMock).toHaveBeenCalledWith(
+      "notebook-1",
+      "/项目/已打开文档汇总页-20260317-090807",
+      "- [当前文档](siyuan://blocks/doc-1)\n- [资料页](siyuan://blocks/doc-2)"
+    );
+    expect(openSpy).toHaveBeenCalledWith("siyuan://blocks/summary-doc");
+    expect(showMessageMock).toHaveBeenCalledWith("已生成汇总页，包含 2 篇已打开文档", 5000, "info");
+
+    openSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   test("converts doc links to refs in current document by default", async () => {

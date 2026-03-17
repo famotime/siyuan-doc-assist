@@ -11,6 +11,7 @@ describe("plugin actions", () => {
     expect(isActionKey("export-current")).toBe(true);
     expect(isActionKey("insert-backlinks")).toBe(true);
     expect(isActionKey("move-forward-links")).toBe(true);
+    expect(isActionKey("create-open-docs-summary")).toBe(true);
     expect(isActionKey("toggle-links-refs")).toBe(true);
     expect(isActionKey("convert-images-to-webp")).toBe(true);
     expect(isActionKey("convert-images-to-png")).toBe(true);

@@ -242,6 +242,18 @@ export async function exportResources(
   });
 }
 
+export async function createDocWithMd(
+  notebook: string,
+  path: string,
+  markdown: string
+): Promise<string> {
+  return requestApi<string>("/api/filetree/createDocWithMd", {
+    notebook,
+    path,
+    markdown,
+  });
+}
+
 export async function getDocMetaByID(id: string): Promise<DocMeta | null> {
   const rows = await sql<SqlDocRow>(
     `select id, parent_id, root_id, box, path, hpath, updated from blocks where type='d' and id='${escapeSqlLiteral(
