@@ -42,31 +42,43 @@ function isPinnedTab(tab: TabLike): boolean {
   return Boolean(tab.headElement?.classList?.contains("item--pin"));
 }
 
+function getLayoutChildren(node: unknown): unknown[] {
+  if (!node || typeof node !== "object") {
+    return [];
+  }
+  return Array.isArray((node as LayoutNodeLike).children)
+    ? ((node as LayoutNodeLike).children as unknown[])
+    : [];
+}
+
+function collectFromTab(tab: TabLike, docs: Map<string, OpenedDocSummaryItem>) {
+  if (isPinnedTab(tab)) {
+    return;
+  }
+
+  const id = (tab.model?.rootId || "").trim();
+  const notebookId = (tab.model?.notebookId || "").trim();
+  if (!id || !notebookId || docs.has(id)) {
+    return;
+  }
+
+  docs.set(id, {
+    id,
+    notebookId,
+    title: (tab.title || id).trim() || id,
+  });
+}
+
 function collectFromLayout(node: unknown, docs: Map<string, OpenedDocSummaryItem>) {
   if (!node || typeof node !== "object") {
     return;
   }
 
-  const children = Array.isArray((node as LayoutNodeLike).children)
-    ? ((node as LayoutNodeLike).children as unknown[])
-    : [];
-  for (const child of children) {
-    if (isTabLike(child)) {
-      if (isPinnedTab(child)) {
-        continue;
-      }
-      const id = (child.model?.rootId || "").trim();
-      const notebookId = (child.model?.notebookId || "").trim();
-      if (!id || !notebookId || docs.has(id)) {
-        continue;
-      }
-      docs.set(id, {
-        id,
-        notebookId,
-        title: (child.title || id).trim() || id,
-      });
-      continue;
-    }
+  if (isTabLike(node)) {
+    collectFromTab(node, docs);
+  }
+
+  for (const child of getLayoutChildren(node)) {
     collectFromLayout(child, docs);
   }
 }

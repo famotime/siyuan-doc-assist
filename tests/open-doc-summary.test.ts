@@ -73,6 +73,39 @@ describe("open-doc-summary service", () => {
     ]);
   });
 
+  test("collects docs nested under container nodes that also expose tab-like fields", () => {
+    const containerHead = document.createElement("div");
+    (window as any).siyuan = {
+      layout: {
+        centerLayout: {
+          children: [
+            {
+              title: "编辑区容器",
+              headElement: containerHead,
+              children: [
+                {
+                  pin: false,
+                  title: "文档 A",
+                  model: { notebookId: "nb", rootId: "doc-a" },
+                },
+                {
+                  pin: false,
+                  title: "文档 B",
+                  model: { notebookId: "nb", rootId: "doc-b" },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    expect(collectOpenedUnpinnedDocs()).toEqual([
+      { id: "doc-a", notebookId: "nb", title: "文档 A" },
+      { id: "doc-b", notebookId: "nb", title: "文档 B" },
+    ]);
+  });
+
   test("creates summary doc beside current doc with opened doc links", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-17T09:08:07+08:00"));
