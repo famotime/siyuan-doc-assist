@@ -1,19 +1,32 @@
 import { createDocWithMd, getDocMetaByID } from "@/services/kernel";
+import { requestApi } from "@/services/request";
 
 type LayoutNodeLike = {
   children?: unknown[];
+  instance?: string;
 };
 
 type EditorModelLike = {
   rootId?: string;
+  rootID?: string;
   notebookId?: string;
 };
 
 type TabLike = {
   pin?: boolean;
+  instance?: string;
   title?: string;
   headElement?: HTMLElement | null;
   model?: EditorModelLike | null;
+  children?: unknown;
+};
+
+type SystemConfLike = {
+  conf?: {
+    uiLayout?: {
+      layout?: unknown;
+    };
+  };
 };
 
 export type OpenedDocSummaryItem = {
@@ -32,7 +45,10 @@ function isTabLike(value: unknown): value is TabLike {
   if (!value || typeof value !== "object") {
     return false;
   }
-  return "model" in value || "headElement" in value || "title" in value;
+  return (value as LayoutNodeLike).instance === "Tab"
+    || "model" in value
+    || "headElement" in value
+    || "title" in value;
 }
 
 function isPinnedTab(tab: TabLike): boolean {
@@ -51,13 +67,24 @@ function getLayoutChildren(node: unknown): unknown[] {
     : [];
 }
 
+function getTabEditorModel(tab: TabLike): EditorModelLike | null {
+  if (tab.model && typeof tab.model === "object") {
+    return tab.model;
+  }
+  if (tab.children && !Array.isArray(tab.children) && typeof tab.children === "object") {
+    return tab.children as EditorModelLike;
+  }
+  return null;
+}
+
 function collectFromTab(tab: TabLike, docs: Map<string, OpenedDocSummaryItem>) {
   if (isPinnedTab(tab)) {
     return;
   }
 
-  const id = (tab.model?.rootId || "").trim();
-  const notebookId = (tab.model?.notebookId || "").trim();
+  const editor = getTabEditorModel(tab);
+  const id = (editor?.rootId || editor?.rootID || "").trim();
+  const notebookId = (editor?.notebookId || "").trim();
   if (!id || !notebookId || docs.has(id)) {
     return;
   }
@@ -112,10 +139,23 @@ function toSummaryMarkdown(items: OpenedDocSummaryItem[]): string {
   return items.map((item) => `- [${item.title}](siyuan://blocks/${item.id})`).join("\n");
 }
 
-export function collectOpenedUnpinnedDocs(): OpenedDocSummaryItem[] {
+async function getSystemUILayout(): Promise<unknown> {
+  const conf = await requestApi<SystemConfLike>("/api/system/getConf");
+  return conf?.conf?.uiLayout?.layout;
+}
+
+export async function collectOpenedUnpinnedDocs(): Promise<OpenedDocSummaryItem[]> {
   const docs = new Map<string, OpenedDocSummaryItem>();
-  const centerLayout = (window as any).siyuan?.layout?.centerLayout;
-  collectFromLayout(centerLayout, docs);
+  const siyuan = (window as any).siyuan;
+  collectFromLayout(siyuan?.layout?.centerLayout, docs);
+  collectFromLayout(siyuan?.config?.uiLayout?.layout, docs);
+  if (!docs.size) {
+    try {
+      collectFromLayout(await getSystemUILayout(), docs);
+    } catch {
+      // Keep backward compatibility when the UI layout API is unavailable.
+    }
+  }
   return [...docs.values()];
 }
 
@@ -127,7 +167,7 @@ export async function createOpenedDocsSummaryDoc(
     throw new Error("未找到当前文档信息，无法生成汇总页");
   }
 
-  const items = collectOpenedUnpinnedDocs();
+  const items = await collectOpenedUnpinnedDocs();
   if (!items.length) {
     throw new Error("当前没有未钉住的已打开文档");
   }

@@ -6,7 +6,12 @@ vi.mock("@/services/kernel", () => ({
   getDocMetaByID: vi.fn(),
 }));
 
+vi.mock("@/services/request", () => ({
+  requestApi: vi.fn(),
+}));
+
 import { createDocWithMd, getDocMetaByID } from "@/services/kernel";
+import { requestApi } from "@/services/request";
 import {
   collectOpenedUnpinnedDocs,
   createOpenedDocsSummaryDoc,
@@ -14,6 +19,7 @@ import {
 
 const createDocWithMdMock = vi.mocked(createDocWithMd);
 const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
+const requestApiMock = vi.mocked(requestApi);
 
 describe("open-doc-summary service", () => {
   afterEach(() => {
@@ -22,7 +28,7 @@ describe("open-doc-summary service", () => {
     vi.useRealTimers();
   });
 
-  test("collects unique editor docs from opened unpinned tabs", () => {
+  test("collects unique editor docs from opened unpinned tabs", async () => {
     const pinHead = document.createElement("div");
     pinHead.className = "item item--pin";
     (window as any).siyuan = {
@@ -67,13 +73,13 @@ describe("open-doc-summary service", () => {
       },
     };
 
-    expect(collectOpenedUnpinnedDocs()).toEqual([
+    await expect(collectOpenedUnpinnedDocs()).resolves.toEqual([
       { id: "doc-a", notebookId: "nb", title: "文档 A" },
       { id: "doc-c", notebookId: "nb", title: "文档 C" },
     ]);
   });
 
-  test("collects docs nested under container nodes that also expose tab-like fields", () => {
+  test("collects docs nested under container nodes that also expose tab-like fields", async () => {
     const containerHead = document.createElement("div");
     (window as any).siyuan = {
       layout: {
@@ -100,10 +106,67 @@ describe("open-doc-summary service", () => {
       },
     };
 
-    expect(collectOpenedUnpinnedDocs()).toEqual([
+    await expect(collectOpenedUnpinnedDocs()).resolves.toEqual([
       { id: "doc-a", notebookId: "nb", title: "文档 A" },
       { id: "doc-b", notebookId: "nb", title: "文档 B" },
     ]);
+  });
+
+  test("collects docs from system uiLayout tabs returned by getConf", async () => {
+    requestApiMock.mockResolvedValue({
+      conf: {
+        uiLayout: {
+          layout: {
+            children: [
+              {
+                children: [
+                  {
+                    children: [
+                      {
+                        instance: "Tab",
+                        pin: true,
+                        title: "~Skills",
+                        children: {
+                          instance: "Editor",
+                          notebookId: "nb",
+                          rootId: "doc-pinned",
+                        },
+                      },
+                      {
+                        instance: "Tab",
+                        pin: false,
+                        title: "反链测试",
+                        children: {
+                          instance: "Editor",
+                          notebookId: "nb",
+                          rootId: "doc-a",
+                        },
+                      },
+                      {
+                        instance: "Tab",
+                        pin: false,
+                        title: "README",
+                        children: {
+                          instance: "Editor",
+                          notebookId: "nb",
+                          rootId: "doc-b",
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    } as any);
+
+    await expect(collectOpenedUnpinnedDocs()).resolves.toEqual([
+      { id: "doc-a", notebookId: "nb", title: "反链测试" },
+      { id: "doc-b", notebookId: "nb", title: "README" },
+    ]);
+    expect(requestApiMock).toHaveBeenCalledWith("/api/system/getConf");
   });
 
   test("creates summary doc beside current doc with opened doc links", async () => {
