@@ -16,7 +16,7 @@
 - `docs/` stores internal docs (current structure snapshot: `docs/project-structure.md`).
 - `dist/` and `package.zip` are build artifacts.
 - `plugin-sample-vite-vue/` is a template/reference project.
-- `reference_docs/` stores local SiYuan API/reference materials.
+- `developer_docs/` stores local SiYuan API/reference materials.
 
 ## Build, Test, and Development Commands
 

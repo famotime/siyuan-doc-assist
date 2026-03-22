@@ -10,5 +10,4 @@ tmp
 .env
 /tmp/
 /plugin-sample-vite-vue/
-/reference_docs/
-momo.md
+/developer_docs/

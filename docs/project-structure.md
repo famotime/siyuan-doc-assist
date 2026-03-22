@@ -5,7 +5,7 @@
 ## 1. 快照范围与统计
 
 - 仓库根目录：`D:\MyCodingProjects\siyuan-doc-assist`
-- 当前插件版本：`1.3.9`（来自 `package.json` 与 `plugin.json`）
+- 当前插件版本：`1.4.2`（来自 `package.json` 与 `plugin.json`）
 - 统计口径：以当前工作区实际文件为准（包含未提交文档，不含 `.git` 内部对象明细）
 
 | 目录 | 文件数 | 子目录数 | 说明 |
