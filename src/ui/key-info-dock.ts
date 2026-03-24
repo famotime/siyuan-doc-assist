@@ -106,7 +106,6 @@ export function createKeyInfoDock(
     keyInfoPanel,
     keyInfoLoadingOverlay,
     docProcessPanel,
-    docMenuToggleInput,
     docProcessList,
   } = createKeyInfoDockChrome(element, {
     onTabSelect: (tab) => {
@@ -136,7 +135,6 @@ export function createKeyInfoDock(
     },
     onRefresh: () => callbacks.onRefresh?.(),
     onExport: () => callbacks.onExport(),
-    onDocMenuToggleAll: (enabled) => callbacks.onDocMenuToggleAll?.(enabled),
     onDocActionOrderReset: () => callbacks.onDocActionOrderReset?.(),
   });
 
@@ -287,10 +285,6 @@ export function createKeyInfoDock(
     docProcessPanel.classList.toggle("is-hidden", showKeyInfo);
   };
 
-  const renderDocMenuToggle = () => {
-    docMenuToggleInput.checked = state.docMenuRegisterAll;
-  };
-
   const renderLoadingState = () => {
     list.setAttribute("aria-busy", state.loading ? "true" : "false");
     keyInfoPanel.classList.toggle("is-loading", state.loading);
@@ -305,7 +299,6 @@ export function createKeyInfoDock(
       container: docProcessList,
       actions: state.docActions,
       onDocActionClick: callbacks.onDocActionClick,
-      onDocActionMenuToggle: callbacks.onDocActionMenuToggle,
       onDocActionsReorder: (next) => {
         setState({ docActions: next });
         callbacks.onDocActionReorder?.(next.map((action) => action.key));
@@ -527,9 +520,6 @@ export function createKeyInfoDock(
     updateFilterButtons();
     updateTabButtons();
     renderTabPanels();
-    if (renderFlags.renderDocMenuToggle) {
-      renderDocMenuToggle();
-    }
     if (renderFlags.renderDocActions) {
       renderDocActions();
     }
@@ -544,7 +534,6 @@ export function createKeyInfoDock(
   renderHeader();
   renderLoadingState();
   renderList();
-  renderDocMenuToggle();
   renderDocActions();
 
   return {

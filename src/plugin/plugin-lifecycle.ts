@@ -35,6 +35,7 @@ import {
   setPluginKeyInfoFilter,
   setSinglePluginDocMenuRegistration,
 } from "@/plugin/plugin-lifecycle-state";
+import { openDocMenuRegistrationSetting } from "@/ui/plugin-settings";
 import {
   destroyActionProcessingOverlay,
   hideActionProcessingOverlay,
@@ -153,6 +154,18 @@ export default class DocLinkToolkitPlugin extends Plugin {
     });
     this.keyInfoController.destroy();
     destroyActionProcessingOverlay();
+  }
+
+  openSetting() {
+    openDocMenuRegistrationSetting({
+      pluginName: this.name,
+      actions: this.getOrderedActions(),
+      registration: this.docMenuRegistrationState,
+      isMobile: this.isMobile,
+      onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
+      onToggleSingle: (key, enabled) =>
+        this.setSingleDocMenuRegistration(key, enabled),
+    });
   }
 
   private resolveDocId(explicitId?: string, protyle?: ProtyleLike): string {

@@ -26,12 +26,14 @@ declare module "siyuan" {
 
   export const Plugin: {
     new (...args: any[]): {
+      name: string;
       eventBus: {
         on: (name: string, handler: (...args: any[]) => void) => void;
         off: (name: string, handler: (...args: any[]) => void) => void;
       };
       addDock: (config: any) => void;
       addCommand: (config: any) => void;
+      openSetting(): void;
       loadData: (storageName: string) => Promise<any>;
       saveData: (storageName: string, content: any) => Promise<void>;
       removeData: (storageName: string) => Promise<any>;
@@ -42,6 +44,24 @@ declare module "siyuan" {
     new (options: any): {
       element: HTMLElement;
       destroy: () => void;
+    };
+  };
+
+  export const Setting: {
+    new (options: {
+      height?: string;
+      width?: string;
+      destroyCallback?: () => void;
+      confirmCallback?: () => void;
+    }): {
+      addItem: (options: {
+        title: string;
+        direction?: "column" | "row";
+        description?: string;
+        actionElement?: HTMLElement;
+        createActionElement?: () => HTMLElement;
+      }) => void;
+      open: (name: string) => void;
     };
   };
 }

@@ -40,7 +40,6 @@ export type KeyInfoDockChrome = {
   keyInfoPanel: HTMLDivElement;
   keyInfoLoadingOverlay: HTMLDivElement;
   docProcessPanel: HTMLDivElement;
-  docMenuToggleInput: HTMLInputElement;
   docProcessList: HTMLDivElement;
 };
 
@@ -50,7 +49,6 @@ type KeyInfoDockChromeCallbacks = {
   onFilterToggleExpanded: () => void;
   onRefresh: () => void;
   onExport: () => void;
-  onDocMenuToggleAll: (enabled: boolean) => void;
   onDocActionOrderReset: () => void;
 };
 
@@ -251,33 +249,19 @@ export function createKeyInfoDockChrome(
 
   const docProcessPanel = document.createElement("div");
   docProcessPanel.className = "doc-assistant-keyinfo__panel doc-assistant-keyinfo__panel--doc-process";
-  const docMenuToggleRow = document.createElement("div");
-  docMenuToggleRow.className = "doc-assistant-keyinfo__menu-toggle-row";
-  const docMenuToggle = document.createElement("label");
-  docMenuToggle.className = "doc-assistant-keyinfo__menu-toggle";
-  const docMenuToggleLabel = document.createElement("span");
-  docMenuToggleLabel.className = "doc-assistant-keyinfo__menu-toggle-label";
-  docMenuToggleLabel.textContent = "全部注册到文档菜单";
-  const docMenuToggleInput = document.createElement("input");
-  docMenuToggleInput.type = "checkbox";
-  docMenuToggleInput.className = "doc-assistant-keyinfo__menu-toggle-input";
-  docMenuToggleInput.addEventListener("change", () => {
-    callbacks.onDocMenuToggleAll(docMenuToggleInput.checked);
-  });
-  docMenuToggle.appendChild(docMenuToggleLabel);
-  docMenuToggle.appendChild(docMenuToggleInput);
+  const docProcessFooter = document.createElement("div");
+  docProcessFooter.className = "doc-assistant-keyinfo__doc-process-footer";
   const docActionResetBtn = document.createElement("button");
   docActionResetBtn.type = "button";
   docActionResetBtn.className =
     "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__action-reset-btn";
   docActionResetBtn.textContent = "重置排序";
   docActionResetBtn.addEventListener("click", callbacks.onDocActionOrderReset);
-  docMenuToggleRow.appendChild(docActionResetBtn);
-  docMenuToggleRow.appendChild(docMenuToggle);
+  docProcessFooter.appendChild(docActionResetBtn);
   const docProcessList = document.createElement("div");
   docProcessList.className = "doc-assistant-keyinfo__actions";
   docProcessPanel.appendChild(docProcessList);
-  docProcessPanel.appendChild(docMenuToggleRow);
+  docProcessPanel.appendChild(docProcessFooter);
 
   root.appendChild(header);
   root.appendChild(tabs);
@@ -300,7 +284,6 @@ export function createKeyInfoDockChrome(
     keyInfoPanel,
     keyInfoLoadingOverlay,
     docProcessPanel,
-    docMenuToggleInput,
     docProcessList,
   };
 }

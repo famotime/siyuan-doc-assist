@@ -282,4 +282,33 @@ describe("key-info-dock controls", () => {
     dock.destroy();
     host.remove();
   });
+
+  test("does not render doc menu registration switches in dock doc-process tab", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, { onExport: () => {} });
+    dock.setState({
+      activeTab: "doc-process",
+      docActions: [
+        {
+          key: "insert-backlinks",
+          label: "插入反链文档列表（去重）",
+          icon: "iconList",
+          group: "insert",
+          groupLabel: "插入",
+          disabled: false,
+          menuRegistered: false,
+          menuToggleDisabled: false,
+        },
+      ],
+    });
+
+    expect(host.querySelector(".doc-assistant-keyinfo__action-switch")).toBeNull();
+    expect(host.querySelector(".doc-assistant-keyinfo__menu-toggle-input")).toBeNull();
+    expect(host.querySelector(".doc-assistant-keyinfo__menu-toggle-row")).toBeNull();
+
+    dock.destroy();
+    host.remove();
+  });
 });

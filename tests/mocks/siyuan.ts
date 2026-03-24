@@ -65,3 +65,9 @@ export class Dialog {
 
   destroy(): void {}
 }
+
+export class Setting {
+  addItem(): void {}
+
+  open(): void {}
+}

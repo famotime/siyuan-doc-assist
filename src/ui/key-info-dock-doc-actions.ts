@@ -14,7 +14,6 @@ type RenderDocActionsOptions = {
   actions: DockDocAction[];
   favoriteActionKeys?: readonly string[];
   onDocActionClick?: (actionKey: string) => void;
-  onDocActionMenuToggle?: (actionKey: string, enabled: boolean) => void;
   onDocActionFavoriteToggle?: (actionKey: string, favorited: boolean) => void;
   onFavoriteActionsReorder?: (actionKeys: string[]) => void;
   onDocActionsReorder?: (actions: DockDocAction[]) => void;
@@ -146,7 +145,6 @@ export function renderKeyInfoDockDocActions({
   actions,
   favoriteActionKeys = [],
   onDocActionClick,
-  onDocActionMenuToggle,
   onDocActionFavoriteToggle,
   onFavoriteActionsReorder,
   onDocActionsReorder,
@@ -182,7 +180,6 @@ export function renderKeyInfoDockDocActions({
       actions,
       favoriteActionKeys,
       onDocActionClick,
-      onDocActionMenuToggle,
       onDocActionFavoriteToggle,
       onFavoriteActionsReorder,
       onDocActionsReorder,
@@ -276,25 +273,6 @@ export function renderKeyInfoDockDocActions({
       onDocActionClick?.(action.key);
     });
     return button;
-  };
-
-  const buildMenuSwitch = (action: DockDocAction): HTMLInputElement => {
-    const menuSwitch = document.createElement("input");
-    menuSwitch.type = "checkbox";
-    menuSwitch.className = "doc-assistant-keyinfo__action-switch";
-    menuSwitch.checked = action.menuRegistered;
-    menuSwitch.disabled = action.menuToggleDisabled;
-    if (action.menuToggleDisabledReason) {
-      menuSwitch.title = action.menuToggleDisabledReason;
-    }
-    menuSwitch.addEventListener("click", (event) => {
-      event.stopPropagation();
-    });
-    menuSwitch.addEventListener("change", (event) => {
-      event.stopPropagation();
-      onDocActionMenuToggle?.(action.key, menuSwitch.checked);
-    });
-    return menuSwitch;
   };
 
   const buildActionRow = (
@@ -442,7 +420,6 @@ export function renderKeyInfoDockDocActions({
     row.appendChild(dragHandle);
     row.appendChild(favoriteButton);
     row.appendChild(actionButton);
-    row.appendChild(buildMenuSwitch(action));
     return row;
   };
 
