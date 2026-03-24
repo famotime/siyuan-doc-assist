@@ -7,6 +7,9 @@ export type ProtyleBlockLike = {
 
 export type ProtyleLike = {
   block?: ProtyleBlockLike;
+  model?: {
+    parent?: unknown;
+  };
   wysiwyg?: {
     element?: HTMLElement;
   };

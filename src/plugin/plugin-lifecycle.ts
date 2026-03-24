@@ -9,6 +9,11 @@ import {
   DocMenuRegistrationState,
 } from "@/core/doc-menu-registration-core";
 import { buildDefaultKeyInfoFilter, KeyInfoFilter } from "@/core/key-info-core";
+import {
+  collectLayoutTabIds,
+  resolveMoveTabNextIdAfterPinned,
+  type PinnedTabPlacementLike,
+} from "@/core/pinned-tab-placement-core";
 import { ActionRunner } from "@/plugin/action-runner";
 import { ACTIONS, ActionKey } from "@/plugin/actions";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
@@ -29,13 +34,14 @@ import {
   reorderPluginDocFavoriteActions,
   resetPluginDocActionOrder,
   serializePluginDocMenuState,
+  setKeepNewDocAfterPinnedTabs,
   setAllPluginDocMenuRegistration,
   setPluginDocActionFavorite,
   setPluginDocActionOrder,
   setPluginKeyInfoFilter,
   setSinglePluginDocMenuRegistration,
 } from "@/plugin/plugin-lifecycle-state";
-import { openDocMenuRegistrationSetting } from "@/ui/plugin-settings";
+import { openPluginSettings } from "@/ui/plugin-settings";
 import {
   destroyActionProcessingOverlay,
   hideActionProcessingOverlay,
@@ -53,6 +59,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
     buildDefaultPluginDocMenuState(ACTIONS).docActionOrderState;
   private docFavoriteActionKeys: ActionKey[] = [];
   private keyInfoFilterState: KeyInfoFilter = buildDefaultKeyInfoFilter();
+  private keepNewDocAfterPinnedTabs =
+    buildDefaultPluginDocMenuState(ACTIONS).keepNewDocAfterPinnedTabs;
+  private readonly knownTabIds = new Set<string>();
 
   private readonly actionRunner: ActionRunner = new ActionRunner({
     isMobile: () => this.isMobile,
@@ -95,6 +104,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     }
     this.currentDocId = id;
     this.currentProtyle = protyle;
+    this.keepPinnedTabsVisibleOnNewDoc(protyle);
     void this.keyInfoController.refresh(id, protyle);
   };
 
@@ -132,6 +142,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     await this.loadDocMenuRegistrationState();
     const frontend = getFrontend();
     this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
+    this.seedKnownTabIds();
 
     bindPluginLifecycleEvents(this.eventBus, {
       onSwitchProtyle: this.onSwitchProtyle,
@@ -157,11 +168,14 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   openSetting() {
-    openDocMenuRegistrationSetting({
+    openPluginSettings({
       pluginName: this.name,
       actions: this.getOrderedActions(),
       registration: this.docMenuRegistrationState,
       isMobile: this.isMobile,
+      keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
+      onToggleKeepNewDocAfterPinnedTabs: (enabled) =>
+        this.setKeepNewDocAfterPinnedTabs(enabled),
       onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
       onToggleSingle: (key, enabled) =>
         this.setSingleDocMenuRegistration(key, enabled),
@@ -241,6 +255,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       docActionOrderState: this.docActionOrderState,
       docFavoriteActionKeys: this.docFavoriteActionKeys,
       keyInfoFilterState: this.keyInfoFilterState,
+      keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
     };
   }
 
@@ -249,6 +264,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.docActionOrderState = state.docActionOrderState;
     this.docFavoriteActionKeys = state.docFavoriteActionKeys;
     this.keyInfoFilterState = state.keyInfoFilterState;
+    this.keepNewDocAfterPinnedTabs = state.keepNewDocAfterPinnedTabs;
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {
@@ -305,4 +321,78 @@ export default class DocLinkToolkitPlugin extends Plugin {
     );
     await this.persistDocMenuRegistrationState();
   }
+
+  async setKeepNewDocAfterPinnedTabs(enabled: boolean) {
+    this.applyDocMenuState(
+      setKeepNewDocAfterPinnedTabs(this.snapshotDocMenuState(), enabled)
+    );
+    await this.persistDocMenuRegistrationState();
+  }
+
+  private seedKnownTabIds() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const siyuan = (window as Window & {
+      siyuan?: {
+        layout?: {
+          centerLayout?: unknown;
+        };
+        config?: {
+          uiLayout?: {
+            layout?: unknown;
+          };
+        };
+      };
+    }).siyuan;
+    for (const id of collectLayoutTabIds(siyuan?.layout?.centerLayout)) {
+      this.knownTabIds.add(id);
+    }
+    for (const id of collectLayoutTabIds(siyuan?.config?.uiLayout?.layout)) {
+      this.knownTabIds.add(id);
+    }
+  }
+
+  private keepPinnedTabsVisibleOnNewDoc(protyle?: ProtyleLike) {
+    const currentTab = this.getProtyleTab(protyle);
+    if (!currentTab?.id) {
+      return;
+    }
+
+    const siblingTabs = Array.isArray(currentTab.parent?.children)
+      ? currentTab.parent.children
+      : [];
+    const isKnownTab = this.knownTabIds.has(currentTab.id);
+    siblingTabs.forEach((tab) => {
+      if (tab?.id) {
+        this.knownTabIds.add(tab.id);
+      }
+    });
+    if (!this.keepNewDocAfterPinnedTabs || this.isMobile || isKnownTab) {
+      return;
+    }
+
+    const nextId = resolveMoveTabNextIdAfterPinned(siblingTabs, currentTab.id);
+    if (!nextId || typeof currentTab.parent?.moveTab !== "function") {
+      return;
+    }
+    currentTab.parent.moveTab(currentTab, nextId);
+  }
+
+  private getProtyleTab(protyle?: ProtyleLike): PluginTabLike | null {
+    const tab = protyle?.model?.parent as PluginTabLike | undefined;
+    if (!tab || typeof tab !== "object") {
+      return null;
+    }
+    return typeof tab.id === "string" ? tab : null;
+  }
 }
+
+type PluginTabLike = PinnedTabPlacementLike & {
+  id: string;
+  parent?: {
+    children?: PluginTabLike[];
+    moveTab?: (tab: PluginTabLike, nextId?: string) => void;
+  };
+};

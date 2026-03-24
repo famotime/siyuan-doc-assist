@@ -24,10 +24,12 @@ export type PluginDocMenuState = {
   docActionOrderState: ActionKey[];
   docFavoriteActionKeys: ActionKey[];
   keyInfoFilterState: KeyInfoFilter;
+  keepNewDocAfterPinnedTabs: boolean;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   keyInfoFilter?: unknown;
+  keepNewDocAfterPinnedTabs?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -38,6 +40,7 @@ export function buildDefaultPluginDocMenuState(
     docActionOrderState: buildDefaultDocActionOrder(actions),
     docFavoriteActionKeys: [],
     keyInfoFilterState: buildDefaultKeyInfoFilter(),
+    keepNewDocAfterPinnedTabs: false,
   };
 }
 
@@ -50,6 +53,7 @@ export function normalizePluginDocMenuState(
     docActionOrderState: normalizeDocActionOrder(raw, actions),
     docFavoriteActionKeys: normalizeDocFavoriteActionKeys(raw, actions),
     keyInfoFilterState: normalizeStoredKeyInfoFilter(raw),
+    keepNewDocAfterPinnedTabs: normalizeKeepNewDocAfterPinnedTabs(raw),
   };
 }
 
@@ -66,6 +70,13 @@ function normalizeStoredKeyInfoFilter(raw: unknown): KeyInfoFilter {
   return normalizeKeyInfoFilter(value);
 }
 
+function normalizeKeepNewDocAfterPinnedTabs(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") {
+    return false;
+  }
+  return (raw as PluginDocMenuStorageV1).keepNewDocAfterPinnedTabs === true;
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -75,6 +86,7 @@ export function serializePluginDocMenuState(
     actionOrder: state.docActionOrderState,
     favoriteActionKeys: state.docFavoriteActionKeys,
     keyInfoFilter: state.keyInfoFilterState,
+    keepNewDocAfterPinnedTabs: state.keepNewDocAfterPinnedTabs,
   };
 }
 
@@ -169,5 +181,15 @@ export function setPluginKeyInfoFilter(
   return {
     ...state,
     keyInfoFilterState: normalizeKeyInfoFilter(filter),
+  };
+}
+
+export function setKeepNewDocAfterPinnedTabs(
+  state: PluginDocMenuState,
+  enabled: boolean
+): PluginDocMenuState {
+  return {
+    ...state,
+    keepNewDocAfterPinnedTabs: enabled,
   };
 }

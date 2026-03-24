@@ -104,10 +104,15 @@ describe("plugin settings", () => {
     expect(settingInstances).toHaveLength(1);
     const setting = settingInstances[0];
     expect(setting.open).toHaveBeenCalledWith("siyuan-doc-assist");
-    expect(setting.items[0]?.title).toBe("注册命令到文档菜单");
-    expect(setting.items).toHaveLength(ACTIONS.length + 1);
+    expect(setting.items[0]?.title).toBe("新打开文档始终排在钉住页签后");
+    expect(setting.items[1]?.title).toBe("注册命令到文档菜单");
+    expect(setting.items).toHaveLength(ACTIONS.length + 2);
 
-    const allToggle = setting.items[0]?.actionElement as HTMLInputElement;
+    const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
+    expect(tabToggle.type).toBe("checkbox");
+    expect(tabToggle.checked).toBe(false);
+
+    const allToggle = setting.items[1]?.actionElement as HTMLInputElement;
     expect(allToggle.type).toBe("checkbox");
     expect(allToggle.checked).toBe(false);
 
@@ -125,10 +130,17 @@ describe("plugin settings", () => {
     plugin.openSetting();
 
     const setting = settingInstances[0];
-    const allToggle = setting.items[0]?.actionElement as HTMLInputElement;
+    const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
+    const allToggle = setting.items[1]?.actionElement as HTMLInputElement;
     const singleToggle = setting.items.find(
       (item) => item.title === "插入反链文档列表（去重）"
     )?.actionElement as HTMLInputElement;
+
+    tabToggle.checked = true;
+    tabToggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.keepNewDocAfterPinnedTabs).toBe(true);
 
     allToggle.checked = true;
     allToggle.dispatchEvent(new Event("change"));
@@ -147,6 +159,7 @@ describe("plugin settings", () => {
     const stored = await plugin.loadData("doc-menu-registration");
     expect(stored).toEqual(
       expect.objectContaining({
+        keepNewDocAfterPinnedTabs: true,
         actionEnabled: expect.objectContaining({
           "insert-backlinks": false,
         }),

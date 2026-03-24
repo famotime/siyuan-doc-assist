@@ -6,11 +6,13 @@ import {
 } from "@/core/doc-menu-registration-core";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 
-type OpenDocMenuRegistrationSettingOptions = {
+type OpenPluginSettingsOptions = {
   pluginName: string;
   actions: ActionConfig[];
   registration: DocMenuRegistrationState;
   isMobile: boolean;
+  keepNewDocAfterPinnedTabs: boolean;
+  onToggleKeepNewDocAfterPinnedTabs: (enabled: boolean) => Promise<void> | void;
   onToggleAll: (enabled: boolean) => Promise<void> | void;
   onToggleSingle: (key: ActionKey, enabled: boolean) => Promise<void> | void;
 };
@@ -34,14 +36,16 @@ function createCheckbox(options: {
   return checkbox;
 }
 
-export function openDocMenuRegistrationSetting(
-  options: OpenDocMenuRegistrationSettingOptions
+export function openPluginSettings(
+  options: OpenPluginSettingsOptions
 ) {
   const {
     pluginName,
     actions,
     registration,
     isMobile,
+    keepNewDocAfterPinnedTabs,
+    onToggleKeepNewDocAfterPinnedTabs,
     onToggleAll,
     onToggleSingle,
   } = options;
@@ -67,6 +71,19 @@ export function openDocMenuRegistrationSetting(
       syncAllSwitch(allSwitch);
       await onToggleAll(checked);
     },
+  });
+
+  const moveAfterPinnedSwitch = createCheckbox({
+    checked: keepNewDocAfterPinnedTabs,
+    onChange: async (checked) => {
+      await onToggleKeepNewDocAfterPinnedTabs(checked);
+    },
+  });
+
+  setting.addItem({
+    title: "新打开文档始终排在钉住页签后",
+    description: "桌面端开启后，新打开文档会自动移动到钉住页签右侧，避免钉住页签继续向左移出视野。",
+    actionElement: moveAfterPinnedSwitch,
   });
 
   setting.addItem({
