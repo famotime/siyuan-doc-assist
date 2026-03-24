@@ -19,6 +19,7 @@ export default defineConfig(({
   console.log('mode=>', mode)
   const env = loadEnv(mode, process.cwd())
   const {
+    VITE_DEV_DIST_DIR,
     VITE_SIYUAN_WORKSPACE_PATH,
   } = env
   console.log('env=>', env)
@@ -26,7 +27,10 @@ export default defineConfig(({
 
   const siyuanWorkspacePath = VITE_SIYUAN_WORKSPACE_PATH
   let devDistDir = './dev'
-  if (!siyuanWorkspacePath) {
+  if (VITE_DEV_DIST_DIR) {
+    console.log(`\nManual dev dist dir is set:\n${VITE_DEV_DIST_DIR}`)
+    devDistDir = VITE_DEV_DIST_DIR
+  } else if (!siyuanWorkspacePath) {
     console.log("\nSiyuan workspace path is not set.")
   } else {
     console.log(`\nSiyuan workspace path is set:\n${siyuanWorkspacePath}`)

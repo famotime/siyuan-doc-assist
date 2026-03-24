@@ -6,6 +6,8 @@ import { ACTIONS } from "@/plugin/actions";
 const {
   settingInstances,
   showMessageMock,
+  topBarConfigs,
+  addIconsMock,
 } = vi.hoisted(() => ({
   settingInstances: [] as Array<{
     items: Array<{
@@ -16,6 +18,13 @@ const {
     open: ReturnType<typeof vi.fn>;
   }>,
   showMessageMock: vi.fn(),
+  topBarConfigs: [] as Array<{
+    icon: string;
+    title: string;
+    callback: (event: MouseEvent) => void;
+    position?: "right" | "left";
+  }>,
+  addIconsMock: vi.fn(),
 }));
 
 vi.mock("siyuan", () => {
@@ -24,7 +33,18 @@ vi.mock("siyuan", () => {
     public readonly listeners = new Map<string, Set<(event: any) => void>>();
     public readonly addDock = vi.fn();
     public readonly addCommand = vi.fn();
+    public readonly addTopBar = vi.fn((config: {
+      icon: string;
+      title: string;
+      callback: (event: MouseEvent) => void;
+      position?: "right" | "left";
+    }) => {
+      topBarConfigs.push(config);
+      return document.createElement("div");
+    });
+    public readonly addIcons = addIconsMock;
     public readonly name = "siyuan-doc-assist";
+    public setting?: Setting;
 
     public readonly eventBus = {
       on: (name: string, handler: (event: any) => void) => {
@@ -91,7 +111,9 @@ vi.mock("siyuan", () => {
 describe("plugin settings", () => {
   beforeEach(() => {
     settingInstances.length = 0;
+    topBarConfigs.length = 0;
     showMessageMock.mockReset();
+    addIconsMock.mockReset();
   });
 
   test("opens a settings page for doc menu registration and defaults every action to unregistered", async () => {
@@ -99,10 +121,23 @@ describe("plugin settings", () => {
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
 
+    expect(settingInstances).toHaveLength(1);
+    expect(plugin.setting).toBe(settingInstances[0]);
+    expect(addIconsMock).toHaveBeenCalledTimes(1);
+    expect(topBarConfigs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "文档助手",
+          icon: "iconDocAssist",
+        }),
+      ])
+    );
+
     plugin.openSetting();
 
-    expect(settingInstances).toHaveLength(1);
-    const setting = settingInstances[0];
+    expect(settingInstances).toHaveLength(2);
+    const setting = settingInstances[1];
+    expect(plugin.setting).toBe(setting);
     expect(setting.open).toHaveBeenCalledWith("siyuan-doc-assist");
     expect(setting.items[0]?.title).toBe("钉住页签始终保持可见");
     expect(setting.items[1]?.title).toBe("注册命令到文档菜单");
@@ -129,7 +164,7 @@ describe("plugin settings", () => {
 
     plugin.openSetting();
 
-    const setting = settingInstances[0];
+    const setting = settingInstances[1];
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
     const allToggle = setting.items[1]?.actionElement as HTMLInputElement;
     const singleToggle = setting.items.find(

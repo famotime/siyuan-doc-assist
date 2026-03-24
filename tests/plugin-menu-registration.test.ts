@@ -1,3 +1,5 @@
+/** @vitest-environment jsdom */
+
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   buildDefaultDocActionOrder,
@@ -12,6 +14,8 @@ vi.mock("siyuan", () => {
     public readonly storage = new Map<string, any>();
     public readonly addDock = vi.fn();
     public readonly addCommand = vi.fn();
+    public readonly addTopBar = vi.fn(() => document.createElement("div"));
+    public readonly addIcons = vi.fn();
 
     public readonly eventBus = {
       on: (name: string, handler: (event: any) => void) => {
@@ -45,8 +49,35 @@ vi.mock("siyuan", () => {
     }
   }
 
+  class Setting {
+    public readonly items: Array<{
+      title: string;
+      description?: string;
+      actionElement: HTMLElement;
+    }> = [];
+    public readonly open = vi.fn();
+
+    addItem(options: {
+      title: string;
+      description?: string;
+      actionElement?: HTMLElement;
+      createActionElement?: () => HTMLElement;
+    }) {
+      const actionElement = options.actionElement || options.createActionElement?.();
+      if (!actionElement) {
+        throw new Error(`Missing action element for ${options.title}`);
+      }
+      this.items.push({
+        title: options.title,
+        description: options.description,
+        actionElement,
+      });
+    }
+  }
+
   return {
     Plugin,
+    Setting,
     getFrontend: () => "desktop",
     getActiveEditor: () => undefined,
     confirm: (_title: string, _text: string, yes?: () => void) => {

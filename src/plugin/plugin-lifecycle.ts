@@ -42,15 +42,24 @@ import {
   setPluginKeyInfoFilter,
   setSinglePluginDocMenuRegistration,
 } from "@/plugin/plugin-lifecycle-state";
-import { openPluginSettings } from "@/ui/plugin-settings";
+import { createPluginSettings } from "@/ui/plugin-settings";
 import {
   destroyActionProcessingOverlay,
   hideActionProcessingOverlay,
   showActionProcessingOverlay,
 } from "@/ui/action-processing-overlay";
 
+const KEY_INFO_DOCK_TYPE = "doc-assistant-keyinfo";
+const DOC_ASSIST_TOPBAR_ICON_ID = "iconDocAssist";
+const DOC_ASSIST_TOPBAR_ICON = `
+<symbol id="${DOC_ASSIST_TOPBAR_ICON_ID}" viewBox="0 0 24 24">
+  <path d="M6 3.75C4.757 3.75 3.75 4.757 3.75 6v12c0 1.243 1.007 2.25 2.25 2.25h12c1.243 0 2.25-1.007 2.25-2.25V8.561a2.25 2.25 0 0 0-.659-1.591l-2.561-2.561a2.25 2.25 0 0 0-1.591-.659H6Zm0 1.5h9.189c.199 0 .39.079.53.22l2.561 2.561c.141.14.22.331.22.53V18c0 .414-.336.75-.75.75H6a.75.75 0 0 1-.75-.75V6c0-.414.336-.75.75-.75Zm2.25 4.5a.75.75 0 0 0 0 1.5h7.5a.75.75 0 0 0 0-1.5h-7.5Zm0 3.75a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Z"></path>
+  <path d="M15.75 13.75a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0-1.5a3.5 3.5 0 0 1 2.833 5.557l1.197 1.197a.75.75 0 1 1-1.06 1.06l-1.197-1.196a3.5 3.5 0 1 1-1.773-6.618Z"></path>
+</symbol>`;
+
 export default class DocLinkToolkitPlugin extends Plugin {
   private static readonly PINNED_TAB_PLACEMENT_RETRY_DELAYS = [0, 32, 96, 192];
+  public setting?: ReturnType<typeof createPluginSettings>;
   private currentDocId = "";
   private currentProtyle?: ProtyleLike;
   private isMobile = false;
@@ -147,6 +156,22 @@ export default class DocLinkToolkitPlugin extends Plugin {
     const frontend = getFrontend();
     this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
     this.seedKnownTabIds();
+    this.setting = this.buildPluginSettingPage();
+    const pluginApi = this as DocLinkToolkitPlugin & {
+      addIcons?: (svg: string) => void;
+      addTopBar?: (options: {
+        icon: string;
+        title: string;
+        callback: (event: MouseEvent) => void;
+        position?: "right" | "left";
+      }) => HTMLElement;
+    };
+    if (typeof pluginApi.addIcons === "function") {
+      pluginApi.addIcons(DOC_ASSIST_TOPBAR_ICON);
+    }
+    if (typeof pluginApi.addTopBar === "function") {
+      this.registerTopBarEntry();
+    }
 
     bindPluginLifecycleEvents(this.eventBus, {
       onSwitchProtyle: this.onSwitchProtyle,
@@ -173,18 +198,54 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   openSetting() {
-    openPluginSettings({
-      pluginName: this.name,
-      actions: this.getOrderedActions(),
-      registration: this.docMenuRegistrationState,
-      isMobile: this.isMobile,
-      keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
-      onToggleKeepNewDocAfterPinnedTabs: (enabled) =>
-        this.setKeepNewDocAfterPinnedTabs(enabled),
-      onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
-      onToggleSingle: (key, enabled) =>
-        this.setSingleDocMenuRegistration(key, enabled),
+    this.setting = this.buildPluginSettingPage();
+    this.setting.open(this.name);
+  }
+
+  private registerTopBarEntry() {
+    (
+      this as DocLinkToolkitPlugin & {
+        addTopBar: (options: {
+          icon: string;
+          title: string;
+          callback: (event: MouseEvent) => void;
+          position?: "right" | "left";
+        }) => HTMLElement;
+      }
+    ).addTopBar({
+      icon: DOC_ASSIST_TOPBAR_ICON_ID,
+      title: "文档助手",
+      callback: () => {
+        this.openKeyInfoDockFromTopBar();
+      },
     });
+  }
+
+  private openKeyInfoDockFromTopBar() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const siyuan = (window as Window & {
+      siyuan?: {
+        layout?: {
+          rightDock?: {
+            toggleModel?: (
+              type: string,
+              show?: boolean,
+              close?: boolean,
+              hide?: boolean,
+              isSaveLayout?: boolean
+            ) => void;
+          };
+        };
+      };
+    }).siyuan;
+    const toggleModel = siyuan?.layout?.rightDock?.toggleModel;
+    if (typeof toggleModel === "function") {
+      toggleModel(KEY_INFO_DOCK_TYPE, true, false, false);
+    }
+    void this.keyInfoController.refresh(this.currentDocId, this.currentProtyle);
   }
 
   private resolveDocId(explicitId?: string, protyle?: ProtyleLike): string {
@@ -230,6 +291,20 @@ export default class DocLinkToolkitPlugin extends Plugin {
       return;
     }
     hideActionProcessingOverlay();
+  }
+
+  private buildPluginSettingPage() {
+    return createPluginSettings({
+      actions: this.getOrderedActions(),
+      registration: this.docMenuRegistrationState,
+      isMobile: this.isMobile,
+      keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
+      onToggleKeepNewDocAfterPinnedTabs: (enabled) =>
+        this.setKeepNewDocAfterPinnedTabs(enabled),
+      onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
+      onToggleSingle: (key, enabled) =>
+        this.setSingleDocMenuRegistration(key, enabled),
+    });
   }
 
   private async loadDocMenuRegistrationState() {

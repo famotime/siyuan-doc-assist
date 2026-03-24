@@ -32,6 +32,13 @@ declare module "siyuan" {
         off: (name: string, handler: (...args: any[]) => void) => void;
       };
       addDock: (config: any) => void;
+      addTopBar: (options: {
+        icon: string;
+        title: string;
+        callback: (event: MouseEvent) => void;
+        position?: "right" | "left";
+      }) => HTMLElement;
+      addIcons: (svg: string) => void;
       addCommand: (config: any) => void;
       openSetting(): void;
       loadData: (storageName: string) => Promise<any>;

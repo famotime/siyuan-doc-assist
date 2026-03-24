@@ -6,8 +6,7 @@ import {
 } from "@/core/doc-menu-registration-core";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 
-type OpenPluginSettingsOptions = {
-  pluginName: string;
+type CreatePluginSettingsOptions = {
   actions: ActionConfig[];
   registration: DocMenuRegistrationState;
   isMobile: boolean;
@@ -36,11 +35,10 @@ function createCheckbox(options: {
   return checkbox;
 }
 
-export function openPluginSettings(
-  options: OpenPluginSettingsOptions
+export function createPluginSettings(
+  options: CreatePluginSettingsOptions
 ) {
   const {
-    pluginName,
     actions,
     registration,
     isMobile,
@@ -114,6 +112,5 @@ export function openPluginSettings(
     });
   });
 
-  setting.open(pluginName);
   return setting;
 }
