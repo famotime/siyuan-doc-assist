@@ -81,8 +81,8 @@ export function openPluginSettings(
   });
 
   setting.addItem({
-    title: "新打开文档始终排在钉住页签后",
-    description: "桌面端开启后，新打开文档会自动移动到钉住页签右侧，避免钉住页签继续向左移出视野。",
+    title: "钉住页签始终保持可见",
+    description: "桌面端开启后，打开新文档时会自动调整页签栏视野，尽量保持钉住页签始终可见。",
     actionElement: moveAfterPinnedSwitch,
   });
 

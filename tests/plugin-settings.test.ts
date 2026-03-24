@@ -104,7 +104,7 @@ describe("plugin settings", () => {
     expect(settingInstances).toHaveLength(1);
     const setting = settingInstances[0];
     expect(setting.open).toHaveBeenCalledWith("siyuan-doc-assist");
-    expect(setting.items[0]?.title).toBe("新打开文档始终排在钉住页签后");
+    expect(setting.items[0]?.title).toBe("钉住页签始终保持可见");
     expect(setting.items[1]?.title).toBe("注册命令到文档菜单");
     expect(setting.items).toHaveLength(ACTIONS.length + 2);
 
