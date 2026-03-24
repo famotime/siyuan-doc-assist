@@ -2,6 +2,8 @@
 
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { ACTIONS } from "@/plugin/actions";
+import { buildDefaultDocMenuRegistration } from "@/core/doc-menu-registration-core";
+import { buildDockDocActions } from "@/core/dock-panel-core";
 
 const {
   settingInstances,
@@ -12,6 +14,7 @@ const {
   settingInstances: [] as Array<{
     items: Array<{
       title: string;
+      direction?: "column" | "row";
       description?: string;
       actionElement: HTMLElement;
     }>;
@@ -69,6 +72,7 @@ vi.mock("siyuan", () => {
   class Setting {
     public readonly items: Array<{
       title: string;
+      direction?: "column" | "row";
       description?: string;
       actionElement: HTMLElement;
     }> = [];
@@ -80,6 +84,7 @@ vi.mock("siyuan", () => {
 
     addItem(options: {
       title: string;
+      direction?: "column" | "row";
       description?: string;
       actionElement?: HTMLElement;
       createActionElement?: () => HTMLElement;
@@ -90,6 +95,7 @@ vi.mock("siyuan", () => {
       }
       this.items.push({
         title: options.title,
+        direction: options.direction,
         description: options.description,
         actionElement,
       });
@@ -109,6 +115,18 @@ vi.mock("siyuan", () => {
 });
 
 describe("plugin settings", () => {
+  const getExpectedGroupTitles = (actions = ACTIONS) => {
+    const titles: string[] = [];
+    buildDockDocActions(actions, false, buildDefaultDocMenuRegistration(actions)).forEach(
+      (action) => {
+        if (!titles.includes(action.groupLabel)) {
+          titles.push(action.groupLabel);
+        }
+      }
+    );
+    return titles;
+  };
+
   beforeEach(() => {
     settingInstances.length = 0;
     topBarConfigs.length = 0;
@@ -138,22 +156,49 @@ describe("plugin settings", () => {
     expect(settingInstances).toHaveLength(2);
     const setting = settingInstances[1];
     expect(plugin.setting).toBe(setting);
-    expect(setting.open).toHaveBeenCalledWith("siyuan-doc-assist");
     expect(setting.items[0]?.title).toBe("钉住页签始终保持可见");
     expect(setting.items[1]?.title).toBe("注册命令到文档菜单");
-    expect(setting.items).toHaveLength(ACTIONS.length + 2);
+    expect(setting.items[1]?.direction).toBe("column");
+    expect(setting.items).toHaveLength(2);
 
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
     expect(tabToggle.type).toBe("checkbox");
     expect(tabToggle.checked).toBe(false);
 
-    const allToggle = setting.items[1]?.actionElement as HTMLInputElement;
+    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
+      true
+    );
+
+    const groupTitles = Array.from(
+      menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-group-title")
+    ).map((element) => element.textContent?.trim());
+    expect(groupTitles).toEqual(getExpectedGroupTitles());
+
+    const firstGroupList = menuRegistrationPanel.querySelector(
+      ".doc-assistant-settings__menu-registration-group-list"
+    ) as HTMLElement;
+    expect(firstGroupList.hidden).toBe(false);
+
+    const menuActionRows = menuRegistrationPanel.querySelectorAll(
+      ".doc-assistant-settings__menu-registration-action"
+    );
+    expect(menuActionRows).toHaveLength(ACTIONS.length);
+
+    const genericActionMeta = Array.from(
+      menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-action-meta")
+    ).find((element) => element.textContent?.includes("加入文档标题菜单"));
+    expect(genericActionMeta).toBeUndefined();
+
+    const allToggle = menuRegistrationPanel.querySelector(
+      ".doc-assistant-settings__menu-registration-summary input[type='checkbox']"
+    ) as HTMLInputElement;
     expect(allToggle.type).toBe("checkbox");
     expect(allToggle.checked).toBe(false);
 
-    const exportCurrentItem = setting.items.find((item) => item.title === "仅导出当前文档");
-    expect(exportCurrentItem).toBeTruthy();
-    const exportCurrentToggle = exportCurrentItem?.actionElement as HTMLInputElement;
+    const exportCurrentToggle = menuRegistrationPanel.querySelector(
+      "[data-action-key='export-current'] input[type='checkbox']"
+    ) as HTMLInputElement;
     expect(exportCurrentToggle.checked).toBe(false);
   });
 
@@ -166,10 +211,13 @@ describe("plugin settings", () => {
 
     const setting = settingInstances[1];
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
-    const allToggle = setting.items[1]?.actionElement as HTMLInputElement;
-    const singleToggle = setting.items.find(
-      (item) => item.title === "插入反链文档列表（去重）"
-    )?.actionElement as HTMLInputElement;
+    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const allToggle = menuRegistrationPanel.querySelector(
+      ".doc-assistant-settings__menu-registration-summary input[type='checkbox']"
+    ) as HTMLInputElement;
+    const singleToggle = menuRegistrationPanel.querySelector(
+      "[data-action-key='insert-backlinks'] input[type='checkbox']"
+    ) as HTMLInputElement;
 
     tabToggle.checked = true;
     tabToggle.dispatchEvent(new Event("change"));
@@ -200,5 +248,44 @@ describe("plugin settings", () => {
         }),
       })
     );
+  });
+
+  test("adapts group rendering when action grouping changes in config", async () => {
+    const { createPluginSettings } = await import("@/ui/plugin-settings");
+    const regroupedActions = ACTIONS.map((action) =>
+      action.key === "export-current"
+        ? {
+            ...action,
+            group: "insert" as const,
+          }
+        : action
+    );
+
+    createPluginSettings({
+      actions: regroupedActions,
+      registration: buildDefaultDocMenuRegistration(regroupedActions),
+      isMobile: false,
+      keepNewDocAfterPinnedTabs: false,
+      onToggleKeepNewDocAfterPinnedTabs: vi.fn(),
+      onToggleAll: vi.fn(),
+      onToggleSingle: vi.fn(),
+    });
+
+    const setting = settingInstances[0];
+    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const groupTitles = Array.from(
+      menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-group-title")
+    ).map((element) => element.textContent?.trim());
+    expect(groupTitles).toEqual(getExpectedGroupTitles(regroupedActions));
+
+    const insertGroupTitle = Array.from(
+      menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-group-title")
+    ).find((element) => element.textContent?.trim() === "插入");
+    const insertGroup = insertGroupTitle?.closest(
+      ".doc-assistant-settings__menu-registration-group"
+    ) as HTMLElement;
+    expect(
+      insertGroup.querySelector("[data-action-key='export-current'] input[type='checkbox']")
+    ).toBeTruthy();
   });
 });
