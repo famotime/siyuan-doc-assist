@@ -141,15 +141,8 @@ describe("plugin settings", () => {
 
     expect(settingInstances).toHaveLength(1);
     expect(plugin.setting).toBe(settingInstances[0]);
-    expect(addIconsMock).toHaveBeenCalledTimes(1);
-    expect(topBarConfigs).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          title: "文档助手",
-          icon: "iconDocAssist",
-        }),
-      ])
-    );
+    expect(addIconsMock).not.toHaveBeenCalled();
+    expect(topBarConfigs).toHaveLength(0);
 
     plugin.openSetting();
 
