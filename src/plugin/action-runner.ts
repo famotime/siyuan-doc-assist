@@ -26,6 +26,7 @@ import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import {
   deleteBlocksByIds,
   getBlockDOMs,
+  getDocReadonlyState,
   getBlockKramdowns,
   getChildBlockRefsByParentId,
   getChildBlocksByParentId,
@@ -168,6 +169,7 @@ export class ActionRunner {
       ...createInsertActionHandlers(),
       ...createOrganizeActionHandlers({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
+        ensureDocWritable: (docId, actionLabel) => this.ensureDocWritable(docId, actionLabel),
         setBusy: this.deps.setBusy,
       }),
       ...createMediaActionHandlers(),
@@ -218,6 +220,13 @@ export class ActionRunner {
       return;
     }
 
+    if (config?.requiresWritableDoc) {
+      const writable = await this.ensureDocWritable(docId, config.commandText);
+      if (!writable) {
+        return;
+      }
+    }
+
     this.isRunning = true;
     this.deps.setBusy?.(true);
 
@@ -238,6 +247,22 @@ export class ActionRunner {
         void this.runAction(action.key);
       });
     }
+  }
+
+  private async ensureDocWritable(docId: string, actionLabel: string): Promise<boolean> {
+    if (!docId) {
+      return true;
+    }
+    const readonly = await getDocReadonlyState(docId);
+    if (!readonly) {
+      return true;
+    }
+    showMessage(
+      `当前文档已锁定，无法执行“${actionLabel}”。请先解除文档锁定后再试。`,
+      5000,
+      "info"
+    );
+    return false;
   }
 
   private async handleStyleSelectedBlocks(

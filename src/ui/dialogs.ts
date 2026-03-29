@@ -6,7 +6,7 @@ type OpenDedupeDialogArgs = {
   candidates: DedupeCandidate[];
   onDelete: (ids: string[]) => Promise<{ successIds: string[]; failed: Array<{ id: string; error: string }> }>;
   onOpenAll: (docs: Array<{ id: string; title: string }>) => void;
-  onInsertLinks: (docs: Array<{ id: string; title: string }>) => void;
+  onInsertLinks: (docs: Array<{ id: string; title: string }>) => Promise<void> | void;
 };
 
 function createButton(label: string): HTMLButtonElement {

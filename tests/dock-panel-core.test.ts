@@ -109,4 +109,75 @@ describe("dock-panel-core", () => {
       },
     ]);
   });
+
+  test("marks writable-doc actions as disabled when current doc is readonly", () => {
+    const actions = buildDockDocActions(
+      [
+        {
+          key: "export-current",
+          commandText: "仅导出当前文档",
+          icon: "iconDownload",
+          group: "export",
+        },
+        {
+          key: "insert-backlinks",
+          commandText: "插入反链文档列表（去重）",
+          icon: "iconList",
+          group: "insert",
+          requiresWritableDoc: true,
+        },
+        {
+          key: "move-backlinks",
+          commandText: "移动反链文档为子文档",
+          icon: "iconMove",
+          group: "organize",
+          requiresWritableDoc: true,
+        },
+      ],
+      false,
+      {
+        "export-current": true,
+        "insert-backlinks": true,
+        "move-backlinks": true,
+      },
+      true
+    );
+
+    expect(actions).toEqual([
+      {
+        key: "export-current",
+        label: "仅导出当前文档",
+        icon: "iconDownload",
+        group: "export",
+        groupLabel: "导出",
+        disabled: false,
+        menuRegistered: true,
+        menuToggleDisabled: false,
+      },
+      {
+        key: "insert-backlinks",
+        label: "插入反链文档列表（去重）",
+        icon: "iconList",
+        group: "insert",
+        groupLabel: "插入",
+        disabled: true,
+        disabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
+        menuRegistered: true,
+        menuToggleDisabled: true,
+        menuToggleDisabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
+      },
+      {
+        key: "move-backlinks",
+        label: "移动反链文档为子文档",
+        icon: "iconMove",
+        group: "organize",
+        groupLabel: "整理",
+        disabled: true,
+        disabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
+        menuRegistered: true,
+        menuToggleDisabled: true,
+        menuToggleDisabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
+      },
+    ]);
+  });
 });

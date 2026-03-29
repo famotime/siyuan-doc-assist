@@ -46,6 +46,7 @@ export type KeyInfoDockState = {
 export type KeyInfoDockCallbacks = {
   onExport: () => void;
   onRefresh?: () => void;
+  onDocProcessActivate?: () => void;
   onItemClick?: (item: KeyInfoItem) => void;
   onFilterChange?: (filter: KeyInfoFilter) => void;
   onDocActionClick?: (actionKey: string) => void;
@@ -110,6 +111,9 @@ export function createKeyInfoDock(
   } = createKeyInfoDockChrome(element, {
     onTabSelect: (tab) => {
       setState({ activeTab: tab });
+      if (tab === "doc-process") {
+        callbacks.onDocProcessActivate?.();
+      }
     },
     onFilterSelect: (filterKey) => {
       let nextFilter: KeyInfoFilter;
@@ -312,6 +316,14 @@ export function createKeyInfoDock(
       selectionPreservedActionKeys: MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS,
     });
   };
+
+  docProcessPanel.addEventListener("pointerenter", () => {
+    callbacks.onDocProcessActivate?.();
+  });
+  docProcessPanel.addEventListener("focusin", () => {
+    callbacks.onDocProcessActivate?.();
+  });
+
   const rowCache = new Map<string, HTMLDivElement>();
   let lastRenderIds: string[] = [];
   let lastRenderFilterSignature = "";

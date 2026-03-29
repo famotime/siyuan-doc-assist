@@ -26,6 +26,8 @@ vi.mock("@/services/kernel", () => ({
   deleteBlockById: vi.fn(),
   getBlockDOM: vi.fn(),
   getBlockDOMs: vi.fn(),
+  getBlockAttrs: vi.fn(),
+  getDocReadonlyState: vi.fn(),
   getChildBlockRefsByParentId: vi.fn(),
   getBlockKramdowns: vi.fn(),
   getChildBlocksByParentId: vi.fn(),
@@ -109,6 +111,8 @@ import {
   deleteBlockById,
   getBlockDOM,
   getBlockDOMs,
+  getBlockAttrs,
+  getDocReadonlyState,
   getBlockKramdowns,
   getChildBlockRefsByParentId,
   getChildBlocksByParentId,
@@ -128,6 +132,8 @@ const appendBlockMock = vi.mocked(appendBlock);
 const createDocWithMdMock = vi.mocked(createDocWithMd);
 const getBlockDOMMock = vi.mocked(getBlockDOM);
 const getBlockDOMsMock = vi.mocked(getBlockDOMs);
+const getBlockAttrsMock = vi.mocked(getBlockAttrs);
+const getDocReadonlyStateMock = vi.mocked(getDocReadonlyState);
 const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
 const getChildBlockRefsByParentIdMock = vi.mocked(getChildBlockRefsByParentId);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
@@ -163,6 +169,7 @@ describe("action-runner loading guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetDocAssistantDebugSetting();
+    getDocReadonlyStateMock.mockResolvedValue(false);
   });
 
   test("defines a handler for every registered action", () => {
@@ -227,6 +234,35 @@ describe("action-runner loading guard", () => {
     await Promise.all([first, second]);
   });
 
+  test("blocks writable doc action when current doc is locked", async () => {
+    getDocReadonlyStateMock.mockResolvedValue(true);
+    const runner = createRunner();
+
+    await runner.runAction("insert-backlinks");
+
+    expect(appendBlockMock).not.toHaveBeenCalled();
+    expect(getBacklinkDocsMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "当前文档已锁定，无法执行“插入反链文档列表（去重）”。请先解除文档锁定后再试。",
+      5000,
+      "info"
+    );
+  });
+
+  test("still allows readonly-safe action when current doc is locked", async () => {
+    getDocReadonlyStateMock.mockResolvedValue(true);
+    exportCurrentDocMarkdownMock.mockResolvedValue({
+      mode: "md",
+      fileName: "doc-1.md",
+    } as any);
+    const runner = createRunner();
+
+    await runner.runAction("export-current");
+
+    expect(exportCurrentDocMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(showMessageMock).toHaveBeenCalledWith("导出完成：doc-1.md", 5000, "info");
+  });
+
   test("exports current and child docs key info zip with current key-info filter", async () => {
     exportDocAndChildKeyInfoAsZipMock.mockResolvedValue({
       name: "doc-1-key-info",
@@ -276,6 +312,9 @@ describe("action-runner loading guard", () => {
     });
 
     const pending = runner.runAction("remove-extra-blank-lines");
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
     await Promise.resolve();
     expect(askConfirm).toHaveBeenCalled();
     expect(setBusy).toHaveBeenNthCalledWith(1, true);
@@ -833,13 +872,11 @@ describe("action-runner loading guard", () => {
     expect(openSpy).toHaveBeenCalledTimes(2);
     expect(showMessageMock).toHaveBeenCalledWith("已尝试打开 2 篇文档", 5000, "info");
 
-    dialogArgs.onInsertLinks([
+    await dialogArgs.onInsertLinks([
       { id: "doc-a", title: "A" },
       { id: "doc-a", title: "A (dup)" },
       { id: "doc-b", title: "B" },
     ]);
-    await Promise.resolve();
-    await Promise.resolve();
     expect(appendBlockMock).toHaveBeenCalledWith(
       "## 重复候选文档\n\n- [A](siyuan://blocks/doc-a)\n- [B](siyuan://blocks/doc-b)",
       "doc-1"

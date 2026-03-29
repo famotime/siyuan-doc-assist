@@ -36,6 +36,7 @@ export type ActionConfig = {
   menuText: string;
   group: DockDocActionGroup;
   desktopOnly?: boolean;
+  requiresWritableDoc?: boolean;
   icon: string;
   dockIconText: string;
 };
@@ -108,6 +109,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     menuText: "移动反链文档为子文档",
     group: "organize",
     desktopOnly: true,
+    requiresWritableDoc: true,
     icon: "iconMove",
   },
   {
@@ -116,6 +118,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     menuText: "移动正链文档为子文档",
     group: "organize",
     desktopOnly: true,
+    requiresWritableDoc: true,
     icon: "iconMove",
   },
   {
@@ -138,6 +141,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "插入反链文档列表（去重）",
     menuText: "插入反链文档列表（去重）",
     group: "insert",
+    requiresWritableDoc: true,
     icon: "iconList",
   },
   {
@@ -145,6 +149,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "插入子文档列表（去重）",
     menuText: "插入子文档列表（去重）",
     group: "insert",
+    requiresWritableDoc: true,
     icon: "iconList",
   },
   {
@@ -152,6 +157,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "链接<->引用批量互转",
     menuText: "链接<->引用批量互转",
     group: "insert",
+    requiresWritableDoc: true,
     icon: "iconLink",
   },
   {
@@ -159,6 +165,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "标示无效链接/引用",
     menuText: "标示无效链接/引用",
     group: "insert",
+    requiresWritableDoc: true,
     icon: "iconLink",
   },
   {
@@ -166,6 +173,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "标题前增加空段落",
     menuText: "标题前增加空段落",
     group: "insert",
+    requiresWritableDoc: true,
     icon: "iconList",
   },
   {
@@ -173,6 +181,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "标题块加粗状态切换",
     menuText: "标题块加粗状态切换",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconBold",
   },
   {
@@ -180,6 +189,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "选中内容合并列表块",
     menuText: "选中内容合并列表块",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconList",
   },
   {
@@ -187,6 +197,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "选中块全部加粗",
     menuText: "选中块全部加粗",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconBold",
   },
   {
@@ -194,6 +205,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "选中块全部高亮",
     menuText: "选中块全部高亮",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconInfo",
   },
   {
@@ -201,6 +213,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "选中内容换行-分段互转",
     menuText: "选中内容换行-分段互转",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconRefresh",
   },
   {
@@ -208,6 +221,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "选中内容中英文标点互转",
     menuText: "选中内容中英文标点互转",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconRefresh",
   },
   {
@@ -215,6 +229,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "选中内容删除空格",
     menuText: "选中内容删除空格",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconTrashcan",
   },
   {
@@ -222,6 +237,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "清理行尾空格（含Tab）",
     menuText: "清理行尾空格（含Tab）",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconTrashcan",
   },
   {
@@ -229,6 +245,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "清理AI输出内容",
     menuText: "清理AI输出内容",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconTrashcan",
   },
   {
@@ -236,6 +253,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "去除本文档空段落",
     menuText: "去除本文档空段落",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconTrashcan",
   },
   {
@@ -243,6 +261,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "删除后续段落（含本段）",
     menuText: "删除后续段落（含本段）",
     group: "edit",
+    requiresWritableDoc: true,
     icon: "iconTrashcan",
   },
   {
@@ -250,6 +269,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "批量转换为WebP",
     menuText: "批量转换为WebP",
     group: "image",
+    requiresWritableDoc: true,
     icon: "iconImage",
   },
   {
@@ -257,6 +277,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "批量转换为PNG",
     menuText: "批量转换为PNG",
     group: "image",
+    requiresWritableDoc: true,
     icon: "iconImage",
   },
   {
@@ -264,6 +285,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "按当前显示调整图片尺寸",
     menuText: "按当前显示调整图片尺寸",
     group: "image",
+    requiresWritableDoc: true,
     icon: "iconImage",
   },
   {
@@ -271,6 +293,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     commandText: "删除本文档图片",
     menuText: "删除本文档图片",
     group: "image",
+    requiresWritableDoc: true,
     icon: "iconImage",
   },
 ];

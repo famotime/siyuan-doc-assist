@@ -9,6 +9,7 @@ import {
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { ProtyleLike } from "@/plugin/doc-context";
 import { resolveKeyInfoItems } from "@/plugin/key-info-state";
+import { getDocReadonlyState } from "@/services/kernel";
 import { getDocKeyInfo } from "@/services/key-info";
 import { createKeyInfoDock, KeyInfoDockHandle } from "@/ui/key-info-dock";
 
@@ -34,10 +35,12 @@ type KeyInfoControllerDeps = {
 export class KeyInfoController {
   private keyInfoDock?: KeyInfoDockHandle;
   private keyInfoRequestId = 0;
+  private docReadonlyRequestId = 0;
   private keyInfoJumpId = 0;
   private lastProtocolOpenId = "";
   private lastProtocolOpenAt = 0;
   private keyInfoDocId = "";
+  private currentDocReadonly = false;
 
   constructor(private readonly deps: KeyInfoControllerDeps) {}
 
@@ -62,6 +65,7 @@ export class KeyInfoController {
               deps: this.deps,
               onExport: () => this.exportKeyInfoMarkdown(),
               onRefresh: () => this.refresh(),
+              onDocProcessActivate: () => this.syncCurrentDocReadonlyState(),
               onItemClick: (item) => {
                 this.handleKeyInfoItemClick(item);
               },
@@ -89,6 +93,7 @@ export class KeyInfoController {
   }
 
   destroy() {
+    this.docReadonlyRequestId += 1;
     this.keyInfoDock?.destroy();
     this.keyInfoDock = undefined;
   }
@@ -104,6 +109,7 @@ export class KeyInfoController {
         isMobile: this.deps.isMobile(),
         registration,
         favoriteActionKeys: this.deps.getDocFavoriteActionKeys(),
+        docReadonly: this.currentDocReadonly,
       })
     );
   }
@@ -143,10 +149,14 @@ export class KeyInfoController {
 
     try {
       const activeProtyle = protyle || this.deps.getCurrentProtyle() || (getActiveEditor()?.protyle as ProtyleLike | undefined);
+      const readonlyPromise = getDocReadonlyState(docId).catch(() => false);
       const data = await getDocKeyInfo(docId, activeProtyle);
-      if (requestId !== this.keyInfoRequestId) {
+      const isReadonly = await readonlyPromise;
+      if (requestId !== this.keyInfoRequestId || !this.keyInfoDock) {
         return;
       }
+      this.currentDocReadonly = isReadonly;
+      this.syncDocActions();
       this.keyInfoDocId = docId;
       const nextItems = resolveKeyInfoItems({
         isSameDoc,
@@ -163,9 +173,14 @@ export class KeyInfoController {
         scrollContextKey: docId,
       });
     } catch (error: unknown) {
-      if (requestId !== this.keyInfoRequestId) {
+      if (requestId !== this.keyInfoRequestId || !this.keyInfoDock) {
         return;
       }
+      this.currentDocReadonly = await getDocReadonlyState(docId).catch(() => false);
+      if (requestId !== this.keyInfoRequestId || !this.keyInfoDock) {
+        return;
+      }
+      this.syncDocActions();
       const message = error instanceof Error ? error.message : String(error);
       showMessage(`加载关键内容失败：${message}`, 7000, "error");
       const keepItems = isSameDoc && hasItems;
@@ -182,6 +197,26 @@ export class KeyInfoController {
             }),
       });
     }
+  }
+
+  private async syncCurrentDocReadonlyState(explicitId?: string, protyle?: ProtyleLike) {
+    if (!this.keyInfoDock) {
+      return;
+    }
+    const docId = this.deps.resolveDocId(explicitId, protyle);
+    if (!docId) {
+      return;
+    }
+    const requestId = ++this.docReadonlyRequestId;
+    const readonly = await getDocReadonlyState(docId).catch(() => false);
+    if (requestId !== this.docReadonlyRequestId || !this.keyInfoDock) {
+      return;
+    }
+    if (this.currentDocReadonly === readonly && this.keyInfoDocId === docId) {
+      return;
+    }
+    this.currentDocReadonly = readonly;
+    this.syncDocActions();
   }
 
   private openBlockByProtocol(blockId: string) {

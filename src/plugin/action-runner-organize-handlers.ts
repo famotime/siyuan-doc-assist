@@ -9,6 +9,7 @@ import { openDedupeDialog } from "@/ui/dialogs";
 
 type CreateOrganizeActionHandlersOptions = {
   askConfirmWithVisibleDialog: (title: string, text: string) => Promise<boolean>;
+  ensureDocWritable: (docId: string, actionLabel: string) => Promise<boolean>;
   setBusy?: (busy: boolean) => void;
 };
 
@@ -36,7 +37,15 @@ function openDocsByProtocol(ids: string[]) {
   showMessage(`已尝试打开 ${unique.length} 篇文档`, 5000, "info");
 }
 
-async function insertDocLinks(docId: string, docs: Array<{ id: string; title: string }>) {
+async function insertDocLinks(
+  docId: string,
+  docs: Array<{ id: string; title: string }>,
+  ensureDocWritable: CreateOrganizeActionHandlersOptions["ensureDocWritable"]
+) {
+  const writable = await ensureDocWritable(docId, "插入重复候选文档链接");
+  if (!writable) {
+    return;
+  }
   const unique = new Map<string, { id: string; title: string }>();
   for (const doc of docs) {
     if (!doc?.id || unique.has(doc.id)) {
@@ -130,9 +139,7 @@ export function createOrganizeActionHandlers(
         onOpenAll: (docs) => {
           openDocsByProtocol(docs.map((doc) => doc.id));
         },
-        onInsertLinks: (docs) => {
-          void insertDocLinks(docId, docs);
-        },
+        onInsertLinks: (docs) => insertDocLinks(docId, docs, options.ensureDocWritable),
       });
       showMessage(`识别到 ${candidates.length} 组重复候选`, 5000, "info");
     },

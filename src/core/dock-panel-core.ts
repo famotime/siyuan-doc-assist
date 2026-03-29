@@ -12,6 +12,7 @@ export type DockDocActionSource<T extends string = string> = {
   dockIconText?: string;
   group: DockDocActionGroup;
   desktopOnly?: boolean;
+  requiresWritableDoc?: boolean;
 };
 
 export type DockDocActionGroup = "export" | "insert" | "organize" | "edit" | "image";
@@ -43,13 +44,23 @@ const DOCK_ACTION_GROUP_LABELS: Record<DockDocActionGroup, string> = {
   edit: "编辑",
 };
 
+export const DOC_READONLY_DISABLED_REASON = "当前文档已锁定，仅支持导出、筛选等只读操作";
+
 export function buildDockDocActions<T extends string>(
   actions: DockDocActionSource<T>[],
   isMobile: boolean,
-  menuRegistrationState: Partial<Record<T, boolean>> = {}
+  menuRegistrationState: Partial<Record<T, boolean>> = {},
+  docReadonly = false
 ): DockDocAction<T>[] {
   return actions.map((action) => {
-    const disabled = Boolean(action.desktopOnly && isMobile);
+    const disabledByMobile = Boolean(action.desktopOnly && isMobile);
+    const disabledByReadonly = Boolean(action.requiresWritableDoc && docReadonly);
+    const disabled = disabledByMobile || disabledByReadonly;
+    const disabledReason = disabledByMobile
+      ? "该操作当前仅支持桌面端"
+      : disabledByReadonly
+        ? DOC_READONLY_DISABLED_REASON
+        : undefined;
     const menuRegistered = menuRegistrationState[action.key] !== false;
     return {
       key: action.key,
@@ -61,8 +72,8 @@ export function buildDockDocActions<T extends string>(
       disabled,
       menuRegistered,
       menuToggleDisabled: disabled,
-      ...(disabled ? { disabledReason: "该操作当前仅支持桌面端" } : {}),
-      ...(disabled ? { menuToggleDisabledReason: "该操作当前仅支持桌面端" } : {}),
+      ...(disabledReason ? { disabledReason } : {}),
+      ...(disabledReason ? { menuToggleDisabledReason: disabledReason } : {}),
     };
   });
 }

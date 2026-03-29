@@ -17,6 +17,8 @@ export {
   updateBlockDom,
   updateBlockMarkdown,
 } from "@/services/kernel-block";
+export { DOC_READONLY_ATTR_KEY } from "@/services/kernel-attr";
+export type { BlockAttrs } from "@/services/kernel-attr";
 export {
   getFileBlob,
   getPathByID,
@@ -28,6 +30,11 @@ export {
   removeFile,
   renameDocByID,
 } from "@/services/kernel-file";
+export {
+  getBlockAttrs,
+  getDocReadonlyState,
+  isReadonlyAttrValue,
+} from "@/services/kernel-attr";
 export {
   getForwardRefTargetBlockIds,
   getRootDocRawMarkdown,

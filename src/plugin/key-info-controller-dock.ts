@@ -28,13 +28,17 @@ export function createKeyInfoControllerDockCallbacks(options: {
   deps: KeyInfoControllerDockDeps;
   onExport: () => void;
   onRefresh: () => Promise<void> | void;
+  onDocProcessActivate?: () => Promise<void> | void;
   onItemClick: (item: KeyInfoItem) => void;
 }): KeyInfoDockCallbacks {
-  const { deps, onExport, onRefresh, onItemClick } = options;
+  const { deps, onExport, onRefresh, onDocProcessActivate, onItemClick } = options;
   return {
     onExport,
     onRefresh: () => {
       void onRefresh();
+    },
+    onDocProcessActivate: () => {
+      void onDocProcessActivate?.();
     },
     onItemClick,
     onDocActionClick: (actionKey) => {
@@ -79,11 +83,12 @@ export function buildKeyInfoControllerDockActionState(options: {
   isMobile: boolean;
   registration: DocMenuRegistrationState;
   favoriteActionKeys: ActionKey[];
+  docReadonly?: boolean;
 }): Pick<KeyInfoDockState, "docMenuRegisterAll" | "docActions" | "favoriteActionKeys"> {
-  const { actions, isMobile, registration, favoriteActionKeys } = options;
+  const { actions, isMobile, registration, favoriteActionKeys, docReadonly = false } = options;
   return {
     docMenuRegisterAll: isAllDocMenuRegistrationEnabled(registration),
-    docActions: buildDockDocActions(actions, isMobile, registration),
+    docActions: buildDockDocActions(actions, isMobile, registration, docReadonly),
     favoriteActionKeys,
   };
 }
