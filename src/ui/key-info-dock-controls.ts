@@ -208,7 +208,7 @@ export function createKeyInfoDockChrome(
   refreshBtn.addEventListener("click", callbacks.onRefresh);
   const exportBtn = document.createElement("button");
   exportBtn.className =
-    "b3-button b3-button--small b3-button--primary doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--export";
+    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--export";
   const exportIcon = document.createElement("span");
   exportIcon.className = "doc-assistant-keyinfo__footer-icon";
   exportIcon.textContent = "⬇";

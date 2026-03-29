@@ -47,6 +47,29 @@ describe("key-info-dock controls", () => {
     host.remove();
   });
 
+  test("uses a consistent footer button variant for refresh and export", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, { onExport: () => {} });
+
+    const refreshBtn = host.querySelector(
+      ".doc-assistant-keyinfo__footer-btn--refresh"
+    ) as HTMLButtonElement | null;
+    const exportBtn = host.querySelector(
+      ".doc-assistant-keyinfo__footer-btn--export"
+    ) as HTMLButtonElement | null;
+
+    expect(refreshBtn).not.toBeNull();
+    expect(exportBtn).not.toBeNull();
+    expect(refreshBtn?.classList.contains("b3-button--outline")).toBe(true);
+    expect(exportBtn?.classList.contains("b3-button--outline")).toBe(true);
+    expect(exportBtn?.classList.contains("b3-button--primary")).toBe(false);
+
+    dock.destroy();
+    host.remove();
+  });
+
   test("updates tab and filter active state from dock state and user clicks", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
