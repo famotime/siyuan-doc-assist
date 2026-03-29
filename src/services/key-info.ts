@@ -98,7 +98,6 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   blockSortMap.set(rootId, blockSortMap.get(rootId) ?? -1);
 
   const headingResult = collectHeadingItems(rows, blockSortMap, resolveListLine, 0);
-  const headingBlockIds = headingResult.headingBlockIds;
   items.push(...headingResult.items);
   const markdownMetaResult = collectMarkdownAndMetaItems(rows, {
     rootId,
@@ -116,12 +115,8 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     await listSpanRows(rootId),
     blockSortMap,
     resolveListLine
-  ).filter(
-    (item) => !headingBlockIds.has(item.blockId || "")
   );
-  const domItems = extractInlineFromDom(protyle, blockSortMap, rootId, resolveListLine).filter(
-    (item) => !headingBlockIds.has(item.blockId || "")
-  );
+  const domItems = extractInlineFromDom(protyle, blockSortMap, rootId, resolveListLine);
   items.push(
     ...mergePreferredInlineItems(markdownInlineItems, spanItems, domItems)
   );

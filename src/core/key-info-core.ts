@@ -100,6 +100,32 @@ export function buildKeyInfoMarkdown(
     .join("\n");
 }
 
+export function filterKeyInfoItems(items: KeyInfoItem[], filter?: KeyInfoFilter): KeyInfoItem[] {
+  if (filter === undefined) {
+    return items;
+  }
+  if (!filter.length) {
+    return [];
+  }
+
+  const active = new Set(filter);
+  const filtered = items.filter((item) => active.has(item.type));
+  if (!active.has("title")) {
+    return filtered;
+  }
+
+  const visibleHeadingBlockIds = new Set(
+    filtered
+      .filter((item) => item.type === "title" && item.id.includes("-heading-") && !!item.blockId)
+      .map((item) => item.blockId as string)
+  );
+  if (!visibleHeadingBlockIds.size) {
+    return filtered;
+  }
+
+  return filtered.filter((item) => item.type === "title" || !visibleHeadingBlockIds.has(item.blockId || ""));
+}
+
 function normalizeInlineText(text: string): string {
   let next = text || "";
   next = next.replace(/\r?\n/g, " ");

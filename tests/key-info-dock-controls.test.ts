@@ -2,6 +2,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import { createKeyInfoDock } from "@/ui/key-info-dock";
+import { filterKeyInfoDockItems } from "@/ui/key-info-dock-controls";
 import type { KeyInfoItem, KeyInfoType } from "@/core/key-info-core";
 
 function buildItem(id: string, type: KeyInfoType = "bold"): KeyInfoItem {
@@ -93,6 +94,38 @@ describe("key-info-dock controls", () => {
 
     dock.destroy();
     host.remove();
+  });
+
+  test("keeps heading inline key info visible when title filter is off", () => {
+    const items: KeyInfoItem[] = [
+      {
+        id: "h1-heading-0",
+        type: "title",
+        text: "标题",
+        raw: "# 标题",
+        offset: 0,
+        blockId: "h1",
+        blockSort: 0,
+        order: 0,
+      },
+      {
+        id: "h1-inline-1",
+        type: "highlight",
+        text: "标题",
+        raw: "==标题==",
+        offset: 0,
+        blockId: "h1",
+        blockSort: 0,
+        order: 1,
+      },
+    ];
+
+    expect(filterKeyInfoDockItems(items, ["title", "highlight"]).map((item) => item.type)).toEqual([
+      "title",
+    ]);
+    expect(filterKeyInfoDockItems(items, ["highlight"]).map((item) => item.type)).toEqual([
+      "highlight",
+    ]);
   });
 
   test("toggles collapsed filters via more button and preserves hidden active filters", () => {

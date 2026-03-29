@@ -141,7 +141,7 @@ describe("key-info service heading inline merge", () => {
     expect(bodyTag).toBeTruthy();
   });
 
-  test("filters out spans extracted from heading blocks", async () => {
+  test("keeps spans extracted from heading blocks available for non-title filters", async () => {
     mockKernelSql(
       [
         {
@@ -193,7 +193,7 @@ describe("key-info service heading inline merge", () => {
       result.items.some(
         (item) => item.blockId === "h1" && item.type === "bold" && item.text === "标题加粗"
       )
-    ).toBe(false);
+    ).toBe(true);
     expect(
       result.items.some(
         (item) => item.blockId === "p1" && item.type === "bold" && item.text === "正文加粗"

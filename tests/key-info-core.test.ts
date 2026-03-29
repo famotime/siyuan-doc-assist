@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   buildDefaultKeyInfoFilter,
+  filterKeyInfoItems,
   buildKeyInfoMarkdown,
   extractKeyInfoFromMarkdown,
 } from "@/core/key-info-core";
@@ -219,5 +220,37 @@ describe("key-info-core", () => {
     ]);
 
     expect(markdown).toBe("3. **有序内容**");
+  });
+
+  test("suppresses heading inline duplicates only when title is visible in current filter", () => {
+    const items = [
+      {
+        id: "h1-heading-0",
+        type: "title" as const,
+        text: "标题",
+        raw: "# 标题",
+        offset: 0,
+        blockId: "h1",
+        blockSort: 0,
+        order: 0,
+      },
+      {
+        id: "h1-inline-1",
+        type: "highlight" as const,
+        text: "标题",
+        raw: "==标题==",
+        offset: 0,
+        blockId: "h1",
+        blockSort: 0,
+        order: 1,
+      },
+    ];
+
+    expect(filterKeyInfoItems(items, ["title", "highlight"]).map((item) => item.type)).toEqual([
+      "title",
+    ]);
+    expect(filterKeyInfoItems(items, ["highlight"]).map((item) => item.type)).toEqual([
+      "highlight",
+    ]);
   });
 });

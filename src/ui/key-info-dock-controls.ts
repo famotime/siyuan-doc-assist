@@ -1,4 +1,5 @@
 import {
+  filterKeyInfoItems,
   KEY_INFO_TYPES,
   KeyInfoFilter,
   KeyInfoItem,
@@ -54,14 +55,7 @@ type KeyInfoDockChromeCallbacks = {
 };
 
 export function filterKeyInfoDockItems(items: KeyInfoItem[], filter: KeyInfoFilter): KeyInfoItem[] {
-  if (!filter.length) {
-    return [];
-  }
-  if (filter.length >= FILTER_TYPES.length) {
-    return items;
-  }
-  const active = new Set(filter);
-  return items.filter((item) => active.has(item.type));
+  return filterKeyInfoItems(items, filter);
 }
 
 function buildTypeBadge(type: KeyInfoType): HTMLSpanElement {

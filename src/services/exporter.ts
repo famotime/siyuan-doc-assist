@@ -4,7 +4,7 @@ import {
   getExportResourceAssetPaths,
   rewriteMarkdownAssetLinksToBasename,
 } from "@/core/export-media-core";
-import { buildKeyInfoMarkdown, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
+import { buildKeyInfoMarkdown, filterKeyInfoItems, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
 import { buildGetFileRequest, decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { getDocKeyInfo } from "@/services/key-info";
 import {
@@ -159,14 +159,7 @@ function filterKeyInfoItemsByFilter(
   items: KeyInfoItem[],
   filter?: KeyInfoFilter
 ): KeyInfoItem[] {
-  if (filter === undefined) {
-    return items;
-  }
-  if (!filter.length) {
-    return [];
-  }
-  const active = new Set(filter);
-  return items.filter((item) => active.has(item.type));
+  return filterKeyInfoItems(items, filter);
 }
 
 export async function exportCurrentDocMarkdown(

@@ -267,4 +267,28 @@ describe("export docs zip download", () => {
     expect(String(putFileMock.mock.calls[0]?.[1] || "")).not.toContain("`C`");
     expect(result.itemCount).toBe(2);
   });
+
+  test("exports heading highlight when title filter is off and suppresses it when title is on", async () => {
+    getChildDocsMock.mockResolvedValue([]);
+    getDocKeyInfoMock.mockResolvedValue({
+      docId: "doc1",
+      docTitle: "主文档",
+      items: [
+        { type: "title", raw: "# 标题", text: "标题", id: "h1-heading-0", blockId: "h1", blockSort: 1, order: 1 },
+        { type: "highlight", raw: "==标题==", text: "标题", id: "h1-inline-1", blockId: "h1", blockSort: 1, order: 2 },
+      ],
+    } as any);
+
+    await exportDocAndChildKeyInfoAsZip({
+      docId: "doc1",
+      filter: ["title", "highlight"],
+    });
+    expect(String(putFileMock.mock.calls.at(-1)?.[1] || "")).toBe("# 标题");
+
+    await exportDocAndChildKeyInfoAsZip({
+      docId: "doc1",
+      filter: ["highlight"],
+    });
+    expect(String(putFileMock.mock.calls.at(-1)?.[1] || "")).toBe("==标题==");
+  });
 });
