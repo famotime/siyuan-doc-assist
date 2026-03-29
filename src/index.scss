@@ -992,11 +992,16 @@
   );
   --da-bg-elev-1: color-mix(in srgb, var(--b3-theme-background) 95%, #cce9d9 5%);
   --da-bg-elev-2: color-mix(in srgb, var(--b3-theme-surface) 91%, #dff1e8 9%);
-  --da-refresh-btn-text: color-mix(in srgb, var(--doc-assistant-accent-strong) 86%, var(--b3-theme-on-surface));
-  --da-refresh-btn-border: color-mix(in srgb, var(--doc-assistant-accent-strong) 46%, var(--b3-border-color));
-  --da-refresh-btn-bg: color-mix(in srgb, #dff3e8 74%, var(--b3-theme-surface));
-  --da-refresh-btn-bg-strong: color-mix(in srgb, #cbead8 78%, var(--b3-theme-background));
-  --da-refresh-btn-hover: color-mix(in srgb, #ebf8f0 60%, var(--da-refresh-btn-bg-strong));
+  --da-refresh-btn-text: var(--doc-assistant-accent-text);
+  --da-refresh-btn-border: color-mix(in srgb, var(--doc-assistant-accent-strong) 74%, var(--b3-border-color));
+  --da-refresh-btn-bg: color-mix(in srgb, var(--doc-assistant-accent) 80%, #bfe6cf 20%);
+  --da-refresh-btn-bg-strong: color-mix(in srgb, var(--doc-assistant-accent-strong) 90%, #245f45 10%);
+  --da-refresh-btn-hover: color-mix(in srgb, var(--doc-assistant-accent) 86%, #d7f0e1 14%);
+  --da-export-btn-text: var(--da-text-2);
+  --da-export-btn-border: color-mix(in srgb, var(--da-border-soft) 76%, var(--doc-assistant-accent-strong) 24%);
+  --da-export-btn-bg: color-mix(in srgb, var(--da-bg-elev-2) 76%, #edf8f1 24%);
+  --da-export-btn-bg-strong: color-mix(in srgb, var(--da-bg-elev-2) 58%, #d4ecde 42%);
+  --da-export-btn-hover: color-mix(in srgb, var(--da-bg-elev-2) 68%, #f4fbf7 32%);
   --da-shadow-sm: 0 3px 10px rgba(0, 0, 0, 0.05);
   --da-shadow-md: 0 8px 18px rgba(0, 0, 0, 0.09);
   position: relative;
@@ -1329,54 +1334,45 @@
 }
 
 .doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline {
-  color: var(--da-text-2);
-  border-color: color-mix(in srgb, var(--da-border-soft) 76%, var(--doc-assistant-accent-strong) 24%);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--da-bg-elev-2) 76%, #edf8f1 24%) 0%,
-      color-mix(in srgb, var(--da-bg-elev-2) 58%, #d4ecde 42%) 100%
-    );
-  box-shadow:
-    0 8px 18px rgba(44, 122, 88, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.26);
-}
-
-.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline:hover {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--da-bg-elev-2) 68%, #f4fbf7 32%) 0%,
-      color-mix(in srgb, var(--da-bg-elev-2) 50%, #dff2e6 50%) 100%
-    );
-}
-
-.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline {
   color: var(--da-refresh-btn-text);
   border-color: var(--da-refresh-btn-border);
   background-color: var(--da-refresh-btn-bg-strong);
-  background-image: linear-gradient(
-    180deg,
-    var(--da-refresh-btn-bg) 0%,
-    var(--da-refresh-btn-bg-strong) 100%
-  );
+  background-image:
+    radial-gradient(
+      140% 120% at 8% 0%,
+      color-mix(in srgb, #ffffff 35%, transparent) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      140deg,
+      var(--da-refresh-btn-bg) 0%,
+      color-mix(in srgb, var(--doc-assistant-accent) 88%, #84cca7 12%) 52%,
+      var(--da-refresh-btn-bg-strong) 100%
+    );
   box-shadow:
-    0 8px 18px rgba(44, 122, 88, 0.14),
+    0 10px 20px rgba(44, 122, 88, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline:hover {
-  color: color-mix(in srgb, var(--doc-assistant-accent-strong) 92%, var(--b3-theme-on-surface));
-  border-color: color-mix(in srgb, var(--doc-assistant-accent-strong) 56%, var(--b3-border-color));
+  color: var(--doc-assistant-accent-text);
+  border-color: color-mix(in srgb, var(--doc-assistant-accent-strong) 82%, var(--b3-border-color));
   background-color: var(--da-refresh-btn-hover);
-  background-image: linear-gradient(
-    180deg,
-    var(--da-refresh-btn-hover) 0%,
-    var(--da-refresh-btn-bg-strong) 100%
-  );
+  background-image:
+    radial-gradient(
+      140% 120% at 8% 0%,
+      color-mix(in srgb, #ffffff 42%, transparent) 0%,
+      transparent 52%
+    ),
+    linear-gradient(
+      140deg,
+      var(--da-refresh-btn-hover) 0%,
+      color-mix(in srgb, var(--doc-assistant-accent) 90%, #8bd0ab 10%) 52%,
+      color-mix(in srgb, var(--doc-assistant-accent-strong) 92%, #235a41 8%) 100%
+    );
   box-shadow:
-    0 10px 20px rgba(44, 122, 88, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    0 13px 24px rgba(44, 122, 88, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .doc-assistant-keyinfo__footer-btn--refresh .doc-assistant-keyinfo__footer-icon {
@@ -1385,7 +1381,40 @@
 }
 
 .doc-assistant-keyinfo__footer-btn--export {
-  box-shadow: 0 8px 18px rgba(44, 122, 88, 0.24);
+  box-shadow: var(--da-shadow-sm);
+}
+
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--export.b3-button.b3-button--primary {
+  color: var(--da-export-btn-text);
+  border-color: var(--da-export-btn-border);
+  background-color: var(--da-export-btn-bg-strong);
+  background-image: linear-gradient(
+    180deg,
+    var(--da-export-btn-bg) 0%,
+    var(--da-export-btn-bg-strong) 100%
+  );
+  box-shadow:
+    0 8px 18px rgba(44, 122, 88, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--export.b3-button.b3-button--primary:hover {
+  color: var(--da-text-1);
+  border-color: color-mix(in srgb, var(--da-border-soft) 84%, var(--doc-assistant-accent-strong) 16%);
+  background-color: var(--da-export-btn-hover);
+  background-image: linear-gradient(
+    180deg,
+    var(--da-export-btn-hover) 0%,
+    color-mix(in srgb, var(--da-bg-elev-2) 50%, #dff2e6 50%) 100%
+  );
+  box-shadow:
+    0 10px 20px rgba(44, 122, 88, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--export .doc-assistant-keyinfo__footer-icon {
+  color: inherit;
+  text-shadow: none;
 }
 
 .doc-assistant-action-processing {
