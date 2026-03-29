@@ -23,6 +23,7 @@ import {
   exportDocIdsAsMarkdownZip,
   exportDocAndChildKeyInfoAsZip,
 } from "@/services/exporter";
+import { buildDefaultKeyInfoFilter } from "@/core/key-info-core";
 import { getChildDocs } from "@/services/link-resolver";
 import { getDocKeyInfo } from "@/services/key-info";
 import {
@@ -241,5 +242,29 @@ describe("export docs zip download", () => {
       docCount: 3,
       itemCount: 3,
     });
+  });
+
+  test("does not export code items when using the default key info filter", async () => {
+    getChildDocsMock.mockResolvedValue([]);
+    getDocKeyInfoMock.mockResolvedValue({
+      docId: "doc1",
+      docTitle: "主文档",
+      items: [
+        { type: "bold", raw: "**A**", text: "A", id: "1", blockSort: 1, order: 1 },
+        { type: "underline", raw: "<u>U</u>", text: "U", id: "2", blockSort: 1, order: 2 },
+        { type: "code", raw: "`C`", text: "C", id: "3", blockSort: 1, order: 3 },
+      ],
+    } as any);
+
+    const result = await exportDocAndChildKeyInfoAsZip({
+      docId: "doc1",
+      filter: buildDefaultKeyInfoFilter(),
+    });
+
+    expect(putFileMock).toHaveBeenCalledTimes(1);
+    expect(String(putFileMock.mock.calls[0]?.[1] || "")).toContain("**A**");
+    expect(String(putFileMock.mock.calls[0]?.[1] || "")).toContain("<u>U</u>");
+    expect(String(putFileMock.mock.calls[0]?.[1] || "")).not.toContain("`C`");
+    expect(result.itemCount).toBe(2);
   });
 });

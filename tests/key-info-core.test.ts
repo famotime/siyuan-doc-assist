@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { buildKeyInfoMarkdown, extractKeyInfoFromMarkdown } from "@/core/key-info-core";
+import {
+  buildDefaultKeyInfoFilter,
+  buildKeyInfoMarkdown,
+  extractKeyInfoFromMarkdown,
+} from "@/core/key-info-core";
 
 describe("key-info-core", () => {
   test("extracts headings and inline key info", () => {
@@ -19,6 +23,23 @@ describe("key-info-core", () => {
     expect(texts).toContain("remark:备注");
     expect(texts).toContain("tag:标签");
     expect(texts).toContain("highlight:标记");
+  });
+
+  test("extracts underline content separately from italic and excludes code from default filter", () => {
+    const markdown = [
+      "正文包含 _斜体_、<u>下划线</u>、<ins>强调下划</ins>。",
+      "再来一个 <span data-type=\"u\">编辑态下划</span>。",
+    ].join("\n");
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+    const texts = items.map((item) => `${item.type}:${item.text}`);
+
+    expect(texts).toContain("italic:斜体");
+    expect(texts).toContain("underline:下划线");
+    expect(texts).toContain("underline:强调下划");
+    expect(texts).toContain("underline:编辑态下划");
+    expect(buildDefaultKeyInfoFilter()).toContain("underline");
+    expect(buildDefaultKeyInfoFilter()).not.toContain("code");
   });
 
   test("ignores content inside code blocks and inline code", () => {

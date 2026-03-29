@@ -17,6 +17,31 @@ describe("key-info inline extraction", () => {
     expect(resolveSpanFormatType("a mark")).toBe("highlight");
   });
 
+  test("maps underline span types and dom nodes to underline key info", () => {
+    expect(resolveSpanFormatType("u")).toBe("underline");
+    expect(resolveSpanFormatType("a u")).toBe("underline");
+
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="p-1">
+        <u>下划一</u>
+        <span data-type="u">下划二</span>
+      </div>
+    `;
+    const items = extractInlineFromDom(
+      { wysiwyg: { element: root } } as any,
+      new Map([
+        ["doc-1", 0],
+        ["p-1", 1],
+      ]),
+      "doc-1"
+    );
+
+    expect(
+      items.filter((item) => item.type === "underline").map((item) => item.text)
+    ).toEqual(["下划一", "下划二"]);
+  });
+
   test("ignores superscript/subscript nodes in dom highlight extraction", () => {
     const root = document.createElement("div");
     root.innerHTML = `

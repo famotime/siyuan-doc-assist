@@ -122,6 +122,9 @@ export function normalizeInlineVisibleText(source: string): string {
   next = next.replace(/<b\b[^>]*>([\s\S]+?)<\/b>/gi, "$1");
   next = next.replace(/<em\b[^>]*>([\s\S]+?)<\/em>/gi, "$1");
   next = next.replace(/<i\b[^>]*>([\s\S]+?)<\/i>/gi, "$1");
+  next = next.replace(/<u\b[^>]*>([\s\S]+?)<\/u>/gi, "$1");
+  next = next.replace(/<ins\b[^>]*>([\s\S]+?)<\/ins>/gi, "$1");
+  next = next.replace(/<span\b[^>]*data-type=["'](?:u|underline)["'][^>]*>([\s\S]+?)<\/span>/gi, "$1");
   next = next.replace(/<span\b[^>]*>([\s\S]+?)<\/span>/gi, "$1");
   next = next.replace(/<[^>]+>/g, " ");
   return cleanInlineText(next);
@@ -212,6 +215,9 @@ export function buildInlineRaw(type: KeyInfoType, text: string): string {
   }
   if (type === "italic") {
     return `*${text}*`;
+  }
+  if (type === "underline") {
+    return `<u>${text}</u>`;
   }
   if (type === "highlight") {
     return `==${text}==`;
@@ -392,6 +398,9 @@ export function resolveSpanFormatType(spanType: string, ial?: string): KeyInfoTy
   }
   if (hasToken("em")) {
     return "italic";
+  }
+  if (hasToken("u") || hasToken("underline") || hasToken("ins")) {
+    return "underline";
   }
   const hasExplicitHighlightToken = hasToken("mark");
   const hasGenericHighlightToken = hasToken("textmark") || hasToken("text");

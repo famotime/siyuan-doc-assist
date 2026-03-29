@@ -120,6 +120,10 @@ export function extractInlineFromDom(
     "em",
     "i",
     "[data-type='em']",
+    "u",
+    "ins",
+    "[data-type='u']",
+    "[data-type='underline']",
     "mark",
     "[data-type='mark']",
     "[data-type='textmark']",
@@ -200,6 +204,17 @@ export function extractInlineFromDom(
       hasToken("em")
     ) {
       type = "italic";
+      raw = buildInlineRaw(type, text);
+    } else if (
+      tagName === "u" ||
+      tagName === "ins" ||
+      dataType === "u" ||
+      dataType === "underline" ||
+      hasToken("u") ||
+      hasToken("underline") ||
+      hasToken("ins")
+    ) {
+      type = "underline";
       raw = buildInlineRaw(type, text);
     } else if (
       tagName === "mark" ||

@@ -218,6 +218,7 @@
   --keyinfo-title: #88abda;
   --keyinfo-bold: #f06d5e;
   --keyinfo-italic: #919177;
+  --keyinfo-underline: #4b9a6d;
   --keyinfo-highlight: #db9b34;
   --keyinfo-code: #4f9dff;
   --keyinfo-remark: #a73766;
@@ -387,6 +388,10 @@
 
 .doc-assistant-keyinfo__filter[data-type="italic"] {
   --keyinfo-filter-color: var(--keyinfo-italic);
+}
+
+.doc-assistant-keyinfo__filter[data-type="underline"] {
+  --keyinfo-filter-color: var(--keyinfo-underline);
 }
 
 .doc-assistant-keyinfo__filter[data-type="highlight"] {
@@ -754,6 +759,12 @@
   border-color: color-mix(in srgb, var(--keyinfo-italic) 35%, transparent);
 }
 
+.doc-assistant-keyinfo__badge--underline {
+  color: var(--keyinfo-underline);
+  background: color-mix(in srgb, var(--keyinfo-underline) 16%, transparent);
+  border-color: color-mix(in srgb, var(--keyinfo-underline) 35%, transparent);
+}
+
 .doc-assistant-keyinfo__badge--highlight {
   color: var(--keyinfo-highlight);
   background: color-mix(in srgb, var(--keyinfo-highlight) 16%, transparent);
@@ -834,12 +845,29 @@
 .doc-assistant-keyinfo__footer-btn--refresh {
   --keyinfo-footer-color: var(--doc-assistant-accent-strong);
   color: var(--keyinfo-footer-color);
-  border-color: color-mix(in srgb, var(--keyinfo-footer-color) 52%, var(--b3-border-color));
-  background: color-mix(
-    in srgb,
-    var(--doc-assistant-accent-soft) 72%,
-    var(--b3-theme-surface)
-  );
+  border-color: color-mix(in srgb, var(--keyinfo-footer-color) 64%, var(--b3-border-color));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--doc-assistant-accent-soft) 88%, #ffffff 12%) 0%,
+      color-mix(in srgb, var(--doc-assistant-accent-soft-2) 82%, var(--b3-theme-surface) 18%) 100%
+    );
+  box-shadow:
+    0 8px 18px rgba(44, 122, 88, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.doc-assistant-keyinfo__footer-btn--refresh:hover {
+  border-color: color-mix(in srgb, var(--keyinfo-footer-color) 72%, var(--b3-border-color));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--doc-assistant-accent-soft) 92%, #ffffff 8%) 0%,
+      color-mix(in srgb, var(--doc-assistant-accent-soft-2) 86%, var(--b3-theme-surface) 14%) 100%
+    );
+  box-shadow:
+    0 11px 20px rgba(44, 122, 88, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
 }
 
 .doc-assistant-keyinfo__footer-btn--export {
@@ -964,6 +992,11 @@
   );
   --da-bg-elev-1: color-mix(in srgb, var(--b3-theme-background) 95%, #cce9d9 5%);
   --da-bg-elev-2: color-mix(in srgb, var(--b3-theme-surface) 91%, #dff1e8 9%);
+  --da-refresh-btn-text: color-mix(in srgb, var(--doc-assistant-accent-strong) 86%, var(--b3-theme-on-surface));
+  --da-refresh-btn-border: color-mix(in srgb, var(--doc-assistant-accent-strong) 46%, var(--b3-border-color));
+  --da-refresh-btn-bg: color-mix(in srgb, #dff3e8 74%, var(--b3-theme-surface));
+  --da-refresh-btn-bg-strong: color-mix(in srgb, #cbead8 78%, var(--b3-theme-background));
+  --da-refresh-btn-hover: color-mix(in srgb, #ebf8f0 60%, var(--da-refresh-btn-bg-strong));
   --da-shadow-sm: 0 3px 10px rgba(0, 0, 0, 0.05);
   --da-shadow-md: 0 8px 18px rgba(0, 0, 0, 0.09);
   position: relative;
@@ -1243,6 +1276,10 @@
   --row-accent: var(--keyinfo-italic);
 }
 
+.doc-assistant-keyinfo__row[data-type="underline"] {
+  --row-accent: var(--keyinfo-underline);
+}
+
 .doc-assistant-keyinfo__row[data-type="highlight"] {
   --row-accent: var(--keyinfo-highlight);
 }
@@ -1291,14 +1328,59 @@
   box-shadow: var(--da-shadow-sm);
 }
 
-.doc-assistant-keyinfo__footer-btn--refresh {
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline {
   color: var(--da-text-2);
-  border-color: var(--da-border-soft);
-  background: color-mix(in srgb, var(--da-bg-elev-2) 84%, transparent);
+  border-color: color-mix(in srgb, var(--da-border-soft) 76%, var(--doc-assistant-accent-strong) 24%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--da-bg-elev-2) 76%, #edf8f1 24%) 0%,
+      color-mix(in srgb, var(--da-bg-elev-2) 58%, #d4ecde 42%) 100%
+    );
+  box-shadow:
+    0 8px 18px rgba(44, 122, 88, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline:hover {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--da-bg-elev-2) 68%, #f4fbf7 32%) 0%,
+      color-mix(in srgb, var(--da-bg-elev-2) 50%, #dff2e6 50%) 100%
+    );
+}
+
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline {
+  color: var(--da-refresh-btn-text);
+  border-color: var(--da-refresh-btn-border);
+  background-color: var(--da-refresh-btn-bg-strong);
+  background-image: linear-gradient(
+    180deg,
+    var(--da-refresh-btn-bg) 0%,
+    var(--da-refresh-btn-bg-strong) 100%
+  );
+  box-shadow:
+    0 8px 18px rgba(44, 122, 88, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline:hover {
+  color: color-mix(in srgb, var(--doc-assistant-accent-strong) 92%, var(--b3-theme-on-surface));
+  border-color: color-mix(in srgb, var(--doc-assistant-accent-strong) 56%, var(--b3-border-color));
+  background-color: var(--da-refresh-btn-hover);
+  background-image: linear-gradient(
+    180deg,
+    var(--da-refresh-btn-hover) 0%,
+    var(--da-refresh-btn-bg-strong) 100%
+  );
+  box-shadow:
+    0 10px 20px rgba(44, 122, 88, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
 }
 
 .doc-assistant-keyinfo__footer-btn--refresh .doc-assistant-keyinfo__footer-icon {
-  color: var(--da-text-2);
+  color: inherit;
   text-shadow: none;
 }
 

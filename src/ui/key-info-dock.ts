@@ -1,4 +1,9 @@
-import { KeyInfoFilter, KeyInfoItem, keyInfoTypeLabel } from "@/core/key-info-core";
+import {
+  buildDefaultKeyInfoFilter,
+  KeyInfoFilter,
+  KeyInfoItem,
+  keyInfoTypeLabel,
+} from "@/core/key-info-core";
 import {
   consumeKeyInfoListPostRenderAction,
   createKeyInfoListScrollState,
@@ -81,7 +86,7 @@ export function createKeyInfoDock(
   const state: KeyInfoDockState = {
     docTitle: "",
     items: [],
-    filter: [...FILTER_TYPES],
+    filter: buildDefaultKeyInfoFilter(),
     filtersExpanded: false,
     loading: false,
     isRefreshing: false,

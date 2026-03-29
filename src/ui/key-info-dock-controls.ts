@@ -11,7 +11,7 @@ export type FilterKey = "all" | KeyInfoType;
 
 export const FILTER_TYPES: KeyInfoType[] = [...KEY_INFO_TYPES];
 
-export const COLLAPSIBLE_FILTER_TYPES: KeyInfoType[] = ["link", "ref", "tag"];
+export const COLLAPSIBLE_FILTER_TYPES: KeyInfoType[] = ["code", "link", "ref", "tag"];
 
 const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
   { key: "all", label: "全部", icon: "全" },
@@ -20,6 +20,7 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
   { key: "highlight", label: "高亮", icon: "亮" },
   { key: "remark", label: "备注", icon: "注" },
   { key: "italic", label: "斜体", icon: "斜" },
+  { key: "underline", label: "下划", icon: "下" },
   { key: "code", label: "代码", icon: "码" },
   { key: "tag", label: "标签", icon: "签" },
   { key: "link", label: "链接", icon: "链" },

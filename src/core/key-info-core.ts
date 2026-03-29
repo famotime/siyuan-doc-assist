@@ -2,6 +2,7 @@ export type KeyInfoType =
   | "title"
   | "bold"
   | "italic"
+  | "underline"
   | "highlight"
   | "code"
   | "remark"
@@ -15,6 +16,7 @@ export const KEY_INFO_TYPES: KeyInfoType[] = [
   "title",
   "bold",
   "italic",
+  "underline",
   "highlight",
   "code",
   "remark",
@@ -28,7 +30,7 @@ export function isKeyInfoType(value: unknown): value is KeyInfoType {
 }
 
 export function buildDefaultKeyInfoFilter(): KeyInfoFilter {
-  return [...KEY_INFO_TYPES];
+  return KEY_INFO_TYPES.filter((type) => type !== "code");
 }
 
 export function normalizeKeyInfoFilter(value: unknown): KeyInfoFilter {
@@ -60,6 +62,7 @@ const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
   title: "标题",
   bold: "加粗",
   italic: "斜体",
+  underline: "下划",
   highlight: "高亮",
   code: "代码",
   remark: "备注",
@@ -106,6 +109,9 @@ function normalizeInlineText(text: string): string {
   next = next.replace(/==(.+?)==/g, "$1");
   next = next.replace(/%%(.+?)%%/g, "$1");
   next = next.replace(/<mark>([\s\S]+?)<\/mark>/gi, "$1");
+  next = next.replace(/<u\b[^>]*>([\s\S]+?)<\/u>/gi, "$1");
+  next = next.replace(/<ins\b[^>]*>([\s\S]+?)<\/ins>/gi, "$1");
+  next = next.replace(/<span\b[^>]*data-type=["'](?:u|underline)["'][^>]*>([\s\S]+?)<\/span>/gi, "$1");
   next = next.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   next = next.replace(/\[\[([^\]]+)\]\]/g, "$1");
   next = next.replace(/\s+/g, " ").trim();
@@ -532,6 +538,34 @@ export function extractKeyInfoFromMarkdown(markdown: string): KeyInfoExtract[] {
     (cleaned) => `*${cleaned}*`
   );
   items.push(...italicTagMatches.items);
+
+  const underlineMatches = collectHtmlWrappedMatches(
+    maskedWithoutLinksRefs,
+    markdown,
+    "u",
+    "underline",
+    (cleaned) => `<u>${cleaned}</u>`
+  );
+  items.push(...underlineMatches.items);
+
+  const underlineInsertMatches = collectHtmlWrappedMatches(
+    maskedWithoutLinksRefs,
+    markdown,
+    "ins",
+    "underline",
+    (cleaned) => `<u>${cleaned}</u>`
+  );
+  items.push(...underlineInsertMatches.items);
+
+  const underlineSpanMatches = collectRegexMatches(
+    maskedWithoutLinksRefs,
+    markdown,
+    /<span[^>]*data-type=["'](?:u|underline)["'][^>]*>([\s\S]+?)<\/span>/gi,
+    "underline",
+    1,
+    (_raw, cleaned) => `<u>${cleaned}</u>`
+  );
+  items.push(...underlineSpanMatches.items);
 
   items.push(...extractTags(markdown, maskedWithoutLinksRefs));
 

@@ -4,7 +4,7 @@ import {
   getExportResourceAssetPaths,
   rewriteMarkdownAssetLinksToBasename,
 } from "@/core/export-media-core";
-import { buildKeyInfoMarkdown, KeyInfoFilter, KeyInfoItem, KeyInfoType } from "@/core/key-info-core";
+import { buildKeyInfoMarkdown, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
 import { buildGetFileRequest, decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { getDocKeyInfo } from "@/services/key-info";
 import {
@@ -155,16 +155,6 @@ const EXPORT_MD_OPTIONS = {
   yfm: false,
 } as const;
 
-const KEY_INFO_FILTER_TYPES: KeyInfoType[] = [
-  "title",
-  "bold",
-  "italic",
-  "highlight",
-  "code",
-  "remark",
-  "tag",
-];
-
 function filterKeyInfoItemsByFilter(
   items: KeyInfoItem[],
   filter?: KeyInfoFilter
@@ -174,9 +164,6 @@ function filterKeyInfoItemsByFilter(
   }
   if (!filter.length) {
     return [];
-  }
-  if (filter.length >= KEY_INFO_FILTER_TYPES.length) {
-    return items;
   }
   const active = new Set(filter);
   return items.filter((item) => active.has(item.type));

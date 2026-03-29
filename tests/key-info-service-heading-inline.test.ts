@@ -893,4 +893,41 @@ describe("key-info service heading inline merge", () => {
     expect(remarks).toHaveLength(1);
     expect(remarks[0]?.text).toBe("文档（是是是）");
   });
+
+  test("extracts underline key info from span rows", async () => {
+    mockKernelSql(
+      [
+        {
+          id: "p-1",
+          parent_id: "doc-1",
+          sort: 1,
+          type: "p",
+          subtype: "",
+          content: "正文",
+          markdown: "正文",
+          memo: "",
+          tag: "",
+        },
+      ],
+      [
+        {
+          id: "s-underline",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "下划重点",
+          markdown: "<u>下划重点</u>",
+          type: "u",
+          block_sort: 1,
+        },
+      ]
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+
+    expect(
+      result.items.some(
+        (item) => item.blockId === "p-1" && item.type === "underline" && item.text === "下划重点"
+      )
+    ).toBe(true);
+  });
 });
