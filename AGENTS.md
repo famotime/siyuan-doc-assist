@@ -1,63 +1,112 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Project Overview
 
-- Repository root (`./`) is the primary plugin project (Vite + Vue 3 + TypeScript).
-- Main entry: `src/index.ts` (loads `index.scss`, exports plugin from `src/plugin/plugin-lifecycle.ts`).
-- `src/` contains application code:
-  - `core/`: pure domain logic (`*-core.ts`), designed for direct unit testing.
-  - `plugin/`: lifecycle wiring, action registry, command/menu registration, action dispatch.
-  - `services/`: SiYuan kernel/data access and feature services (export, dedupe, image conversion, link resolving, etc.).
-  - `ui/`: Dock/dialog/overlay UI assembly.
-  - `types/`, `i18n/`: type declarations and localization resources.
-  - `components/`, `utils/`: reserved/minimal directories at present.
-- `tests/` contains Vitest suites (`*.test.ts`) and mocks under `tests/mocks/`.
-- `assets/` stores static images used by README/docs.
-- `docs/` stores internal docs (current structure snapshot: `docs/project-structure.md`).
-- `dist/` and `package.zip` are build artifacts.
-- `plugin-sample-vite-vue/` is a template/reference project.
-- `developer_docs/` stores local SiYuan API/reference materials.
+- This repository is the main `siyuan-doc-assist` plugin project for SiYuan Notes.
+- Stack: TypeScript, Vite 6, Vitest, SCSS.
+- Runtime shape: SiYuan plugin lifecycle + service adapters + mostly vanilla DOM UI wiring.
+- Main entry: `src/index.ts`, which loads `src/index.scss` and re-exports the plugin from `src/plugin/plugin-lifecycle.ts`.
 
-## Build, Test, and Development Commands
+## Project Structure
 
-Run commands from repository root:
+- `src/`: application source.
+- `src/core/`: pure domain logic in `*-core.ts` files, intended for focused unit tests.
+- `src/plugin/`: plugin lifecycle, command/menu registration, action dispatch, controller wiring.
+- `src/services/`: SiYuan kernel/file access adapters and higher-level feature services.
+- `src/ui/`: dock, dialog, overlay, and DOM rendering helpers.
+- `src/types/`: local type declarations and SiYuan type augmentation.
+- `src/i18n/`: localization JSON resources.
+- `tests/`: Vitest suites and `tests/mocks/`.
+- `assets/`: README/doc images.
+- `docs/`: internal docs such as `docs/project-structure.md`, `docs/refactor-plan.md`, and `docs/changelog.md`.
+- `developer_docs/`: local SiYuan API and reference materials.
+- `plugin-sample-vite-vue/`: template/reference project, not part of the main plugin runtime.
+- `dist/` and `package.zip`: build artifacts.
+- `tmp/`: temporary local files, not release content.
 
-- `pnpm install` installs dependencies.
-- `pnpm dev` runs `vite build --watch`.
-  - Output target: `<VITE_SIYUAN_WORKSPACE_PATH>/data/plugins/siyuan-doc-assist` (from `.env`).
-- `pnpm build` produces `dist/` and `package.zip`.
-- `pnpm test` runs Vitest once; `pnpm test:watch` runs in watch mode.
-- `pnpm typecheck:strict` runs strict TypeScript checks with `tsconfig.strict.json`.
-- `pnpm release`, `pnpm release:patch|minor|major|manual` run `release.js`.
-  - Side effects: update `plugin.json` + `package.json`, create commit, push branch, create/push tag (`v*`).
+## Architecture Notes
 
-## Configuration & Environment
+- `src/plugin/plugin-lifecycle.ts` is the composition root and main SiYuan plugin class.
+- `src/plugin/actions.ts` defines user-facing actions and grouping metadata.
+- `src/plugin/action-runner.ts` is the main execution shell; specialized handlers are split into:
+  - `src/plugin/action-runner-export-handlers.ts`
+  - `src/plugin/action-runner-organize-handlers.ts`
+  - `src/plugin/action-runner-insert-handlers.ts`
+  - `src/plugin/action-runner-media-handlers.ts`
+  - `src/plugin/action-runner-block-transform.ts`
+- Key-info sidebar flow is centered on:
+  - `src/plugin/key-info-controller.ts`
+  - `src/services/key-info.ts`
+  - `src/ui/key-info-dock.ts`
+- Kernel access is funneled through `src/services/kernel.ts` and related `kernel-*` modules.
+- Prefer keeping logic boundaries sharp:
+  - pure transforms in `core/`
+  - SiYuan/IO integration in `services/`
+  - lifecycle and orchestration in `plugin/`
+  - DOM rendering/state projection in `ui/`
 
-- Copy `.env.example` to `.env` and set `VITE_SIYUAN_WORKSPACE_PATH`.
+## Build, Test, and Dev Commands
+
+Run from repository root:
+
+- `pnpm install`: install dependencies.
+- `pnpm dev`: run `vite build --watch`.
+- `pnpm build`: produce `dist/` and `package.zip`.
+- `pnpm test`: run all Vitest tests once.
+- `pnpm test:watch`: run Vitest in watch mode.
+- `pnpm typecheck:strict`: run strict TypeScript checks with `tsconfig.strict.json`.
+- `pnpm vitest run tests/<name>.test.ts`: run a single test file.
+- `pnpm release`
+- `pnpm release:patch`
+- `pnpm release:minor`
+- `pnpm release:major`
+- `pnpm release:manual`
+
+Release scripts update both `plugin.json` and `package.json`, then create a commit, push, and create/push a `v*` tag.
+
+## Environment
+
+- Copy `.env.example` to `.env`.
+- Set `VITE_SIYUAN_WORKSPACE_PATH` to the local SiYuan workspace path.
 - Watch builds deploy to `<workspace>/data/plugins/siyuan-doc-assist`.
 
-## Coding Style & Naming Conventions
+## Coding Conventions
 
-- Indentation: 2 spaces, trimmed trailing whitespace, final newline (`.editorconfig`).
-- Prefer kebab-case file names (e.g., `link-core.ts`, `export-media-core.ts`).
-- Tests use `*.test.ts` and mirror module names (e.g., `link-core.test.ts`).
-- ESLint config lives at `eslint.config.mjs` (based on `@antfu/eslint-config`).
+- Use 2-space indentation, no trailing whitespace, and keep a final newline.
+- Prefer kebab-case file names.
+- Keep pure logic in `core/` when possible so it stays easy to test.
+- Prefer extending existing modules over introducing parallel abstractions unless the current file is clearly overloaded.
+- Follow existing naming patterns such as `*-core.ts`, `kernel-*.ts`, and `action-runner-*.ts`.
+- Use `eslint.config.mjs` as the style baseline.
+- Keep comments short and only where the code would otherwise be non-obvious.
 
-## Testing Guidelines
+## Testing Expectations
 
 - Framework: Vitest.
-- No explicit coverage gate in repo; add or update tests alongside core logic changes.
-- Keep tests close to the behavior they validate and favor deterministic inputs.
-- Prefer covering `core/` and service adapters when changing behavior in `plugin/action-runner` flows.
+- Add or update tests when behavior changes, especially for:
+  - `src/core/`
+  - service adapters
+  - action-runner flows
+  - key-info extraction and dock state behavior
+- Favor deterministic tests with local mocks over broad integration-style setup.
+- Mirror module names in test files where practical.
 
-## Commit & Pull Request Guidelines
+## Release and CI
 
-- History shows concise summary commits, including Chinese messages and occasional `type:` prefixes (e.g., `fix:`). Follow the same: short, direct summary; optional `type:` when helpful.
-- PRs should include: a clear description, test results (`pnpm test` or reason skipped), and screenshots or GIFs for UI changes.
-- If releasing, use `pnpm release:*` so `plugin.json` and `package.json` stay in sync.
+- CI workflow: `.github/workflows/release.yml`.
+- Release is triggered by pushing a tag matching `v*`.
+- Expected pipeline: install dependencies, run tests, build, upload `package.zip` to GitHub Release.
 
-## CI/Release Notes
+## Commit and PR Guidelines
 
-- GitHub Actions workflow: `.github/workflows/release.yml`.
-- Trigger: pushing a tag matching `v*`.
-- Pipeline: install dependencies -> run tests -> build -> upload `package.zip` to GitHub Release.
+- Follow the existing history style: short, direct commit summaries; optional prefixes like `fix:` or `feat:` are fine.
+- If UI changes are involved, include screenshots or GIFs in the PR.
+- Report test results in the PR description, or explain why tests were skipped.
+- Use `pnpm release:*` for version bumps so `plugin.json` and `package.json` remain in sync.
+
+## Agent Working Notes
+
+- Do not edit build artifacts in `dist/` or `package.zip` manually unless the task is specifically about release outputs.
+- Treat `plugin-sample-vite-vue/` and `developer_docs/` as reference material unless the task explicitly targets them.
+- Be careful with document-mutating features: many plugin actions change SiYuan content or document paths and may not be undoable through normal editor undo.
+- When structural changes are made, keep `docs/project-structure.md` and related docs aligned if they are affected by the task.
