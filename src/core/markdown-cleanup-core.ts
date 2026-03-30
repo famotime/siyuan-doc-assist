@@ -2,6 +2,7 @@ export {
   removeExtraBlankLinesFromMarkdown,
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
+  removeClippedListPrefixesFromMarkdown,
 } from "@/core/markdown-cleanup-text-core";
 export type {
   TrailingWhitespaceCleanupResult,

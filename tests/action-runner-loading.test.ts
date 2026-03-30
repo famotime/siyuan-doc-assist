@@ -1750,6 +1750,58 @@ describe("action-runner loading guard", () => {
     expect(deleteBlockByIdMock).not.toHaveBeenCalled();
   });
 
+  test("cleans duplicate bullet characters from clipped unordered list markdown", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "list-1",
+        type: "l",
+        content: "",
+        markdown: "- • 第一项\n- • 第二项",
+        resolved: true,
+      } as any,
+    ]);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-clipped-list-prefixes" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("list-1", "- 第一项\n- 第二项");
+    expect(showMessageMock).toHaveBeenCalledWith("已清理剪藏内容，共更新 1 个块", 5000, "info");
+  });
+
+  test("cleans duplicate ordered markers from clipped ordered list markdown", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "list-1",
+        type: "l",
+        content: "",
+        markdown: "1. 1. 第一项\n2. 2. 第二项",
+        resolved: true,
+      } as any,
+    ]);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-clipped-list-prefixes" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("list-1", "1. 第一项\n2. 第二项");
+    expect(showMessageMock).toHaveBeenCalledWith("已清理剪藏内容，共更新 1 个块", 5000, "info");
+  });
+
   test("shows prompt only and does nothing when no block is selected", async () => {
     const root = document.createElement("div");
     root.innerHTML = `

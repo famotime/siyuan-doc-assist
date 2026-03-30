@@ -19,6 +19,7 @@ export type ActionKey =
   | "remove-doc-images"
   | "toggle-links-refs"
   | "clean-ai-output"
+  | "clean-clipped-list-prefixes"
   | "mark-invalid-links-refs"
   | "insert-blank-before-headings"
   | "toggle-heading-bold"
@@ -69,6 +70,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "toggle-selected-punctuation": "标",
   "remove-extra-blank-lines": "空",
   "clean-ai-output": "净",
+  "clean-clipped-list-prefixes": "序",
   "trim-trailing-whitespace": "尾",
   "toggle-links-refs": "转",
   "delete-from-current-to-end": "删",
@@ -244,6 +246,14 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     key: "clean-ai-output",
     commandText: "清理AI输出内容",
     menuText: "清理AI输出内容",
+    group: "edit",
+    requiresWritableDoc: true,
+    icon: "iconTrashcan",
+  },
+  {
+    key: "clean-clipped-list-prefixes",
+    commandText: "清理剪藏内容",
+    menuText: "清理剪藏内容",
     group: "edit",
     requiresWritableDoc: true,
     icon: "iconTrashcan",

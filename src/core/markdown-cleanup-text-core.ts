@@ -251,3 +251,121 @@ export function removeTrailingWhitespaceFromDom(dom: string): TrailingWhitespace
     removedChars,
   };
 }
+
+export type ClippedListPrefixCleanupResult = {
+  markdown: string;
+  removedCount: number;
+};
+
+// Bullet characters commonly inserted as duplicates by web clippers
+// (used inline in the regex below)
+/**
+ * Remove redundant list prefixes inserted by web clippers:
+ * 1. Unordered: `- {: ...}• text` → `- {: ...}text`
+ * 2. Ordered nested: outer empty wrapper + inner numbered sub-item
+ *    flattened to a single numbered item at the outer level.
+ */
+export function removeClippedListPrefixesFromMarkdown(
+  markdown: string
+): ClippedListPrefixCleanupResult {
+  if (!markdown) {
+    return { markdown: "", removedCount: 0 };
+  }
+
+  let removedCount = 0;
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const out: string[] = [];
+  const bulletChars = "[•·○◦▪▸➢➤►◆◇✓✔★☆→⁃‣⦿⦾◉●]";
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // SQL markdown for clipped unordered lists is flattened to `- • text`.
+    const flatUnorderedMatch = line.match(
+      new RegExp(`^(\\s*(?:[-*+]))\\s+(${bulletChars})\\s*(.*)$`)
+    );
+    if (flatUnorderedMatch) {
+      out.push(`${flatUnorderedMatch[1]} ${flatUnorderedMatch[3]}`);
+      removedCount += 1;
+      i += 1;
+      continue;
+    }
+
+    // ── Case 1: unordered bullet duplicate ────────────────────────────────
+    // Pattern: `(indent)(- )(IAL)(bullet_char)(optional_space)(rest)`
+    const unorderedMatch = line.match(
+      new RegExp(`^(\\s*(?:[-*+]) \\{:[^}]*\\})\\s*(${bulletChars})\\s*(.*)$`)
+    );
+    if (unorderedMatch) {
+      out.push(`${unorderedMatch[1]}${unorderedMatch[3]}`);
+      removedCount += 1;
+      i += 1;
+      continue;
+    }
+
+    // SQL markdown for clipped ordered lists is flattened to `1. 1. text`.
+    const flatOrderedMatch = line.match(/^(\s*)(\d+)([.)])\s+(\d+)([.)])\s+(.*)$/);
+    if (flatOrderedMatch && flatOrderedMatch[2] === flatOrderedMatch[4]) {
+      out.push(
+        `${flatOrderedMatch[1]}${flatOrderedMatch[2]}${flatOrderedMatch[3]} ${flatOrderedMatch[6]}`
+      );
+      removedCount += 1;
+      i += 1;
+      continue;
+    }
+
+    // ── Case 2: ordered list — empty outer item wrapping a numbered sub-item
+    // Outer: `(indent)(N. )(IAL)` with no trailing content
+    // Next lines: `(indent+3)(N. )(IAL)(content)` then `(indent+6)(IAL)` then `(indent+3)(IAL)`
+    const orderedOuterMatch = line.match(/^(\s*)(\d+)[.)]{1} \{:[^}]*\}\s*$/);
+    if (orderedOuterMatch) {
+      const baseIndent = orderedOuterMatch[1];
+      const outerNum = orderedOuterMatch[2];
+      const innerIndent = baseIndent + "   ";
+
+      // Peek ahead: next non-attr line should be the inner item
+      let j = i + 1;
+      // skip blank/attr lines between outer item and its children
+      while (j < lines.length && lines[j].trim() === "") {
+        j += 1;
+      }
+      const innerItemLine = j < lines.length ? lines[j] : "";
+      const innerMatch = innerItemLine.match(
+        new RegExp(`^${innerIndent.replace(/\s/g, "\\s")}(\\d+)[.)]{1} (\\{:[^}]*\\})(.*)$`)
+      );
+
+      if (innerMatch && innerMatch[1] === outerNum) {
+        // This is the clipped pattern: flatten by replacing outer with inner content
+        // Collect inner item's continuation lines and trailing IALs
+        const innerIal = innerMatch[2];
+        const innerContent = innerMatch[3];
+        const flatLine = `${baseIndent}${outerNum}. ${innerIal}${innerContent}`;
+        out.push(flatLine);
+        removedCount += 1;
+        i = j + 1; // skip outer header line + inner item line
+
+        const deeperIndent = innerIndent + "   ";
+        // Copy continuation lines of the inner item (dedented by 3 spaces).
+        // Stop before the outer item's trailing IAL (at innerIndent but not deeperIndent).
+        while (i < lines.length) {
+          const contLine = lines[i];
+          if (!contLine.startsWith(innerIndent)) break;
+          // The outer item's own IAL sits at innerIndent but not deeperIndent — skip it
+          if (!contLine.startsWith(deeperIndent) && /^\s*\{:[^}]*\}\s*$/.test(contLine)) {
+            i += 1; // consume the outer item IAL without emitting it
+            break;
+          }
+          out.push(baseIndent + contLine.slice(innerIndent.length));
+          i += 1;
+        }
+        continue;
+      }
+    }
+
+    out.push(line);
+    i += 1;
+  }
+
+  return { markdown: out.join("\n"), removedCount };
+}

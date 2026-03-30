@@ -13,6 +13,7 @@ import {
   findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
+  removeClippedListPrefixesFromMarkdown,
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
 } from "@/core/markdown-cleanup-core";
@@ -177,6 +178,7 @@ export class ActionRunner {
       "trim-trailing-whitespace": async (docId) => this.handleTrimTrailingWhitespace(docId),
       "toggle-links-refs": async (docId) => this.handleToggleLinksRefs(docId),
       "clean-ai-output": async (docId) => this.handleCleanAiOutput(docId),
+      "clean-clipped-list-prefixes": async (docId) => this.handleCleanClippedListPrefixes(docId),
       "mark-invalid-links-refs": async (docId) => this.handleMarkInvalidLinksRefs(docId),
       "insert-blank-before-headings": async (docId) => this.handleInsertBlankBeforeHeadings(docId),
       "toggle-heading-bold": async (docId) => this.handleToggleHeadingBold(docId),
@@ -1286,6 +1288,56 @@ export class ActionRunner {
     const summary = `已清理 AI 输出残留：上标 ${removedSupCount} 处，^^ ${removedCaretCount} 处，互联网链接 ${removedInternetLinkCount} 处，共更新 ${updatedBlockCount} 个块`;
     if (failedBlockCount > 0) {
       showMessage(`${summary}，失败 ${failedBlockCount} 个块`, 7000, "error");
+      return;
+    }
+    showMessage(summary, 5000, "info");
+  }
+
+  private async handleCleanClippedListPrefixes(docId: string) {
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的段落", 4000, "info");
+      return;
+    }
+
+    const cleanableCount = blocks.filter((block) => {
+      const source = block.markdown || "";
+      if (!source) return false;
+      const { removedCount } = removeClippedListPrefixesFromMarkdown(source);
+      return removedCount > 0;
+    }).length;
+
+    if (!cleanableCount) {
+      showMessage("未发现可清理的剪藏列表前缀", 4000, "info");
+      return;
+    }
+
+    const ok = await this.askConfirmWithVisibleDialog(
+      "确认清理剪藏内容",
+      `将清理 ${cleanableCount} 个列表块中的重复小圆点/序号，是否继续？`
+    );
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
+    const report = await applyMarkdownTransformToBlocks({
+      blocks,
+      isHighRisk: () => false,
+      updateBlockMarkdown,
+      transform: (source) => {
+        const { markdown, removedCount } = removeClippedListPrefixesFromMarkdown(source);
+        return { markdown, changedCount: removedCount };
+      },
+    });
+
+    if (!report.updatedBlockCount) {
+      showMessage("清理完成，未更新任何块", 4000, "info");
+      return;
+    }
+    const summary = `已清理剪藏内容，共更新 ${report.updatedBlockCount} 个块`;
+    if (report.failedBlockCount > 0) {
+      showMessage(`${summary}，失败 ${report.failedBlockCount} 个块`, 7000, "error");
       return;
     }
     showMessage(summary, 5000, "info");
