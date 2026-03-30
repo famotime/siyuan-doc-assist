@@ -257,6 +257,143 @@ export type ClippedListPrefixCleanupResult = {
   removedCount: number;
 };
 
+export type BilingualParagraphSplitResult = {
+  parts: string[];
+  changed: boolean;
+};
+
+type LanguageLabel = "en" | "zh" | "neutral";
+
+type SentenceChunkMeta = {
+  text: string;
+  label: LanguageLabel;
+  latinCount: number;
+  hanCount: number;
+};
+
+const MARKDOWN_LINK_PATTERN = /!?\[([^\]]*)\]\([^)]+\)/g;
+const INLINE_MARKUP_PATTERN = /[*_~#>]+/g;
+const HTML_TAG_PATTERN = /<[^>]+>/g;
+const LATIN_LETTER_PATTERN = /[A-Za-z]/g;
+const HAN_CHAR_PATTERN = /\p{Script=Han}/gu;
+const BILINGUAL_SKIP_PATTERN = /`|https?:\/\/|www\./iu;
+const SENTENCE_END_CHARS = new Set([".", "!", "?", ";", "。", "！", "？", "；"]);
+const SENTENCE_TAIL_PATTERN = /["'”’)\]】）\s]/u;
+
+function countMatches(value: string, pattern: RegExp): number {
+  const matches = value.match(pattern);
+  return matches?.length || 0;
+}
+
+function stripMarkdownForLanguageDetection(value: string): string {
+  return (value || "")
+    .replace(MARKDOWN_LINK_PATTERN, "$1")
+    .replace(HTML_TAG_PATTERN, " ")
+    .replace(INLINE_MARKUP_PATTERN, "");
+}
+
+function splitSentenceChunks(value: string): string[] {
+  if (!value) {
+    return [];
+  }
+
+  const chunks: string[] = [];
+  let current = "";
+
+  for (let i = 0; i < value.length; i += 1) {
+    current += value[i];
+    if (!SENTENCE_END_CHARS.has(value[i])) {
+      continue;
+    }
+    while (i + 1 < value.length && SENTENCE_TAIL_PATTERN.test(value[i + 1])) {
+      current += value[i + 1];
+      i += 1;
+    }
+    chunks.push(current);
+    current = "";
+  }
+
+  if (current) {
+    chunks.push(current);
+  }
+
+  return chunks.filter((chunk) => chunk.trim().length > 0);
+}
+
+function classifySentenceChunk(value: string): SentenceChunkMeta {
+  const normalized = stripMarkdownForLanguageDetection(value);
+  const latinCount = countMatches(normalized, LATIN_LETTER_PATTERN);
+  const hanCount = countMatches(normalized, HAN_CHAR_PATTERN);
+
+  if (latinCount >= 12 && latinCount >= hanCount * 2) {
+    return { text: value, label: "en", latinCount, hanCount };
+  }
+  if (hanCount >= 6 && hanCount >= latinCount * 2) {
+    return { text: value, label: "zh", latinCount, hanCount };
+  }
+  return { text: value, label: "neutral", latinCount, hanCount };
+}
+
+export function splitBilingualParagraphMarkdown(
+  markdown: string
+): BilingualParagraphSplitResult {
+  const normalized = (markdown || "").replace(/\r\n/g, "\n").trim();
+  if (!normalized || normalized.includes("\n") || BILINGUAL_SKIP_PATTERN.test(normalized)) {
+    return { parts: [markdown || ""], changed: false };
+  }
+
+  const stripped = stripMarkdownForLanguageDetection(normalized);
+  const totalLatin = countMatches(stripped, LATIN_LETTER_PATTERN);
+  const totalHan = countMatches(stripped, HAN_CHAR_PATTERN);
+  if (totalLatin < 20 || totalHan < 8) {
+    return { parts: [markdown], changed: false };
+  }
+
+  const chunks = splitSentenceChunks(normalized);
+  if (chunks.length < 2) {
+    return { parts: [markdown], changed: false };
+  }
+
+  const metas = chunks.map((chunk) => classifySentenceChunk(chunk));
+  const dominantChunks = metas
+    .map((meta, index) => ({ ...meta, index }))
+    .filter((meta) => meta.label !== "neutral");
+  if (dominantChunks.length < 2) {
+    return { parts: [markdown], changed: false };
+  }
+
+  let splitAt = -1;
+  let switchCount = 0;
+  for (let i = 1; i < dominantChunks.length; i += 1) {
+    if (dominantChunks[i - 1].label === dominantChunks[i].label) {
+      continue;
+    }
+    switchCount += 1;
+    splitAt = dominantChunks[i].index;
+  }
+  if (switchCount !== 1 || splitAt <= 0 || splitAt >= chunks.length) {
+    return { parts: [markdown], changed: false };
+  }
+
+  const first = chunks.slice(0, splitAt).join("").trim();
+  const second = chunks.slice(splitAt).join("").trim();
+  if (!first || !second) {
+    return { parts: [markdown], changed: false };
+  }
+
+  const firstMeta = classifySentenceChunk(first);
+  const secondMeta = classifySentenceChunk(second);
+  if (
+    firstMeta.label === "neutral" ||
+    secondMeta.label === "neutral" ||
+    firstMeta.label === secondMeta.label
+  ) {
+    return { parts: [markdown], changed: false };
+  }
+
+  return { parts: [first, second], changed: true };
+}
+
 // Bullet characters commonly inserted as duplicates by web clippers
 // (used inline in the regex below)
 /**

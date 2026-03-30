@@ -16,6 +16,7 @@ import {
   removeClippedListPrefixesFromMarkdown,
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
+  splitBilingualParagraphMarkdown,
 } from "@/core/markdown-cleanup-core";
 import { applyBlockStyle, BlockStyle } from "@/core/markdown-style-core";
 import {
@@ -25,6 +26,7 @@ import {
 } from "@/core/punctuation-toggle-core";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import {
+  appendBlock,
   deleteBlocksByIds,
   getBlockDOMs,
   getDocReadonlyState,
@@ -146,6 +148,11 @@ function isParagraphBlockType(type: string): boolean {
     normalized === "list" ||
     normalized === "nodelist"
   );
+}
+
+function isSafeBilingualSplitBlockType(type: string): boolean {
+  const normalized = (type || "").trim().toLowerCase();
+  return normalized === "p" || normalized === "paragraph" || normalized === "nodeparagraph";
 }
 
 function removeSpaceLikeChars(value: string): { next: string; removedCount: number } {
@@ -1300,44 +1307,96 @@ export class ActionRunner {
       return;
     }
 
-    const cleanableCount = blocks.filter((block) => {
+    let listCleanupBlockCount = 0;
+    let bilingualSplitBlockCount = 0;
+    for (const block of blocks) {
       const source = block.markdown || "";
-      if (!source) return false;
-      const { removedCount } = removeClippedListPrefixesFromMarkdown(source);
-      return removedCount > 0;
-    }).length;
+      if (!source) {
+        continue;
+      }
+      const listCleanup = removeClippedListPrefixesFromMarkdown(source);
+      if (listCleanup.removedCount > 0) {
+        listCleanupBlockCount += 1;
+      }
+      if (isSafeBilingualSplitBlockType(block.type)) {
+        const splitResult = splitBilingualParagraphMarkdown(listCleanup.markdown);
+        if (splitResult.changed) {
+          bilingualSplitBlockCount += 1;
+        }
+      }
+    }
 
+    const cleanableCount = listCleanupBlockCount + bilingualSplitBlockCount;
     if (!cleanableCount) {
-      showMessage("未发现可清理的剪藏列表前缀", 4000, "info");
+      showMessage("未发现可清理的剪藏内容", 4000, "info");
       return;
     }
 
+    const confirmLines: string[] = [];
+    if (listCleanupBlockCount > 0) {
+      confirmLines.push(`清理重复列表前缀 ${listCleanupBlockCount} 个块`);
+    }
+    if (bilingualSplitBlockCount > 0) {
+      confirmLines.push(`拆分中英双语段落 ${bilingualSplitBlockCount} 个`);
+    }
+    confirmLines.push("是否继续？");
     const ok = await this.askConfirmWithVisibleDialog(
       "确认清理剪藏内容",
-      `将清理 ${cleanableCount} 个列表块中的重复小圆点/序号，是否继续？`
+      confirmLines.join("\n")
     );
     if (!ok) {
       return;
     }
     this.deps.setBusy?.(true);
 
-    const report = await applyMarkdownTransformToBlocks({
-      blocks,
-      isHighRisk: () => false,
-      updateBlockMarkdown,
-      transform: (source) => {
-        const { markdown, removedCount } = removeClippedListPrefixesFromMarkdown(source);
-        return { markdown, changedCount: removedCount };
-      },
-    });
+    let updatedBlockCount = 0;
+    let splitParagraphCount = 0;
+    let failedBlockCount = 0;
+    for (const [index, block] of blocks.entries()) {
+      const source = block.markdown || "";
+      if (!source) {
+        continue;
+      }
+      const listCleanup = removeClippedListPrefixesFromMarkdown(source);
+      const splitResult = isSafeBilingualSplitBlockType(block.type)
+        ? splitBilingualParagraphMarkdown(listCleanup.markdown)
+        : { parts: [listCleanup.markdown], changed: false };
+      if (listCleanup.removedCount === 0 && !splitResult.changed) {
+        continue;
+      }
 
-    if (!report.updatedBlockCount) {
+      try {
+        if (splitResult.changed) {
+          const trailingBlock = splitResult.parts[1] || "";
+          const nextBlockId = blocks[index + 1]?.id || "";
+          if (nextBlockId) {
+            await insertBlockBefore(trailingBlock, nextBlockId, docId);
+          } else {
+            await appendBlock(trailingBlock, docId);
+          }
+          await updateBlockMarkdown(block.id, splitResult.parts[0] || listCleanup.markdown);
+          splitParagraphCount += 1;
+          updatedBlockCount += 1;
+          continue;
+        }
+
+        await updateBlockMarkdown(block.id, listCleanup.markdown);
+        updatedBlockCount += 1;
+      } catch {
+        failedBlockCount += 1;
+      }
+    }
+
+    if (!updatedBlockCount && !splitParagraphCount) {
       showMessage("清理完成，未更新任何块", 4000, "info");
       return;
     }
-    const summary = `已清理剪藏内容，共更新 ${report.updatedBlockCount} 个块`;
-    if (report.failedBlockCount > 0) {
-      showMessage(`${summary}，失败 ${report.failedBlockCount} 个块`, 7000, "error");
+
+    const summary = splitParagraphCount > 0
+      ? `已清理剪藏内容：更新 ${updatedBlockCount} 个块，拆分 ${splitParagraphCount} 个双语段落`
+      : `已清理剪藏内容，共更新 ${updatedBlockCount} 个块`;
+    if (failedBlockCount > 0) {
+      showMessage(`${summary}，失败 ${failedBlockCount} 个块`, 7000, "error");
       return;
     }
     showMessage(summary, 5000, "info");

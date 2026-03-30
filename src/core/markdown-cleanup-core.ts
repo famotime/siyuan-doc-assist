@@ -3,8 +3,10 @@ export {
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
   removeClippedListPrefixesFromMarkdown,
+  splitBilingualParagraphMarkdown,
 } from "@/core/markdown-cleanup-text-core";
 export type {
+  BilingualParagraphSplitResult,
   TrailingWhitespaceCleanupResult,
   TrailingWhitespaceDomCleanupResult,
 } from "@/core/markdown-cleanup-text-core";

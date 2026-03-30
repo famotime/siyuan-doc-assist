@@ -1802,6 +1802,85 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("已清理剪藏内容，共更新 1 个块", 5000, "info");
   });
 
+  test("splits bilingual clipped paragraph within clean clipped content command", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        content: "",
+        markdown: "Thank you for the donation you have made recently! We are truly grateful for your support, and without your help it wouldn't be possible to develop the project. We hope that our library can become something greater for you than just a resource with files.感谢您最近的捐赠！我们由衷感激您的支持，没有您的帮助，这个项目就无法开展。我们希望我们的图书馆对您而言，不仅仅是一个文件资源库，还能成为更有价值的存在。",
+        resolved: true,
+      } as any,
+      {
+        id: "b",
+        type: "p",
+        content: "",
+        markdown: "下一段",
+        resolved: true,
+      } as any,
+    ]);
+    insertBlockBeforeMock.mockResolvedValue(undefined);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-clipped-list-prefixes" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(insertBlockBeforeMock).toHaveBeenCalledTimes(1);
+    expect(insertBlockBeforeMock).toHaveBeenCalledWith(
+      "感谢您最近的捐赠！我们由衷感激您的支持，没有您的帮助，这个项目就无法开展。我们希望我们的图书馆对您而言，不仅仅是一个文件资源库，还能成为更有价值的存在。",
+      "b",
+      "doc-1"
+    );
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
+      "a",
+      "Thank you for the donation you have made recently! We are truly grateful for your support, and without your help it wouldn't be possible to develop the project. We hope that our library can become something greater for you than just a resource with files."
+    );
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已清理剪藏内容：更新 1 个块，拆分 1 个双语段落",
+      5000,
+      "info"
+    );
+  });
+
+  test("appends split bilingual paragraph when source block is last child", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        content: "",
+        markdown: "Thank you for the donation you have made recently! We are truly grateful for your support.感谢您最近的捐赠！我们由衷感激您的支持。",
+        resolved: true,
+      } as any,
+    ]);
+    appendBlockMock.mockResolvedValue(undefined);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-clipped-list-prefixes" as any);
+
+    expect(appendBlockMock).toHaveBeenCalledTimes(1);
+    expect(appendBlockMock).toHaveBeenCalledWith(
+      "感谢您最近的捐赠！我们由衷感激您的支持。",
+      "doc-1"
+    );
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
+      "a",
+      "Thank you for the donation you have made recently! We are truly grateful for your support."
+    );
+  });
+
   test("shows prompt only and does nothing when no block is selected", async () => {
     const root = document.createElement("div");
     root.innerHTML = `

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A SiYuan Notes plugin (v1.4.2, minAppVersion 3.5.7) that adds document extraction, organization, and editing tools. Built with TypeScript + Vite 6, compiled to CommonJS format as required by SiYuan's plugin system.
+A SiYuan Notes plugin (v1.4.5, minAppVersion 3.5.7) that adds document extraction, organization, and editing tools. Built with TypeScript + Vite 6, compiled to CommonJS format as required by SiYuan's plugin system.
 
 ## Commands
 
@@ -31,7 +31,7 @@ pnpm vitest run tests/key-info-core.test.ts
 
 ```
 plugin-lifecycle.ts (extends SiYuan Plugin)
-  ├── ActionRunner          → executes all 14 document actions
+  ├── ActionRunner          → executes all 27 document actions
   ├── KeyInfoController     → manages key-info sidebar panel
   └── Plugin Event Bindings → SiYuan editor events
         ↓
@@ -46,7 +46,13 @@ ui/            Vanilla DOM panel and dialog components
 
 ### Action System
 
-All user-facing operations are defined in `src/plugin/actions.ts` (14 actions in 4 groups: export, organize, insert, edit). `ActionRunner` in `src/plugin/action-runner.ts` implements all handlers. Actions are available via:
+All user-facing operations are defined in `src/plugin/actions.ts` (27 actions in 5 groups: export, organize, insert, edit, image). `ActionRunner` in `src/plugin/action-runner.ts` delegates to handler files split by group:
+- `action-runner-export-handlers.ts`, `action-runner-organize-handlers.ts`, `action-runner-insert-handlers.ts`, `action-runner-media-handlers.ts`
+- `action-runner-context.ts` — resolves selected block IDs from the editor
+- `action-runner-block-transform.ts` — applies markdown transforms to blocks
+- `action-runner-dispatcher.ts` — routes action keys to handlers
+
+Actions are available via:
 - SiYuan command palette (always registered)
 - Editor title right-click menu (user-configurable, order draggable, persisted via `plugin.saveData()`)
 
@@ -79,10 +85,22 @@ All user-facing operations are defined in `src/plugin/actions.ts` (14 actions in
 | File | Purpose |
 |------|---------|
 | `src/plugin/plugin-lifecycle.ts` | Main plugin class, SiYuan lifecycle hooks |
-| `src/plugin/action-runner.ts` | All 14 action implementations |
+| `src/plugin/action-runner.ts` | Action dispatch; delegates to handler files by group |
 | `src/plugin/actions.ts` | Action key definitions, groups, metadata |
 | `src/services/kernel.ts` | SiYuan kernel API facade |
 | `src/services/key-info.ts` | Key-info extraction pipeline |
 | `src/core/key-info-core.ts` | Regex-based inline extraction with masking |
 | `src/ui/key-info-dock.ts` | Sidebar panel DOM component |
 | `src/services/link-resolver.ts` | Backlink/forward-link resolution |
+
+## Project Structure
+
+- `src/`: application source.
+- `src/core/`: pure domain logic in `*-core.ts` files, intended for focused unit tests.
+- `src/plugin/`: plugin lifecycle, command/menu registration, action dispatch, controller wiring.
+- `src/services/`: SiYuan kernel/file access adapters and higher-level feature services.
+- `src/ui/`: dock, dialog, overlay, and DOM rendering helpers.
+- `src/types/`: local type declarations and SiYuan type augmentation.
+- `tests/`: Vitest suites and `tests/mocks/`.
+- `developer_docs/`: local SiYuan API and reference materials.
+- `plugin-sample-vite-vue/`: template/reference project, not part of the main plugin runtime.
