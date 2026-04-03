@@ -5,6 +5,7 @@ import {
   Plugin,
   showMessage,
 } from "siyuan";
+import { AiServiceConfig } from "@/core/ai-service-config-core";
 import {
   DocMenuRegistrationState,
 } from "@/core/doc-menu-registration-core";
@@ -37,6 +38,7 @@ import {
   serializePluginDocMenuState,
   setKeepNewDocAfterPinnedTabs,
   setAllPluginDocMenuRegistration,
+  setAiSummaryConfig,
   setPluginDocActionFavorite,
   setPluginDocActionOrder,
   setPluginKeyInfoFilter,
@@ -64,6 +66,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private keyInfoFilterState: KeyInfoFilter = buildDefaultKeyInfoFilter();
   private keepNewDocAfterPinnedTabs =
     buildDefaultPluginDocMenuState(ACTIONS).keepNewDocAfterPinnedTabs;
+  private aiSummaryConfig = buildDefaultPluginDocMenuState(ACTIONS).aiSummaryConfig;
   private readonly knownTabIds = new Set<string>();
   private readonly pendingPinnedTabPlacementTasks =
     new Map<string, ReturnType<typeof setTimeout>>();
@@ -75,6 +78,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     askConfirm: (title, text) => this.askConfirm(title, text),
     setBusy: (busy) => this.setActionBusy(busy),
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
+    getAiSummaryConfig: () => this.aiSummaryConfig,
   });
 
   private readonly keyInfoController: KeyInfoController = new KeyInfoController({
@@ -230,6 +234,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       registration: this.docMenuRegistrationState,
       isMobile: this.isMobile,
       keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
+      aiSummaryConfig: this.aiSummaryConfig,
+      onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleKeepNewDocAfterPinnedTabs: (enabled) =>
         this.setKeepNewDocAfterPinnedTabs(enabled),
       onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
@@ -267,6 +273,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       docFavoriteActionKeys: this.docFavoriteActionKeys,
       keyInfoFilterState: this.keyInfoFilterState,
       keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
+      aiSummaryConfig: this.aiSummaryConfig,
     };
   }
 
@@ -276,6 +283,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.docFavoriteActionKeys = state.docFavoriteActionKeys;
     this.keyInfoFilterState = state.keyInfoFilterState;
     this.keepNewDocAfterPinnedTabs = state.keepNewDocAfterPinnedTabs;
+    this.aiSummaryConfig = state.aiSummaryConfig;
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {
@@ -336,6 +344,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
   async setKeepNewDocAfterPinnedTabs(enabled: boolean) {
     this.applyDocMenuState(
       setKeepNewDocAfterPinnedTabs(this.snapshotDocMenuState(), enabled)
+    );
+    await this.persistDocMenuRegistrationState();
+  }
+
+  async setAiSummaryConfig(config: AiServiceConfig) {
+    this.applyDocMenuState(
+      setAiSummaryConfig(this.snapshotDocMenuState(), config)
     );
     await this.persistDocMenuRegistrationState();
   }

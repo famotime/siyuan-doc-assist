@@ -1,4 +1,9 @@
 import {
+  AiServiceConfig,
+  buildDefaultAiServiceConfig,
+  normalizeAiServiceConfig,
+} from "@/core/ai-service-config-core";
+import {
   buildDefaultDocActionOrder,
   buildDefaultDocMenuRegistration,
   DocMenuRegistrationState,
@@ -25,11 +30,13 @@ export type PluginDocMenuState = {
   docFavoriteActionKeys: ActionKey[];
   keyInfoFilterState: KeyInfoFilter;
   keepNewDocAfterPinnedTabs: boolean;
+  aiSummaryConfig: AiServiceConfig;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   keyInfoFilter?: unknown;
   keepNewDocAfterPinnedTabs?: unknown;
+  aiSummaryConfig?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -41,6 +48,7 @@ export function buildDefaultPluginDocMenuState(
     docFavoriteActionKeys: [],
     keyInfoFilterState: buildDefaultKeyInfoFilter(),
     keepNewDocAfterPinnedTabs: false,
+    aiSummaryConfig: buildDefaultAiServiceConfig(),
   };
 }
 
@@ -54,6 +62,7 @@ export function normalizePluginDocMenuState(
     docFavoriteActionKeys: normalizeDocFavoriteActionKeys(raw, actions),
     keyInfoFilterState: normalizeStoredKeyInfoFilter(raw),
     keepNewDocAfterPinnedTabs: normalizeKeepNewDocAfterPinnedTabs(raw),
+    aiSummaryConfig: normalizeStoredAiSummaryConfig(raw),
   };
 }
 
@@ -77,6 +86,13 @@ function normalizeKeepNewDocAfterPinnedTabs(raw: unknown): boolean {
   return (raw as PluginDocMenuStorageV1).keepNewDocAfterPinnedTabs === true;
 }
 
+function normalizeStoredAiSummaryConfig(raw: unknown): AiServiceConfig {
+  if (!raw || typeof raw !== "object") {
+    return buildDefaultAiServiceConfig();
+  }
+  return normalizeAiServiceConfig((raw as PluginDocMenuStorageV1).aiSummaryConfig);
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -87,6 +103,7 @@ export function serializePluginDocMenuState(
     favoriteActionKeys: state.docFavoriteActionKeys,
     keyInfoFilter: state.keyInfoFilterState,
     keepNewDocAfterPinnedTabs: state.keepNewDocAfterPinnedTabs,
+    aiSummaryConfig: state.aiSummaryConfig,
   };
 }
 
@@ -191,5 +208,15 @@ export function setKeepNewDocAfterPinnedTabs(
   return {
     ...state,
     keepNewDocAfterPinnedTabs: enabled,
+  };
+}
+
+export function setAiSummaryConfig(
+  state: PluginDocMenuState,
+  config: AiServiceConfig
+): PluginDocMenuState {
+  return {
+    ...state,
+    aiSummaryConfig: normalizeAiServiceConfig(config),
   };
 }

@@ -1,4 +1,8 @@
 import { Setting } from "siyuan";
+import {
+  AiServiceConfig,
+  normalizeAiServiceConfig,
+} from "@/core/ai-service-config-core";
 import { buildDockDocActions } from "@/core/dock-panel-core";
 import {
   DocMenuRegistrationState,
@@ -11,6 +15,8 @@ type CreatePluginSettingsOptions = {
   registration: DocMenuRegistrationState;
   isMobile: boolean;
   keepNewDocAfterPinnedTabs: boolean;
+  aiSummaryConfig: AiServiceConfig;
+  onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
   onToggleKeepNewDocAfterPinnedTabs: (enabled: boolean) => Promise<void> | void;
   onToggleAll: (enabled: boolean) => Promise<void> | void;
   onToggleSingle: (key: ActionKey, enabled: boolean) => Promise<void> | void;
@@ -52,6 +58,50 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+function createTextInput(options: {
+  type?: "text" | "password" | "number";
+  value: string;
+  placeholder?: string;
+  inputMode?: string;
+  dataSettingKey: string;
+  onChange: (value: string) => Promise<void> | void;
+}): HTMLInputElement {
+  const input = document.createElement("input");
+  input.className = "b3-text-field";
+  input.type = options.type || "text";
+  input.value = options.value;
+  input.dataset.settingKey = options.dataSettingKey;
+  if (options.placeholder) {
+    input.placeholder = options.placeholder;
+  }
+  if (options.inputMode) {
+    input.inputMode = options.inputMode as any;
+  }
+  input.addEventListener("change", () => {
+    void options.onChange(input.value);
+  });
+  return input;
+}
+
+function createFieldRow(options: {
+  label: string;
+  hint?: string;
+  input: HTMLElement;
+}): HTMLLabelElement {
+  const field = createElement("label", "doc-assistant-settings__ai-field");
+  const textWrap = createElement("div", "doc-assistant-settings__ai-field-text");
+  textWrap.append(
+    createElement("div", "doc-assistant-settings__ai-field-label", options.label)
+  );
+  if (options.hint) {
+    textWrap.append(
+      createElement("div", "doc-assistant-settings__ai-field-hint", options.hint)
+    );
+  }
+  field.append(textWrap, options.input);
+  return field;
+}
+
 type MenuRegistrationGroup = {
   key: string;
   label: string;
@@ -88,11 +138,14 @@ export function createPluginSettings(
     registration,
     isMobile,
     keepNewDocAfterPinnedTabs,
+    aiSummaryConfig,
+    onAiSummaryConfigChange,
     onToggleKeepNewDocAfterPinnedTabs,
     onToggleAll,
     onToggleSingle,
   } = options;
   const state: DocMenuRegistrationState = { ...registration };
+  const aiConfig = normalizeAiServiceConfig(aiSummaryConfig);
   const actionSwitches = new Map<ActionKey, HTMLInputElement>();
   const totalActionCount = Object.keys(state).length;
   const setting = new Setting({ width: "640px" });
@@ -139,6 +192,165 @@ export function createPluginSettings(
     title: "钉住页签始终保持可见",
     description: "桌面端开启后，打开新文档时会自动调整页签栏视野，尽量保持钉住页签始终可见。",
     actionElement: moveAfterPinnedSwitch,
+  });
+
+  const syncAiInputs = (
+    enabledInput: HTMLInputElement,
+    baseUrlInput: HTMLInputElement,
+    apiKeyInput: HTMLInputElement,
+    modelInput: HTMLInputElement,
+    timeoutInput: HTMLInputElement
+  ) => {
+    enabledInput.checked = aiConfig.enabled;
+    baseUrlInput.value = aiConfig.baseUrl;
+    apiKeyInput.value = aiConfig.apiKey;
+    modelInput.value = aiConfig.model;
+    timeoutInput.value = String(aiConfig.requestTimeoutSeconds);
+  };
+
+  const aiEnabledInput = createCheckbox({
+    checked: aiConfig.enabled,
+    onChange: async (checked) => {
+      Object.assign(aiConfig, normalizeAiServiceConfig({
+        ...aiConfig,
+        enabled: checked,
+      }));
+      syncAiInputs(
+        aiEnabledInput,
+        aiBaseUrlInput,
+        aiApiKeyInput,
+        aiModelInput,
+        aiTimeoutInput
+      );
+      await onAiSummaryConfigChange({ ...aiConfig });
+    },
+  });
+  aiEnabledInput.dataset.settingKey = "ai-enabled";
+
+  const aiBaseUrlInput = createTextInput({
+    value: aiConfig.baseUrl,
+    placeholder: "https://api.openai.com/v1",
+    dataSettingKey: "ai-base-url",
+    onChange: async (value) => {
+      Object.assign(aiConfig, normalizeAiServiceConfig({
+        ...aiConfig,
+        baseUrl: value,
+      }));
+      syncAiInputs(
+        aiEnabledInput,
+        aiBaseUrlInput,
+        aiApiKeyInput,
+        aiModelInput,
+        aiTimeoutInput
+      );
+      await onAiSummaryConfigChange({ ...aiConfig });
+    },
+  });
+
+  const aiApiKeyInput = createTextInput({
+    type: "password",
+    value: aiConfig.apiKey,
+    placeholder: "sk-...",
+    dataSettingKey: "ai-api-key",
+    onChange: async (value) => {
+      Object.assign(aiConfig, normalizeAiServiceConfig({
+        ...aiConfig,
+        apiKey: value,
+      }));
+      syncAiInputs(
+        aiEnabledInput,
+        aiBaseUrlInput,
+        aiApiKeyInput,
+        aiModelInput,
+        aiTimeoutInput
+      );
+      await onAiSummaryConfigChange({ ...aiConfig });
+    },
+  });
+
+  const aiModelInput = createTextInput({
+    value: aiConfig.model,
+    placeholder: "gpt-4.1-mini",
+    dataSettingKey: "ai-model",
+    onChange: async (value) => {
+      Object.assign(aiConfig, normalizeAiServiceConfig({
+        ...aiConfig,
+        model: value,
+      }));
+      syncAiInputs(
+        aiEnabledInput,
+        aiBaseUrlInput,
+        aiApiKeyInput,
+        aiModelInput,
+        aiTimeoutInput
+      );
+      await onAiSummaryConfigChange({ ...aiConfig });
+    },
+  });
+
+  const aiTimeoutInput = createTextInput({
+    type: "number",
+    value: String(aiConfig.requestTimeoutSeconds),
+    dataSettingKey: "ai-timeout-seconds",
+    inputMode: "numeric",
+    onChange: async (value) => {
+      Object.assign(aiConfig, normalizeAiServiceConfig({
+        ...aiConfig,
+        requestTimeoutSeconds: value,
+      }));
+      syncAiInputs(
+        aiEnabledInput,
+        aiBaseUrlInput,
+        aiApiKeyInput,
+        aiModelInput,
+        aiTimeoutInput
+      );
+      await onAiSummaryConfigChange({ ...aiConfig });
+    },
+  });
+
+  setting.addItem({
+    title: "AI 服务",
+    direction: "column",
+    description: "配置兼容 OpenAI API 的服务，用于生成文档摘要。",
+    actionElement: (() => {
+      const panel = createElement("div", "doc-assistant-settings__ai-panel");
+      const switchRow = createElement("label", "doc-assistant-settings__ai-switch");
+      const switchText = createElement("div", "doc-assistant-settings__ai-switch-text");
+      switchText.append(
+        createElement("div", "doc-assistant-settings__ai-switch-title", "启用 AI 文档摘要"),
+        createElement(
+          "div",
+          "doc-assistant-settings__ai-switch-hint",
+          "发送当前文档正文到 AI 生成摘要，并插入到文档开头。"
+        )
+      );
+      switchRow.append(switchText, aiEnabledInput);
+
+      const fields = createElement("div", "doc-assistant-settings__ai-fields");
+      fields.append(
+        createFieldRow({
+          label: "Base URL",
+          hint: "通常需要填写到 /v1，例如 https://api.openai.com/v1",
+          input: aiBaseUrlInput,
+        }),
+        createFieldRow({
+          label: "API Key",
+          input: aiApiKeyInput,
+        }),
+        createFieldRow({
+          label: "Model",
+          input: aiModelInput,
+        }),
+        createFieldRow({
+          label: "超时时间（秒）",
+          input: aiTimeoutInput,
+        })
+      );
+
+      panel.append(switchRow, fields);
+      return panel;
+    })(),
   });
 
   setting.addItem({

@@ -9,6 +9,7 @@ describe("actions grouping", () => {
     expect(groups.get("insert-child-docs")).toBe("insert");
     expect(groups.get("insert-blank-before-headings")).toBe("insert");
     expect(groups.get("mark-invalid-links-refs")).toBe("insert");
+    expect(groups.get("insert-doc-summary")).toBe("ai");
     expect(groups.get("convert-images-to-webp")).toBe("image");
     expect(groups.get("convert-images-to-png")).toBe("image");
     expect(groups.get("resize-images-to-display")).toBe("image");
@@ -16,7 +17,7 @@ describe("actions grouping", () => {
     expect(groups.get("export-child-key-info-zip")).toBe("export");
     expect(groups.get("create-open-docs-summary")).toBe("organize");
     expect(groups.get("toggle-links-refs")).toBe("insert");
-    expect(groups.get("clean-ai-output")).toBe("edit");
+    expect(groups.get("clean-ai-output")).toBe("ai");
     expect(groups.get("bold-selected-blocks")).toBe("edit");
     expect(groups.get("merge-selected-list-blocks")).toBe("edit");
     expect(groups.get("remove-strikethrough-marked-content")).toBe("edit");

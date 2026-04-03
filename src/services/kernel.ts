@@ -17,6 +17,10 @@ export {
   updateBlockDom,
   updateBlockMarkdown,
 } from "@/services/kernel-block";
+export type {
+  ForwardProxyHeader,
+  ForwardProxyResponse,
+} from "@/services/kernel-network";
 export { DOC_READONLY_ATTR_KEY } from "@/services/kernel-attr";
 export type { BlockAttrs } from "@/services/kernel-attr";
 export {
@@ -41,6 +45,7 @@ export {
   listDocsByParentSubtree,
   mapBlockIdsToRootDocIds,
 } from "@/services/kernel-ref";
+export { forwardProxy } from "@/services/kernel-network";
 export { sql } from "@/services/kernel-shared";
 export type {
   ChildBlockMeta,

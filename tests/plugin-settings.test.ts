@@ -150,15 +150,38 @@ describe("plugin settings", () => {
     const setting = settingInstances[1];
     expect(plugin.setting).toBe(setting);
     expect(setting.items[0]?.title).toBe("钉住页签始终保持可见");
-    expect(setting.items[1]?.title).toBe("注册命令到文档菜单");
-    expect(setting.items[1]?.direction).toBe("column");
-    expect(setting.items).toHaveLength(2);
+    expect(setting.items[1]?.title).toBe("AI 服务");
+    expect(setting.items[2]?.title).toBe("注册命令到文档菜单");
+    expect(setting.items[2]?.direction).toBe("column");
+    expect(setting.items).toHaveLength(3);
 
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
     expect(tabToggle.type).toBe("checkbox");
     expect(tabToggle.checked).toBe(false);
 
-    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const aiSettingsPanel = setting.items[1]?.actionElement as HTMLElement;
+    const aiEnabledToggle = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-enabled']"
+    ) as HTMLInputElement;
+    const aiBaseUrlInput = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-base-url']"
+    ) as HTMLInputElement;
+    const aiApiKeyInput = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-api-key']"
+    ) as HTMLInputElement;
+    const aiModelInput = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-model']"
+    ) as HTMLInputElement;
+    const aiTimeoutInput = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-timeout-seconds']"
+    ) as HTMLInputElement;
+    expect(aiEnabledToggle.checked).toBe(false);
+    expect(aiBaseUrlInput.value).toBe("");
+    expect(aiApiKeyInput.value).toBe("");
+    expect(aiModelInput.value).toBe("");
+    expect(aiTimeoutInput.value).toBe("30");
+
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
       true
     );
@@ -204,7 +227,23 @@ describe("plugin settings", () => {
 
     const setting = settingInstances[1];
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
-    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const aiSettingsPanel = setting.items[1]?.actionElement as HTMLElement;
+    const aiEnabledToggle = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-enabled']"
+    ) as HTMLInputElement;
+    const aiBaseUrlInput = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-base-url']"
+    ) as HTMLInputElement;
+    const aiApiKeyInput = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-api-key']"
+    ) as HTMLInputElement;
+    const aiModelInput = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-model']"
+    ) as HTMLInputElement;
+    const aiTimeoutInput = aiSettingsPanel.querySelector(
+      "[data-setting-key='ai-timeout-seconds']"
+    ) as HTMLInputElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     const allToggle = menuRegistrationPanel.querySelector(
       ".doc-assistant-settings__menu-registration-summary input[type='checkbox']"
     ) as HTMLInputElement;
@@ -217,6 +256,26 @@ describe("plugin settings", () => {
     await Promise.resolve();
 
     expect(plugin.keepNewDocAfterPinnedTabs).toBe(true);
+
+    aiEnabledToggle.checked = true;
+    aiEnabledToggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    aiBaseUrlInput.value = "https://api.example.com/v1";
+    aiBaseUrlInput.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    aiApiKeyInput.value = "sk-test";
+    aiApiKeyInput.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    aiModelInput.value = "gpt-4.1-mini";
+    aiModelInput.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    aiTimeoutInput.value = "45";
+    aiTimeoutInput.dispatchEvent(new Event("change"));
+    await Promise.resolve();
 
     allToggle.checked = true;
     allToggle.dispatchEvent(new Event("change"));
@@ -236,6 +295,13 @@ describe("plugin settings", () => {
     expect(stored).toEqual(
       expect.objectContaining({
         keepNewDocAfterPinnedTabs: true,
+        aiSummaryConfig: expect.objectContaining({
+          enabled: true,
+          baseUrl: "https://api.example.com/v1",
+          apiKey: "sk-test",
+          model: "gpt-4.1-mini",
+          requestTimeoutSeconds: 45,
+        }),
         actionEnabled: expect.objectContaining({
           "insert-backlinks": false,
         }),
@@ -259,13 +325,21 @@ describe("plugin settings", () => {
       registration: buildDefaultDocMenuRegistration(regroupedActions),
       isMobile: false,
       keepNewDocAfterPinnedTabs: false,
+      aiSummaryConfig: {
+        enabled: false,
+        baseUrl: "",
+        apiKey: "",
+        model: "",
+        requestTimeoutSeconds: 30,
+      },
+      onAiSummaryConfigChange: vi.fn(),
       onToggleKeepNewDocAfterPinnedTabs: vi.fn(),
       onToggleAll: vi.fn(),
       onToggleSingle: vi.fn(),
     });
 
     const setting = settingInstances[0];
-    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     const groupTitles = Array.from(
       menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-group-title")
     ).map((element) => element.textContent?.trim());

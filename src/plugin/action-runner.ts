@@ -1,4 +1,5 @@
 import { showMessage } from "siyuan";
+import { AiServiceConfig } from "@/core/ai-service-config-core";
 import { buildMergeSelectedListBlocksPreview } from "@/core/list-block-merge-core";
 import {
   convertSiyuanLinksAndRefsInMarkdown,
@@ -47,6 +48,7 @@ import {
   resolveCurrentBlockId,
 } from "@/plugin/action-runner-context";
 import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { createAiActionHandlers } from "@/plugin/action-runner-ai-handlers";
 import { createExportActionHandlers } from "@/plugin/action-runner-export-handlers";
 import { createInsertActionHandlers } from "@/plugin/action-runner-insert-handlers";
 import { createMediaActionHandlers } from "@/plugin/action-runner-media-handlers";
@@ -59,6 +61,7 @@ type ActionRunnerDeps = {
   askConfirm: (title: string, text: string) => Promise<boolean>;
   setBusy?: (busy: boolean) => void;
   getKeyInfoFilter?: () => KeyInfoFilter | undefined;
+  getAiSummaryConfig?: () => AiServiceConfig | undefined;
 };
 
 type StyleFailureKind = "source-missing" | "update-failed";
@@ -180,6 +183,9 @@ export class ActionRunner {
     this.actionHandlers = {
       ...createExportActionHandlers({
         getKeyInfoFilter: this.deps.getKeyInfoFilter,
+      }),
+      ...createAiActionHandlers({
+        getAiSummaryConfig: this.deps.getAiSummaryConfig,
       }),
       ...createInsertActionHandlers(),
       ...createOrganizeActionHandlers({

@@ -32,6 +32,7 @@ vi.mock("@/services/kernel", () => ({
   getBlockKramdowns: vi.fn(),
   getChildBlocksByParentId: vi.fn(),
   getDocMetaByID: vi.fn(),
+  getRootDocRawMarkdown: vi.fn(),
   insertBlockBefore: vi.fn(),
   updateBlockDom: vi.fn(),
   updateBlockMarkdown: vi.fn(),
@@ -73,6 +74,10 @@ vi.mock("@/services/image-display-size", () => ({
 
 vi.mock("@/services/image-remove", () => ({
   removeDocImageLinks: vi.fn(),
+}));
+
+vi.mock("@/services/ai-summary", () => ({
+  generateDocumentSummary: vi.fn(),
 }));
 
 vi.mock("@/ui/dialogs", () => ({
@@ -117,10 +122,12 @@ import {
   getChildBlockRefsByParentId,
   getChildBlocksByParentId,
   getDocMetaByID,
+  getRootDocRawMarkdown,
   insertBlockBefore,
   updateBlockDom,
   updateBlockMarkdown,
 } from "@/services/kernel";
+import { generateDocumentSummary } from "@/services/ai-summary";
 import { openDedupeDialog } from "@/ui/dialogs";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
@@ -138,6 +145,7 @@ const getBlockKramdownsMock = vi.mocked(getBlockKramdowns);
 const getChildBlockRefsByParentIdMock = vi.mocked(getChildBlockRefsByParentId);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
 const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
+const getRootDocRawMarkdownMock = vi.mocked(getRootDocRawMarkdown);
 const getBacklinkDocsMock = vi.mocked(getBacklinkDocs);
 const getChildDocsMock = vi.mocked(getChildDocs);
 const getForwardLinkedDocIdsMock = vi.mocked(getForwardLinkedDocIds);
@@ -155,6 +163,7 @@ const convertDocImagesToWebpMock = vi.mocked(convertDocImagesToWebp);
 const convertDocImagesToPngMock = vi.mocked(convertDocImagesToPng);
 const resizeDocImagesToDisplayMock = vi.mocked(resizeDocImagesToDisplay);
 const removeDocImageLinksMock = vi.mocked(removeDocImageLinks);
+const generateDocumentSummaryMock = vi.mocked(generateDocumentSummary);
 
 function createRunner(setBusy?: (busy: boolean) => void) {
   return new ActionRunner({
@@ -162,6 +171,13 @@ function createRunner(setBusy?: (busy: boolean) => void) {
     resolveDocId: () => "doc-1",
     askConfirm: async () => true,
     setBusy,
+    getAiSummaryConfig: () => ({
+      enabled: true,
+      baseUrl: "https://api.example.com/v1",
+      apiKey: "sk-test",
+      model: "gpt-4.1-mini",
+      requestTimeoutSeconds: 45,
+    }),
   } as any);
 }
 
@@ -410,6 +426,54 @@ describe("action-runner loading guard", () => {
 
     expect(appendBlockMock).toHaveBeenCalledWith("- [Child B](siyuan://blocks/child-b)", "doc-1");
     expect(showMessageMock).toHaveBeenCalledWith("已插入 1 个子文档链接，跳过已存在 1 个", 5000, "info");
+  });
+
+  test("inserts ai summary before the first paragraph by default", async () => {
+    getRootDocRawMarkdownMock.mockResolvedValue("# 标题\n\n第一段正文\n\n第二段正文");
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "h1", type: "h", markdown: "# 标题", resolved: true } as any,
+      { id: "p1", type: "p", markdown: "第一段正文", resolved: true } as any,
+      { id: "p2", type: "p", markdown: "第二段正文", resolved: true } as any,
+    ]);
+    generateDocumentSummaryMock.mockResolvedValue("这是 AI 生成的摘要。");
+    const runner = createRunner();
+
+    await runner.runAction("insert-doc-summary" as any);
+
+    expect(generateDocumentSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          enabled: true,
+          baseUrl: "https://api.example.com/v1",
+        }),
+        documentMarkdown: "# 标题\n\n第一段正文\n\n第二段正文",
+      })
+    );
+    expect(insertBlockBeforeMock).toHaveBeenCalledWith(
+      "---\n\n这是 AI 生成的摘要。\n\n---",
+      "p1",
+      "doc-1"
+    );
+    expect(showMessageMock).toHaveBeenCalledWith("已插入 AI 文档摘要", 5000, "info");
+  });
+
+  test("inserts ai summary after the first paragraph when it contains an internal doc link", async () => {
+    getRootDocRawMarkdownMock.mockResolvedValue("[[导航文档]]\n\n第二段正文");
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "p1", type: "p", markdown: "[[导航文档]]", resolved: true } as any,
+      { id: "p2", type: "p", markdown: "第二段正文", resolved: true } as any,
+    ]);
+    generateDocumentSummaryMock.mockResolvedValue("这是 AI 生成的摘要。");
+    const runner = createRunner();
+
+    await runner.runAction("insert-doc-summary" as any);
+
+    expect(insertBlockBeforeMock).toHaveBeenCalledWith(
+      "---\n\n这是 AI 生成的摘要。\n\n---",
+      "p2",
+      "doc-1"
+    );
+    expect(appendBlockMock).not.toHaveBeenCalled();
   });
 
   test("creates a summary page from opened unpinned docs", async () => {

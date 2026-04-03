@@ -11,9 +11,9 @@
 | 目录 | 文件数 | 子目录数 | 说明 |
 | --- | ---: | ---: | --- |
 | `src/` | 78 | 8 | Source |
-| `src/core/` | 20 | 0 | Core logic |
-| `src/plugin/` | 17 | 0 | Plugin orchestration |
-| `src/services/` | 27 | 0 | Kernel/IO 集成层 |
+| `src/core/` | 22 | 0 | Core logic |
+| `src/plugin/` | 18 | 0 | Plugin orchestration |
+| `src/services/` | 29 | 0 | Kernel/IO 集成层 |
 | `src/ui/` | 6 | 0 | Dock/Dialog/UI |
 | `src/types/` | 4 | 0 | 类型声明 |
 | `src/i18n/` | 2 | 0 | 国际化文案 |
@@ -84,10 +84,12 @@
 | `src/index.ts` | 加载全局样式并导出插件主类（`plugin-lifecycle`） |
 | `src/index.scss` | 插件全局样式 |
 
-### 4.3 `src/core/` (20 files)
+### 4.3 `src/core/` (22 files)
 
 | File | Responsibility |
 | --- | --- |
+| `src/core/ai-service-config-core.ts` | AI 服务配置默认值、规范化与完整性判定 |
+| `src/core/ai-summary-core.ts` | AI 摘要文本清理、内部链接识别与插入位置决策 |
 | `src/core/dedupe-core.ts` | Duplicate-title normalization, grouping, and keep-candidate recommendation |
 | `src/core/doc-menu-registration-core.ts` | Menu registration, ordering, and favorite-state normalization/update logic |
 | `src/core/dock-doc-action-order-core.ts` | Dock action ordering and reorder checks |
@@ -109,11 +111,12 @@
 | `src/core/punctuation-toggle-core.ts` | Chinese/English punctuation mode detection and conversion |
 | `src/core/workspace-path-core.ts` | Workspace-path normalization and `/api/file/getFile` request building |
 
-### 4.4 `src/plugin/` (17 files)
+### 4.4 `src/plugin/` (18 files)
 
 | File | Responsibility |
 | --- | --- |
 | `src/plugin/action-runner-block-transform.ts` | Block-level Markdown batch executor with risk skipping and summary reporting |
+| `src/plugin/action-runner-ai-handlers.ts` | AI 摘要类动作处理器 |
 | `src/plugin/action-runner-context.ts` | Current block and selected-block ID resolution |
 | `src/plugin/action-runner-dispatcher.ts` | Central ActionKey -> handler dispatch and handler map types |
 | `src/plugin/action-runner-export-handlers.ts` | Export action handlers |
@@ -131,11 +134,12 @@
 | `src/plugin/plugin-lifecycle-state.ts` | Lifecycle helper for menu-state defaults, normalization, serialization, and updates |
 | `src/plugin/plugin-lifecycle.ts` | Plugin main class and lifecycle composition root |
 
-### 4.5 `src/services/`（27 个文件）
+### 4.5 `src/services/`（29 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
 | `src/services/block-lineage.ts` | 将嵌套块映射到文档直系子块，用于删除后续段落等场景 |
+| `src/services/ai-summary.ts` | AI 文档摘要请求封装与返回内容提取 |
 | `src/services/dedupe.ts` | 重复文档候选查询、默认删除建议、批量删除 |
 | `src/services/exporter.ts` | 单文档导出、文档集合 zip 导出、子文档关键内容导出 |
 | `src/services/image-display-size-converter.ts` | 本地图片按显示宽高缩放并输出新资源（含跳过原因与节省字节统计） |
@@ -148,6 +152,7 @@
 | `src/services/kernel-adapter-core.ts` | Kernel 批量结果解析与单条 fallback 读取 |
 | `src/services/kernel-block.ts` | 块读写 API：读 Kramdown/DOM、增删改块、取子块 |
 | `src/services/kernel-file.ts` | 文件与文档 API：移动、重命名、删除、写文件、取文件、列目录 |
+| `src/services/kernel-network.ts` | 网络代理 API：`forwardProxy` 请求封装 |
 | `src/services/kernel-ref.ts` | 引用相关与树查询：正链目标、root 映射、子树文档列表等 |
 | `src/services/kernel-shared.ts` | SQL 工具函数（转义、`IN` 子句） |
 | `src/services/kernel.ts` | Kernel 聚合出口 + 高层 API（反链、导出、文档元信息等） |

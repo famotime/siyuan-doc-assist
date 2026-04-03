@@ -18,6 +18,7 @@ export type ActionKey =
   | "resize-images-to-display"
   | "remove-doc-images"
   | "toggle-links-refs"
+  | "insert-doc-summary"
   | "clean-ai-output"
   | "clean-clipped-list-prefixes"
   | "mark-invalid-links-refs"
@@ -70,6 +71,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "toggle-linebreaks-paragraphs": "段",
   "remove-selected-spacing": "格",
   "toggle-selected-punctuation": "标",
+  "insert-doc-summary": "摘",
   "remove-extra-blank-lines": "空",
   "clean-ai-output": "净",
   "clean-clipped-list-prefixes": "序",
@@ -181,6 +183,14 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     icon: "iconList",
   },
   {
+    key: "insert-doc-summary",
+    commandText: "插入文档摘要",
+    menuText: "插入文档摘要",
+    group: "ai",
+    requiresWritableDoc: true,
+    icon: "iconList",
+  },
+  {
     key: "toggle-heading-bold",
     commandText: "标题块加粗状态切换",
     menuText: "标题块加粗状态切换",
@@ -248,7 +258,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     key: "clean-ai-output",
     commandText: "清理AI输出内容",
     menuText: "清理AI输出内容",
-    group: "edit",
+    group: "ai",
     requiresWritableDoc: true,
     icon: "iconTrashcan",
   },

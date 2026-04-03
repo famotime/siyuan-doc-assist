@@ -15,7 +15,7 @@ export type DockDocActionSource<T extends string = string> = {
   requiresWritableDoc?: boolean;
 };
 
-export type DockDocActionGroup = "export" | "insert" | "organize" | "edit" | "image";
+export type DockDocActionGroup = "export" | "insert" | "organize" | "ai" | "edit" | "image";
 
 export type DockDocAction<T extends string = string> = {
   key: T;
@@ -40,6 +40,7 @@ const DOCK_ACTION_GROUP_LABELS: Record<DockDocActionGroup, string> = {
   export: "导出",
   insert: "插入",
   organize: "整理",
+  ai: "AI",
   image: "图片",
   edit: "编辑",
 };
