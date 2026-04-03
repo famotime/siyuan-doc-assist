@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   cleanupAiOutputArtifactsInMarkdown,
+  removeStrikethroughMarkedContentFromMarkdown,
   removeExtraBlankLinesFromMarkdown,
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
@@ -234,6 +235,36 @@ describe("markdown-cleanup-core", () => {
       removedSupCount: 0,
       removedCaretCount: 0,
       removedInternetLinkCount: 0,
+      removedCount: 0,
+    });
+  });
+
+  test("removes markdown strikethrough-marked content and keeps surrounding text", () => {
+    const input = [
+      "保留前文 ~~删除这里~~ 保留后文",
+      "- 列表 ~~去掉~~ 项",
+      "未处理文本",
+    ].join("\n");
+
+    const result = removeStrikethroughMarkedContentFromMarkdown(input);
+
+    expect(result).toEqual({
+      markdown: [
+        "保留前文  保留后文",
+        "- 列表  项",
+        "未处理文本",
+      ].join("\n"),
+      removedCount: 2,
+    });
+  });
+
+  test("keeps markdown unchanged when no strikethrough content exists", () => {
+    const input = "正常内容\n没有删除线";
+
+    const result = removeStrikethroughMarkedContentFromMarkdown(input);
+
+    expect(result).toEqual({
+      markdown: input,
       removedCount: 0,
     });
   });

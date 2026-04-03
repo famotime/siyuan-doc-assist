@@ -14,6 +14,7 @@ import {
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
   removeClippedListPrefixesFromMarkdown,
+  removeStrikethroughMarkedContentFromMarkdown,
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
   splitBilingualParagraphMarkdown,
@@ -74,6 +75,12 @@ type AiOutputCleanupPreview = {
   removedSupCount: number;
   removedCaretCount: number;
   removedInternetLinkCount: number;
+};
+
+type StrikethroughCleanupPreview = {
+  cleanableBlockCount: number;
+  riskyPendingBlockCount: number;
+  removedCount: number;
 };
 
 type LinebreakToggleMode = "linebreak-to-paragraph" | "paragraph-to-line";
@@ -186,6 +193,8 @@ export class ActionRunner {
       "toggle-links-refs": async (docId) => this.handleToggleLinksRefs(docId),
       "clean-ai-output": async (docId) => this.handleCleanAiOutput(docId),
       "clean-clipped-list-prefixes": async (docId) => this.handleCleanClippedListPrefixes(docId),
+      "remove-strikethrough-marked-content": async (docId) =>
+        this.handleRemoveStrikethroughMarkedContent(docId),
       "mark-invalid-links-refs": async (docId) => this.handleMarkInvalidLinksRefs(docId),
       "insert-blank-before-headings": async (docId) => this.handleInsertBlankBeforeHeadings(docId),
       "toggle-heading-bold": async (docId) => this.handleToggleHeadingBold(docId),
@@ -1402,6 +1411,73 @@ export class ActionRunner {
     showMessage(summary, 5000, "info");
   }
 
+  private async handleRemoveStrikethroughMarkedContent(docId: string) {
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的段落", 4000, "info");
+      return;
+    }
+
+    const preview = this.previewStrikethroughCleanup(blocks);
+    if (!preview.cleanableBlockCount) {
+      if (preview.riskyPendingBlockCount > 0) {
+        showMessage("检测到高风险块，未执行清理（可先移除复杂内联后重试）", 5000, "error");
+        return;
+      }
+      showMessage("未发现删除线标记内容", 4000, "info");
+      return;
+    }
+
+    const confirmLines = [
+      `已找到删除线标记内容 ${preview.removedCount} 处。`,
+      `预计更新 ${preview.cleanableBlockCount} 个块，是否继续？`,
+    ];
+    if (preview.riskyPendingBlockCount > 0) {
+      confirmLines.push(`另有 ${preview.riskyPendingBlockCount} 个高风险块将跳过。`);
+    }
+    const ok = await this.askConfirmWithVisibleDialog("确认清理预删除内容", confirmLines.join("\n"));
+    if (!ok) {
+      return;
+    }
+    this.deps.setBusy?.(true);
+
+    let removedCount = 0;
+    const report = await applyMarkdownTransformToBlocks({
+      blocks,
+      isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
+      updateBlockMarkdown,
+      transform: (source) => {
+        const cleaned = removeStrikethroughMarkedContentFromMarkdown(source);
+        return {
+          ...cleaned,
+          changedCount: cleaned.removedCount,
+        };
+      },
+      onUpdated: (cleaned) => {
+        removedCount += cleaned.removedCount;
+      },
+    });
+    const updatedBlockCount = report.updatedBlockCount;
+    const failedBlockCount = report.failedBlockCount;
+    const skippedRiskyIds = report.skippedRiskyIds;
+
+    if (!updatedBlockCount) {
+      if (skippedRiskyIds.length) {
+        showMessage("检测到高风险块，未执行清理（可先移除复杂内联后重试）", 5000, "error");
+        return;
+      }
+      showMessage("未发现删除线标记内容", 4000, "info");
+      return;
+    }
+
+    const summary = `已清理删除线标记内容 ${removedCount} 处，共更新 ${updatedBlockCount} 个块`;
+    if (failedBlockCount > 0) {
+      showMessage(`${summary}，失败 ${failedBlockCount} 个块`, 7000, "error");
+      return;
+    }
+    showMessage(summary, 5000, "info");
+  }
+
   private previewAiOutputCleanup(
     blocks: Array<{ id: string; markdown?: string }>
   ): AiOutputCleanupPreview {
@@ -1431,6 +1507,36 @@ export class ActionRunner {
       preview.removedSupCount += cleaned.removedSupCount;
       preview.removedCaretCount += cleaned.removedCaretCount;
       preview.removedInternetLinkCount += cleaned.removedInternetLinkCount;
+    }
+
+    return preview;
+  }
+
+  private previewStrikethroughCleanup(
+    blocks: Array<{ id: string; markdown?: string }>
+  ): StrikethroughCleanupPreview {
+    const preview: StrikethroughCleanupPreview = {
+      cleanableBlockCount: 0,
+      riskyPendingBlockCount: 0,
+      removedCount: 0,
+    };
+
+    for (const block of blocks) {
+      const source = block.markdown || "";
+      if (!source) {
+        continue;
+      }
+      const cleaned = removeStrikethroughMarkedContentFromMarkdown(source);
+      const hasChanges = cleaned.removedCount > 0 && cleaned.markdown !== source;
+      if (!hasChanges) {
+        continue;
+      }
+      if (isHighRiskForMarkdownWrite(source)) {
+        preview.riskyPendingBlockCount += 1;
+        continue;
+      }
+      preview.cleanableBlockCount += 1;
+      preview.removedCount += cleaned.removedCount;
     }
 
     return preview;

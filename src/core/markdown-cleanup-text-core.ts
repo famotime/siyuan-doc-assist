@@ -257,6 +257,11 @@ export type ClippedListPrefixCleanupResult = {
   removedCount: number;
 };
 
+export type StrikethroughCleanupResult = {
+  markdown: string;
+  removedCount: number;
+};
+
 export type BilingualParagraphSplitResult = {
   parts: string[];
   changed: boolean;
@@ -279,6 +284,141 @@ const HAN_CHAR_PATTERN = /\p{Script=Han}/gu;
 const BILINGUAL_SKIP_PATTERN = /`|https?:\/\/|www\./iu;
 const SENTENCE_END_CHARS = new Set([".", "!", "?", ";", "。", "！", "？", "；"]);
 const SENTENCE_TAIL_PATTERN = /["'”’)\]】）\s]/u;
+const STRIKETHROUGH_SPAN_DATA_TYPE_PATTERN = /\bdata-type=(["'])([^"']*)\1/iu;
+
+function hasStrikethroughDataType(openTag: string): boolean {
+  const match = STRIKETHROUGH_SPAN_DATA_TYPE_PATTERN.exec(openTag || "");
+  if (!match) {
+    return false;
+  }
+  return (match[2] || "")
+    .split(/\s+/)
+    .map((part) => part.trim().toLowerCase())
+    .includes("s");
+}
+
+function removeStrikethroughContentFromLine(
+  line: string
+): { line: string; removedCount: number } {
+  if (!line) {
+    return { line: "", removedCount: 0 };
+  }
+
+  let next = "";
+  let removedCount = 0;
+  let i = 0;
+  let codeFenceTicks = 0;
+
+  while (i < line.length) {
+    if (line[i] === "`") {
+      let tickCount = 1;
+      while (i + tickCount < line.length && line[i + tickCount] === "`") {
+        tickCount += 1;
+      }
+      if (codeFenceTicks === 0) {
+        codeFenceTicks = tickCount;
+      } else if (codeFenceTicks === tickCount) {
+        codeFenceTicks = 0;
+      }
+      next += line.slice(i, i + tickCount);
+      i += tickCount;
+      continue;
+    }
+
+    if (codeFenceTicks === 0 && line.startsWith("~~", i)) {
+      const end = line.indexOf("~~", i + 2);
+      if (end >= 0) {
+        removedCount += 1;
+        i = end + 2;
+        continue;
+      }
+    }
+
+    if (codeFenceTicks === 0 && line.startsWith("<span", i)) {
+      const openEnd = line.indexOf(">", i);
+      if (openEnd > i) {
+        const openTag = line.slice(i, openEnd + 1);
+        if (hasStrikethroughDataType(openTag)) {
+          const closeIndex = line.indexOf("</span>", openEnd + 1);
+          if (closeIndex >= 0) {
+            removedCount += 1;
+            i = closeIndex + "</span>".length;
+            continue;
+          }
+        }
+      }
+    }
+
+    if (codeFenceTicks === 0 && /^<(s|del)\b/i.test(line.slice(i))) {
+      const openEnd = line.indexOf(">", i);
+      if (openEnd > i) {
+        const closeTagMatch = /^<(s|del)\b/i.exec(line.slice(i));
+        const closeTag = closeTagMatch?.[1]?.toLowerCase() === "del" ? "</del>" : "</s>";
+        const closeIndex = line.indexOf(closeTag, openEnd + 1);
+        if (closeIndex >= 0) {
+          removedCount += 1;
+          i = closeIndex + closeTag.length;
+          continue;
+        }
+      }
+    }
+
+    next += line[i];
+    i += 1;
+  }
+
+  return { line: next, removedCount };
+}
+
+export function removeStrikethroughMarkedContentFromMarkdown(
+  markdown: string
+): StrikethroughCleanupResult {
+  if (!markdown) {
+    return {
+      markdown: "",
+      removedCount: 0,
+    };
+  }
+
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+  let removedCount = 0;
+  let inFence = false;
+  let fenceChar = "";
+  let fenceLen = 0;
+
+  for (const line of lines) {
+    const fence = isFenceLine(line);
+    if (fence) {
+      const markerChar = fence.marker[0];
+      if (!inFence) {
+        inFence = true;
+        fenceChar = markerChar;
+        fenceLen = fence.length;
+      } else if (markerChar === fenceChar && fence.length >= fenceLen) {
+        inFence = false;
+        fenceChar = "";
+        fenceLen = 0;
+      }
+      output.push(line);
+      continue;
+    }
+
+    if (inFence) {
+      output.push(line);
+      continue;
+    }
+
+    const cleaned = removeStrikethroughContentFromLine(line);
+    output.push(cleaned.line);
+    removedCount += cleaned.removedCount;
+  }
+
+  return {
+    markdown: output.join("\n"),
+    removedCount,
+  };
+}
 
 function countMatches(value: string, pattern: RegExp): number {
   const matches = value.match(pattern);

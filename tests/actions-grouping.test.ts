@@ -19,6 +19,7 @@ describe("actions grouping", () => {
     expect(groups.get("clean-ai-output")).toBe("edit");
     expect(groups.get("bold-selected-blocks")).toBe("edit");
     expect(groups.get("merge-selected-list-blocks")).toBe("edit");
+    expect(groups.get("remove-strikethrough-marked-content")).toBe("edit");
     expect(groups.get("toggle-heading-bold")).toBe("edit");
     expect(groups.get("toggle-linebreaks-paragraphs")).toBe("edit");
     expect(groups.get("remove-selected-spacing")).toBe("edit");

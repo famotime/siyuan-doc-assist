@@ -1881,6 +1881,48 @@ describe("action-runner loading guard", () => {
     );
   });
 
+  test("removes strikethrough-marked content across current document", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        content: "",
+        markdown: "保留前文 ~~删除这里~~ 保留后文",
+        resolved: true,
+      } as any,
+      {
+        id: "b",
+        type: "p",
+        content: "",
+        markdown: "没有删除线",
+        resolved: true,
+      } as any,
+      {
+        id: "c",
+        type: "p",
+        content: "",
+        markdown: "- 列表 ~~去掉~~ 项",
+        resolved: true,
+      } as any,
+    ]);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("remove-strikethrough-marked-content" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(String(askConfirm.mock.calls[0]?.[1] || "")).toContain("删除线标记内容 2 处");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "a", "保留前文  保留后文");
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "c", "- 列表  项");
+    expect(showMessageMock).toHaveBeenCalledWith("已清理删除线标记内容 2 处，共更新 2 个块", 5000, "info");
+  });
+
   test("shows prompt only and does nothing when no block is selected", async () => {
     const root = document.createElement("div");
     root.innerHTML = `

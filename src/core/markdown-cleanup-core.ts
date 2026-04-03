@@ -1,4 +1,5 @@
 export {
+  removeStrikethroughMarkedContentFromMarkdown,
   removeExtraBlankLinesFromMarkdown,
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
@@ -7,6 +8,7 @@ export {
 } from "@/core/markdown-cleanup-text-core";
 export type {
   BilingualParagraphSplitResult,
+  StrikethroughCleanupResult,
   TrailingWhitespaceCleanupResult,
   TrailingWhitespaceDomCleanupResult,
 } from "@/core/markdown-cleanup-text-core";

@@ -25,6 +25,7 @@ export type ActionKey =
   | "toggle-heading-bold"
   | "merge-selected-list-blocks"
   | "delete-from-current-to-end"
+  | "remove-strikethrough-marked-content"
   | "bold-selected-blocks"
   | "highlight-selected-blocks"
   | "toggle-linebreaks-paragraphs"
@@ -63,6 +64,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "convert-images-to-png": "图",
   "resize-images-to-display": "缩",
   "remove-doc-images": "删",
+  "remove-strikethrough-marked-content": "预",
   "bold-selected-blocks": "粗",
   "highlight-selected-blocks": "亮",
   "toggle-linebreaks-paragraphs": "段",
@@ -270,6 +272,14 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     key: "delete-from-current-to-end",
     commandText: "删除后续段落（含本段）",
     menuText: "删除后续段落（含本段）",
+    group: "edit",
+    requiresWritableDoc: true,
+    icon: "iconTrashcan",
+  },
+  {
+    key: "remove-strikethrough-marked-content",
+    commandText: "清理预删除内容",
+    menuText: "清理预删除内容",
     group: "edit",
     requiresWritableDoc: true,
     icon: "iconTrashcan",
