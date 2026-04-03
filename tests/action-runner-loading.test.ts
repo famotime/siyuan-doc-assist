@@ -1363,7 +1363,7 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "# Title");
   });
 
-  test("merges selected content into one list block while preserving existing list indentation", async () => {
+  test("merges selected content into one list block while following the first existing list type", async () => {
     const root = document.createElement("div");
     root.innerHTML = `
       <div data-node-id="a" class="protyle-wysiwyg--select">A</div>
@@ -1400,7 +1400,7 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
     expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
       "a",
-      "- 第一段\n- 第二项\n- 第三项\n  - 第四项\n    第四项说明"
+      "1. 第一段\n2. 第二项\n3. 第三项\n  1. 第四项\n    第四项说明"
     );
     expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["b", "c"], { concurrency: 6 });
     expect(deleteBlockByIdMock).not.toHaveBeenCalled();
