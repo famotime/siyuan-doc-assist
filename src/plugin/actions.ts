@@ -19,6 +19,7 @@ export type ActionKey =
   | "remove-doc-images"
   | "toggle-links-refs"
   | "insert-doc-summary"
+  | "mark-irrelevant-paragraphs"
   | "clean-ai-output"
   | "clean-clipped-list-prefixes"
   | "mark-invalid-links-refs"
@@ -72,6 +73,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "remove-selected-spacing": "格",
   "toggle-selected-punctuation": "标",
   "insert-doc-summary": "摘",
+  "mark-irrelevant-paragraphs": "筛",
   "remove-extra-blank-lines": "空",
   "clean-ai-output": "净",
   "clean-clipped-list-prefixes": "序",
@@ -189,6 +191,14 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     group: "ai",
     requiresWritableDoc: true,
     icon: "iconList",
+  },
+  {
+    key: "mark-irrelevant-paragraphs",
+    commandText: "标记口水内容",
+    menuText: "标记口水内容",
+    group: "ai",
+    requiresWritableDoc: true,
+    icon: "iconTrashcan",
   },
   {
     key: "toggle-heading-bold",

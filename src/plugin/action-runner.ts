@@ -186,6 +186,8 @@ export class ActionRunner {
       }),
       ...createAiActionHandlers({
         getAiSummaryConfig: this.deps.getAiSummaryConfig,
+        askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
+        setBusy: this.deps.setBusy,
       }),
       ...createInsertActionHandlers(),
       ...createOrganizeActionHandlers({

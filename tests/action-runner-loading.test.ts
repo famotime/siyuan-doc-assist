@@ -80,6 +80,10 @@ vi.mock("@/services/ai-summary", () => ({
   generateDocumentSummary: vi.fn(),
 }));
 
+vi.mock("@/services/ai-slop-marker", () => ({
+  detectIrrelevantParagraphIds: vi.fn(),
+}));
+
 vi.mock("@/ui/dialogs", () => ({
   openDedupeDialog: vi.fn(),
 }));
@@ -128,6 +132,7 @@ import {
   updateBlockMarkdown,
 } from "@/services/kernel";
 import { generateDocumentSummary } from "@/services/ai-summary";
+import { detectIrrelevantParagraphIds } from "@/services/ai-slop-marker";
 import { openDedupeDialog } from "@/ui/dialogs";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
@@ -164,6 +169,7 @@ const convertDocImagesToPngMock = vi.mocked(convertDocImagesToPng);
 const resizeDocImagesToDisplayMock = vi.mocked(resizeDocImagesToDisplay);
 const removeDocImageLinksMock = vi.mocked(removeDocImageLinks);
 const generateDocumentSummaryMock = vi.mocked(generateDocumentSummary);
+const detectIrrelevantParagraphIdsMock = vi.mocked(detectIrrelevantParagraphIds);
 
 function createRunner(setBusy?: (busy: boolean) => void) {
   return new ActionRunner({
@@ -474,6 +480,130 @@ describe("action-runner loading guard", () => {
       "doc-1"
     );
     expect(appendBlockMock).not.toHaveBeenCalled();
+  });
+
+  test("marks AI-identified irrelevant paragraphs with strikethrough", async () => {
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      title: "示例文档",
+    } as any);
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "h1", type: "h", markdown: "# 标题", resolved: true } as any,
+      {
+        id: "p1",
+        type: "p",
+        markdown: "栏目说明：以下内容整理自公开资料，仅供快速浏览。",
+        resolved: true,
+      } as any,
+      { id: "p2", type: "p", markdown: "这里是核心正文。", resolved: true } as any,
+      {
+        id: "p3",
+        type: "p",
+        markdown: "关注公众号“示例”，回复关键词领取资料。",
+        resolved: true,
+      } as any,
+      { id: "p4", type: "p", markdown: "~~已标记段落~~", resolved: true } as any,
+      { id: "i1", type: "i", markdown: "- 列表项", resolved: true } as any,
+    ]);
+    detectIrrelevantParagraphIdsMock.mockResolvedValue(["p1", "p3", "missing", "p4"]);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+      getAiSummaryConfig: () => ({
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4.1-mini",
+        requestTimeoutSeconds: 45,
+      }),
+    } as any);
+
+    await runner.runAction("mark-irrelevant-paragraphs" as any);
+
+    expect(detectIrrelevantParagraphIdsMock).toHaveBeenCalledWith({
+      config: expect.objectContaining({
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+      }),
+      documentTitle: "示例文档",
+      paragraphs: [
+        {
+          id: "p1",
+          markdown: "栏目说明：以下内容整理自公开资料，仅供快速浏览。",
+        },
+        {
+          id: "p2",
+          markdown: "这里是核心正文。",
+        },
+        {
+          id: "p3",
+          markdown: "关注公众号“示例”，回复关键词领取资料。",
+        },
+      ],
+    });
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(String(askConfirm.mock.calls[0]?.[1] || "")).toContain("AI 判定可标记 2 段");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
+      1,
+      "p1",
+      "~~栏目说明：以下内容整理自公开资料，仅供快速浏览。~~"
+    );
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
+      2,
+      "p3",
+      "~~关注公众号“示例”，回复关键词领取资料。~~"
+    );
+    expect(showMessageMock).toHaveBeenCalledWith("已标记口水内容 2 段，共更新 2 个块", 5000, "info");
+  });
+
+  test("only sends paragraphs after front-matter separator within first ten paragraphs to AI", async () => {
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      title: "示例文档",
+    } as any);
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "p1", type: "p", markdown: "文档说明", resolved: true } as any,
+      { id: "p2", type: "p", markdown: "目录导航", resolved: true } as any,
+      { id: "p3", type: "tb", markdown: "---", resolved: true } as any,
+      { id: "p4", type: "p", markdown: "栏目说明：这里是无关导语。", resolved: true } as any,
+      { id: "p5", type: "p", markdown: "这里是正文重点。", resolved: true } as any,
+      { id: "p6", type: "p", markdown: "文末广告：欢迎关注公众号。", resolved: true } as any,
+    ]);
+    detectIrrelevantParagraphIdsMock.mockResolvedValue(["p1", "p4", "p6"]);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = createRunner();
+    (runner as any).deps.askConfirm = askConfirm;
+
+    await runner.runAction("mark-irrelevant-paragraphs" as any);
+
+    expect(detectIrrelevantParagraphIdsMock).toHaveBeenCalledWith({
+      config: expect.objectContaining({
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+      }),
+      documentTitle: "示例文档",
+      paragraphs: [
+        { id: "p4", markdown: "栏目说明：这里是无关导语。" },
+        { id: "p5", markdown: "这里是正文重点。" },
+        { id: "p6", markdown: "文末广告：欢迎关注公众号。" },
+      ],
+    });
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
+      1,
+      "p4",
+      "~~栏目说明：这里是无关导语。~~"
+    );
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
+      2,
+      "p6",
+      "~~文末广告：欢迎关注公众号。~~"
+    );
   });
 
   test("creates a summary page from opened unpinned docs", async () => {

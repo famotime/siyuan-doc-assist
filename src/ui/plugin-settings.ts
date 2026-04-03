@@ -312,17 +312,17 @@ export function createPluginSettings(
   setting.addItem({
     title: "AI 服务",
     direction: "column",
-    description: "配置兼容 OpenAI API 的服务，用于生成文档摘要。",
+    description: "配置兼容 OpenAI API 的服务，用于生成文档摘要和标记口水内容。",
     actionElement: (() => {
       const panel = createElement("div", "doc-assistant-settings__ai-panel");
       const switchRow = createElement("label", "doc-assistant-settings__ai-switch");
       const switchText = createElement("div", "doc-assistant-settings__ai-switch-text");
       switchText.append(
-        createElement("div", "doc-assistant-settings__ai-switch-title", "启用 AI 文档摘要"),
+        createElement("div", "doc-assistant-settings__ai-switch-title", "启用 AI 文档功能"),
         createElement(
           "div",
           "doc-assistant-settings__ai-switch-hint",
-          "发送当前文档正文到 AI 生成摘要，并插入到文档开头。"
+          "发送当前文档内容到 AI，可用于生成摘要或筛选应加删除线的口水段落。"
         )
       );
       switchRow.append(switchText, aiEnabledInput);
