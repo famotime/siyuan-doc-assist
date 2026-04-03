@@ -441,6 +441,11 @@ describe("action-runner loading guard", () => {
 
   test("inserts ai summary before the first paragraph by default", async () => {
     getRootDocRawMarkdownMock.mockResolvedValue("# 标题\n\n第一段正文\n\n第二段正文");
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      title: "示例文档",
+      updated: "20260403150208",
+    } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "h1", type: "h", markdown: "# 标题", resolved: true } as any,
       { id: "p1", type: "p", markdown: "第一段正文", resolved: true } as any,
@@ -457,7 +462,11 @@ describe("action-runner loading guard", () => {
           enabled: true,
           baseUrl: "https://api.example.com/v1",
         }),
+        documentId: "doc-1",
+        loadFreshDocumentSummary: expect.any(Function),
         documentMarkdown: "# 标题\n\n第一段正文\n\n第二段正文",
+        documentUpdatedAt: "20260403150208",
+        documentTitle: "示例文档",
       })
     );
     expect(insertBlockBeforeMock).toHaveBeenCalledWith(

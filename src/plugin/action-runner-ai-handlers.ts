@@ -5,6 +5,7 @@ import {
   resolveAiSummaryInsertTarget,
 } from "@/core/ai-summary-core";
 import { generateDocumentSummary } from "@/services/ai-summary";
+import { NetworkLensPluginLike, loadFreshNetworkLensDocumentSummary } from "@/services/network-lens-ai-index";
 import {
   detectIrrelevantParagraphIds,
   detectKeyContentParagraphHighlights,
@@ -22,6 +23,7 @@ import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 type CreateAiActionHandlersOptions = {
   getAiSummaryConfig?: () => AiServiceConfig | undefined;
   askConfirmWithVisibleDialog?: (title: string, text: string) => Promise<boolean>;
+  resolveNetworkLensPlugin?: () => NetworkLensPluginLike | null | undefined;
   setBusy?: (busy: boolean) => void;
 };
 
@@ -44,8 +46,15 @@ export function createAiActionHandlers(
       }
       const summary = await generateDocumentSummary({
         config: options.getAiSummaryConfig?.(),
+        documentId: docId,
         documentTitle: docMeta?.title,
+        documentUpdatedAt: docMeta?.updated,
         documentMarkdown,
+        loadFreshDocumentSummary: async (params) => loadFreshNetworkLensDocumentSummary({
+          networkLensPlugin: options.resolveNetworkLensPlugin?.(),
+          documentId: params.documentId,
+          documentUpdatedAt: params.documentUpdatedAt,
+        }),
       });
       const blocks = await getChildBlocksByParentId(docId);
       const summaryMarkdown = buildAiSummaryBlockMarkdown(summary);

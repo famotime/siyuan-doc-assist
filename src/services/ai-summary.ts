@@ -6,6 +6,7 @@ import {
 } from "@/core/ai-service-config-core";
 import { normalizeAiSummaryText } from "@/core/ai-summary-core";
 import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse } from "@/services/kernel";
+import { NetworkLensDocumentSummary } from "@/services/network-lens-ai-index";
 
 type ForwardProxyFn = (
   url: string,
@@ -18,15 +19,30 @@ type ForwardProxyFn = (
 
 type GenerateDocumentSummaryParams = {
   config?: unknown;
+  documentId?: string;
   documentTitle?: string;
+  documentUpdatedAt?: string;
   documentMarkdown: string;
+  loadFreshDocumentSummary?: (params: {
+    documentId: string;
+    documentUpdatedAt: string;
+  }) => Promise<NetworkLensDocumentSummary | null>;
 };
 
 export function createAiSummaryService(deps: {
   forwardProxy: ForwardProxyFn;
+  loadFreshDocumentSummary?: (params: {
+    documentId: string;
+    documentUpdatedAt: string;
+  }) => Promise<NetworkLensDocumentSummary | null>;
 }) {
   return {
     async generateDocumentSummary(params: GenerateDocumentSummaryParams): Promise<string> {
+      const indexedSummary = await loadFreshDocumentSummary(deps, params);
+      if (indexedSummary) {
+        return indexedSummary.summaryShort;
+      }
+
       const config = normalizeAiServiceConfig(params.config);
       if (!config.enabled) {
         throw new Error("请先在设置中启用 AI 文档摘要");
@@ -81,6 +97,30 @@ export function createAiSummaryService(deps: {
   };
 }
 
+async function loadFreshDocumentSummary(
+  deps: {
+    loadFreshDocumentSummary?: (params: {
+      documentId: string;
+      documentUpdatedAt: string;
+    }) => Promise<NetworkLensDocumentSummary | null>;
+  },
+  params: GenerateDocumentSummaryParams
+): Promise<NetworkLensDocumentSummary | null> {
+  const loader = params.loadFreshDocumentSummary || deps.loadFreshDocumentSummary;
+  if (!loader || !params.documentId || !params.documentUpdatedAt) {
+    return null;
+  }
+
+  try {
+    return await loader({
+      documentId: params.documentId,
+      documentUpdatedAt: params.documentUpdatedAt,
+    });
+  } catch {
+    return null;
+  }
+}
+
 function buildSummaryMessages(params: {
   documentTitle?: string;
   documentMarkdown: string;
@@ -125,12 +165,13 @@ function extractSummaryText(payload: any): string {
   return "";
 }
 
-const aiSummaryService = createAiSummaryService({ forwardProxy });
-
 export async function generateDocumentSummary(
   params: GenerateDocumentSummaryParams
 ): Promise<string> {
-  return aiSummaryService.generateDocumentSummary(params);
+  return createAiSummaryService({
+    forwardProxy,
+    loadFreshDocumentSummary: params.loadFreshDocumentSummary,
+  }).generateDocumentSummary(params);
 }
 
 export type { AiServiceConfig };

@@ -50,6 +50,7 @@ import {
   hideActionProcessingOverlay,
   showActionProcessingOverlay,
 } from "@/ui/action-processing-overlay";
+import { resolveNetworkLensPluginFromPlugins } from "@/services/network-lens-ai-index";
 
 export default class DocLinkToolkitPlugin extends Plugin {
   private static readonly PINNED_TAB_PLACEMENT_RETRY_DELAYS = [0, 32, 96, 192];
@@ -79,6 +80,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     setBusy: (busy) => this.setActionBusy(busy),
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
     getAiSummaryConfig: () => this.aiSummaryConfig,
+    resolveNetworkLensPlugin: () => resolveNetworkLensPluginFromPlugins(this.app?.plugins),
   });
 
   private readonly keyInfoController: KeyInfoController = new KeyInfoController({

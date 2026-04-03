@@ -54,6 +54,7 @@ import { createInsertActionHandlers } from "@/plugin/action-runner-insert-handle
 import { createMediaActionHandlers } from "@/plugin/action-runner-media-handlers";
 import { createOrganizeActionHandlers } from "@/plugin/action-runner-organize-handlers";
 import { ProtyleLike } from "@/plugin/doc-context";
+import { NetworkLensPluginLike } from "@/services/network-lens-ai-index";
 
 type ActionRunnerDeps = {
   isMobile: () => boolean;
@@ -62,6 +63,7 @@ type ActionRunnerDeps = {
   setBusy?: (busy: boolean) => void;
   getKeyInfoFilter?: () => KeyInfoFilter | undefined;
   getAiSummaryConfig?: () => AiServiceConfig | undefined;
+  resolveNetworkLensPlugin?: () => NetworkLensPluginLike | null | undefined;
 };
 
 type StyleFailureKind = "source-missing" | "update-failed";
@@ -184,11 +186,12 @@ export class ActionRunner {
       ...createExportActionHandlers({
         getKeyInfoFilter: this.deps.getKeyInfoFilter,
       }),
-      ...createAiActionHandlers({
-        getAiSummaryConfig: this.deps.getAiSummaryConfig,
-        askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
-        setBusy: this.deps.setBusy,
-      }),
+        ...createAiActionHandlers({
+          getAiSummaryConfig: this.deps.getAiSummaryConfig,
+          askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
+          resolveNetworkLensPlugin: this.deps.resolveNetworkLensPlugin,
+          setBusy: this.deps.setBusy,
+        }),
       ...createInsertActionHandlers(),
       ...createOrganizeActionHandlers({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),

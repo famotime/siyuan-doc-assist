@@ -31,6 +31,12 @@ declare module "siyuan" {
         on: (name: string, handler: (...args: any[]) => void) => void;
         off: (name: string, handler: (...args: any[]) => void) => void;
       };
+      app?: {
+        plugins?: Array<{
+          name?: string;
+          loadData?: (storageName: string) => Promise<any>;
+        }>;
+      };
       addDock: (config: any) => void;
       addTopBar: (options: {
         icon: string;
