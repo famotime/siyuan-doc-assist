@@ -20,7 +20,18 @@ type IrrelevantParagraphCandidate = {
   markdown: string;
 };
 
+type KeyContentParagraphHighlight = {
+  paragraphId: string;
+  highlights: string[];
+};
+
 type DetectIrrelevantParagraphIdsParams = {
+  config?: unknown;
+  documentTitle?: string;
+  paragraphs: IrrelevantParagraphCandidate[];
+};
+
+type DetectKeyContentParagraphHighlightsParams = {
   config?: unknown;
   documentTitle?: string;
   paragraphs: IrrelevantParagraphCandidate[];
@@ -88,6 +99,68 @@ export function createAiSlopMarkerService(deps: {
   };
 }
 
+export function createAiKeyContentMarkerService(deps: {
+  forwardProxy: ForwardProxyFn;
+}) {
+  return {
+    async detectKeyContentParagraphHighlights(
+      params: DetectKeyContentParagraphHighlightsParams
+    ): Promise<KeyContentParagraphHighlight[]> {
+      const config = normalizeAiServiceConfig(params.config);
+      if (!config.enabled) {
+        throw new Error("请先在设置中启用 AI 服务");
+      }
+      if (!isAiServiceConfigComplete(config)) {
+        throw new Error("AI 服务配置不完整，请补充 Base URL、API Key 和 Model");
+      }
+
+      const paragraphs = normalizeParagraphCandidates(params.paragraphs);
+      if (!paragraphs.length) {
+        return [];
+      }
+
+      const endpoint = `${config.baseUrl.replace(/\/+$/u, "")}/chat/completions`;
+      const body = JSON.stringify({
+        model: config.model,
+        messages: buildKeyContentParagraphMessages({
+          documentTitle: params.documentTitle,
+          paragraphs,
+        }),
+        max_tokens: 700,
+        temperature: 0.1,
+      });
+
+      const response = await deps.forwardProxy(
+        endpoint,
+        "POST",
+        body,
+        [
+          { Authorization: `Bearer ${config.apiKey}` },
+          { Accept: "application/json" },
+        ],
+        Math.max(
+          1,
+          config.requestTimeoutSeconds || DEFAULT_AI_REQUEST_TIMEOUT_SECONDS
+        ) * 1000,
+        "application/json"
+      );
+
+      if (!response || response.status < 200 || response.status >= 300) {
+        throw new Error(`AI 关键内容识别请求失败（${response?.status ?? "未知状态"}）`);
+      }
+
+      let payload: any;
+      try {
+        payload = JSON.parse(response.body || "{}");
+      } catch {
+        throw new Error("AI 接口返回了无法解析的 JSON");
+      }
+
+      return extractKeyContentParagraphHighlights(payload, paragraphs);
+    },
+  };
+}
+
 function normalizeParagraphCandidates(
   paragraphs: IrrelevantParagraphCandidate[]
 ): IrrelevantParagraphCandidate[] {
@@ -131,6 +204,35 @@ function buildIrrelevantParagraphMessages(params: {
   ];
 }
 
+function buildKeyContentParagraphMessages(params: {
+  documentTitle?: string;
+  paragraphs: IrrelevantParagraphCandidate[];
+}) {
+  return [
+    {
+      role: "system",
+      content: [
+        "你是思源笔记的文档重点标注助手。",
+        "请从每个段落中识别最值得加粗强调的关键内容片段，例如关键概念、结论、主张、步骤名称、核心判断、重要术语。",
+        "只标记段落中的局部短语，不要返回整段，不要改写原文。",
+        "没有明确关键内容时返回空数组。",
+        "不要输出 JSON 之外的任何解释，不要 Markdown 代码块。",
+        "输出格式必须是：{\"paragraphs\":[{\"paragraphId\":\"p1\",\"highlights\":[\"关键短语1\",\"关键短语2\"]}]}",
+      ].join(" "),
+    },
+    {
+      role: "user",
+      content: [
+        params.documentTitle ? `文档标题：${params.documentTitle}` : "",
+        "请从下面段落中识别适合局部加粗的关键内容片段：",
+        JSON.stringify(params.paragraphs),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    },
+  ];
+}
+
 function extractIrrelevantParagraphIds(
   payload: any,
   paragraphs: IrrelevantParagraphCandidate[]
@@ -152,6 +254,117 @@ function extractIrrelevantParagraphIds(
     deduped.push(id);
   }
   return deduped;
+}
+
+function extractKeyContentParagraphHighlights(
+  payload: any,
+  paragraphs: IrrelevantParagraphCandidate[]
+): KeyContentParagraphHighlight[] {
+  const content = extractMessageContent(payload);
+  if (!content) {
+    throw new Error("AI 未返回可用的关键内容识别结果");
+  }
+
+  const allowedIds = new Set(paragraphs.map((item) => item.id));
+  const parsed = parseJsonObject(content);
+  const entries = resolveKeyContentEntries(parsed);
+  const merged = new Map<string, string[]>();
+
+  for (const entry of entries) {
+    const paragraphId = typeof entry?.paragraphId === "string"
+      ? entry.paragraphId.trim()
+      : typeof entry?.id === "string"
+        ? entry.id.trim()
+        : "";
+    if (!paragraphId || !allowedIds.has(paragraphId)) {
+      continue;
+    }
+
+    const highlights = resolveEntryHighlights(entry);
+    const normalized = highlights
+      .map((value: unknown) => (typeof value === "string" ? value.trim() : ""))
+      .filter(Boolean);
+    if (!normalized.length) {
+      continue;
+    }
+
+    const current = merged.get(paragraphId) || [];
+    for (const highlight of normalized) {
+      if (!current.includes(highlight)) {
+        current.push(highlight);
+      }
+    }
+    if (current.length > 0) {
+      merged.set(paragraphId, current);
+    }
+  }
+
+  return Array.from(merged.entries()).map(([paragraphId, highlights]) => ({
+    paragraphId,
+    highlights,
+  }));
+}
+
+function resolveKeyContentEntries(parsed: any): any[] {
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return [];
+  }
+
+  const candidates = [
+    parsed?.paragraphs,
+    parsed?.items,
+    parsed?.results,
+    parsed?.entries,
+    parsed?.data,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (
+    typeof parsed?.paragraphId === "string" ||
+    typeof parsed?.id === "string"
+  ) {
+    return [parsed];
+  }
+
+  return [];
+}
+
+function resolveEntryHighlights(entry: any): unknown[] {
+  const candidates = [
+    entry?.highlights,
+    entry?.phrases,
+    entry?.keywords,
+    entry?.segments,
+    entry?.snippets,
+    entry?.texts,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (typeof entry?.highlight === "string") {
+    return [entry.highlight];
+  }
+  if (typeof entry?.phrase === "string") {
+    return [entry.phrase];
+  }
+  if (typeof entry?.keyword === "string") {
+    return [entry.keyword];
+  }
+  if (typeof entry?.text === "string") {
+    return [entry.text];
+  }
+
+  return [];
 }
 
 function extractMessageContent(payload: any): string {
@@ -193,6 +406,7 @@ function parseJsonObject(content: string): any {
 }
 
 const aiSlopMarkerService = createAiSlopMarkerService({ forwardProxy });
+const aiKeyContentMarkerService = createAiKeyContentMarkerService({ forwardProxy });
 
 export async function detectIrrelevantParagraphIds(
   params: DetectIrrelevantParagraphIdsParams
@@ -200,4 +414,16 @@ export async function detectIrrelevantParagraphIds(
   return aiSlopMarkerService.detectIrrelevantParagraphIds(params);
 }
 
-export type { AiServiceConfig, DetectIrrelevantParagraphIdsParams, IrrelevantParagraphCandidate };
+export async function detectKeyContentParagraphHighlights(
+  params: DetectKeyContentParagraphHighlightsParams
+): Promise<KeyContentParagraphHighlight[]> {
+  return aiKeyContentMarkerService.detectKeyContentParagraphHighlights(params);
+}
+
+export type {
+  AiServiceConfig,
+  DetectIrrelevantParagraphIdsParams,
+  DetectKeyContentParagraphHighlightsParams,
+  IrrelevantParagraphCandidate,
+  KeyContentParagraphHighlight,
+};

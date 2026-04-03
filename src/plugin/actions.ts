@@ -20,6 +20,7 @@ export type ActionKey =
   | "toggle-links-refs"
   | "insert-doc-summary"
   | "mark-irrelevant-paragraphs"
+  | "mark-key-content"
   | "clean-ai-output"
   | "clean-clipped-list-prefixes"
   | "mark-invalid-links-refs"
@@ -74,6 +75,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "toggle-selected-punctuation": "标",
   "insert-doc-summary": "摘",
   "mark-irrelevant-paragraphs": "筛",
+  "mark-key-content": "关",
   "remove-extra-blank-lines": "空",
   "clean-ai-output": "净",
   "clean-clipped-list-prefixes": "序",
@@ -199,6 +201,14 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     group: "ai",
     requiresWritableDoc: true,
     icon: "iconTrashcan",
+  },
+  {
+    key: "mark-key-content",
+    commandText: "标记关键内容",
+    menuText: "标记关键内容",
+    group: "ai",
+    requiresWritableDoc: true,
+    icon: "iconBold",
   },
   {
     key: "toggle-heading-bold",

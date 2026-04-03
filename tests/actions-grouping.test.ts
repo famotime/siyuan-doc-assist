@@ -11,6 +11,7 @@ describe("actions grouping", () => {
     expect(groups.get("mark-invalid-links-refs")).toBe("insert");
     expect(groups.get("insert-doc-summary")).toBe("ai");
     expect(groups.get("mark-irrelevant-paragraphs")).toBe("ai");
+    expect(groups.get("mark-key-content")).toBe("ai");
     expect(groups.get("convert-images-to-webp")).toBe("image");
     expect(groups.get("convert-images-to-png")).toBe("image");
     expect(groups.get("resize-images-to-display")).toBe("image");

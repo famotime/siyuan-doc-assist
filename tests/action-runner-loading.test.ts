@@ -82,6 +82,7 @@ vi.mock("@/services/ai-summary", () => ({
 
 vi.mock("@/services/ai-slop-marker", () => ({
   detectIrrelevantParagraphIds: vi.fn(),
+  detectKeyContentParagraphHighlights: vi.fn(),
 }));
 
 vi.mock("@/ui/dialogs", () => ({
@@ -132,7 +133,10 @@ import {
   updateBlockMarkdown,
 } from "@/services/kernel";
 import { generateDocumentSummary } from "@/services/ai-summary";
-import { detectIrrelevantParagraphIds } from "@/services/ai-slop-marker";
+import {
+  detectIrrelevantParagraphIds,
+  detectKeyContentParagraphHighlights,
+} from "@/services/ai-slop-marker";
 import { openDedupeDialog } from "@/ui/dialogs";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
@@ -170,6 +174,7 @@ const resizeDocImagesToDisplayMock = vi.mocked(resizeDocImagesToDisplay);
 const removeDocImageLinksMock = vi.mocked(removeDocImageLinks);
 const generateDocumentSummaryMock = vi.mocked(generateDocumentSummary);
 const detectIrrelevantParagraphIdsMock = vi.mocked(detectIrrelevantParagraphIds);
+const detectKeyContentParagraphHighlightsMock = vi.mocked(detectKeyContentParagraphHighlights);
 
 function createRunner(setBusy?: (busy: boolean) => void) {
   return new ActionRunner({
@@ -603,6 +608,149 @@ describe("action-runner loading guard", () => {
       2,
       "p6",
       "~~文末广告：欢迎关注公众号。~~"
+    );
+  });
+
+  test("marks AI-identified key content within paragraphs using bold", async () => {
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      title: "示例文档",
+    } as any);
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "p1", type: "p", markdown: "文档说明", resolved: true } as any,
+      { id: "p2", type: "tb", markdown: "---", resolved: true } as any,
+      {
+        id: "p3",
+        type: "p",
+        markdown: "作者提出要用检索增强生成提升准确率，并强调评测闭环。",
+        resolved: true,
+      } as any,
+      {
+        id: "p4",
+        type: "p",
+        markdown: "最后建议先做小范围试点，再逐步扩展。",
+        resolved: true,
+      } as any,
+      {
+        id: "p5",
+        type: "p",
+        markdown: "这段已经有 **现有加粗** 内容。",
+        resolved: true,
+      } as any,
+    ]);
+    detectKeyContentParagraphHighlightsMock.mockResolvedValue([
+      {
+        paragraphId: "p3",
+        highlights: ["检索增强生成", "评测闭环"],
+      },
+      {
+        paragraphId: "p4",
+        highlights: ["小范围试点"],
+      },
+      {
+        paragraphId: "p5",
+        highlights: ["现有加粗"],
+      },
+      {
+        paragraphId: "missing",
+        highlights: ["忽略片段"],
+      },
+    ]);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+      getAiSummaryConfig: () => ({
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4.1-mini",
+        requestTimeoutSeconds: 45,
+      }),
+    } as any);
+
+    await runner.runAction("mark-key-content" as any);
+
+    expect(detectKeyContentParagraphHighlightsMock).toHaveBeenCalledWith({
+      config: expect.objectContaining({
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+      }),
+      documentTitle: "示例文档",
+      paragraphs: [
+        {
+          id: "p3",
+          markdown: "作者提出要用检索增强生成提升准确率，并强调评测闭环。",
+        },
+        {
+          id: "p4",
+          markdown: "最后建议先做小范围试点，再逐步扩展。",
+        },
+        {
+          id: "p5",
+          markdown: "这段已经有 **现有加粗** 内容。",
+        },
+      ],
+    });
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(String(askConfirm.mock.calls[0]?.[1] || "")).toContain("AI 判定可标记 2 段关键内容");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
+      1,
+      "p3",
+      "作者提出要用**检索增强生成**提升准确率，并强调**评测闭环**。"
+    );
+    expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
+      2,
+      "p4",
+      "最后建议先做**小范围试点**，再逐步扩展。"
+    );
+    expect(showMessageMock).toHaveBeenCalledWith("已标记关键内容 2 段，共更新 2 个块", 5000, "info");
+  });
+
+  test("matches key-content fragments when AI output differs only by spacing", async () => {
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      title: "示例文档",
+    } as any);
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "p1", type: "tb", markdown: "---", resolved: true } as any,
+      {
+        id: "p2",
+        type: "p",
+        markdown: "最后建议先做小范围试点，再逐步扩展。",
+        resolved: true,
+      } as any,
+    ]);
+    detectKeyContentParagraphHighlightsMock.mockResolvedValue([
+      {
+        paragraphId: "p2",
+        highlights: ["小范围 试点"],
+      },
+    ]);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+      getAiSummaryConfig: () => ({
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4.1-mini",
+        requestTimeoutSeconds: 45,
+      }),
+    } as any);
+
+    await runner.runAction("mark-key-content" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
+      "p2",
+      "最后建议先做**小范围试点**，再逐步扩展。"
     );
   });
 
