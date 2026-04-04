@@ -102,6 +102,77 @@ function createFieldRow(options: {
   return field;
 }
 
+function createCollapseButton(options: {
+  key: string;
+  label: string;
+  content: HTMLElement;
+  expanded?: boolean;
+}): HTMLButtonElement {
+  const button = document.createElement("button");
+  const text = createElement("span", "doc-assistant-settings__collapse-button-label");
+  const icon = createElement("span", "doc-assistant-settings__collapse-button-icon");
+  let expanded = options.expanded ?? true;
+
+  button.type = "button";
+  button.className = "doc-assistant-settings__collapse-button";
+  button.dataset.settingCollapse = options.key;
+  button.append(text, icon);
+
+  const sync = () => {
+    options.content.hidden = !expanded;
+    button.classList.toggle("is-collapsed", !expanded);
+    button.setAttribute("aria-expanded", String(expanded));
+    button.setAttribute("aria-label", `${expanded ? "折叠" : "展开"}${options.label}`);
+    button.title = `${expanded ? "折叠" : "展开"}${options.label}`;
+    text.textContent = expanded ? "收起" : "展开";
+    icon.textContent = expanded ? "▾" : "▸";
+  };
+
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    expanded = !expanded;
+    sync();
+  });
+
+  sync();
+  return button;
+}
+
+function normalizeSettingPanelHost(panel: HTMLElement | null): void {
+  if (!panel) {
+    return;
+  }
+
+  const itemWrap = panel.parentElement;
+  const titleWrap = itemWrap?.querySelector(":scope > .fn__flex-1");
+  const spacer = itemWrap?.querySelector(":scope > .fn__space");
+
+  panel.classList.remove("fn__flex-center", "fn__size200");
+  panel.style.width = "100%";
+  panel.style.height = "auto";
+  panel.style.minHeight = "0";
+  panel.style.flex = "none";
+  panel.style.alignSelf = "stretch";
+
+  if (itemWrap instanceof HTMLElement) {
+    itemWrap.classList.add("doc-assistant-settings__host-item");
+    itemWrap.style.height = "auto";
+    itemWrap.style.minHeight = "0";
+    itemWrap.style.alignItems = "start";
+  }
+
+  if (titleWrap instanceof HTMLElement) {
+    titleWrap.classList.add("doc-assistant-settings__host-title");
+    titleWrap.style.overflow = "visible";
+    titleWrap.style.minHeight = "0";
+  }
+
+  if (spacer instanceof HTMLElement) {
+    spacer.classList.add("doc-assistant-settings__host-space");
+  }
+}
+
 type MenuRegistrationGroup = {
   key: string;
   label: string;
@@ -149,6 +220,7 @@ export function createPluginSettings(
   const actionSwitches = new Map<ActionKey, HTMLInputElement>();
   const totalActionCount = Object.keys(state).length;
   const setting = new Setting({ width: "640px" });
+  let aiPanel: HTMLDivElement | null = null;
   let menuRegistrationPanel: HTMLDivElement | null = null;
   const enabledSummary = createElement(
     "div",
@@ -171,6 +243,7 @@ export function createPluginSettings(
 
   const allSwitch = createCheckbox({
     checked: isAllDocMenuRegistrationEnabled(state),
+    title: "全部启用文档标题菜单命令",
     onChange: async (checked) => {
       for (const key of Object.keys(state) as ActionKey[]) {
         state[key] = checked;
@@ -210,6 +283,7 @@ export function createPluginSettings(
 
   const aiEnabledInput = createCheckbox({
     checked: aiConfig.enabled,
+    title: "启用 AI 文档功能",
     onChange: async (checked) => {
       Object.assign(aiConfig, normalizeAiServiceConfig({
         ...aiConfig,
@@ -315,7 +389,8 @@ export function createPluginSettings(
     description: "配置兼容 OpenAI API 的服务，用于生成文档摘要和标记口水内容。",
     actionElement: (() => {
       const panel = createElement("div", "doc-assistant-settings__ai-panel");
-      const switchRow = createElement("label", "doc-assistant-settings__ai-switch");
+      aiPanel = panel;
+      const switchRow = createElement("div", "doc-assistant-settings__ai-switch");
       const switchText = createElement("div", "doc-assistant-settings__ai-switch-text");
       switchText.append(
         createElement("div", "doc-assistant-settings__ai-switch-title", "启用 AI 文档功能"),
@@ -325,9 +400,9 @@ export function createPluginSettings(
           "发送当前文档内容到 AI，可用于生成摘要或筛选应加删除线的口水段落。"
         )
       );
-      switchRow.append(switchText, aiEnabledInput);
 
       const fields = createElement("div", "doc-assistant-settings__ai-fields");
+      fields.dataset.settingSection = "ai-fields";
       fields.append(
         createFieldRow({
           label: "Base URL",
@@ -348,6 +423,17 @@ export function createPluginSettings(
         })
       );
 
+      const controls = createElement("div", "doc-assistant-settings__section-controls");
+      controls.append(
+        aiEnabledInput,
+        createCollapseButton({
+          key: "ai-fields",
+          label: "AI 服务设置",
+          content: fields,
+        })
+      );
+
+      switchRow.append(switchText, controls);
       panel.append(switchRow, fields);
       return panel;
     })(),
@@ -389,12 +475,25 @@ export function createPluginSettings(
         ),
         allSwitch
       );
-      summary.append(summaryText, summarySwitch);
 
       const groupsWrap = createElement(
         "div",
         "doc-assistant-settings__menu-registration-groups"
       );
+      groupsWrap.dataset.settingSection = "menu-registration-groups";
+      const summaryControls = createElement(
+        "div",
+        "doc-assistant-settings__section-controls"
+      );
+      summaryControls.append(
+        summarySwitch,
+        createCollapseButton({
+          key: "menu-registration-groups",
+          label: "文档标题菜单命令",
+          content: groupsWrap,
+        })
+      );
+      summary.append(summaryText, summaryControls);
       panel.append(summary, groupsWrap);
 
       buildMenuRegistrationGroups(actions, isMobile, state).forEach((group) => {
@@ -483,9 +582,20 @@ export function createPluginSettings(
   });
 
   const originalOpen = setting.open.bind(setting);
+  const stripDefaultSettingClasses = (panel: HTMLElement | null) => {
+    if (!panel) {
+      return;
+    }
+    normalizeSettingPanelHost(panel);
+  };
   setting.open = ((name: string) => {
     originalOpen(name);
-    menuRegistrationPanel?.classList.remove("fn__flex-center", "fn__size200");
+    stripDefaultSettingClasses(aiPanel);
+    stripDefaultSettingClasses(menuRegistrationPanel);
+    setTimeout(() => {
+      stripDefaultSettingClasses(aiPanel);
+      stripDefaultSettingClasses(menuRegistrationPanel);
+    }, 0);
   }) as typeof setting.open;
 
   return setting;

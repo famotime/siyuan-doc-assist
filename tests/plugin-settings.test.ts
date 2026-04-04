@@ -175,11 +175,23 @@ describe("plugin settings", () => {
     const aiTimeoutInput = aiSettingsPanel.querySelector(
       "[data-setting-key='ai-timeout-seconds']"
     ) as HTMLInputElement;
+    const aiFields = aiSettingsPanel.querySelector(
+      "[data-setting-section='ai-fields']"
+    ) as HTMLElement;
+    const aiCollapseButton = aiSettingsPanel.querySelector(
+      "[data-setting-collapse='ai-fields']"
+    ) as HTMLButtonElement;
     expect(aiEnabledToggle.checked).toBe(false);
     expect(aiBaseUrlInput.value).toBe("");
     expect(aiApiKeyInput.value).toBe("");
     expect(aiModelInput.value).toBe("");
     expect(aiTimeoutInput.value).toBe("30");
+    expect(aiFields.hidden).toBe(false);
+    expect(aiCollapseButton.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      aiCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
+    ).toBe("收起");
+    expect(aiCollapseButton.parentElement?.lastElementChild).toBe(aiCollapseButton);
 
     const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
@@ -195,6 +207,18 @@ describe("plugin settings", () => {
       ".doc-assistant-settings__menu-registration-group-list"
     ) as HTMLElement;
     expect(firstGroupList.hidden).toBe(false);
+    const menuGroups = menuRegistrationPanel.querySelector(
+      "[data-setting-section='menu-registration-groups']"
+    ) as HTMLElement;
+    const menuCollapseButton = menuRegistrationPanel.querySelector(
+      "[data-setting-collapse='menu-registration-groups']"
+    ) as HTMLButtonElement;
+    expect(menuGroups.hidden).toBe(false);
+    expect(menuCollapseButton.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      menuCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
+    ).toBe("收起");
+    expect(menuCollapseButton.parentElement?.lastElementChild).toBe(menuCollapseButton);
 
     const menuActionRows = menuRegistrationPanel.querySelectorAll(
       ".doc-assistant-settings__menu-registration-action"
@@ -216,6 +240,27 @@ describe("plugin settings", () => {
       "[data-action-key='export-current'] input[type='checkbox']"
     ) as HTMLInputElement;
     expect(exportCurrentToggle.checked).toBe(false);
+
+    aiCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(aiFields.hidden).toBe(true);
+    expect(aiCollapseButton.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      aiCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
+    ).toBe("展开");
+
+    aiCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(aiFields.hidden).toBe(false);
+    expect(aiCollapseButton.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      aiCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
+    ).toBe("收起");
+
+    menuCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(menuGroups.hidden).toBe(true);
+    expect(menuCollapseButton.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      menuCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
+    ).toBe("展开");
   });
 
   test("updates persisted registration state when toggling switches in settings page", async () => {
@@ -354,5 +399,61 @@ describe("plugin settings", () => {
     expect(
       insertGroup.querySelector("[data-action-key='export-current'] input[type='checkbox']")
     ).toBeTruthy();
+  });
+
+  test("removes fixed Setting action sizing classes from AI and menu panels when opening", async () => {
+    const { createPluginSettings } = await import("@/ui/plugin-settings");
+
+    const setting = createPluginSettings({
+      actions: ACTIONS,
+      registration: buildDefaultDocMenuRegistration(ACTIONS),
+      isMobile: false,
+      keepNewDocAfterPinnedTabs: false,
+      aiSummaryConfig: {
+        enabled: false,
+        baseUrl: "",
+        apiKey: "",
+        model: "",
+        requestTimeoutSeconds: 30,
+      },
+      onAiSummaryConfigChange: vi.fn(),
+      onToggleKeepNewDocAfterPinnedTabs: vi.fn(),
+      onToggleAll: vi.fn(),
+      onToggleSingle: vi.fn(),
+    });
+
+    const aiPanel = setting.items[1]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
+    const aiHostItem = document.createElement("div");
+    aiHostItem.className = "fn__flex b3-label config__item";
+    const aiTitle = document.createElement("div");
+    aiTitle.className = "fn__flex-1";
+    const aiSpace = document.createElement("span");
+    aiSpace.className = "fn__space";
+    aiHostItem.append(aiTitle, aiSpace, aiPanel);
+
+    const menuHostItem = document.createElement("div");
+    menuHostItem.className = "fn__flex b3-label config__item";
+    const menuTitle = document.createElement("div");
+    menuTitle.className = "fn__flex-1";
+    const menuSpace = document.createElement("span");
+    menuSpace.className = "fn__space";
+    menuHostItem.append(menuTitle, menuSpace, menuRegistrationPanel);
+
+    aiPanel.classList.add("fn__flex-center", "fn__size200");
+    menuRegistrationPanel.classList.add("fn__flex-center", "fn__size200");
+
+    setting.open("siyuan-doc-assist");
+
+    expect(aiPanel.classList.contains("fn__flex-center")).toBe(false);
+    expect(aiPanel.classList.contains("fn__size200")).toBe(false);
+    expect(menuRegistrationPanel.classList.contains("fn__flex-center")).toBe(false);
+    expect(menuRegistrationPanel.classList.contains("fn__size200")).toBe(false);
+    expect(aiHostItem.classList.contains("doc-assistant-settings__host-item")).toBe(true);
+    expect(menuHostItem.classList.contains("doc-assistant-settings__host-item")).toBe(true);
+    expect(aiTitle.classList.contains("doc-assistant-settings__host-title")).toBe(true);
+    expect(menuTitle.classList.contains("doc-assistant-settings__host-title")).toBe(true);
+    expect(aiSpace.classList.contains("doc-assistant-settings__host-space")).toBe(true);
+    expect(menuSpace.classList.contains("doc-assistant-settings__host-space")).toBe(true);
   });
 });
