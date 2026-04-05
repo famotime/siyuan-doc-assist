@@ -402,6 +402,45 @@ describe("plugin settings", () => {
     ).toBeTruthy();
   });
 
+  test("keeps mobile-disabled actions in their groups and exposes the disabled reason", async () => {
+    const { createPluginSettings } = await import("@/ui/plugin-settings");
+
+    createPluginSettings({
+      actions: ACTIONS,
+      registration: buildDefaultDocMenuRegistration(ACTIONS),
+      isMobile: true,
+      keepNewDocAfterPinnedTabs: false,
+      aiSummaryConfig: {
+        enabled: false,
+        baseUrl: "",
+        apiKey: "",
+        model: "",
+        requestTimeoutSeconds: 30,
+      },
+      onAiSummaryConfigChange: vi.fn(),
+      onToggleKeepNewDocAfterPinnedTabs: vi.fn(),
+      onToggleAll: vi.fn(),
+      onToggleSingle: vi.fn(),
+    });
+
+    const setting = settingInstances[0];
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
+    const moveBacklinksRow = menuRegistrationPanel.querySelector(
+      "[data-action-key='move-backlinks']"
+    ) as HTMLElement;
+    const moveBacklinksToggle = moveBacklinksRow.querySelector(
+      "input[type='checkbox']"
+    ) as HTMLInputElement;
+    const moveBacklinksMeta = moveBacklinksRow.querySelector(
+      ".doc-assistant-settings__menu-registration-action-meta"
+    ) as HTMLElement;
+
+    expect(moveBacklinksRow.dataset.disabled).toBe("true");
+    expect(moveBacklinksToggle.disabled).toBe(true);
+    expect(moveBacklinksToggle.title).toContain("该操作当前仅支持桌面端");
+    expect(moveBacklinksMeta.textContent).toContain("该操作当前仅支持桌面端");
+  });
+
   test("removes fixed Setting action sizing classes from AI and menu panels when opening", async () => {
     const { createPluginSettings } = await import("@/ui/plugin-settings");
 

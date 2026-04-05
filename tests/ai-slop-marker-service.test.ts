@@ -69,6 +69,42 @@ describe("ai slop marker service", () => {
     })).rejects.toThrow("AI 服务配置不完整");
   });
 
+  test("accepts segmented message content arrays when extracting irrelevant paragraph ids", async () => {
+    const forwardProxy = vi.fn().mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: [
+                { text: "```json\n" },
+                { text: "{\"paragraphIds\":[\"p2\",\"missing\"]}" },
+                { text: "\n```" },
+              ],
+            },
+          },
+        ],
+      }),
+    });
+    const service = createAiSlopMarkerService({ forwardProxy });
+
+    const result = await service.detectIrrelevantParagraphIds({
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4.1-mini",
+        requestTimeoutSeconds: 45,
+      },
+      paragraphs: [
+        { id: "p1", markdown: "第一段" },
+        { id: "p2", markdown: "第二段" },
+      ],
+    });
+
+    expect(result).toEqual(["p2"]);
+  });
+
   test("requests paragraph highlight fragments from an OpenAI-compatible chat completion endpoint", async () => {
     const forwardProxy = vi.fn().mockResolvedValue({
       status: 200,

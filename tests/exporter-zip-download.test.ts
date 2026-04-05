@@ -222,6 +222,30 @@ describe("export docs zip download", () => {
     });
   });
 
+  test("downloads zip from export route via GET when kernel returns an export path", async () => {
+    exportMdContentMock.mockResolvedValueOnce({
+      hPath: "/folder/当前文档",
+      content: "![img](assets/main.png)\n正文",
+    } as any);
+    exportResourcesMock.mockResolvedValueOnce({
+      path: "/export/bundles/current-doc.zip",
+    } as any);
+
+    const result = await exportCurrentDocMarkdown("doc1");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith("/export/bundles/current-doc.zip", {
+      method: "GET",
+    });
+    const anchor = (globalThis as any).document.createElement.mock.results[0].value;
+    expect(anchor.download).toBe("当前文档.zip");
+    expect(result).toEqual({
+      mode: "zip",
+      fileName: "当前文档.zip",
+      zipPath: "/export/bundles/current-doc.zip",
+      skippedAssetCount: 0,
+    });
+  });
+
   test("sanitizes illegal separators but preserves Chinese quotes and em dash in filenames", async () => {
     await (exportDocIdsAsMarkdownZip as any)(["doc1"], "当前“文档”——标题/草稿:一");
 

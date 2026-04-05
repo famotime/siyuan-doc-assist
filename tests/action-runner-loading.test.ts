@@ -1948,6 +1948,22 @@ describe("action-runner loading guard", () => {
     expect(getBlockKramdownsMock).not.toHaveBeenCalled();
   });
 
+  test("shows no-op message when selected blocks have no removable spacing chars", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">甲乙丙</div>
+      <div data-node-id="b" class="protyle-wysiwyg--select">丁戊己</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    const runner = createRunner();
+
+    await runner.runAction("remove-selected-spacing" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(getBlockKramdownsMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("未发现可清理字符", 4000, "info");
+  });
+
   test("toggles punctuation only inside partial text selection within a single block", async () => {
     const root = document.createElement("div");
     root.innerHTML = `<div data-node-id="a">前缀Hello, world!后缀</div>`;
@@ -1994,6 +2010,22 @@ describe("action-runner loading guard", () => {
     expect(root.querySelector("[data-node-id='b']")?.textContent).toBe("继续;测试?");
     expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
     expect(getBlockKramdownsMock).not.toHaveBeenCalled();
+  });
+
+  test("shows no-op message when selected blocks have no convertible punctuation", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">纯中文内容</div>
+      <div data-node-id="b" class="protyle-wysiwyg--select">English words only</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    const runner = createRunner();
+
+    await runner.runAction("toggle-selected-punctuation" as any, undefined, protyle);
+
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(getBlockKramdownsMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("选中内容未发现可互转标点", 4000, "info");
   });
 
   test("treats data-node-selected attribute as selected block marker", async () => {

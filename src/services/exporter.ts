@@ -1,21 +1,23 @@
 import {
-  assetPathBasename,
   normalizeUploadFileName,
   getExportResourceAssetPaths,
   rewriteMarkdownAssetLinksToBasename,
 } from "@/core/export-media-core";
 import { buildKeyInfoMarkdown, filterKeyInfoItems, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
-import { buildGetFileRequest, decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { getDocKeyInfo } from "@/services/key-info";
 import {
   exportMdContent,
   exportResources,
-  getFileBlob,
-  putBlobFile,
   putFile,
   removeFile,
 } from "@/services/kernel";
+import {
+  basenameFromWorkspacePath,
+  triggerTextDownload,
+  triggerWorkspaceFileDownload,
+} from "@/services/exporter-download";
+import { randomId, stageAssetsToTempDir } from "@/services/exporter-staging";
 import { getChildDocs } from "@/services/link-resolver";
 
 const exporterLogger = createDocAssistantLogger("Exporter");
@@ -83,108 +85,6 @@ function isMissingItemError(error: unknown): boolean {
   );
 }
 
-function triggerDownload(fileName: string, content: string) {
-  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 1000);
-}
-
-function normalizeFileDownloadPath(path: string): string {
-  const trimmed = (path || "").trim();
-  if (!trimmed) {
-    return "/";
-  }
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-}
-
-function isExportRoutePath(path: string): boolean {
-  const normalized = normalizeFileDownloadPath(path);
-  return normalized.startsWith("/export/");
-}
-
-async function triggerWorkspaceFileDownload(relativePath: string, downloadName?: string) {
-  const normalized = normalizeFileDownloadPath(relativePath);
-  let response: Response;
-  if (isExportRoutePath(normalized)) {
-    response = await fetch(normalized, { method: "GET" });
-  } else {
-    const request = buildGetFileRequest(normalized);
-    response = await fetch(request.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: request.body,
-    });
-  }
-  if (!response.ok) {
-    throw new Error(`下载失败：${response.status}`);
-  }
-  const contentType = response.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    const json = await response.json().catch(() => null);
-    const message = json?.msg || "下载失败";
-    throw new Error(message);
-  }
-  const blob = await response.blob();
-  const href = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = href;
-  if (downloadName) {
-    a.download = downloadName;
-  }
-  a.click();
-  setTimeout(() => {
-    URL.revokeObjectURL(href);
-  }, 1000);
-}
-
-function randomId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function basenameFromWorkspacePath(path: string): string {
-  const cleaned = (path || "").replace(/[?#].*$/, "");
-  const parts = cleaned.split("/").filter(Boolean);
-  const name = parts.length ? parts[parts.length - 1] : "";
-  return decodeURIComponentSafe(name);
-}
-
-async function stageAssetsToTempDir(
-  assetPaths: string[],
-  tempAssetsDir: string
-): Promise<{ stagedCount: number; skippedAssetCount: number }> {
-  let stagedCount = 0;
-  let skippedAssetCount = 0;
-  for (const assetPath of assetPaths) {
-    const name = normalizeUploadFileName(assetPathBasename(assetPath), "asset.bin");
-    try {
-      const data = await getFileBlob(assetPath);
-      await putBlobFile(`${tempAssetsDir}/${name}`, data, name);
-      stagedCount += 1;
-    } catch (error) {
-      if (!isMissingItemError(error)) {
-        throw error;
-      }
-      skippedAssetCount += 1;
-      exporterLogger.warn("skip missing export asset", {
-        assetPath,
-        reason: toErrorMessage(error),
-      });
-    }
-  }
-  return {
-    stagedCount,
-    skippedAssetCount,
-  };
-}
-
 export type ExportCurrentDocResult = {
   mode: "md" | "zip";
   fileName: string;
@@ -225,7 +125,7 @@ export async function exportCurrentDocMarkdown(
   const assetPaths = getExportResourceAssetPaths(rawContent);
 
   if (!assetPaths.length) {
-    triggerDownload(markdownName, content);
+    triggerTextDownload(markdownName, content);
     return {
       mode: "md",
       fileName: markdownName,
