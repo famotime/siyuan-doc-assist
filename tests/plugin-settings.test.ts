@@ -162,6 +162,7 @@ describe("plugin settings", () => {
     expect(tabToggle.checked).toBe(false);
 
     const aiSettingsPanel = setting.items[1]?.actionElement as HTMLElement;
+    expect(aiSettingsPanel.classList.contains("doc-assistant-settings__section-card")).toBe(true);
     const aiEnabledToggle = aiSettingsPanel.querySelector(
       "[data-setting-key='ai-enabled']"
     ) as HTMLInputElement;
@@ -196,6 +197,7 @@ describe("plugin settings", () => {
     expect(aiCollapseButton.parentElement?.lastElementChild).toBe(aiCollapseButton);
 
     const diarySettingsPanel = setting.items[2]?.actionElement as HTMLElement;
+    expect(diarySettingsPanel.classList.contains("doc-assistant-settings__section-card")).toBe(true);
     const diaryTemplateInput = diarySettingsPanel.querySelector(
       "[data-setting-key='monthly-diary-template']"
     ) as HTMLTextAreaElement;
@@ -216,6 +218,9 @@ describe("plugin settings", () => {
 
     const menuRegistrationPanel = setting.items[3]?.actionElement as HTMLElement;
     expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
+      true
+    );
+    expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__section-card")).toBe(
       true
     );
 

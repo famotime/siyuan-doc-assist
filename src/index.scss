@@ -99,6 +99,17 @@
 }
 
 .doc-assistant-settings__ai-panel {
+  --doc-assistant-settings-accent-border: color-mix(
+    in srgb,
+    var(--b3-border-color) 72%,
+    #9bc4dc 28%
+  );
+  --doc-assistant-settings-accent-bg:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--b3-theme-background) 95%, #eef6fb 5%),
+      color-mix(in srgb, var(--b3-theme-surface) 92%, #e3f1f9 8%)
+    );
   width: 100%;
   display: grid;
   align-content: start;
@@ -109,6 +120,17 @@
 }
 
 .doc-assistant-settings__diary-panel {
+  --doc-assistant-settings-accent-border: color-mix(
+    in srgb,
+    var(--b3-border-color) 72%,
+    #d7bf86 28%
+  );
+  --doc-assistant-settings-accent-bg:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--b3-theme-background) 95%, #fbf4e8 5%),
+      color-mix(in srgb, var(--b3-theme-surface) 92%, #f6eddc 8%)
+    );
   width: 100%;
   display: grid;
   align-content: start;
@@ -118,6 +140,28 @@
   gap: 0;
 }
 
+.doc-assistant-settings__menu-registration {
+  --doc-assistant-settings-accent-border: color-mix(
+    in srgb,
+    var(--b3-border-color) 72%,
+    #9aceb2 28%
+  );
+  --doc-assistant-settings-accent-bg:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--b3-theme-background) 95%, #e3f4ea 5%),
+      color-mix(in srgb, var(--b3-theme-surface) 92%, #d7efdf 8%)
+    );
+}
+
+.doc-assistant-settings__section-card {
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--doc-assistant-settings-accent-border);
+  background: var(--doc-assistant-settings-accent-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
 .doc-assistant-settings__ai-switch {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -125,15 +169,13 @@
   gap: 10px;
   align-self: start;
   min-height: 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--b3-border-color) 72%, #9bc4dc 28%);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--b3-theme-background) 95%, #eef6fb 5%),
-      color-mix(in srgb, var(--b3-theme-surface) 92%, #e3f1f9 8%)
-    );
+  padding: 0 0 10px;
+  border-bottom: 1px solid color-mix(
+    in srgb,
+    var(--doc-assistant-settings-accent-border) 78%,
+    transparent
+  );
+  background: transparent;
 }
 
 .doc-assistant-settings__section-controls {
@@ -203,7 +245,7 @@
 .doc-assistant-settings__ai-fields {
   display: grid;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 10px;
 }
 
 .doc-assistant-settings__ai-fields[hidden] {
@@ -253,15 +295,13 @@
   gap: 10px;
   align-self: start;
   min-height: 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--b3-border-color) 72%, #9aceb2 28%);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--b3-theme-background) 95%, #e3f4ea 5%),
-      color-mix(in srgb, var(--b3-theme-surface) 92%, #d7efdf 8%)
-    );
+  padding: 0 0 10px;
+  border-bottom: 1px solid color-mix(
+    in srgb,
+    var(--doc-assistant-settings-accent-border) 78%,
+    transparent
+  );
+  background: transparent;
 }
 
 .doc-assistant-settings__menu-registration-summary-text {
@@ -297,7 +337,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
-  margin-top: 6px;
+  margin-top: 10px;
 }
 
 .doc-assistant-settings__menu-registration-groups[hidden] {

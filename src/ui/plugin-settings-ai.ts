@@ -136,7 +136,10 @@ export function createAiSettingsPanel(
     },
   });
 
-  const panel = createElement("div", "doc-assistant-settings__ai-panel");
+  const panel = createElement(
+    "div",
+    "doc-assistant-settings__ai-panel doc-assistant-settings__section-card"
+  );
   const switchRow = createElement("div", "doc-assistant-settings__ai-switch");
   const switchText = createElement("div", "doc-assistant-settings__ai-switch-text");
   switchText.append(

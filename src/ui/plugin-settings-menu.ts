@@ -84,7 +84,10 @@ export function createMenuRegistrationPanel(
     },
   });
 
-  const panel = createElement("div", "doc-assistant-settings__menu-registration");
+  const panel = createElement(
+    "div",
+    "doc-assistant-settings__menu-registration doc-assistant-settings__section-card"
+  );
   const summary = createElement(
     "div",
     "doc-assistant-settings__menu-registration-summary"

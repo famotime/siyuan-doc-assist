@@ -14,7 +14,10 @@ type CreateMonthlyDiarySettingsPanelOptions = {
 export function createMonthlyDiarySettingsPanel(
   options: CreateMonthlyDiarySettingsPanelOptions
 ): HTMLDivElement {
-  const panel = createElement("div", "doc-assistant-settings__diary-panel");
+  const panel = createElement(
+    "div",
+    "doc-assistant-settings__diary-panel doc-assistant-settings__section-card"
+  );
   const header = createElement("div", "doc-assistant-settings__ai-switch");
   const headerText = createElement("div", "doc-assistant-settings__ai-switch-text");
   headerText.append(
