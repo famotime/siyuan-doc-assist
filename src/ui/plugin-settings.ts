@@ -3,6 +3,7 @@ import { AiServiceConfig } from "@/core/ai-service-config-core";
 import { DocMenuRegistrationState } from "@/core/doc-menu-registration-core";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
+import { createMonthlyDiarySettingsPanel } from "@/ui/plugin-settings-diary";
 import { installSettingHostNormalizer } from "@/ui/plugin-settings-host";
 import { createMenuRegistrationPanel } from "@/ui/plugin-settings-menu";
 import { createCheckbox } from "@/ui/plugin-settings-shared";
@@ -13,7 +14,9 @@ type CreatePluginSettingsOptions = {
   isMobile: boolean;
   keepNewDocAfterPinnedTabs: boolean;
   aiSummaryConfig: AiServiceConfig;
+  monthlyDiaryTemplate: string;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
+  onMonthlyDiaryTemplateChange: (template: string) => Promise<void> | void;
   onToggleKeepNewDocAfterPinnedTabs: (enabled: boolean) => Promise<void> | void;
   onToggleAll: (enabled: boolean) => Promise<void> | void;
   onToggleSingle: (key: ActionKey, enabled: boolean) => Promise<void> | void;
@@ -46,6 +49,17 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     actionElement: aiPanel,
   });
 
+  const diaryPanel = createMonthlyDiarySettingsPanel({
+    template: options.monthlyDiaryTemplate,
+    onTemplateChange: options.onMonthlyDiaryTemplateChange,
+  });
+  setting.addItem({
+    title: "本月日记模板",
+    direction: "column",
+    description: "定义单日模板，创建本月日记时会自动按当前月份逐日展开。",
+    actionElement: diaryPanel,
+  });
+
   const menuRegistrationPanel = createMenuRegistrationPanel({
     actions: options.actions,
     registration: options.registration,
@@ -60,7 +74,7 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     actionElement: menuRegistrationPanel,
   });
 
-  installSettingHostNormalizer(setting, [aiPanel, menuRegistrationPanel]);
+  installSettingHostNormalizer(setting, [aiPanel, diaryPanel, menuRegistrationPanel]);
 
   return setting;
 }

@@ -7,9 +7,16 @@ import {
   toBacklinkMarkdown,
   toChildDocMarkdown,
 } from "@/services/link-resolver";
+import { createMonthlyDiaryDoc } from "@/services/monthly-diary";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 
-export function createInsertActionHandlers(): PartialActionHandlerMap {
+type CreateInsertActionHandlersOptions = {
+  getMonthlyDiaryTemplate?: () => string | undefined;
+};
+
+export function createInsertActionHandlers(
+  options: CreateInsertActionHandlersOptions = {}
+): PartialActionHandlerMap {
   return {
     "insert-backlinks": async (docId) => {
       const backlinks = await getBacklinkDocs(docId);
@@ -42,6 +49,13 @@ export function createInsertActionHandlers(): PartialActionHandlerMap {
       await appendBlock(markdown, docId);
       const skipSuffix = filtered.skipped.length ? `，跳过已存在 ${filtered.skipped.length} 个` : "";
       showMessage(`已插入 ${filtered.items.length} 个子文档链接${skipSuffix}`, 5000, "info");
+    },
+    "create-monthly-diary": async (docId) => {
+      const result = await createMonthlyDiaryDoc({
+        currentDocId: docId,
+        template: options.getMonthlyDiaryTemplate?.(),
+      });
+      showMessage(`已创建本月日记：${result.title}（${result.dayCount} 天）`, 5000, "info");
     },
   };
 }

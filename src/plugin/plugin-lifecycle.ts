@@ -39,6 +39,7 @@ import {
   setKeepNewDocAfterPinnedTabs,
   setAllPluginDocMenuRegistration,
   setAiSummaryConfig,
+  setMonthlyDiaryTemplate,
   setPluginDocActionFavorite,
   setPluginDocActionOrder,
   setPluginKeyInfoFilter,
@@ -68,6 +69,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private keepNewDocAfterPinnedTabs =
     buildDefaultPluginDocMenuState(ACTIONS).keepNewDocAfterPinnedTabs;
   private aiSummaryConfig = buildDefaultPluginDocMenuState(ACTIONS).aiSummaryConfig;
+  private monthlyDiaryTemplate = buildDefaultPluginDocMenuState(ACTIONS).monthlyDiaryTemplate;
   private readonly knownTabIds = new Set<string>();
   private readonly pendingPinnedTabPlacementTasks =
     new Map<string, ReturnType<typeof setTimeout>>();
@@ -80,6 +82,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     setBusy: (busy) => this.setActionBusy(busy),
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
     getAiSummaryConfig: () => this.aiSummaryConfig,
+    getMonthlyDiaryTemplate: () => this.monthlyDiaryTemplate,
     resolveNetworkLensPlugin: () => resolveNetworkLensPluginFromPlugins(this.app?.plugins),
   });
 
@@ -237,7 +240,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
       isMobile: this.isMobile,
       keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
       aiSummaryConfig: this.aiSummaryConfig,
+      monthlyDiaryTemplate: this.monthlyDiaryTemplate,
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
+      onMonthlyDiaryTemplateChange: (template) => this.setMonthlyDiaryTemplate(template),
       onToggleKeepNewDocAfterPinnedTabs: (enabled) =>
         this.setKeepNewDocAfterPinnedTabs(enabled),
       onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
@@ -276,6 +281,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       keyInfoFilterState: this.keyInfoFilterState,
       keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
       aiSummaryConfig: this.aiSummaryConfig,
+      monthlyDiaryTemplate: this.monthlyDiaryTemplate,
     };
   }
 
@@ -286,6 +292,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.keyInfoFilterState = state.keyInfoFilterState;
     this.keepNewDocAfterPinnedTabs = state.keepNewDocAfterPinnedTabs;
     this.aiSummaryConfig = state.aiSummaryConfig;
+    this.monthlyDiaryTemplate = state.monthlyDiaryTemplate;
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {
@@ -353,6 +360,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
   async setAiSummaryConfig(config: AiServiceConfig) {
     this.applyDocMenuState(
       setAiSummaryConfig(this.snapshotDocMenuState(), config)
+    );
+    await this.persistDocMenuRegistrationState();
+  }
+
+  async setMonthlyDiaryTemplate(template: string) {
+    this.applyDocMenuState(
+      setMonthlyDiaryTemplate(this.snapshotDocMenuState(), template)
     );
     await this.persistDocMenuRegistrationState();
   }

@@ -131,6 +131,12 @@ export type ChildDocMeta = {
   updated: string;
 };
 
+export type NotebookConfResponse = {
+  box: string;
+  conf: NotebookConf;
+  name: string;
+};
+
 type SyTreeNode = {
   ID?: string;
   Properties?: {
@@ -265,6 +271,20 @@ export async function createDocWithMd(
     notebook,
     path,
     markdown,
+  });
+}
+
+export async function getNotebookConf(
+  notebook: string
+): Promise<NotebookConfResponse> {
+  return requestApi<NotebookConfResponse>("/api/notebook/getNotebookConf", {
+    notebook,
+  });
+}
+
+export async function renderSprigTemplate(template: string): Promise<string> {
+  return requestApi<string>("/api/template/renderSprig", {
+    template,
   });
 }
 

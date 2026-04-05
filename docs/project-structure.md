@@ -10,14 +10,14 @@
 
 | 目录 | 文件数 | 说明 |
 | --- | ---: | --- |
-| `src/` | 101 | 插件源码 |
-| `src/core/` | 25 | 纯逻辑与转换规则 |
+| `src/` | 104 | 插件源码 |
+| `src/core/` | 26 | 纯逻辑与转换规则 |
 | `src/plugin/` | 20 | 生命周期、动作编排、控制器 |
-| `src/services/` | 37 | Kernel / 文件系统 / AI / 导出服务 |
-| `src/ui/` | 11 | Dock、Dialog、Setting 面板 UI |
+| `src/services/` | 38 | Kernel / 文件系统 / AI / 导出服务 |
+| `src/ui/` | 12 | Dock、Dialog、Setting 面板 UI |
 | `src/types/` | 4 | 类型声明 |
 | `src/i18n/` | 2 | 国际化文案 |
-| `tests/` | 69 | Vitest 用例与 mocks |
+| `tests/` | 71 | Vitest 用例与 mocks |
 | `assets/` | 2 | README 截图资源 |
 | `docs/` | 3 | 结构文档、重构计划、变更记录 |
 | `developer_docs/` | 26 | 本地 SiYuan 开发参考 |
@@ -74,7 +74,7 @@
 | `src/index.ts` | 加载全局样式并导出 `plugin-lifecycle` |
 | `src/index.scss` | 插件全局样式 |
 
-### 4.3 `src/core/`（25 个文件）
+### 4.3 `src/core/`（26 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -99,6 +99,7 @@
 | `src/core/markdown-cleanup-core.ts` | Markdown 清理公共出口 |
 | `src/core/markdown-cleanup-text-core.ts` | 文本空行、行尾空格清理 |
 | `src/core/markdown-style-core.ts` | 选中块加粗/高亮转换 |
+| `src/core/monthly-diary-core.ts` | 本月日记默认模板、日期变量渲染与月度内容拼装 |
 | `src/core/move-core.ts` | 文档移动冲突策略 |
 | `src/core/pinned-tab-placement-core.ts` | 新打开页签在钉住页签后的放置策略 |
 | `src/core/punctuation-toggle-core.ts` | 中英文标点检测与互转 |
@@ -114,7 +115,7 @@
 | `src/plugin/action-runner-context.ts` | 当前文档、当前块、选中块上下文解析 |
 | `src/plugin/action-runner-dispatcher.ts` | `ActionKey -> handler` 分发表与类型定义 |
 | `src/plugin/action-runner-export-handlers.ts` | 导出动作处理器 |
-| `src/plugin/action-runner-insert-handlers.ts` | 插入反链/子文档列表等动作处理器 |
+| `src/plugin/action-runner-insert-handlers.ts` | 插入反链/子文档列表、本月日记创建等动作处理器 |
 | `src/plugin/action-runner-media-handlers.ts` | 图片转换、移除等媒体动作处理器 |
 | `src/plugin/action-runner-organize-handlers.ts` | 去重、移动、打开汇总页等整理类动作处理器 |
 | `src/plugin/action-runner-selection-handlers.ts` | 选区/选中块动作处理器，如加粗、高亮、空格清理、标点互转、列表块合并 |
@@ -126,10 +127,10 @@
 | `src/plugin/key-info-state.ts` | 关键内容列表合并策略 |
 | `src/plugin/plugin-lifecycle-events.ts` | 生命周期事件绑定与解绑辅助 |
 | `src/plugin/plugin-lifecycle-menu.ts` | 标题菜单注册、命令注册与菜单刷新 |
-| `src/plugin/plugin-lifecycle-state.ts` | 插件设置状态默认值、标准化、序列化与持久化 |
+| `src/plugin/plugin-lifecycle-state.ts` | 插件设置状态默认值、标准化、序列化与持久化，含 AI 与月记模板配置 |
 | `src/plugin/plugin-lifecycle.ts` | 插件主类与组合根 |
 
-### 4.5 `src/services/`（37 个文件）
+### 4.5 `src/services/`（38 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -167,11 +168,12 @@
 | `src/services/key-info.ts` | 关键内容总装配服务 |
 | `src/services/link-resolver.ts` | 反链/正链/子文档解析与 Markdown 列表生成 |
 | `src/services/mover.ts` | 文档移动执行器 |
+| `src/services/monthly-diary.ts` | 基于当前笔记本 Daily Note 路径创建本月月记文档 |
 | `src/services/network-lens-ai-index.ts` | 已打开文档汇总页的索引与内容整理服务 |
 | `src/services/open-doc-summary.ts` | 已打开文档汇总页生成与写入 |
 | `src/services/request.ts` | `fetchSyncPost` 二次封装与统一错误抛出 |
 
-### 4.6 `src/ui/`（11 个文件）
+### 4.6 `src/ui/`（12 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -182,10 +184,11 @@
 | `src/ui/key-info-dock-state.ts` | Dock 渲染标志与筛选状态投影 |
 | `src/ui/key-info-dock.ts` | Key-info Dock 列表渲染、局部刷新与滚动管理 |
 | `src/ui/plugin-settings-ai.ts` | AI 设置面板 DOM 组装与状态同步 |
+| `src/ui/plugin-settings-diary.ts` | 本月日记模板设置面板 |
 | `src/ui/plugin-settings-host.ts` | SiYuan `Setting` 宿主节点修正与面板归一化 |
 | `src/ui/plugin-settings-menu.ts` | 文档标题菜单注册分组面板与开关联动 |
-| `src/ui/plugin-settings-shared.ts` | Setting 面板通用 DOM 原语：checkbox、input、collapse button、field row |
-| `src/ui/plugin-settings.ts` | 插件设置页装配层，串联钉住页签、AI 面板、菜单注册面板 |
+| `src/ui/plugin-settings-shared.ts` | Setting 面板通用 DOM 原语：checkbox、input、textarea、collapse button、field row |
+| `src/ui/plugin-settings.ts` | 插件设置页装配层，串联钉住页签、AI 面板、月记模板面板、菜单注册面板 |
 
 ### 4.7 `src/types/` 与 `src/i18n/`
 
@@ -207,7 +210,7 @@
 - `plugin/ui`：ActionRunner、设置页、菜单注册、Dock 状态与控制器。
 - `tests/mocks/siyuan.ts`：SiYuan API mock。
 
-### 5.2 全量测试文件列表（69）
+### 5.2 全量测试文件列表（71）
 
 ```text
 tests/action-runner-block-transform.test.ts
@@ -264,6 +267,8 @@ tests/markdown-cleanup-blocks.test.ts
 tests/markdown-cleanup-clipped-list.test.ts
 tests/markdown-cleanup-core.test.ts
 tests/markdown-style-core.test.ts
+tests/monthly-diary-core.test.ts
+tests/monthly-diary-service.test.ts
 tests/mocks/siyuan.ts
 tests/move-core.test.ts
 tests/mover.test.ts

@@ -59,6 +59,27 @@ export function createTextInput(options: {
   return input;
 }
 
+export function createTextareaInput(options: {
+  value: string;
+  placeholder?: string;
+  rows?: number;
+  dataSettingKey: string;
+  onChange: (value: string) => Promise<void> | void;
+}): HTMLTextAreaElement {
+  const textarea = document.createElement("textarea");
+  textarea.className = "b3-text-field doc-assistant-settings__textarea";
+  textarea.value = options.value;
+  textarea.dataset.settingKey = options.dataSettingKey;
+  textarea.rows = options.rows || 8;
+  if (options.placeholder) {
+    textarea.placeholder = options.placeholder;
+  }
+  textarea.addEventListener("change", () => {
+    void options.onChange(textarea.value);
+  });
+  return textarea;
+}
+
 export function createFieldRow(options: {
   label: string;
   hint?: string;

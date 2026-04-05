@@ -90,6 +90,7 @@
 }
 
 .doc-assistant-settings__host-item > .doc-assistant-settings__ai-panel,
+.doc-assistant-settings__host-item > .doc-assistant-settings__diary-panel,
 .doc-assistant-settings__host-item > .doc-assistant-settings__menu-registration {
   grid-column: 1 / -1;
   margin-top: 0 !important;
@@ -98,6 +99,16 @@
 }
 
 .doc-assistant-settings__ai-panel {
+  width: 100%;
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
+  height: auto !important;
+  min-height: 0 !important;
+  gap: 0;
+}
+
+.doc-assistant-settings__diary-panel {
   width: 100%;
   display: grid;
   align-content: start;
@@ -206,6 +217,15 @@
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--b3-border-color) 70%, transparent);
   background: color-mix(in srgb, var(--b3-theme-background) 94%, #edf5fa 6%);
+}
+
+.doc-assistant-settings__textarea {
+  width: 100%;
+  min-height: 280px;
+  resize: vertical;
+  font-family: var(--b3-font-family-code);
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .doc-assistant-settings__ai-field-text {

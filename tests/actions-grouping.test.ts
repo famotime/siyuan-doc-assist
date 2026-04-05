@@ -7,6 +7,7 @@ describe("actions grouping", () => {
 
     expect(groups.get("insert-backlinks")).toBe("insert");
     expect(groups.get("insert-child-docs")).toBe("insert");
+    expect(groups.get("create-monthly-diary")).toBe("insert");
     expect(groups.get("insert-blank-before-headings")).toBe("insert");
     expect(groups.get("mark-invalid-links-refs")).toBe("insert");
     expect(groups.get("insert-doc-summary")).toBe("ai");
