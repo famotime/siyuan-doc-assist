@@ -21,12 +21,15 @@ export type {
 } from "@/core/markdown-cleanup-ai-core";
 
 export {
+  findClippedListContinuationMerges,
   findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
 } from "@/core/markdown-cleanup-block-core";
 export type {
   BlankParagraphCleanupResult,
+  ClippedListContinuationMerge,
+  ClippedListContinuationMergeResult,
   DeleteFromCurrentBlockResult,
   HeadingBlankParagraphInsertResult,
   ParagraphBlockMeta,

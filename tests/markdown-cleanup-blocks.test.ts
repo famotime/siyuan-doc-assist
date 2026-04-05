@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  findClippedListContinuationMerges,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
   findDeleteFromCurrentBlockIds,
@@ -106,5 +107,56 @@ describe("markdown-cleanup-core (blocks)", () => {
     const result = findDeleteFromCurrentBlockIds(blocks, "missing");
     expect(result.deleteIds).toEqual([]);
     expect(result.deleteCount).toBe(0);
+  });
+
+  test("finds unordered and ordered clipped list marker paragraphs that should merge with next paragraph", () => {
+    const blocks = [
+      { id: "u1", type: "p", content: "-", markdown: "- " },
+      { id: "u2", type: "p", content: "第一项", markdown: "第一项" },
+      { id: "o1", type: "p", content: "1.", markdown: "1. " },
+      { id: "o2", type: "p", content: "第二项", markdown: "第二项" },
+      { id: "plain", type: "p", content: "普通段落", markdown: "普通段落" },
+    ];
+
+    const result = findClippedListContinuationMerges(blocks);
+
+    expect(result.mergeCount).toBe(2);
+    expect(result.merges).toEqual([
+      {
+        markerBlockId: "u1",
+        contentBlockId: "u2",
+        mergedMarkdown: "- 第一项",
+      },
+      {
+        markerBlockId: "o1",
+        contentBlockId: "o2",
+        mergedMarkdown: "1. 第二项",
+      },
+    ]);
+  });
+
+  test("normalizes standalone bullet paragraph and ordered list marker block from clipped doc into merge candidates", () => {
+    const blocks = [
+      { id: "bullet", type: "p", content: "•", markdown: "•" },
+      { id: "bullet-content", type: "p", content: "概念超短片", markdown: "概念超短片 " },
+      { id: "ordered", type: "l", content: " ", markdown: "1." },
+      { id: "ordered-content", type: "p", content: "导入 Skill", markdown: "导入 Skill " },
+    ];
+
+    const result = findClippedListContinuationMerges(blocks);
+
+    expect(result.mergeCount).toBe(2);
+    expect(result.merges).toEqual([
+      {
+        markerBlockId: "bullet",
+        contentBlockId: "bullet-content",
+        mergedMarkdown: "- 概念超短片",
+      },
+      {
+        markerBlockId: "ordered",
+        contentBlockId: "ordered-content",
+        mergedMarkdown: "1. 导入 Skill",
+      },
+    ]);
   });
 });

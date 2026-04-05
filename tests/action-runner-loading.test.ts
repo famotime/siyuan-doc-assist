@@ -2153,6 +2153,79 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("已清理剪藏内容，共更新 1 个块", 5000, "info");
   });
 
+  test("merges clipped list marker paragraph with next paragraph into one standard list item", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "marker-1",
+        type: "p",
+        content: "-",
+        markdown: "- ",
+        resolved: true,
+      } as any,
+      {
+        id: "content-1",
+        type: "p",
+        content: "第一项内容",
+        markdown: "第一项内容",
+        resolved: true,
+      } as any,
+    ]);
+    deleteBlocksByIdsMock.mockResolvedValue({
+      deletedCount: 1,
+      failedIds: [],
+    });
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-clipped-list-prefixes" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("marker-1", "- 第一项内容");
+    expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["content-1"], { concurrency: 6 });
+    expect(showMessageMock).toHaveBeenCalledWith("已清理剪藏内容，共更新 1 个块", 5000, "info");
+  });
+
+  test("merges standalone bullet paragraph from clipped doc into standard unordered list item", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "marker-1",
+        type: "p",
+        content: "•",
+        markdown: "•",
+        resolved: true,
+      } as any,
+      {
+        id: "content-1",
+        type: "p",
+        content: "第一项内容",
+        markdown: "第一项内容 ",
+        resolved: true,
+      } as any,
+    ]);
+    deleteBlocksByIdsMock.mockResolvedValue({
+      deletedCount: 1,
+      failedIds: [],
+    });
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-clipped-list-prefixes" as any);
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("marker-1", "- 第一项内容");
+    expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["content-1"], { concurrency: 6 });
+  });
+
   test("splits bilingual clipped paragraph within clean clipped content command", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       {

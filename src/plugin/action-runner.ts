@@ -11,6 +11,7 @@ import { buildHeadingBoldTogglePreview } from "@/core/heading-bold-toggle-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import {
   cleanupAiOutputArtifactsInMarkdown,
+  findClippedListContinuationMerges,
   findDeleteFromCurrentBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
@@ -1327,14 +1328,27 @@ export class ActionRunner {
       return;
     }
 
+    const continuationMergeResult = findClippedListContinuationMerges(blocks);
+    const continuationMergeByMarkerId = new Map(
+      continuationMergeResult.merges.map((item) => [item.markerBlockId, item])
+    );
+    const continuationContentIdSet = new Set(
+      continuationMergeResult.merges.map((item) => item.contentBlockId)
+    );
+    const continuationMergeCount = continuationMergeResult.mergeCount;
     let listCleanupBlockCount = 0;
     let bilingualSplitBlockCount = 0;
     for (const block of blocks) {
-      const source = block.markdown || "";
-      if (!source) {
+      if (continuationContentIdSet.has(block.id)) {
         continue;
       }
-      const listCleanup = removeClippedListPrefixesFromMarkdown(source);
+      const source = block.markdown || "";
+      const continuationMerge = continuationMergeByMarkerId.get(block.id);
+      const targetMarkdown = continuationMerge?.mergedMarkdown || source;
+      if (!targetMarkdown) {
+        continue;
+      }
+      const listCleanup = removeClippedListPrefixesFromMarkdown(targetMarkdown);
       if (listCleanup.removedCount > 0) {
         listCleanupBlockCount += 1;
       }
@@ -1346,13 +1360,16 @@ export class ActionRunner {
       }
     }
 
-    const cleanableCount = listCleanupBlockCount + bilingualSplitBlockCount;
+    const cleanableCount = continuationMergeCount + listCleanupBlockCount + bilingualSplitBlockCount;
     if (!cleanableCount) {
       showMessage("未发现可清理的剪藏内容", 4000, "info");
       return;
     }
 
     const confirmLines: string[] = [];
+    if (continuationMergeCount > 0) {
+      confirmLines.push(`合并断开的列表项 ${continuationMergeCount} 处`);
+    }
     if (listCleanupBlockCount > 0) {
       confirmLines.push(`清理重复列表前缀 ${listCleanupBlockCount} 个块`);
     }
@@ -1372,8 +1389,13 @@ export class ActionRunner {
     let updatedBlockCount = 0;
     let splitParagraphCount = 0;
     let failedBlockCount = 0;
+    const deleteIds: string[] = [];
     for (const [index, block] of blocks.entries()) {
-      const source = block.markdown || "";
+      if (continuationContentIdSet.has(block.id)) {
+        continue;
+      }
+      const continuationMerge = continuationMergeByMarkerId.get(block.id);
+      const source = continuationMerge?.mergedMarkdown || block.markdown || "";
       if (!source) {
         continue;
       }
@@ -1381,7 +1403,7 @@ export class ActionRunner {
       const splitResult = isSafeBilingualSplitBlockType(block.type)
         ? splitBilingualParagraphMarkdown(listCleanup.markdown)
         : { parts: [listCleanup.markdown], changed: false };
-      if (listCleanup.removedCount === 0 && !splitResult.changed) {
+      if (!continuationMerge && listCleanup.removedCount === 0 && !splitResult.changed) {
         continue;
       }
 
@@ -1395,16 +1417,29 @@ export class ActionRunner {
             await appendBlock(trailingBlock, docId);
           }
           await updateBlockMarkdown(block.id, splitResult.parts[0] || listCleanup.markdown);
+          if (continuationMerge) {
+            deleteIds.push(continuationMerge.contentBlockId);
+          }
           splitParagraphCount += 1;
           updatedBlockCount += 1;
           continue;
         }
 
         await updateBlockMarkdown(block.id, listCleanup.markdown);
+        if (continuationMerge) {
+          deleteIds.push(continuationMerge.contentBlockId);
+        }
         updatedBlockCount += 1;
       } catch {
         failedBlockCount += 1;
       }
+    }
+
+    if (deleteIds.length > 0) {
+      const deleteResult = await deleteBlocksByIds(deleteIds, {
+        concurrency: DELETE_BLOCK_CONCURRENCY,
+      });
+      failedBlockCount += deleteResult.failedIds.length;
     }
 
     if (!updatedBlockCount && !splitParagraphCount) {

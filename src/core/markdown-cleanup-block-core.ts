@@ -25,11 +25,52 @@ export type DeleteFromCurrentBlockResult = {
   deleteCount: number;
 };
 
+export type ClippedListContinuationMerge = {
+  markerBlockId: string;
+  contentBlockId: string;
+  mergedMarkdown: string;
+};
+
+export type ClippedListContinuationMergeResult = {
+  merges: ClippedListContinuationMerge[];
+  mergeCount: number;
+};
+
 const blankLinesLogger = createDocAssistantLogger("BlankLines");
 const deleteFromCurrentLogger = createDocAssistantLogger("DeleteFromCurrent");
+const clippedListLogger = createDocAssistantLogger("ClippedList");
+const CLIPPED_BULLET_MARKERS = new Set([
+  "•",
+  "·",
+  "○",
+  "◦",
+  "▪",
+  "▸",
+  "➢",
+  "➤",
+  "►",
+  "◆",
+  "◇",
+  "✓",
+  "✔",
+  "★",
+  "☆",
+  "→",
+  "⁃",
+  "‣",
+  "⦿",
+  "⦾",
+  "◉",
+  "●",
+]);
+
+function isParagraphLikeBlock(block: ParagraphBlockMeta): boolean {
+  const normalized = (block.type || "").trim().toLowerCase();
+  return normalized === "p" || normalized === "paragraph" || normalized === "nodeparagraph";
+}
 
 function isBlankParagraph(block: ParagraphBlockMeta): boolean {
-  if (block.type !== "p") {
+  if (!isParagraphLikeBlock(block)) {
     return false;
   }
   if (block.resolved === false) {
@@ -130,5 +171,73 @@ export function findDeleteFromCurrentBlockIds(
   return {
     deleteIds,
     deleteCount: deleteIds.length,
+  };
+}
+
+function parseClippedListMarker(markdown: string): string | null {
+  const normalized = (markdown || "").replace(/\r\n/g, "\n").trim();
+  if (!normalized || normalized.includes("\n")) {
+    return null;
+  }
+  if (CLIPPED_BULLET_MARKERS.has(normalized)) {
+    return "-";
+  }
+  const unorderedMatch = normalized.match(/^([-*+])$/);
+  if (unorderedMatch) {
+    return unorderedMatch[1];
+  }
+  const orderedMatch = normalized.match(/^(\d+[.)])$/);
+  if (orderedMatch) {
+    return orderedMatch[1];
+  }
+  return null;
+}
+
+export function findClippedListContinuationMerges(
+  blocks: ParagraphBlockMeta[]
+): ClippedListContinuationMergeResult {
+  const merges: ClippedListContinuationMerge[] = [];
+  const consumedContentIds = new Set<string>();
+
+  for (let i = 0; i < blocks.length - 1; i += 1) {
+    const current = blocks[i];
+    const next = blocks[i + 1];
+    if (!isParagraphLikeBlock(next)) {
+      continue;
+    }
+    if (current.resolved === false || next.resolved === false) {
+      continue;
+    }
+    if (consumedContentIds.has(current.id) || consumedContentIds.has(next.id)) {
+      continue;
+    }
+
+    const marker = parseClippedListMarker(current.markdown || current.content || "");
+    if (!marker) {
+      continue;
+    }
+
+    const nextMarkdown = (next.markdown || "").replace(/\r\n/g, "\n").trim();
+    if (!nextMarkdown || nextMarkdown.includes("\n")) {
+      continue;
+    }
+
+    merges.push({
+      markerBlockId: current.id,
+      contentBlockId: next.id,
+      mergedMarkdown: `${marker} ${nextMarkdown}`,
+    });
+    consumedContentIds.add(next.id);
+  }
+
+  clippedListLogger.debug("continuation merges", {
+    totalBlocks: blocks.length,
+    mergeCount: merges.length,
+    sample: merges.slice(0, 8),
+  });
+
+  return {
+    merges,
+    mergeCount: merges.length,
   };
 }
