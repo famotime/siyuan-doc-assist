@@ -18,6 +18,20 @@ type CreateExportActionHandlersOptions = {
 
 const forwardLinksLogger = createDocAssistantLogger("ForwardLinks");
 
+function buildSkippedSummary(result: {
+  skippedDocCount?: number;
+  skippedAssetCount?: number;
+}): string {
+  const parts: string[] = [];
+  if ((result.skippedDocCount || 0) > 0) {
+    parts.push(`跳过 ${result.skippedDocCount} 篇缺失文档`);
+  }
+  if ((result.skippedAssetCount || 0) > 0) {
+    parts.push(`跳过 ${result.skippedAssetCount} 个缺失资源`);
+  }
+  return parts.length ? `，${parts.join("，")}` : "";
+}
+
 async function exportDocZip(ids: string[], label: string, currentDocId: string) {
   const docIds = [...new Set([currentDocId, ...ids.filter(Boolean)])];
   if (!docIds.length) {
@@ -30,7 +44,7 @@ async function exportDocZip(ids: string[], label: string, currentDocId: string) 
   const result = await exportDocIdsAsMarkdownZip(docIds, preferredZipName);
   const displayName = decodeURIComponentSafe(result.name || "");
   const displayZip = decodeURIComponentSafe(result.zip || "");
-  showMessage(`导出完成（${displayName}）：${displayZip}`, 9000, "info");
+  showMessage(`导出完成（${displayName}）：${displayZip}${buildSkippedSummary(result)}`, 9000, "info");
 }
 
 export function createExportActionHandlers(
@@ -41,7 +55,7 @@ export function createExportActionHandlers(
       const result = await exportCurrentDocMarkdown(docId);
       if (result.mode === "zip") {
         showMessage(
-          `导出完成（含媒体）：${result.fileName}${result.zipPath ? `，路径 ${result.zipPath}` : ""}`,
+          `导出完成（含媒体）：${result.fileName}${result.zipPath ? `，路径 ${result.zipPath}` : ""}${buildSkippedSummary(result)}`,
           8000,
           "info"
         );
@@ -54,7 +68,11 @@ export function createExportActionHandlers(
         docId,
       });
       const displayName = decodeURIComponentSafe(result.name || "");
-      showMessage(`导出完成：${result.docCount} 篇文档${displayName ? `（${displayName}）` : ""}`, 6000, "info");
+      showMessage(
+        `导出完成：${result.docCount} 篇文档${displayName ? `（${displayName}）` : ""}${buildSkippedSummary(result)}`,
+        6000,
+        "info"
+      );
     },
     "export-child-key-info-zip": async (docId, protyle) => {
       const result = await exportDocAndChildKeyInfoAsZip({
@@ -62,7 +80,11 @@ export function createExportActionHandlers(
         filter: options.getKeyInfoFilter?.(),
         protyle,
       });
-      showMessage(`导出完成：${result.docCount} 篇文档，${result.itemCount} 条关键内容`, 6000, "info");
+      showMessage(
+        `导出完成：${result.docCount} 篇文档，${result.itemCount} 条关键内容${buildSkippedSummary(result)}`,
+        6000,
+        "info"
+      );
     },
     "export-related-docs-zip": async (docId) => {
       const [forwardIds, backlinks, childDocs] = await Promise.all([

@@ -5,6 +5,7 @@ import {
   rewriteMarkdownAssetLinksToBasename,
 } from "@/core/export-media-core";
 import { buildKeyInfoMarkdown, filterKeyInfoItems, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
+import { createDocAssistantLogger } from "@/core/logger-core";
 import { buildGetFileRequest, decodeURIComponentSafe } from "@/core/workspace-path-core";
 import { getDocKeyInfo } from "@/services/key-info";
 import {
@@ -16,6 +17,8 @@ import {
   removeFile,
 } from "@/services/kernel";
 import { getChildDocs } from "@/services/link-resolver";
+
+const exporterLogger = createDocAssistantLogger("Exporter");
 
 function basename(hPath: string): string {
   const parts = hPath.split("/").filter(Boolean);
@@ -59,6 +62,25 @@ function prependDocTitleToMarkdown(content: string, title: string): string {
 
 function withZipExtension(name: string): string {
   return name.endsWith(".zip") ? name : `${name}.zip`;
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message || String(error);
+  }
+  return String(error || "");
+}
+
+function isMissingItemError(error: unknown): boolean {
+  const message = toErrorMessage(error);
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("file not exist") ||
+    normalized.includes("not exist") ||
+    normalized.includes("not found") ||
+    normalized.includes("does not exist") ||
+    /不存在|未找到/.test(message)
+  );
 }
 
 function triggerDownload(fileName: string, content: string) {
@@ -134,18 +156,48 @@ function basenameFromWorkspacePath(path: string): string {
   return decodeURIComponentSafe(name);
 }
 
-async function stageAssetsToTempDir(assetPaths: string[], tempAssetsDir: string) {
+async function stageAssetsToTempDir(
+  assetPaths: string[],
+  tempAssetsDir: string
+): Promise<{ stagedCount: number; skippedAssetCount: number }> {
+  let stagedCount = 0;
+  let skippedAssetCount = 0;
   for (const assetPath of assetPaths) {
     const name = normalizeUploadFileName(assetPathBasename(assetPath), "asset.bin");
-    const data = await getFileBlob(assetPath);
-    await putBlobFile(`${tempAssetsDir}/${name}`, data, name);
+    try {
+      const data = await getFileBlob(assetPath);
+      await putBlobFile(`${tempAssetsDir}/${name}`, data, name);
+      stagedCount += 1;
+    } catch (error) {
+      if (!isMissingItemError(error)) {
+        throw error;
+      }
+      skippedAssetCount += 1;
+      exporterLogger.warn("skip missing export asset", {
+        assetPath,
+        reason: toErrorMessage(error),
+      });
+    }
   }
+  return {
+    stagedCount,
+    skippedAssetCount,
+  };
 }
 
 export type ExportCurrentDocResult = {
   mode: "md" | "zip";
   fileName: string;
   zipPath?: string;
+  skippedAssetCount?: number;
+};
+
+type ExportMarkdownZipResult = {
+  name: string;
+  zip: string;
+  docCount: number;
+  skippedDocCount: number;
+  skippedAssetCount: number;
 };
 
 const EXPORT_MD_OPTIONS = {
@@ -186,17 +238,22 @@ export async function exportCurrentDocMarkdown(
   const tempMarkdownPath = `${tempDir}/${tempMarkdownName}`;
   const rewrittenMarkdown = rewriteMarkdownAssetLinksToBasename(content, "assets");
   await putFile(tempMarkdownPath, rewrittenMarkdown);
-  await stageAssetsToTempDir(assetPaths, tempAssetsDir);
+  const assetStageResult = await stageAssetsToTempDir(assetPaths, tempAssetsDir);
 
   try {
     const zipName = sanitizeArchiveBaseName(title || docId);
-    const zip = await exportResources([tempMarkdownPath, tempAssetsDir], zipName);
+    const packPaths = [tempMarkdownPath];
+    if (assetStageResult.stagedCount > 0) {
+      packPaths.push(tempAssetsDir);
+    }
+    const zip = await exportResources(packPaths, zipName);
     const outputName = `${zipName}.zip`;
     await triggerWorkspaceFileDownload(zip.path, outputName);
     return {
       mode: "zip",
       fileName: outputName,
       zipPath: zip.path,
+      skippedAssetCount: assetStageResult.skippedAssetCount,
     };
   } finally {
     // Best effort cleanup of temporary markdown folder.
@@ -207,7 +264,7 @@ export async function exportCurrentDocMarkdown(
 export async function exportDocIdsAsMarkdownZip(
   docIds: string[],
   preferredDownloadBaseName?: string
-): Promise<{ name: string; zip: string }> {
+): Promise<ExportMarkdownZipResult> {
   if (!docIds.length) {
     throw new Error("未找到可导出的文档");
   }
@@ -220,10 +277,25 @@ export async function exportDocIdsAsMarkdownZip(
   const assetPathSet = new Set<string>();
   const packPathSet = new Set<string>();
   let inferredZipBaseName = preferredName || "";
+  let docCount = 0;
+  let skippedDocCount = 0;
 
   const uniqueDocIds = [...new Set(docIds.filter(Boolean))];
   for (const docId of uniqueDocIds) {
-    const res = await exportMdContent(docId, EXPORT_MD_OPTIONS);
+    let res: Awaited<ReturnType<typeof exportMdContent>>;
+    try {
+      res = await exportMdContent(docId, EXPORT_MD_OPTIONS);
+    } catch (error) {
+      if (!isMissingItemError(error)) {
+        throw error;
+      }
+      skippedDocCount += 1;
+      exporterLogger.warn("skip missing export doc", {
+        docId,
+        reason: toErrorMessage(error),
+      });
+      continue;
+    }
     const title = getExportedDocTitle(res.hPath, docId);
     if (!inferredZipBaseName) {
       inferredZipBaseName = sanitizeArchiveBaseName(title || docId);
@@ -249,6 +321,7 @@ export async function exportDocIdsAsMarkdownZip(
       throw new Error(`导出临时文件写入失败（${markdownPath}）：${detail}`);
     }
     packPathSet.add(markdownPath);
+    docCount += 1;
 
     const assetPaths = getExportResourceAssetPaths(rawContent);
     for (const assetPath of assetPaths) {
@@ -256,9 +329,17 @@ export async function exportDocIdsAsMarkdownZip(
     }
   }
 
+  if (!docCount) {
+    throw new Error("未找到可导出的文档");
+  }
+
+  let skippedAssetCount = 0;
   if (assetPathSet.size) {
-    await stageAssetsToTempDir([...assetPathSet], tempAssetsDir);
-    packPathSet.add(tempAssetsDir);
+    const assetStageResult = await stageAssetsToTempDir([...assetPathSet], tempAssetsDir);
+    skippedAssetCount = assetStageResult.skippedAssetCount;
+    if (assetStageResult.stagedCount > 0) {
+      packPathSet.add(tempAssetsDir);
+    }
   }
 
   const zipBaseName = inferredZipBaseName || "export";
@@ -271,6 +352,9 @@ export async function exportDocIdsAsMarkdownZip(
     return {
       name: zipBaseName,
       zip: zip.path,
+      docCount,
+      skippedDocCount,
+      skippedAssetCount,
     };
   } finally {
     void Promise.resolve(removeFile(tempDir)).catch(() => undefined);
@@ -280,7 +364,7 @@ export async function exportDocIdsAsMarkdownZip(
 export async function exportDocAndChildDocsAsMarkdownZip(options: {
   docId: string;
   preferredDownloadBaseName?: string;
-}): Promise<{ name: string; zip: string; docCount: number }> {
+}): Promise<ExportMarkdownZipResult> {
   const docId = (options.docId || "").trim();
   if (!docId) {
     throw new Error("未找到可导出的文档");
@@ -293,10 +377,7 @@ export async function exportDocAndChildDocsAsMarkdownZip(options: {
   }
 
   const result = await exportDocIdsAsMarkdownZip(docIds, options.preferredDownloadBaseName);
-  return {
-    ...result,
-    docCount: docIds.length,
-  };
+  return result;
 }
 
 export async function exportDocAndChildKeyInfoAsZip(options: {
@@ -304,7 +385,7 @@ export async function exportDocAndChildKeyInfoAsZip(options: {
   filter?: KeyInfoFilter;
   protyle?: unknown;
   preferredDownloadBaseName?: string;
-}): Promise<{ name: string; zip: string; docCount: number; itemCount: number }> {
+}): Promise<{ name: string; zip: string; docCount: number; itemCount: number; skippedDocCount: number }> {
   const docId = (options.docId || "").trim();
   if (!docId) {
     throw new Error("未找到可导出的文档");
@@ -321,10 +402,25 @@ export async function exportDocAndChildKeyInfoAsZip(options: {
   const packPaths: string[] = [];
   let preferredTitle = "";
   let exportedItemCount = 0;
+  let docCount = 0;
+  let skippedDocCount = 0;
 
   for (let index = 0; index < docIds.length; index += 1) {
     const id = docIds[index];
-    const data = await getDocKeyInfo(id, index === 0 ? options.protyle : undefined);
+    let data: Awaited<ReturnType<typeof getDocKeyInfo>>;
+    try {
+      data = await getDocKeyInfo(id, index === 0 ? options.protyle : undefined);
+    } catch (error) {
+      if (!isMissingItemError(error)) {
+        throw error;
+      }
+      skippedDocCount += 1;
+      exporterLogger.warn("skip missing key-info doc", {
+        docId: id,
+        reason: toErrorMessage(error),
+      });
+      continue;
+    }
     if (!preferredTitle) {
       preferredTitle = data.docTitle || id;
     }
@@ -345,6 +441,11 @@ export async function exportDocAndChildKeyInfoAsZip(options: {
     const markdownPath = `${tempDir}/${uniqueName}`;
     await putFile(markdownPath, markdown);
     packPaths.push(markdownPath);
+    docCount += 1;
+  }
+
+  if (!docCount) {
+    throw new Error("未找到可导出的文档");
   }
 
   const preferredDownloadBaseName = (options.preferredDownloadBaseName || "").trim();
@@ -357,8 +458,9 @@ export async function exportDocAndChildKeyInfoAsZip(options: {
     return {
       name: zipBaseName,
       zip: zip.path,
-      docCount: docIds.length,
+      docCount,
       itemCount: exportedItemCount,
+      skippedDocCount,
     };
   } finally {
     void Promise.resolve(removeFile(tempDir)).catch(() => undefined);

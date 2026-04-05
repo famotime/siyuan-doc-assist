@@ -156,6 +156,50 @@ describe("export docs zip download", () => {
     expect(result).toEqual({
       name: "my-pack",
       zip: "temp/export/my-pack.zip",
+      docCount: 2,
+      skippedDocCount: 0,
+      skippedAssetCount: 0,
+    });
+  });
+
+  test("skips missing docs and assets while still exporting remaining docs", async () => {
+    exportMdContentMock.mockImplementation(async (id: string) => {
+      if (id === "missing-doc") {
+        throw new Error("file not exist");
+      }
+      if (id === "doc1") {
+        return {
+          hPath: "/folder/主文档",
+          content: "![ok](assets/ok.png)\n![lost](assets/lost.png)\n主文档内容",
+        } as any;
+      }
+      return {
+        hPath: "/folder/子文档",
+        content: "子文档内容",
+      } as any;
+    });
+    getFileBlobMock.mockImplementation(async (path: string) => {
+      if (path.includes("lost.png")) {
+        throw new Error("file not exist");
+      }
+      return new Blob(["asset"]);
+    });
+
+    const result = await exportDocIdsAsMarkdownZip(["doc1", "missing-doc", "doc2"], "my-pack");
+
+    expect(exportMdContentMock).toHaveBeenCalledTimes(3);
+    expect(putFileMock).toHaveBeenCalledTimes(2);
+    expect(putBlobFileMock).toHaveBeenCalledTimes(1);
+    const exportPaths = exportResourcesMock.mock.calls[0][0] as string[];
+    expect(exportPaths.some((path) => path.endsWith("/主文档.md"))).toBe(true);
+    expect(exportPaths.some((path) => path.endsWith("/子文档.md"))).toBe(true);
+    expect(exportPaths.some((path) => path.endsWith("/assets"))).toBe(true);
+    expect(result).toEqual({
+      name: "my-pack",
+      zip: "temp/export/my-pack.zip",
+      docCount: 2,
+      skippedDocCount: 1,
+      skippedAssetCount: 1,
     });
   });
 
@@ -242,6 +286,7 @@ describe("export docs zip download", () => {
       zip: "temp/export/my-pack.zip",
       docCount: 3,
       itemCount: 3,
+      skippedDocCount: 0,
     });
   });
 
@@ -306,6 +351,8 @@ describe("export docs zip download", () => {
       name: "主文档",
       zip: "temp/export/my-pack.zip",
       docCount: 3,
+      skippedDocCount: 0,
+      skippedAssetCount: 0,
     });
   });
 
