@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { ACTIONS } from "@/plugin/actions";
+import { ACTIONS, getActionConfigByKey } from "@/plugin/actions";
 import { buildDefaultDocMenuRegistration } from "@/core/doc-menu-registration-core";
 import { buildDockDocActions } from "@/core/dock-panel-core";
 
@@ -240,6 +240,7 @@ describe("plugin settings", () => {
       "[data-action-key='export-current'] input[type='checkbox']"
     ) as HTMLInputElement;
     expect(exportCurrentToggle.checked).toBe(false);
+    expect(exportCurrentToggle.title).toBe(getActionConfigByKey("export-current").tooltip);
 
     aiCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(aiFields.hidden).toBe(true);

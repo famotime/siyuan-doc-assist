@@ -8,7 +8,7 @@ import {
   DocMenuRegistrationState,
   isAllDocMenuRegistrationEnabled,
 } from "@/core/doc-menu-registration-core";
-import { ActionConfig, ActionKey } from "@/plugin/actions";
+import { ActionConfig, ActionKey, formatActionTooltip } from "@/plugin/actions";
 
 type CreatePluginSettingsOptions = {
   actions: ActionConfig[];
@@ -534,6 +534,11 @@ export function createPluginSettings(
           if (action.menuToggleDisabled) {
             row.dataset.disabled = "true";
           }
+          row.title = formatActionTooltip(
+            action.tooltip,
+            action.label,
+            action.menuToggleDisabledReason
+          );
 
           const rowText = createElement(
             "div",
@@ -559,7 +564,11 @@ export function createPluginSettings(
           const checkbox = createCheckbox({
             checked: action.menuRegistered,
             disabled: action.menuToggleDisabled,
-            title: action.menuToggleDisabledReason || action.label,
+            title: formatActionTooltip(
+              action.tooltip,
+              action.label,
+              action.menuToggleDisabledReason
+            ),
             onChange: async (checked) => {
               state[action.key] = checked;
               syncAllSwitch(allSwitch);

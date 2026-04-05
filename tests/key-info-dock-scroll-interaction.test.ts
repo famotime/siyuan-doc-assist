@@ -2,6 +2,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import { KeyInfoItem } from "@/core/key-info-core";
+import { getActionConfigByKey } from "@/plugin/actions";
 import { createKeyInfoDock } from "@/ui/key-info-dock";
 
 function item(id: string): KeyInfoItem {
@@ -121,6 +122,7 @@ describe("key-info-dock scroll interaction", () => {
         {
           key: "export-current",
           label: "仅导出当前文档",
+          tooltip: getActionConfigByKey("export-current").tooltip,
           icon: "iconDownload",
           group: "export",
           groupLabel: "导出",
@@ -405,6 +407,7 @@ describe("key-info-dock scroll interaction", () => {
         {
           key: "export-current",
           label: "仅导出当前文档",
+          tooltip: getActionConfigByKey("export-current").tooltip,
           icon: "iconDownload",
           group: "export",
           groupLabel: "导出",
@@ -415,6 +418,7 @@ describe("key-info-dock scroll interaction", () => {
         {
           key: "move-backlinks",
           label: "移动反链文档为子文档",
+          tooltip: getActionConfigByKey("move-backlinks").tooltip,
           icon: "iconMove",
           group: "organize",
           groupLabel: "整理",
@@ -432,8 +436,9 @@ describe("key-info-dock scroll interaction", () => {
     ) as HTMLButtonElement[];
 
     expect(buttons).toHaveLength(2);
-    expect(buttons[0].title).toBe("仅导出当前文档");
-    expect(buttons[1].title).toBe("移动反链文档为子文档（该操作当前仅支持桌面端）");
+    expect(buttons[0].title).toBe(getActionConfigByKey("export-current").tooltip);
+    expect(buttons[1].title).toContain(getActionConfigByKey("move-backlinks").tooltip || "");
+    expect(buttons[1].title).toContain("当前不可用：该操作当前仅支持桌面端");
 
     dock.destroy();
     host.remove();

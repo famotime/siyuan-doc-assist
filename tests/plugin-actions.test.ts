@@ -41,6 +41,8 @@ describe("plugin actions", () => {
       expect(action.commandText.trim().length).toBeGreaterThan(0);
       expect(action.menuText).toBe(action.commandText);
       expect(action.dockIconText?.trim().length).toBe(1);
+      expect(action.tooltip?.trim().length).toBeGreaterThan(action.commandText.length);
+      expect(action.tooltip).toContain(action.commandText);
     }
   });
 });

@@ -8,6 +8,7 @@ export type DockTab = {
 export type DockDocActionSource<T extends string = string> = {
   key: T;
   commandText: string;
+  tooltip?: string;
   icon: string;
   dockIconText?: string;
   group: DockDocActionGroup;
@@ -20,6 +21,7 @@ export type DockDocActionGroup = "export" | "insert" | "organize" | "ai" | "edit
 export type DockDocAction<T extends string = string> = {
   key: T;
   label: string;
+  tooltip?: string;
   icon: string;
   dockIconText?: string;
   group: DockDocActionGroup;
@@ -66,6 +68,7 @@ export function buildDockDocActions<T extends string>(
     return {
       key: action.key,
       label: action.commandText,
+      tooltip: action.tooltip || action.commandText,
       icon: action.icon,
       ...(action.dockIconText ? { dockIconText: action.dockIconText } : {}),
       group: action.group,

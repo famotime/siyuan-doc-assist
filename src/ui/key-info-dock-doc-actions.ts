@@ -7,7 +7,7 @@ import {
   buildDocActionGroupMap,
 } from "@/core/dock-doc-action-order-core";
 import { DockDocAction } from "@/core/dock-panel-core";
-import { getActionDockIconTextByKey } from "@/plugin/actions";
+import { formatActionTooltip, getActionDockIconTextByKey } from "@/plugin/actions";
 
 type RenderDocActionsOptions = {
   container: HTMLDivElement;
@@ -257,9 +257,7 @@ export function renderKeyInfoDockDocActions({
     button.appendChild(iconWrap);
     button.appendChild(label);
     button.disabled = action.disabled;
-    button.title = action.disabledReason
-      ? `${action.label}（${action.disabledReason}）`
-      : action.label;
+    button.title = formatActionTooltip(action.tooltip, action.label, action.disabledReason);
     button.addEventListener("mousedown", (event) => {
       if (!selectionPreservedActionKeys.has(action.key)) {
         return;

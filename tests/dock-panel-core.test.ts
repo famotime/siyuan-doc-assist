@@ -58,6 +58,7 @@ describe("dock-panel-core", () => {
       {
         key: "export-current",
         label: "仅导出当前文档",
+        tooltip: "仅导出当前文档",
         icon: "iconDownload",
         group: "export",
         groupLabel: "导出",
@@ -68,6 +69,7 @@ describe("dock-panel-core", () => {
       {
         key: "move-backlinks",
         label: "移动反链文档为子文档",
+        tooltip: "移动反链文档为子文档",
         icon: "iconMove",
         group: "organize",
         groupLabel: "整理",
@@ -80,6 +82,7 @@ describe("dock-panel-core", () => {
       {
         key: "convert-images-to-webp",
         label: "批量转换为WebP",
+        tooltip: "批量转换为WebP",
         icon: "iconImage",
         group: "image",
         groupLabel: "图片",
@@ -90,6 +93,7 @@ describe("dock-panel-core", () => {
       {
         key: "convert-images-to-png",
         label: "批量转换为PNG",
+        tooltip: "批量转换为PNG",
         icon: "iconImage",
         group: "image",
         groupLabel: "图片",
@@ -100,6 +104,7 @@ describe("dock-panel-core", () => {
       {
         key: "remove-doc-images",
         label: "删除本文档图片",
+        tooltip: "删除本文档图片",
         icon: "iconImage",
         group: "image",
         groupLabel: "图片",
@@ -147,6 +152,7 @@ describe("dock-panel-core", () => {
       {
         key: "export-current",
         label: "仅导出当前文档",
+        tooltip: "仅导出当前文档",
         icon: "iconDownload",
         group: "export",
         groupLabel: "导出",
@@ -157,6 +163,7 @@ describe("dock-panel-core", () => {
       {
         key: "insert-backlinks",
         label: "插入反链文档列表（去重）",
+        tooltip: "插入反链文档列表（去重）",
         icon: "iconList",
         group: "insert",
         groupLabel: "插入",
@@ -169,6 +176,7 @@ describe("dock-panel-core", () => {
       {
         key: "move-backlinks",
         label: "移动反链文档为子文档",
+        tooltip: "移动反链文档为子文档",
         icon: "iconMove",
         group: "organize",
         groupLabel: "整理",
