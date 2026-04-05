@@ -212,17 +212,22 @@ export async function exportDocIdsAsMarkdownZip(
     throw new Error("未找到可导出的文档");
   }
 
-  const preferredName = sanitizeArchiveBaseName(preferredDownloadBaseName || "");
+  const preferredNameRaw = (preferredDownloadBaseName || "").trim();
+  const preferredName = preferredNameRaw ? sanitizeArchiveBaseName(preferredNameRaw) : "";
   const tempDir = `/temp/export/doc-link-tool-${randomId()}`;
   const tempAssetsDir = `${tempDir}/assets`;
   const usedDocNames = new Set<string>();
   const assetPathSet = new Set<string>();
   const packPathSet = new Set<string>();
+  let inferredZipBaseName = preferredName || "";
 
   const uniqueDocIds = [...new Set(docIds.filter(Boolean))];
   for (const docId of uniqueDocIds) {
     const res = await exportMdContent(docId, EXPORT_MD_OPTIONS);
     const title = getExportedDocTitle(res.hPath, docId);
+    if (!inferredZipBaseName) {
+      inferredZipBaseName = sanitizeArchiveBaseName(title || docId);
+    }
     const safeBase = sanitizePathSegment(title) || docId;
     const markdownName = normalizeUploadFileName(`${safeBase}.md`, `${docId}.md`);
     let uniqueName = markdownName;
@@ -256,7 +261,7 @@ export async function exportDocIdsAsMarkdownZip(
     packPathSet.add(tempAssetsDir);
   }
 
-  const zipBaseName = preferredName || "export";
+  const zipBaseName = inferredZipBaseName || "export";
   try {
     const packPaths = [...packPathSet];
     const zip = await exportResources(packPaths, zipBaseName);
@@ -270,6 +275,28 @@ export async function exportDocIdsAsMarkdownZip(
   } finally {
     void Promise.resolve(removeFile(tempDir)).catch(() => undefined);
   }
+}
+
+export async function exportDocAndChildDocsAsMarkdownZip(options: {
+  docId: string;
+  preferredDownloadBaseName?: string;
+}): Promise<{ name: string; zip: string; docCount: number }> {
+  const docId = (options.docId || "").trim();
+  if (!docId) {
+    throw new Error("未找到可导出的文档");
+  }
+
+  const childDocs = await getChildDocs(docId);
+  const docIds = [...new Set([docId, ...childDocs.map((item) => item?.id || "").filter(Boolean)])];
+  if (!docIds.length) {
+    throw new Error("未找到可导出的文档");
+  }
+
+  const result = await exportDocIdsAsMarkdownZip(docIds, options.preferredDownloadBaseName);
+  return {
+    ...result,
+    docCount: docIds.length,
+  };
 }
 
 export async function exportDocAndChildKeyInfoAsZip(options: {

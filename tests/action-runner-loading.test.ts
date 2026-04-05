@@ -16,6 +16,7 @@ vi.mock(
 vi.mock("@/services/exporter", () => ({
   exportCurrentDocMarkdown: vi.fn(),
   exportDocIdsAsMarkdownZip: vi.fn(),
+  exportDocAndChildDocsAsMarkdownZip: vi.fn(),
   exportDocAndChildKeyInfoAsZip: vi.fn(),
 }));
 
@@ -97,7 +98,9 @@ import {
 } from "@/core/logger-core";
 import {
   exportCurrentDocMarkdown,
+  exportDocAndChildDocsAsMarkdownZip,
   exportDocAndChildKeyInfoAsZip,
+  exportDocIdsAsMarkdownZip,
 } from "@/services/exporter";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
@@ -140,7 +143,9 @@ import {
 import { openDedupeDialog } from "@/ui/dialogs";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
+const exportDocAndChildDocsAsMarkdownZipMock = vi.mocked(exportDocAndChildDocsAsMarkdownZip);
 const exportDocAndChildKeyInfoAsZipMock = vi.mocked(exportDocAndChildKeyInfoAsZip);
+const exportDocIdsAsMarkdownZipMock = vi.mocked(exportDocIdsAsMarkdownZip);
 const deleteDocsByIdsMock = vi.mocked(deleteDocsByIds);
 const deleteBlockByIdMock = vi.mocked(deleteBlockById);
 const deleteBlocksByIdsMock = vi.mocked(deleteBlocksByIds);
@@ -315,6 +320,116 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith(
       "导出完成：3 篇文档，8 条关键内容",
       6000,
+      "info"
+    );
+  });
+
+  test("exports current doc with child docs markdown zip", async () => {
+    exportDocAndChildDocsAsMarkdownZipMock.mockResolvedValue({
+      name: "主文档",
+      zip: "temp/export/doc-1-children.zip",
+      docCount: 3,
+    } as any);
+    const runner = createRunner();
+
+    await runner.runAction("export-child-docs-zip" as any);
+
+    expect(exportDocAndChildDocsAsMarkdownZipMock).toHaveBeenCalledTimes(1);
+    expect(exportDocAndChildDocsAsMarkdownZipMock).toHaveBeenCalledWith({
+      docId: "doc-1",
+    });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "导出完成：3 篇文档（主文档）",
+      6000,
+      "info"
+    );
+  });
+
+  test("exports backlinks zip including current doc", async () => {
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      title: "当前文档",
+    } as any);
+    getBacklinkDocsMock.mockResolvedValue([
+      { id: "back-1" } as any,
+      { id: "back-2" } as any,
+    ]);
+    exportDocIdsAsMarkdownZipMock.mockResolvedValue({
+      name: "当前文档",
+      zip: "temp/export/current-backlinks.zip",
+    } as any);
+    const runner = createRunner();
+
+    await runner.runAction("export-backlinks-zip");
+
+    expect(exportDocIdsAsMarkdownZipMock).toHaveBeenCalledTimes(1);
+    expect(exportDocIdsAsMarkdownZipMock).toHaveBeenCalledWith(
+      ["doc-1", "back-1", "back-2"],
+      "当前文档"
+    );
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "导出完成（当前文档）：temp/export/current-backlinks.zip",
+      9000,
+      "info"
+    );
+  });
+
+  test("exports forward zip with current doc even when no forward docs exist", async () => {
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      title: "当前文档",
+    } as any);
+    getForwardLinkedDocIdsMock.mockResolvedValue([]);
+    exportDocIdsAsMarkdownZipMock.mockResolvedValue({
+      name: "当前文档",
+      zip: "temp/export/current-forward.zip",
+    } as any);
+    const runner = createRunner();
+
+    await runner.runAction("export-forward-zip");
+
+    expect(exportDocIdsAsMarkdownZipMock).toHaveBeenCalledTimes(1);
+    expect(exportDocIdsAsMarkdownZipMock).toHaveBeenCalledWith(["doc-1"], "当前文档");
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "导出完成（当前文档）：temp/export/current-forward.zip",
+      9000,
+      "info"
+    );
+  });
+
+  test("exports related docs zip including current, forward, backlink, and child docs", async () => {
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      title: "当前文档",
+    } as any);
+    getForwardLinkedDocIdsMock.mockResolvedValue(["shared-1", "forward-1"]);
+    getBacklinkDocsMock.mockResolvedValue([
+      { id: "back-1" } as any,
+      { id: "shared-1" } as any,
+    ]);
+    getChildDocsMock.mockResolvedValue([
+      { id: "child-1" } as any,
+      { id: "back-1" } as any,
+    ]);
+    exportDocIdsAsMarkdownZipMock.mockResolvedValue({
+      name: "当前文档",
+      zip: "temp/export/current-related.zip",
+    } as any);
+    const runner = createRunner();
+
+    await runner.runAction("export-related-docs-zip" as any);
+
+    expect(getForwardLinkedDocIdsMock).toHaveBeenCalledWith("doc-1");
+    expect(getBacklinkDocsMock).toHaveBeenCalledWith("doc-1");
+    expect(getChildDocsMock).toHaveBeenCalledWith("doc-1");
+    expect(exportDocIdsAsMarkdownZipMock).toHaveBeenCalledTimes(1);
+    expect(exportDocIdsAsMarkdownZipMock).toHaveBeenCalledWith(
+      ["doc-1", "shared-1", "forward-1", "back-1", "child-1"],
+      "当前文档"
+    );
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "导出完成（当前文档）：temp/export/current-related.zip",
+      9000,
       "info"
     );
   });

@@ -2,6 +2,8 @@ import { DockDocActionGroup } from "@/core/dock-panel-core";
 
 export type ActionKey =
   | "export-current"
+  | "export-child-docs-zip"
+  | "export-related-docs-zip"
   | "insert-backlinks"
   | "insert-child-docs"
   | "export-child-key-info-zip"
@@ -50,6 +52,8 @@ type BaseActionConfig = Omit<ActionConfig, "dockIconText">;
 
 const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "export-current": "导",
+  "export-child-docs-zip": "子",
+  "export-related-docs-zip": "关",
   "export-child-key-info-zip": "键",
   "export-backlinks-zip": "反",
   "export-forward-zip": "正",
@@ -89,6 +93,20 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     key: "export-current",
     commandText: "仅导出当前文档",
     menuText: "仅导出当前文档",
+    group: "export",
+    icon: "iconDownload",
+  },
+  {
+    key: "export-child-docs-zip",
+    commandText: "打包导出子文档",
+    menuText: "打包导出子文档",
+    group: "export",
+    icon: "iconDownload",
+  },
+  {
+    key: "export-related-docs-zip",
+    commandText: "打包导出关联文档",
+    menuText: "打包导出关联文档",
     group: "export",
     icon: "iconDownload",
   },

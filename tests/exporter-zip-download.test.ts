@@ -20,6 +20,7 @@ vi.mock("@/services/key-info", () => ({
 
 import {
   exportCurrentDocMarkdown,
+  exportDocAndChildDocsAsMarkdownZip,
   exportDocIdsAsMarkdownZip,
   exportDocAndChildKeyInfoAsZip,
 } from "@/services/exporter";
@@ -241,6 +242,70 @@ describe("export docs zip download", () => {
       zip: "temp/export/my-pack.zip",
       docCount: 3,
       itemCount: 3,
+    });
+  });
+
+  test("exports current doc with child docs markdown zip and related assets", async () => {
+    getChildDocsMock.mockResolvedValue([
+      { id: "child-1" } as any,
+      { id: "child-2" } as any,
+    ]);
+    exportMdContentMock.mockImplementation(async (id: string) => {
+      if (id === "doc1") {
+        return {
+          hPath: "/folder/主文档",
+          content: "![main](assets/main.png)\n主文档内容",
+        } as any;
+      }
+      if (id === "child-1") {
+        return {
+          hPath: "/folder/子文档一",
+          content: "![child](assets/child.png)\n子文档一内容",
+        } as any;
+      }
+      return {
+        hPath: "/folder/子文档二",
+        content: "![main](assets/main.png)\n子文档二内容",
+      } as any;
+    });
+
+    const result = await exportDocAndChildDocsAsMarkdownZip({
+      docId: "doc1",
+    });
+
+    expect(getChildDocsMock).toHaveBeenCalledTimes(1);
+    expect(getChildDocsMock).toHaveBeenCalledWith("doc1");
+    expect(exportMdContentMock).toHaveBeenCalledTimes(3);
+    expect(exportMdContentMock).toHaveBeenNthCalledWith(1, "doc1", {
+      refMode: 3,
+      embedMode: 0,
+      addTitle: false,
+      yfm: false,
+    });
+    expect(exportMdContentMock).toHaveBeenNthCalledWith(2, "child-1", {
+      refMode: 3,
+      embedMode: 0,
+      addTitle: false,
+      yfm: false,
+    });
+    expect(exportMdContentMock).toHaveBeenNthCalledWith(3, "child-2", {
+      refMode: 3,
+      embedMode: 0,
+      addTitle: false,
+      yfm: false,
+    });
+    expect(putFileMock).toHaveBeenCalledTimes(3);
+    expect(putBlobFileMock).toHaveBeenCalledTimes(2);
+    const exportPaths = exportResourcesMock.mock.calls[0][0] as string[];
+    expect(exportPaths.some((path) => path.endsWith("/主文档.md"))).toBe(true);
+    expect(exportPaths.some((path) => path.endsWith("/子文档一.md"))).toBe(true);
+    expect(exportPaths.some((path) => path.endsWith("/子文档二.md"))).toBe(true);
+    expect(exportPaths.some((path) => path.endsWith("/assets"))).toBe(true);
+    expect(exportResourcesMock).toHaveBeenCalledWith(expect.any(Array), "主文档");
+    expect(result).toEqual({
+      name: "主文档",
+      zip: "temp/export/my-pack.zip",
+      docCount: 3,
     });
   });
 

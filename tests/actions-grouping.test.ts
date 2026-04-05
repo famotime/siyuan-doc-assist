@@ -16,6 +16,8 @@ describe("actions grouping", () => {
     expect(groups.get("convert-images-to-png")).toBe("image");
     expect(groups.get("resize-images-to-display")).toBe("image");
     expect(groups.get("remove-doc-images")).toBe("image");
+    expect(groups.get("export-child-docs-zip")).toBe("export");
+    expect(groups.get("export-related-docs-zip")).toBe("export");
     expect(groups.get("export-child-key-info-zip")).toBe("export");
     expect(groups.get("create-open-docs-summary")).toBe("organize");
     expect(groups.get("toggle-links-refs")).toBe("insert");

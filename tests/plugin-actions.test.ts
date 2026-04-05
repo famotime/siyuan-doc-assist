@@ -30,6 +30,8 @@ describe("plugin actions", () => {
     expect(isActionKey("toggle-linebreaks-paragraphs")).toBe(true);
     expect(isActionKey("remove-selected-spacing")).toBe(true);
     expect(isActionKey("toggle-selected-punctuation")).toBe(true);
+    expect(isActionKey("export-child-docs-zip")).toBe(true);
+    expect(isActionKey("export-related-docs-zip")).toBe(true);
     expect(isActionKey("export-child-key-info-zip")).toBe(true);
     expect(isActionKey("invalid-key")).toBe(false);
   });
