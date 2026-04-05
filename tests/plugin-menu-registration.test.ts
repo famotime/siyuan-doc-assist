@@ -316,4 +316,30 @@ describe("plugin menu registration", () => {
     expect(plugin.listeners.get("switch-protyle")?.size ?? 0).toBe(0);
     expect(plugin.listeners.get("click-editortitleicon")?.size ?? 0).toBe(0);
   });
+
+  test("hides alpha actions from commands and editor title menu when configured", async () => {
+    const { ALPHA_FEATURE_HIDE_CONFIG } = await import("@/plugin/alpha-feature-config");
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["create-monthly-diary"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
+
+    try {
+      const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+      const plugin = new DocLinkToolkitPlugin() as any;
+      await plugin.onload();
+      await plugin.setAllDocMenuRegistration(true);
+
+      const commandLangKeys = plugin.addCommand.mock.calls.map((call: any[]) => call[0]?.langKey);
+      expect(commandLangKeys).not.toContain("docLinkToolkit.create-monthly-diary");
+      expect(commandLangKeys).toHaveLength(ACTIONS.length - 1);
+
+      const menu = { addSeparator: vi.fn(), addItem: vi.fn() };
+      plugin.emitEvent("click-editortitleicon", { menu, data: { id: "doc-1" } });
+
+      const labels = menu.addItem.mock.calls.map((call: any[]) => call[0]?.label);
+      expect(labels).not.toContain("新建本月日记");
+    } finally {
+      ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = [];
+      ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
+    }
+  });
 });

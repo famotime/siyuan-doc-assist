@@ -1,8 +1,5 @@
 import { buildDockDocActions } from "@/core/dock-panel-core";
-import {
-  DocMenuRegistrationState,
-  isAllDocMenuRegistrationEnabled,
-} from "@/core/doc-menu-registration-core";
+import { DocMenuRegistrationState } from "@/core/doc-menu-registration-core";
 import { ActionConfig, ActionKey, formatActionTooltip } from "@/plugin/actions";
 import {
   createCheckbox,
@@ -51,17 +48,20 @@ export function createMenuRegistrationPanel(
 ): HTMLDivElement {
   const state: DocMenuRegistrationState = { ...options.registration };
   const actionSwitches = new Map<ActionKey, HTMLInputElement>();
-  const totalActionCount = Object.keys(state).length;
+  const visibleActionKeys = options.actions.map((action) => action.key);
+  const totalActionCount = visibleActionKeys.length;
   const enabledSummary = createElement(
     "div",
     "doc-assistant-settings__menu-registration-summary-meta"
   );
   const syncEnabledSummary = () => {
-    const enabledCount = Object.values(state).filter((enabled) => enabled === true).length;
+    const enabledCount = visibleActionKeys.filter((key) => state[key] === true).length;
     enabledSummary.textContent = `加入文档标题菜单 · 已启用 ${enabledCount}/${totalActionCount} 项`;
   };
   const syncAllSwitch = (allSwitch: HTMLInputElement) => {
-    allSwitch.checked = isAllDocMenuRegistrationEnabled(state);
+    allSwitch.checked =
+      totalActionCount > 0
+      && visibleActionKeys.every((key) => state[key] === true);
     syncEnabledSummary();
   };
   const syncActionSwitches = () => {
@@ -72,10 +72,12 @@ export function createMenuRegistrationPanel(
   };
 
   const allSwitch = createCheckbox({
-    checked: isAllDocMenuRegistrationEnabled(state),
+    checked:
+      totalActionCount > 0
+      && visibleActionKeys.every((key) => state[key] === true),
     title: "全部启用文档标题菜单命令",
     onChange: async (checked) => {
-      for (const key of Object.keys(state) as ActionKey[]) {
+      for (const key of visibleActionKeys) {
         state[key] = checked;
       }
       syncActionSwitches();

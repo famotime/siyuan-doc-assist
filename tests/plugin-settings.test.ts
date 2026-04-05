@@ -565,4 +565,35 @@ describe("plugin settings", () => {
     expect(aiSpace.classList.contains("doc-assistant-settings__host-space")).toBe(true);
     expect(menuSpace.classList.contains("doc-assistant-settings__host-space")).toBe(true);
   });
+
+  test("hides alpha actions and related settings panels when configured", async () => {
+    const { ALPHA_FEATURE_HIDE_CONFIG } = await import("@/plugin/alpha-feature-config");
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["create-monthly-diary"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service"];
+
+    try {
+      const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+      const plugin = new DocLinkToolkitPlugin() as any;
+      await plugin.onload();
+
+      plugin.openSetting();
+
+      const setting = settingInstances[1];
+      expect(setting.items.map((item) => item.title)).toEqual([
+        "钉住页签始终保持可见",
+        "注册命令到文档菜单",
+      ]);
+
+      const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+      expect(
+        menuRegistrationPanel.querySelector("[data-action-key='create-monthly-diary']")
+      ).toBeNull();
+      expect(
+        menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-action")
+      ).toHaveLength(ACTIONS.length - 1);
+    } finally {
+      ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = [];
+      ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
+    }
+  });
 });

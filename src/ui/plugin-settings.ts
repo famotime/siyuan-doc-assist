@@ -1,6 +1,7 @@
 import { Setting } from "siyuan";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
 import { DocMenuRegistrationState } from "@/core/doc-menu-registration-core";
+import { HiddenPluginSettingKey } from "@/plugin/alpha-feature-config";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
 import { createMonthlyDiarySettingsPanel } from "@/ui/plugin-settings-diary";
@@ -15,6 +16,7 @@ type CreatePluginSettingsOptions = {
   keepNewDocAfterPinnedTabs: boolean;
   aiSummaryConfig: AiServiceConfig;
   monthlyDiaryTemplate: string;
+  hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
   onMonthlyDiaryTemplateChange: (template: string) => Promise<void> | void;
   onToggleKeepNewDocAfterPinnedTabs: (enabled: boolean) => Promise<void> | void;
@@ -24,6 +26,8 @@ type CreatePluginSettingsOptions = {
 
 export function createPluginSettings(options: CreatePluginSettingsOptions) {
   const setting = new Setting({ width: "640px" });
+  const hiddenSettingKeys = new Set(options.hiddenSettingKeys || []);
+  const hostNormalizedPanels: HTMLElement[] = [];
 
   const moveAfterPinnedSwitch = createCheckbox({
     checked: options.keepNewDocAfterPinnedTabs,
@@ -38,27 +42,33 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     actionElement: moveAfterPinnedSwitch,
   });
 
-  const aiPanel = createAiSettingsPanel({
-    aiSummaryConfig: options.aiSummaryConfig,
-    onAiSummaryConfigChange: options.onAiSummaryConfigChange,
-  });
-  setting.addItem({
-    title: "AI 服务",
-    direction: "column",
-    description: "配置兼容 OpenAI API 的服务，用于生成文档摘要和标记口水内容。",
-    actionElement: aiPanel,
-  });
+  if (!hiddenSettingKeys.has("ai-service")) {
+    const aiPanel = createAiSettingsPanel({
+      aiSummaryConfig: options.aiSummaryConfig,
+      onAiSummaryConfigChange: options.onAiSummaryConfigChange,
+    });
+    setting.addItem({
+      title: "AI 服务",
+      direction: "column",
+      description: "配置兼容 OpenAI API 的服务，用于生成文档摘要和标记口水内容。",
+      actionElement: aiPanel,
+    });
+    hostNormalizedPanels.push(aiPanel);
+  }
 
-  const diaryPanel = createMonthlyDiarySettingsPanel({
-    template: options.monthlyDiaryTemplate,
-    onTemplateChange: options.onMonthlyDiaryTemplateChange,
-  });
-  setting.addItem({
-    title: "本月日记模板",
-    direction: "column",
-    description: "定义单日模板，创建本月日记时会自动按当前月份逐日展开。",
-    actionElement: diaryPanel,
-  });
+  if (!hiddenSettingKeys.has("monthly-diary-template")) {
+    const diaryPanel = createMonthlyDiarySettingsPanel({
+      template: options.monthlyDiaryTemplate,
+      onTemplateChange: options.onMonthlyDiaryTemplateChange,
+    });
+    setting.addItem({
+      title: "本月日记模板",
+      direction: "column",
+      description: "定义单日模板，创建本月日记时会自动按当前月份逐日展开。",
+      actionElement: diaryPanel,
+    });
+    hostNormalizedPanels.push(diaryPanel);
+  }
 
   const menuRegistrationPanel = createMenuRegistrationPanel({
     actions: options.actions,
@@ -73,8 +83,9 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     description: "默认全部关闭。开启后会把对应命令加入文档标题菜单，可按分组集中管理。",
     actionElement: menuRegistrationPanel,
   });
+  hostNormalizedPanels.push(menuRegistrationPanel);
 
-  installSettingHostNormalizer(setting, [aiPanel, diaryPanel, menuRegistrationPanel]);
+  installSettingHostNormalizer(setting, hostNormalizedPanels);
 
   return setting;
 }

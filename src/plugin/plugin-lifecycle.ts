@@ -18,6 +18,11 @@ import {
 } from "@/core/pinned-tab-placement-core";
 import { ActionRunner } from "@/plugin/action-runner";
 import { ACTIONS, ActionKey } from "@/plugin/actions";
+import {
+  ALPHA_FEATURE_HIDE_CONFIG,
+  filterVisibleActions,
+  getHiddenPluginSettingKeys,
+} from "@/plugin/alpha-feature-config";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
 import {
@@ -241,6 +246,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       keepNewDocAfterPinnedTabs: this.keepNewDocAfterPinnedTabs,
       aiSummaryConfig: this.aiSummaryConfig,
       monthlyDiaryTemplate: this.monthlyDiaryTemplate,
+      hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onMonthlyDiaryTemplateChange: (template) => this.setMonthlyDiaryTemplate(template),
       onToggleKeepNewDocAfterPinnedTabs: (enabled) =>
@@ -270,7 +276,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   private getOrderedActions() {
-    return getOrderedPluginActions(ACTIONS, this.snapshotDocMenuState());
+    return filterVisibleActions(
+      getOrderedPluginActions(ACTIONS, this.snapshotDocMenuState()),
+      ALPHA_FEATURE_HIDE_CONFIG
+    );
   }
 
   private snapshotDocMenuState(): PluginDocMenuState {

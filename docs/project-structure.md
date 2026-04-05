@@ -10,16 +10,16 @@
 
 | 目录 | 文件数 | 说明 |
 | --- | ---: | --- |
-| `src/` | 104 | 插件源码 |
+| `src/` | 105 | 插件源码 |
 | `src/core/` | 26 | 纯逻辑与转换规则 |
-| `src/plugin/` | 20 | 生命周期、动作编排、控制器 |
+| `src/plugin/` | 21 | 生命周期、动作编排、控制器 |
 | `src/services/` | 38 | Kernel / 文件系统 / AI / 导出服务 |
 | `src/ui/` | 12 | Dock、Dialog、Setting 面板 UI |
 | `src/types/` | 4 | 类型声明 |
 | `src/i18n/` | 2 | 国际化文案 |
-| `tests/` | 71 | Vitest 用例与 mocks |
+| `tests/` | 72 | Vitest 用例与 mocks |
 | `assets/` | 2 | README 截图资源 |
-| `docs/` | 3 | 结构文档、重构计划、变更记录 |
+| `docs/` | 4 | 结构文档、重构计划、变更记录 |
 | `developer_docs/` | 26 | 本地 SiYuan 开发参考 |
 | `reference_docs/` | 26 | 归档参考资料 |
 | `plugin-sample-vite-vue/` | 35 | 模板参考工程 |
@@ -105,7 +105,7 @@
 | `src/core/punctuation-toggle-core.ts` | 中英文标点检测与互转 |
 | `src/core/workspace-path-core.ts` | 工作区路径标准化与 `/api/file/getFile` 请求构造 |
 
-### 4.4 `src/plugin/`（20 个文件）
+### 4.4 `src/plugin/`（21 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -120,6 +120,7 @@
 | `src/plugin/action-runner-organize-handlers.ts` | 去重、移动、打开汇总页等整理类动作处理器 |
 | `src/plugin/action-runner-selection-handlers.ts` | 选区/选中块动作处理器，如加粗、高亮、空格清理、标点互转、列表块合并 |
 | `src/plugin/action-runner.ts` | 动作执行壳，负责运行态守卫、只读校验、确认对话框、忙碌态与剩余少量主流程 |
+| `src/plugin/alpha-feature-config.ts` | Alpha 功能隐藏配置、隐藏动作过滤与动作到设置项的联动隐藏规则 |
 | `src/plugin/actions.ts` | 动作元数据、分组与说明 |
 | `src/plugin/doc-context.ts` | Protyle 兼容类型与文档 ID 提取 |
 | `src/plugin/key-info-controller-dock.ts` | Key-info Dock 回调桥接与文档动作状态投影 |
@@ -188,7 +189,7 @@
 | `src/ui/plugin-settings-host.ts` | SiYuan `Setting` 宿主节点修正与面板归一化 |
 | `src/ui/plugin-settings-menu.ts` | 文档标题菜单注册分组面板与开关联动 |
 | `src/ui/plugin-settings-shared.ts` | Setting 面板通用 DOM 原语：checkbox、input、textarea、collapse button、field row |
-| `src/ui/plugin-settings.ts` | 插件设置页装配层，串联钉住页签、AI 面板、月记模板面板、菜单注册面板 |
+| `src/ui/plugin-settings.ts` | 插件设置页装配层，串联钉住页签、AI 面板、月记模板面板、菜单注册面板，并支持按隐藏配置裁剪设置项 |
 
 ### 4.7 `src/types/` 与 `src/i18n/`
 
