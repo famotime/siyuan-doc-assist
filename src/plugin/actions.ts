@@ -21,6 +21,7 @@ export type ActionKey =
   | "remove-doc-images"
   | "toggle-links-refs"
   | "insert-doc-summary"
+  | "create-doc-concept-map"
   | "mark-irrelevant-paragraphs"
   | "mark-key-content"
   | "clean-ai-output"
@@ -45,6 +46,7 @@ export type ActionConfig = {
   group: DockDocActionGroup;
   desktopOnly?: boolean;
   requiresWritableDoc?: boolean;
+  runInBackground?: boolean;
   icon: string;
   dockIconText: string;
 };
@@ -95,6 +97,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "remove-selected-spacing": "格",
   "toggle-selected-punctuation": "标",
   "insert-doc-summary": "摘",
+  "create-doc-concept-map": "概",
   "mark-irrelevant-paragraphs": "筛",
   "mark-key-content": "关",
   "remove-extra-blank-lines": "空",
@@ -279,6 +282,19 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     ),
     group: "insert",
     requiresWritableDoc: true,
+    icon: "iconList",
+  },
+  {
+    key: "create-doc-concept-map",
+    commandText: "生成概念地图",
+    menuText: "生成概念地图",
+    tooltip: createActionTooltip(
+      "生成概念地图",
+      "读取当前文档正文生成概念地图子文档，输出为层次化列表项和说明，并自动打开新文档。"
+    ),
+    group: "ai",
+    requiresWritableDoc: true,
+    runInBackground: true,
     icon: "iconList",
   },
   {

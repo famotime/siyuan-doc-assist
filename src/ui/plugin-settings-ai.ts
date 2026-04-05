@@ -144,7 +144,7 @@ export function createAiSettingsPanel(
     createElement(
       "div",
       "doc-assistant-settings__ai-switch-hint",
-      "发送当前文档内容到 AI，可用于生成摘要或筛选应加删除线的口水段落。"
+      "发送当前文档内容到 AI，可用于生成摘要、概念地图，或筛选应加删除线的口水段落。"
     )
   );
 

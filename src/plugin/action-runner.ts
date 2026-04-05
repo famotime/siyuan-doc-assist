@@ -76,6 +76,7 @@ function isHighRiskForMarkdownWrite(value: string): boolean {
 
 export class ActionRunner {
   private isRunning = false;
+  private readonly backgroundTaskKeys = new Set<string>();
 
   private readonly actionHandlers: ActionHandlerMap;
 
@@ -108,7 +109,7 @@ export class ActionRunner {
       "trim-trailing-whitespace": async (docId) => this.handleTrimTrailingWhitespace(docId),
       "delete-from-current-to-end": async (docId, protyle) =>
         this.handleDeleteFromCurrentToEnd(docId, protyle),
-    };
+    } as ActionHandlerMap;
   }
 
   private async askConfirmWithVisibleDialog(title: string, text: string): Promise<boolean> {
@@ -121,10 +122,6 @@ export class ActionRunner {
   }
 
   async runAction(action: ActionKey, explicitId?: string, protyle?: ProtyleLike) {
-    if (this.isRunning) {
-      showMessage("正在处理中，请等待当前任务完成", 4000, "info");
-      return;
-    }
     const docId = this.deps.resolveDocId(explicitId, protyle);
     if (!docId) {
       showMessage("未找到当前文档", 4000, "error");
@@ -145,13 +142,21 @@ export class ActionRunner {
         return;
       }
     }
+    if (config.runInBackground) {
+      this.runActionInBackground(action, docId, protyle, config);
+      return;
+    }
+    if (this.isRunning) {
+      showMessage("正在处理中，请等待当前任务完成", 4000, "info");
+      return;
+    }
 
     try {
       this.isRunning = true;
       this.deps.setBusy?.(true);
       await dispatchAction(action, docId, protyle, this.actionHandlers);
     } catch (error: unknown) {
-      showMessage(error instanceof Error ? error.message : String(error), 7000, "error");
+      this.showActionError(error);
     } finally {
       this.isRunning = false;
       this.deps.setBusy?.(false);
@@ -180,6 +185,36 @@ export class ActionRunner {
       "info"
     );
     return false;
+  }
+
+  private runActionInBackground(
+    action: ActionKey,
+    docId: string,
+    protyle: ProtyleLike | undefined,
+    config: ActionConfig
+  ) {
+    const taskKey = `${action}:${docId}`;
+    if (this.backgroundTaskKeys.has(taskKey)) {
+      showMessage(`“${config.commandText}”正在后台处理中，请稍候`, 4000, "info");
+      return;
+    }
+
+    this.backgroundTaskKeys.add(taskKey);
+    showMessage(`已开始在后台执行“${config.commandText}”`, 3000, "info");
+
+    void (async () => {
+      try {
+        await dispatchAction(action, docId, protyle, this.actionHandlers);
+      } catch (error: unknown) {
+        this.showActionError(error);
+      } finally {
+        this.backgroundTaskKeys.delete(taskKey);
+      }
+    })();
+  }
+
+  private showActionError(error: unknown) {
+    showMessage(error instanceof Error ? error.message : String(error), 7000, "error");
   }
 
   private async handleTrimTrailingWhitespace(docId: string) {

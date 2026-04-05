@@ -79,6 +79,7 @@ vi.mock("@/services/image-remove", () => ({
 
 vi.mock("@/services/ai-summary", () => ({
   generateDocumentSummary: vi.fn(),
+  generateDocumentConceptMap: vi.fn(),
 }));
 
 vi.mock("@/services/ai-slop-marker", () => ({
@@ -135,7 +136,7 @@ import {
   updateBlockDom,
   updateBlockMarkdown,
 } from "@/services/kernel";
-import { generateDocumentSummary } from "@/services/ai-summary";
+import * as aiSummaryService from "@/services/ai-summary";
 import {
   detectIrrelevantParagraphIds,
   detectKeyContentParagraphHighlights,
@@ -177,7 +178,10 @@ const convertDocImagesToWebpMock = vi.mocked(convertDocImagesToWebp);
 const convertDocImagesToPngMock = vi.mocked(convertDocImagesToPng);
 const resizeDocImagesToDisplayMock = vi.mocked(resizeDocImagesToDisplay);
 const removeDocImageLinksMock = vi.mocked(removeDocImageLinks);
-const generateDocumentSummaryMock = vi.mocked(generateDocumentSummary);
+const generateDocumentSummaryMock = vi.mocked(aiSummaryService.generateDocumentSummary);
+const generateDocumentConceptMapMock = vi.mocked(
+  (aiSummaryService as any).generateDocumentConceptMap
+);
 const detectIrrelevantParagraphIdsMock = vi.mocked(detectIrrelevantParagraphIds);
 const detectKeyContentParagraphHighlightsMock = vi.mocked(detectKeyContentParagraphHighlights);
 
@@ -195,6 +199,12 @@ function createRunner(setBusy?: (busy: boolean) => void) {
       requestTimeoutSeconds: 45,
     }),
   } as any);
+}
+
+async function flushMicrotasks(times = 8) {
+  for (let index = 0; index < times; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 describe("action-runner loading guard", () => {
@@ -939,6 +949,107 @@ describe("action-runner loading guard", () => {
 
     openSpy.mockRestore();
     vi.useRealTimers();
+  });
+
+  test("creates a concept map child doc from current document", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-05T14:13:12+08:00"));
+    getRootDocRawMarkdownMock.mockResolvedValue("# 标题\n\n正文第一段\n\n正文第二段");
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      box: "notebook-1",
+      hPath: "/项目/当前文档",
+      title: "当前文档",
+    } as any);
+    generateDocumentConceptMapMock.mockResolvedValue(
+      "- 核心主题：概括当前文档主题。\n  - 关键概念：补充主要概念间关系。"
+    );
+    createDocWithMdMock.mockResolvedValue("concept-doc");
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const runner = createRunner();
+
+    await runner.runAction("create-doc-concept-map" as any);
+    await flushMicrotasks();
+
+    expect(generateDocumentConceptMapMock).toHaveBeenCalledWith({
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4.1-mini",
+        requestTimeoutSeconds: 45,
+      },
+      documentTitle: "当前文档",
+      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
+    });
+    expect(createDocWithMdMock).toHaveBeenCalledWith(
+      "notebook-1",
+      "/项目/当前文档/当前文档-概念地图-20260405-141312",
+      "- 核心主题：概括当前文档主题。\n  - 关键概念：补充主要概念间关系。"
+    );
+    expect(openSpy).toHaveBeenCalledWith("siyuan://blocks/concept-doc");
+    expect(showMessageMock).toHaveBeenCalledWith("已开始在后台执行“生成概念地图”", 3000, "info");
+    expect(showMessageMock).toHaveBeenCalledWith("已生成概念地图子文档", 5000, "info");
+
+    openSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  test("runs concept map generation in background without toggling busy state", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-05T14:13:12+08:00"));
+    getRootDocRawMarkdownMock.mockResolvedValue("# 标题\n\n正文第一段");
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      box: "notebook-1",
+      hPath: "/项目/当前文档",
+      title: "当前文档",
+    } as any);
+    generateDocumentConceptMapMock.mockResolvedValue("- 核心主题：概括当前文档主题。");
+    createDocWithMdMock.mockResolvedValue("concept-doc");
+    const setBusy = vi.fn();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const runner = createRunner(setBusy);
+
+    await runner.runAction("create-doc-concept-map" as any);
+    await flushMicrotasks();
+
+    expect(setBusy).not.toHaveBeenCalled();
+
+    openSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  test("allows concept map background task to start while a foreground action is running", async () => {
+    let resolveExport!: (value: { mode: "md"; fileName: string }) => void;
+    exportCurrentDocMarkdownMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveExport = resolve;
+        })
+    );
+    getRootDocRawMarkdownMock.mockResolvedValue("# 标题\n\n正文第一段");
+    getDocMetaByIDMock.mockResolvedValue({
+      id: "doc-1",
+      box: "notebook-1",
+      hPath: "/项目/当前文档",
+      title: "当前文档",
+    } as any);
+    generateDocumentConceptMapMock.mockResolvedValue("- 核心主题：概括当前文档主题。");
+    createDocWithMdMock.mockResolvedValue("concept-doc");
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const runner = createRunner();
+
+    const pendingExport = runner.runAction("export-current");
+    await runner.runAction("create-doc-concept-map" as any);
+    await flushMicrotasks();
+
+    expect(generateDocumentConceptMapMock).toHaveBeenCalledTimes(1);
+    expect(showMessageMock).not.toHaveBeenCalledWith("正在处理中，请等待当前任务完成", 4000, "info");
+
+    resolveExport({ mode: "md", fileName: "doc-1.md" });
+    await pendingExport;
+    openSpy.mockRestore();
   });
 
   test("converts doc links to refs in current document by default", async () => {

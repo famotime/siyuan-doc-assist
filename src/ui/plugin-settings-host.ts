@@ -1,4 +1,6 @@
-import { Setting } from "siyuan";
+type SettingLike = {
+  open: (name: string) => void;
+};
 
 export function normalizeSettingPanelHost(panel: HTMLElement | null): void {
   if (!panel) {
@@ -35,7 +37,7 @@ export function normalizeSettingPanelHost(panel: HTMLElement | null): void {
 }
 
 export function installSettingHostNormalizer(
-  setting: Setting,
+  setting: SettingLike,
   panels: Array<HTMLElement | null>
 ): void {
   const originalOpen = setting.open.bind(setting);

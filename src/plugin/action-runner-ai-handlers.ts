@@ -4,7 +4,10 @@ import {
   buildAiSummaryBlockMarkdown,
   resolveAiSummaryInsertTarget,
 } from "@/core/ai-summary-core";
-import { generateDocumentSummary } from "@/services/ai-summary";
+import {
+  generateDocumentConceptMap,
+  generateDocumentSummary,
+} from "@/services/ai-summary";
 import { NetworkLensPluginLike, loadFreshNetworkLensDocumentSummary } from "@/services/network-lens-ai-index";
 import {
   detectIrrelevantParagraphIds,
@@ -12,6 +15,7 @@ import {
 } from "@/services/ai-slop-marker";
 import {
   appendBlock,
+  createDocWithMd,
   getChildBlocksByParentId,
   getDocMetaByID,
   getRootDocRawMarkdown,
@@ -31,6 +35,29 @@ export function createAiActionHandlers(
   options: CreateAiActionHandlersOptions = {}
 ): PartialActionHandlerMap {
   return {
+    "create-doc-concept-map": async (docId) => {
+      const documentMarkdown = (await getRootDocRawMarkdown(docId)).trim();
+      if (!documentMarkdown) {
+        showMessage("当前文档没有可供生成概念地图的正文", 5000, "info");
+        return;
+      }
+
+      const docMeta = await getDocMetaByID(docId).catch(() => null);
+      if (!docMeta?.box) {
+        throw new Error("未找到当前文档信息，无法生成概念地图");
+      }
+
+      const conceptMap = await generateDocumentConceptMap({
+        config: options.getAiSummaryConfig?.(),
+        documentTitle: docMeta.title,
+        documentMarkdown,
+      });
+      const title = buildConceptMapDocTitle(docMeta.title);
+      const path = joinChildDocHPath(docMeta.hPath, title);
+      const conceptDocId = await createDocWithMd(docMeta.box, path, conceptMap);
+      openDocByProtocol(conceptDocId);
+      showMessage("已生成概念地图子文档", 5000, "info");
+    },
     "insert-doc-summary": async (docId) => {
       const documentMarkdown = (await getRootDocRawMarkdown(docId)).trim();
       if (!documentMarkdown) {
@@ -227,6 +254,34 @@ export function createAiActionHandlers(
       showMessage(summary, 5000, "info");
     },
   };
+}
+
+function openDocByProtocol(blockId: string) {
+  const url = `siyuan://blocks/${blockId}`;
+  try {
+    window.open(url);
+  } catch {
+    window.location.href = url;
+  }
+}
+
+function buildConceptMapDocTitle(docTitle: string, now = new Date()): string {
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const hh = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  const prefix = (docTitle || "").trim();
+  return `${prefix ? `${prefix}-` : ""}概念地图-${yyyy}${mm}${dd}-${hh}${min}${ss}`;
+}
+
+function joinChildDocHPath(parentHPath: string, title: string): string {
+  const base = (parentHPath || "").trim().replace(/\/+$/u, "");
+  if (!base) {
+    return `/${title}`;
+  }
+  return `${base}/${title}`;
 }
 
 function isParagraphLikeBlockType(type: string): boolean {

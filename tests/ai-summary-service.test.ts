@@ -150,6 +150,55 @@ describe("ai summary service", () => {
     expect(String(forwardProxy.mock.calls[0]?.[2] || "")).toContain("正文第一段");
   });
 
+  test("requests a concept map from an OpenAI-compatible chat completion endpoint", async () => {
+    const forwardProxy = vi.fn().mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: [
+                { type: "text", text: "  - 核心主题：聚焦主题脉络。\n  - 关键概念：补充核心概念间关系。  " },
+              ],
+            },
+          },
+        ],
+      }),
+    });
+    const service = createAiSummaryService({ forwardProxy });
+
+    const result = await (service as any).generateDocumentConceptMap({
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4.1-mini",
+        requestTimeoutSeconds: 45,
+      },
+      documentTitle: "ClaudeCode 主题",
+      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
+    });
+
+    expect(result).toBe("- 核心主题：聚焦主题脉络。\n  - 关键概念：补充核心概念间关系。");
+    expect(forwardProxy).toHaveBeenCalledWith(
+      "https://api.example.com/v1/chat/completions",
+      "POST",
+      expect.stringContaining("\"model\":\"gpt-4.1-mini\""),
+      [
+        { Authorization: "Bearer sk-test" },
+        { Accept: "application/json" },
+      ],
+      45000,
+      "application/json"
+    );
+    expect(String(forwardProxy.mock.calls[0]?.[2] || "")).toContain("生成该主题的概念地图");
+    expect(String(forwardProxy.mock.calls[0]?.[2] || "")).toContain("总-分-细节");
+    expect(String(forwardProxy.mock.calls[0]?.[2] || "")).toContain("不超过15字");
+    expect(String(forwardProxy.mock.calls[0]?.[2] || "")).toContain("20-100字");
+    expect(String(forwardProxy.mock.calls[0]?.[2] || "")).toContain("最多5层");
+    expect(String(forwardProxy.mock.calls[0]?.[2] || "")).toContain("没有标题和普通正文段落");
+  });
+
   test("throws a readable error when config is incomplete", async () => {
     const service = createAiSummaryService({
       forwardProxy: vi.fn(),
