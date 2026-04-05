@@ -1,3 +1,4 @@
+import { extractSiyuanBlockIdsFromMarkdown } from "@/core/link-core";
 import { escapeSqlLiteral, inClause, sql, sqlPaged } from "@/services/kernel-shared";
 
 type SqlRootRow = {
@@ -74,6 +75,72 @@ export async function getForwardRefTargetBlockIds(docId: string): Promise<string
   } catch {
     return [];
   }
+}
+
+export async function getBacklinkSourceDocIdsFromRefs(docId: string): Promise<string[]> {
+  const normalizedDocId = (docId || "").trim();
+  if (!normalizedDocId) {
+    return [];
+  }
+
+  try {
+    const columns = await sql<{ name: string }>(`pragma table_info(refs)`);
+    const nameSet = new Set(columns.map((item) => (item.name || "").toLowerCase()));
+    if (!nameSet.has("root_id")) {
+      return [];
+    }
+
+    const whereParts: string[] = [];
+    if (nameSet.has("def_block_root_id")) {
+      whereParts.push(`r.def_block_root_id='${escapeSqlLiteral(normalizedDocId)}'`);
+    }
+    if (nameSet.has("def_block_id")) {
+      whereParts.push(`r.def_block_id='${escapeSqlLiteral(normalizedDocId)}'`);
+    }
+    if (!whereParts.length) {
+      return [];
+    }
+
+    const rows = await sql<{ id: string }>(
+      `select distinct r.root_id as id
+       from refs r
+       where (${whereParts.join(" or ")})
+         and r.root_id is not null
+         and r.root_id != ''
+         and r.root_id != '${escapeSqlLiteral(normalizedDocId)}'`
+    );
+
+    return [...new Set(rows.map((row) => row.id).filter(Boolean))];
+  } catch {
+    return [];
+  }
+}
+
+export async function getBacklinkSourceDocIdsFromMarkdown(docId: string): Promise<string[]> {
+  const normalizedDocId = (docId || "").trim();
+  if (!normalizedDocId) {
+    return [];
+  }
+
+  const rows = await sqlPaged<{ root_id: string; markdown: string }>(
+    `select root_id, markdown
+     from blocks
+     where root_id != '${escapeSqlLiteral(normalizedDocId)}'
+       and markdown like '%${escapeSqlLiteral(normalizedDocId)}%'`
+  );
+
+  const result = new Set<string>();
+  for (const row of rows) {
+    const rootId = (row.root_id || "").trim();
+    if (!rootId || rootId === normalizedDocId) {
+      continue;
+    }
+    const extracted = extractSiyuanBlockIdsFromMarkdown(row.markdown || "");
+    if (extracted.includes(normalizedDocId)) {
+      result.add(rootId);
+    }
+  }
+  return [...result];
 }
 
 export async function listDocsByParentSubtree(

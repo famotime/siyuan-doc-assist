@@ -40,6 +40,8 @@ export {
   isReadonlyAttrValue,
 } from "@/services/kernel-attr";
 export {
+  getBacklinkSourceDocIdsFromMarkdown,
+  getBacklinkSourceDocIdsFromRefs,
   getForwardRefTargetBlockIds,
   getRootDocRawMarkdown,
   listDocsByParentSubtree,

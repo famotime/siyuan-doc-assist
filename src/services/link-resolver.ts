@@ -9,6 +9,8 @@ import {
   exportMdContent,
   getDocMetasByIDs,
   getBacklink2,
+  getBacklinkSourceDocIdsFromMarkdown,
+  getBacklinkSourceDocIdsFromRefs,
   getPathByID,
   getForwardRefTargetBlockIds,
   getRootDocRawMarkdown,
@@ -54,8 +56,12 @@ function buildIdLineEvidence(markdown: string, ids: string[]): Array<{ id: strin
 }
 
 export async function getBacklinkDocs(docId: string): Promise<DocRefItem[]> {
-  const res = await getBacklink2(docId, false);
-  const docs = res.backlinks
+  const [idsFromRefs, idsFromMarkdown, res] = await Promise.all([
+    getBacklinkSourceDocIdsFromRefs(docId),
+    getBacklinkSourceDocIdsFromMarkdown(docId),
+    getBacklink2(docId, false),
+  ]);
+  const apiDocs = res.backlinks
     .filter((item) => item.id && item.id !== docId)
     .map((item) => ({
       id: item.id,
@@ -65,6 +71,39 @@ export async function getBacklinkDocs(docId: string): Promise<DocRefItem[]> {
       updated: item.updated,
       source: "backlink" as const,
     }));
+  const mergedIds = [...new Set([...idsFromRefs, ...idsFromMarkdown, ...apiDocs.map((item) => item.id)])];
+  if (!mergedIds.length) {
+    return [];
+  }
+
+  const [metas] = await Promise.all([getDocMetasByIDs(mergedIds)]);
+  const metaMap = new Map(metas.map((item) => [item.id, item]));
+  const apiDocMap = new Map(apiDocs.map((item) => [item.id, item]));
+  const docs = mergedIds.map((id) => {
+    const meta = metaMap.get(id);
+    if (meta) {
+      return {
+        id,
+        box: meta.box,
+        hPath: meta.hPath || "",
+        name: meta.title || basename(meta.hPath || id),
+        updated: meta.updated,
+        source: "backlink" as const,
+      };
+    }
+    const fallback = apiDocMap.get(id);
+    if (fallback) {
+      return fallback;
+    }
+    return {
+      id,
+      box: "",
+      hPath: "",
+      name: id,
+      updated: undefined,
+      source: "backlink" as const,
+    };
+  });
   return dedupeDocRefs(docs);
 }
 
