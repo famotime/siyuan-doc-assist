@@ -342,4 +342,24 @@ describe("plugin menu registration", () => {
       ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
     }
   });
+
+  test("exposes a power-buttons integration provider from the plugin instance", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+
+    await plugin.onload();
+
+    const provider = plugin.getPowerButtonsIntegration?.();
+
+    expect(provider).toEqual(expect.objectContaining({
+      protocol: "power-buttons-command-provider",
+      protocolVersion: 1,
+      providerId: "siyuan-doc-assist",
+    }));
+    expect(await provider.listCommands()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "insert-doc-summary" }),
+      ]),
+    );
+  });
 });

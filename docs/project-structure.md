@@ -1,6 +1,6 @@
 # siyuan-doc-assist 项目结构（详细版）
 
-更新时间：`2026-04-05`
+更新时间：`2026-04-11`
 
 ## 1. 快照范围与统计
 
@@ -10,14 +10,14 @@
 
 | 目录 | 文件数 | 说明 |
 | --- | ---: | --- |
-| `src/` | 105 | 插件源码 |
+| `src/` | 107 | 插件源码 |
 | `src/core/` | 26 | 纯逻辑与转换规则 |
-| `src/plugin/` | 21 | 生命周期、动作编排、控制器 |
+| `src/plugin/` | 23 | 生命周期、动作编排、控制器 |
 | `src/services/` | 38 | Kernel / 文件系统 / AI / 导出服务 |
 | `src/ui/` | 12 | Dock、Dialog、Setting 面板 UI |
 | `src/types/` | 4 | 类型声明 |
 | `src/i18n/` | 2 | 国际化文案 |
-| `tests/` | 72 | Vitest 用例与 mocks |
+| `tests/` | 73 | Vitest 用例与 mocks |
 | `assets/` | 2 | README 截图资源 |
 | `docs/` | 4 | 结构文档、重构计划、变更记录 |
 | `developer_docs/` | 26 | 本地 SiYuan 开发参考 |
@@ -129,7 +129,9 @@
 | `src/plugin/plugin-lifecycle-events.ts` | 生命周期事件绑定与解绑辅助 |
 | `src/plugin/plugin-lifecycle-menu.ts` | 标题菜单注册、命令注册与菜单刷新 |
 | `src/plugin/plugin-lifecycle-state.ts` | 插件设置状态默认值、标准化、序列化与持久化，含 AI 与月记模板配置 |
-| `src/plugin/plugin-lifecycle.ts` | 插件主类与组合根 |
+| `src/plugin/plugin-lifecycle.ts` | 插件主类与组合根，并暴露 `power-buttons` 集成 provider |
+| `src/plugin/power-buttons-provider-types.ts` | 面向 `power-buttons` 的跨插件 provider 协议类型 |
+| `src/plugin/power-buttons-provider.ts` | `power-buttons` 白名单 provider；负责公开命令列表与 `runAction` 路由 |
 
 ### 4.5 `src/services/`（38 个文件）
 
@@ -281,6 +283,7 @@ tests/plugin-doc-context.test.ts
 tests/plugin-lifecycle-state.test.ts
 tests/plugin-menu-registration.test.ts
 tests/plugin-settings.test.ts
+tests/power-buttons-provider.test.ts
 tests/plugin-tab-placement.test.ts
 tests/punctuation-toggle-core.test.ts
 tests/request.test.ts
