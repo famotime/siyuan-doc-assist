@@ -5,6 +5,7 @@ import {
   Plugin,
   showMessage,
 } from "siyuan";
+import pluginInfo from "@/../plugin.json";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
 import {
   DocMenuRegistrationState,
@@ -57,6 +58,8 @@ import {
   showActionProcessingOverlay,
 } from "@/ui/action-processing-overlay";
 import { resolveNetworkLensPluginFromPlugins } from "@/services/network-lens-ai-index";
+import { createPowerButtonsProvider } from "@/plugin/power-buttons-provider";
+import type { PowerButtonsCommandProvider } from "@/plugin/power-buttons-provider-types";
 
 export default class DocLinkToolkitPlugin extends Plugin {
   private static readonly PINNED_TAB_PLACEMENT_RETRY_DELAYS = [0, 32, 96, 192];
@@ -78,6 +81,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private readonly knownTabIds = new Set<string>();
   private readonly pendingPinnedTabPlacementTasks =
     new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
+    pluginVersion: pluginInfo.version,
+    runAction: (action) => this.actionRunner.runAction(action),
+  });
 
   private readonly actionRunner: ActionRunner = new ActionRunner({
     isMobile: () => this.isMobile,
@@ -191,6 +198,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
   openSetting() {
     this.setting = this.buildPluginSettingPage();
     this.setting.open(this.name);
+  }
+
+  public getPowerButtonsIntegration(): PowerButtonsCommandProvider {
+    return this.powerButtonsProvider;
   }
 
   private resolveDocId(explicitId?: string, protyle?: ProtyleLike): string {
