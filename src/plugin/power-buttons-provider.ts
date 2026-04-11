@@ -1,5 +1,6 @@
 import { ACTIONS, type ActionKey } from "@/plugin/actions";
 import { filterVisibleActions } from "@/plugin/alpha-feature-config";
+import type { ActionRunResult } from "@/plugin/action-runner";
 import type { PowerButtonsCommandProvider } from "@/plugin/power-buttons-provider-types";
 
 const PUBLIC_ACTION_KEYS = new Set<ActionKey>([
@@ -18,7 +19,7 @@ const PUBLIC_ACTION_KEYS = new Set<ActionKey>([
 
 export function createPowerButtonsProvider(options: {
   pluginVersion: string;
-  runAction: (action: ActionKey) => Promise<void>;
+  runAction: (action: ActionKey) => Promise<ActionRunResult>;
 }): PowerButtonsCommandProvider {
   const getPublicActions = () => filterVisibleActions(ACTIONS)
     .filter(action => PUBLIC_ACTION_KEYS.has(action.key));
@@ -50,8 +51,7 @@ export function createPowerButtonsProvider(options: {
       }
 
       try {
-        await options.runAction(action.key);
-        return { ok: true, alreadyNotified: true };
+        return await options.runAction(action.key);
       } catch (error) {
         return {
           ok: false,

@@ -31,6 +31,20 @@ import { createSelectionActionHandlers } from "@/plugin/action-runner-selection-
 import { ProtyleLike } from "@/plugin/doc-context";
 import { NetworkLensPluginLike } from "@/services/network-lens-ai-index";
 
+export type ActionRunResult =
+  | {
+      ok: true;
+      alreadyNotified: true;
+    }
+  | {
+      ok: false;
+      errorCode: "context-unavailable" | "not-supported" | "execution-failed";
+      message: string;
+      alreadyNotified: true;
+    };
+
+type ActionRunErrorCode = Extract<ActionRunResult, { ok: false }>["errorCode"];
+
 type ActionRunnerDeps = {
   isMobile: () => boolean;
   resolveDocId: (explicitId?: string, protyle?: ProtyleLike) => string;
@@ -124,42 +138,49 @@ export class ActionRunner {
     }
   }
 
-  async runAction(action: ActionKey, explicitId?: string, protyle?: ProtyleLike) {
+  async runAction(action: ActionKey, explicitId?: string, protyle?: ProtyleLike): Promise<ActionRunResult> {
     const docId = this.deps.resolveDocId(explicitId, protyle);
     if (!docId) {
-      showMessage("未找到当前文档", 4000, "error");
-      return;
+      return this.createNotifiedFailure("context-unavailable", "未找到当前文档", 4000, "error");
     }
     const config = ACTIONS.find((item) => item.key === action);
     if (!config) {
-      showMessage("未找到对应动作", 4000, "error");
-      return;
+      return this.createNotifiedFailure("execution-failed", "未找到对应动作", 4000, "error");
     }
     if (config.desktopOnly && this.deps.isMobile()) {
-      showMessage("当前设备不支持此命令", 4000, "info");
-      return;
+      return this.createNotifiedFailure("not-supported", "当前设备不支持此命令", 4000, "info");
     }
     if (config.requiresWritableDoc) {
       const writable = await this.ensureDocWritable(docId, config.commandText);
       if (!writable) {
-        return;
+        return {
+          ok: false,
+          errorCode: "context-unavailable",
+          message: this.getReadonlyDocMessage(config.commandText),
+          alreadyNotified: true,
+        };
       }
     }
     if (config.runInBackground) {
-      this.runActionInBackground(action, docId, protyle, config);
-      return;
+      return this.runActionInBackground(action, docId, protyle, config);
     }
     if (this.isRunning) {
-      showMessage("正在处理中，请等待当前任务完成", 4000, "info");
-      return;
+      return this.createNotifiedFailure("not-supported", "正在处理中，请等待当前任务完成", 4000, "info");
     }
 
     try {
       this.isRunning = true;
       this.deps.setBusy?.(true);
       await dispatchAction(action, docId, protyle, this.actionHandlers);
+      return { ok: true, alreadyNotified: true };
     } catch (error: unknown) {
       this.showActionError(error);
+      return {
+        ok: false,
+        errorCode: "execution-failed",
+        message: this.getErrorMessage(error),
+        alreadyNotified: true,
+      };
     } finally {
       this.isRunning = false;
       this.deps.setBusy?.(false);
@@ -182,11 +203,7 @@ export class ActionRunner {
     if (!readonly) {
       return true;
     }
-    showMessage(
-      `当前文档已锁定，无法执行“${actionLabel}”。请先解除文档锁定后再试。`,
-      5000,
-      "info"
-    );
+    showMessage(this.getReadonlyDocMessage(actionLabel), 5000, "info");
     return false;
   }
 
@@ -195,11 +212,15 @@ export class ActionRunner {
     docId: string,
     protyle: ProtyleLike | undefined,
     config: ActionConfig
-  ) {
+  ): ActionRunResult {
     const taskKey = `${action}:${docId}`;
     if (this.backgroundTaskKeys.has(taskKey)) {
-      showMessage(`“${config.commandText}”正在后台处理中，请稍候`, 4000, "info");
-      return;
+      return this.createNotifiedFailure(
+        "not-supported",
+        `“${config.commandText}”正在后台处理中，请稍候`,
+        4000,
+        "info",
+      );
     }
 
     this.backgroundTaskKeys.add(taskKey);
@@ -214,10 +235,35 @@ export class ActionRunner {
         this.backgroundTaskKeys.delete(taskKey);
       }
     })();
+
+    return { ok: true, alreadyNotified: true };
   }
 
   private showActionError(error: unknown) {
-    showMessage(error instanceof Error ? error.message : String(error), 7000, "error");
+    showMessage(this.getErrorMessage(error), 7000, "error");
+  }
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  private getReadonlyDocMessage(actionLabel: string): string {
+    return `当前文档已锁定，无法执行“${actionLabel}”。请先解除文档锁定后再试。`;
+  }
+
+  private createNotifiedFailure(
+    errorCode: ActionRunErrorCode,
+    message: string,
+    duration: number,
+    type: "info" | "error",
+  ): ActionRunResult {
+    showMessage(message, duration, type);
+    return {
+      ok: false,
+      errorCode,
+      message,
+      alreadyNotified: true,
+    };
   }
 
   private async handleTrimTrailingWhitespace(docId: string) {

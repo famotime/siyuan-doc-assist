@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { ALPHA_FEATURE_HIDE_CONFIG } from "@/plugin/alpha-feature-config";
 import { createPowerButtonsProvider } from "@/plugin/power-buttons-provider";
 
 describe("power buttons provider", () => {
@@ -17,8 +18,25 @@ describe("power buttons provider", () => {
     expect(commandIds).not.toContain("create-monthly-diary");
   });
 
+  it("filters out hidden actions even when they are in the public whitelist", async () => {
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["insert-doc-summary"];
+
+    try {
+      const provider = createPowerButtonsProvider({
+        pluginVersion: "1.4.5",
+        runAction: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const commandIds = (await provider.listCommands()).map(command => command.id);
+
+      expect(commandIds).not.toContain("insert-doc-summary");
+    } finally {
+      ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = [];
+    }
+  });
+
   it("routes public commands to runAction and rejects unknown commands", async () => {
-    const runAction = vi.fn().mockResolvedValue(undefined);
+    const runAction = vi.fn().mockResolvedValue({ ok: true, alreadyNotified: true });
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
       runAction,
@@ -39,5 +57,29 @@ describe("power buttons provider", () => {
       ok: false,
       errorCode: "command-not-found",
     }));
+  });
+
+  it("returns structured failure when current document context is unavailable", async () => {
+    const provider = createPowerButtonsProvider({
+      pluginVersion: "1.4.5",
+      runAction: vi.fn().mockResolvedValue({
+        ok: false,
+        errorCode: "context-unavailable",
+        message: "未找到当前文档",
+        alreadyNotified: true,
+      }),
+    });
+
+    const result = await provider.invokeCommand("insert-doc-summary", {
+      trigger: "button-click",
+      sourcePlugin: "siyuan-power-buttons",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "context-unavailable",
+      message: "未找到当前文档",
+      alreadyNotified: true,
+    });
   });
 });
