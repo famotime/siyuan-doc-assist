@@ -50,6 +50,7 @@ export type DeleteBlocksResult = {
 
 const styleLogger = createDocAssistantLogger("Style");
 const blankLinesLogger = createDocAssistantLogger("BlankLines");
+const DEFAULT_DELETE_BLOCK_TIMEOUT_MS = 10000;
 
 function toOrderedChildBlockRefs(childList: ChildBlockListItem[] | null | undefined): ChildBlockRef[] {
   const seen = new Set<string>();
@@ -217,7 +218,7 @@ export async function deleteBlockById(id: string): Promise<void> {
 
 export async function deleteBlocksByIds(
   ids: string[],
-  options?: { concurrency?: number }
+  options?: { concurrency?: number; timeoutMs?: number }
 ): Promise<DeleteBlocksResult> {
   const normalizedIds = ids.map((id) => (id || "").trim()).filter(Boolean);
   if (!normalizedIds.length) {
@@ -231,9 +232,21 @@ export async function deleteBlocksByIds(
     1,
     Math.min(normalizedIds.length, Math.floor(options?.concurrency || 4))
   );
+  const timeoutMs = Math.max(1, Math.floor(options?.timeoutMs || DEFAULT_DELETE_BLOCK_TIMEOUT_MS));
   let nextIndex = 0;
   let deletedCount = 0;
   const failedIds: string[] = [];
+
+  async function deleteBlockByIdWithTimeout(id: string): Promise<void> {
+    await Promise.race([
+      deleteBlockById(id),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`delete block timeout: ${id}`));
+        }, timeoutMs);
+      }),
+    ]);
+  }
 
   async function worker() {
     while (nextIndex < normalizedIds.length) {
@@ -241,10 +254,16 @@ export async function deleteBlocksByIds(
       nextIndex += 1;
       const id = normalizedIds[currentIndex];
       try {
-        await deleteBlockById(id);
+        await deleteBlockByIdWithTimeout(id);
         deletedCount += 1;
-      } catch {
+      } catch (error: unknown) {
         failedIds.push(id);
+        const message = error instanceof Error ? error.message : String(error);
+        blankLinesLogger.debug("delete block failed", {
+          id,
+          message,
+          timeoutMs,
+        });
       }
     }
   }

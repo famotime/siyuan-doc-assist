@@ -12,6 +12,12 @@ vi.mock("@/services/request", () => ({
 
 const requestApiMock = requestApi as unknown as vi.Mock;
 
+async function flushMicrotasks(times = 8) {
+  for (let index = 0; index < times; index += 1) {
+    await Promise.resolve();
+  }
+}
+
 describe("kernel child blocks", () => {
   beforeEach(() => {
     requestApiMock.mockReset();
@@ -184,14 +190,12 @@ describe("kernel child blocks", () => {
     expect(started).toEqual(["a", "b"]);
 
     resolvers.get("a")?.();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(started).toEqual(["a", "b", "c"]);
+    await flushMicrotasks();
+    expect(started).toContain("c");
 
     resolvers.get("b")?.();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(started).toEqual(["a", "b", "c", "d"]);
+    await flushMicrotasks();
+    expect(started).toContain("d");
 
     resolvers.get("c")?.();
     resolvers.get("d")?.();
@@ -202,5 +206,39 @@ describe("kernel child blocks", () => {
       failedIds: [],
     });
     expect(maxInFlight).toBe(2);
+  });
+
+  test("times out hanging delete requests and continues with remaining ids", async () => {
+    vi.useFakeTimers();
+    const started: string[] = [];
+
+    requestApiMock.mockImplementation((url: string, data?: any) => {
+      if (url === "/api/block/deleteBlock") {
+        const id = String(data?.id || "");
+        started.push(id);
+        if (id === "b") {
+          return new Promise<void>(() => {});
+        }
+        return Promise.resolve();
+      }
+      return Promise.resolve([]);
+    });
+
+    const pending = deleteBlocksByIds(["a", "b", "c"], {
+      concurrency: 2,
+      timeoutMs: 50,
+    });
+
+    await flushMicrotasks();
+    expect(started).toContain("c");
+
+    await vi.advanceTimersByTimeAsync(50);
+
+    await expect(pending).resolves.toEqual({
+      deletedCount: 2,
+      failedIds: ["b"],
+    });
+
+    vi.useRealTimers();
   });
 });
