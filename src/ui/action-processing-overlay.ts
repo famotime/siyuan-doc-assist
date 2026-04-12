@@ -2,8 +2,6 @@ const OVERLAY_ID = "doc-assistant-action-processing-overlay";
 const TEXT_CLASS = "doc-assistant-action-processing__text";
 const VISIBLE_CLASS = "is-visible";
 
-let refCount = 0;
-
 function createOverlay(): HTMLElement | null {
   if (typeof document === "undefined") {
     return null;
@@ -40,7 +38,6 @@ export function showActionProcessingOverlay(text = "处理中，请稍候..."): 
   if (!overlay) {
     return;
   }
-  refCount += 1;
   const label = overlay.querySelector(`.${TEXT_CLASS}`);
   if (label) {
     label.textContent = text;
@@ -54,12 +51,6 @@ export function hideActionProcessingOverlay(): void {
   }
   const overlay = document.getElementById(OVERLAY_ID);
   if (!overlay) {
-    refCount = 0;
-    return;
-  }
-
-  refCount = Math.max(0, refCount - 1);
-  if (refCount > 0) {
     return;
   }
   overlay.classList.remove(VISIBLE_CLASS);
@@ -69,7 +60,6 @@ export function destroyActionProcessingOverlay(): void {
   if (typeof document === "undefined") {
     return;
   }
-  refCount = 0;
   const overlay = document.getElementById(OVERLAY_ID);
   overlay?.remove();
 }
