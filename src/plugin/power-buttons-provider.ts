@@ -15,6 +15,8 @@ const PUBLIC_ACTION_KEYS = new Set<ActionKey>([
   "remove-extra-blank-lines",
   "toggle-links-refs",
   "insert-doc-summary",
+  "delete-from-current-to-end",
+  "convert-images-to-webp",
 ]);
 
 export function createPowerButtonsProvider(options: {
