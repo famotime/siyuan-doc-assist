@@ -1813,6 +1813,35 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
   });
 
+  test("adds bold only to plain selected blocks and shows mixed-state summary", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">A</div>
+      <div data-node-id="b" class="protyle-wysiwyg--select">B</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "Hello" } as any,
+      { id: "b", kramdown: "**World**" } as any,
+    ]);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
+
+    const confirmText = String(askConfirm.mock.calls[0]?.[1] || "");
+    expect(confirmText).toContain("含加粗 1 个");
+    expect(confirmText).toContain("未加粗 1 个");
+    expect(confirmText).toContain("操作：为未加粗块补齐加粗");
+    expect(confirmText).toContain("预计更新 1 个块");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("a", "**Hello**");
+  });
+
   test("shows heading bold stats and removes bold from all heading blocks after confirmation", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "h1", type: "h", markdown: "# **标题一**", resolved: true } as any,
@@ -2022,6 +2051,35 @@ describe("action-runner loading guard", () => {
 
     expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "c", "item");
+  });
+
+  test("adds highlight only to plain selected blocks and shows mixed-state summary", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">A</div>
+      <div data-node-id="b" class="protyle-wysiwyg--select">B</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    getBlockKramdownsMock.mockResolvedValue([
+      { id: "a", kramdown: "item" } as any,
+      { id: "b", kramdown: "==kept==" } as any,
+    ]);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("highlight-selected-blocks" as any, undefined, protyle);
+
+    const confirmText = String(askConfirm.mock.calls[0]?.[1] || "");
+    expect(confirmText).toContain("含高亮 1 个");
+    expect(confirmText).toContain("未高亮 1 个");
+    expect(confirmText).toContain("操作：为未高亮块补齐高亮");
+    expect(confirmText).toContain("预计更新 1 个块");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("a", "==item==");
   });
 
   test("shows message when no blocks are selected for styling", async () => {

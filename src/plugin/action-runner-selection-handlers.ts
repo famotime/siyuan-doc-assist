@@ -1,12 +1,13 @@
 import { showMessage } from "siyuan";
 import { buildMergeSelectedListBlocksPreview } from "@/core/list-block-merge-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
-import { applyBlockStyle, BlockStyle } from "@/core/markdown-style-core";
+import { BlockStyle } from "@/core/markdown-style-core";
 import {
   convertChineseEnglishPunctuation,
   detectPunctuationToggleMode,
   PunctuationToggleMode,
 } from "@/core/punctuation-toggle-core";
+import { buildSelectedBlockStyleTogglePreview } from "@/core/selected-block-style-toggle-core";
 import { deleteBlocksByIds, getBlockKramdowns, getChildBlocksByParentId, updateBlockMarkdown } from "@/services/kernel";
 import {
   getExplicitlySelectedBlockIds,
@@ -148,6 +149,17 @@ function summarizeStyleFailures(failures: StyleFailureDetail[]): string {
       return `${item.id}:${compact}`;
     })
     .join("；");
+}
+
+function describeSelectedBlockStyleOperation(style: BlockStyle, mode: "add-style" | "remove-style", hasExistingStyle: boolean): string {
+  const styleLabel = style === "bold" ? "加粗" : "高亮";
+  if (mode === "remove-style") {
+    return `取消所有选中块${styleLabel}`;
+  }
+  if (hasExistingStyle) {
+    return `为未${styleLabel}块补齐${styleLabel}`;
+  }
+  return `${styleLabel}所有选中块`;
 }
 
 function applySelectedBlocksSpacingCleanupFromDom(
@@ -331,9 +343,8 @@ export function createSelectionActionHandlers(
     const kramdowns = await getBlockKramdowns(selectedIds);
     const kramdownMap = new Map(kramdowns.map((item) => [item.id, item.kramdown || ""]));
 
-    const pendingUpdates: Array<{ id: string; next: string }> = [];
-    let skipped = 0;
     const failures: StyleFailureDetail[] = [];
+    const availableBlocks: Array<{ id: string; markdown: string }> = [];
     for (const id of selectedIds) {
       const source = kramdownMap.get(id);
       if (source === undefined) {
@@ -344,22 +355,35 @@ export function createSelectionActionHandlers(
         });
         continue;
       }
-      const next = applyBlockStyle(source, style);
-      if (next === source) {
-        skipped += 1;
-        continue;
-      }
-      pendingUpdates.push({ id, next });
+      availableBlocks.push({ id, markdown: source });
     }
+    const preview = buildSelectedBlockStyleTogglePreview(availableBlocks, style);
+    const pendingUpdates = preview.updates;
+    const skipped = preview.totalBlockCount - pendingUpdates.length;
 
     if (pendingUpdates.length > 0) {
       const styleLabel = style === "bold" ? "加粗" : "高亮";
+      const operationText = describeSelectedBlockStyleOperation(
+        style,
+        preview.mode,
+        preview.markedBlockCount > 0
+      );
       const confirmLines = [
         `模式：选中块${styleLabel}`,
-        `选中 ${selectedIds.length} 个块，预计更新 ${pendingUpdates.length} 个块。`,
+        `选中 ${selectedIds.length} 个块，可处理 ${preview.stylableBlockCount} 个块。`,
+        `含${styleLabel} ${preview.markedBlockCount} 个`,
+        `未${styleLabel} ${preview.plainBlockCount} 个`,
+        `操作：${operationText}`,
+        `预计更新 ${pendingUpdates.length} 个块。`,
       ];
+      if (preview.partialBlockCount > 0) {
+        confirmLines.push(`部分${styleLabel} ${preview.partialBlockCount} 个。`);
+      }
       if (skipped > 0) {
         confirmLines.push(`无变化 ${skipped} 个块。`);
+      }
+      if (preview.unstylableBlockCount > 0) {
+        confirmLines.push(`不可处理 ${preview.unstylableBlockCount} 个块，本次将跳过。`);
       }
       if (failures.length > 0) {
         confirmLines.push(`读取失败 ${failures.length} 个块，本次将跳过。`);

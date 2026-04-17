@@ -376,7 +376,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     menuText: "选中块全部加粗",
     tooltip: createActionTooltip(
       "选中块全部加粗",
-      "为当前选中的多个块批量加粗；已加粗的块会自动跳过。"
+      "为当前选中的多个块统一处理加粗：混合选中时仅补齐未加粗块；若全部已加粗，再次执行则统一取消。"
     ),
     group: "edit",
     requiresWritableDoc: true,
@@ -388,7 +388,7 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     menuText: "选中块全部高亮",
     tooltip: createActionTooltip(
       "选中块全部高亮",
-      "为当前选中的多个块批量高亮；已高亮的块会自动跳过。"
+      "为当前选中的多个块统一处理高亮：混合选中时仅补齐未高亮块；若全部已高亮，再次执行则统一取消。"
     ),
     group: "edit",
     requiresWritableDoc: true,
