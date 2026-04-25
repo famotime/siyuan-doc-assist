@@ -153,37 +153,15 @@ describe("plugin settings", () => {
     const setting = settingInstances[1];
     expect(plugin.setting).toBe(setting);
     expect(setting.items[0]?.title).toBe("钉住页签始终保持可见");
-    expect(setting.items[1]?.title).toBe("本月日记模板");
+    expect(setting.items[1]?.title).toBe("注册命令到文档菜单");
     expect(setting.items[1]?.direction).toBe("column");
-    expect(setting.items[2]?.title).toBe("注册命令到文档菜单");
-    expect(setting.items[2]?.direction).toBe("column");
-    expect(setting.items).toHaveLength(3);
+    expect(setting.items).toHaveLength(2);
 
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
     expect(tabToggle.type).toBe("checkbox");
     expect(tabToggle.checked).toBe(false);
 
-    const diarySettingsPanel = setting.items[1]?.actionElement as HTMLElement;
-    expect(diarySettingsPanel.classList.contains("doc-assistant-settings__section-card")).toBe(true);
-    const diaryTemplateInput = diarySettingsPanel.querySelector(
-      "[data-setting-key='monthly-diary-template']"
-    ) as HTMLTextAreaElement;
-    const diaryFields = diarySettingsPanel.querySelector(
-      "[data-setting-section='monthly-diary-fields']"
-    ) as HTMLElement;
-    const diaryCollapseButton = diarySettingsPanel.querySelector(
-      "[data-setting-collapse='monthly-diary-fields']"
-    ) as HTMLButtonElement;
-    expect(diaryTemplateInput.value).toContain("{{date}}");
-    expect(diaryTemplateInput.value).toContain("{{weekday}}");
-    expect(diaryFields.hidden).toBe(false);
-    expect(diaryCollapseButton.getAttribute("aria-expanded")).toBe("true");
-    expect(
-      diaryCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
-    ).toBe("收起");
-    expect(diaryCollapseButton.parentElement?.lastElementChild).toBe(diaryCollapseButton);
-
-    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
     expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
       true
     );
@@ -242,19 +220,6 @@ describe("plugin settings", () => {
       menuCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
     ).toBe("展开");
 
-    diaryCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(diaryFields.hidden).toBe(true);
-    expect(diaryCollapseButton.getAttribute("aria-expanded")).toBe("false");
-    expect(
-      diaryCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
-    ).toBe("展开");
-
-    diaryCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(diaryFields.hidden).toBe(false);
-    expect(diaryCollapseButton.getAttribute("aria-expanded")).toBe("true");
-    expect(
-      diaryCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
-    ).toBe("收起");
   });
 
   test("updates persisted registration state when toggling switches in settings page", async () => {
@@ -266,11 +231,7 @@ describe("plugin settings", () => {
 
     const setting = settingInstances[1];
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
-    const diarySettingsPanel = setting.items[1]?.actionElement as HTMLElement;
-    const diaryTemplateInput = diarySettingsPanel.querySelector(
-      "[data-setting-key='monthly-diary-template']"
-    ) as HTMLTextAreaElement;
-    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
     const allToggle = menuRegistrationPanel.querySelector(
       ".doc-assistant-settings__menu-registration-summary input[type='checkbox']"
     ) as HTMLInputElement;
@@ -283,10 +244,6 @@ describe("plugin settings", () => {
     await Promise.resolve();
 
     expect(plugin.keepNewDocAfterPinnedTabs).toBe(true);
-
-    diaryTemplateInput.value = "## {{date}} {{weekday}}\n\n- 今日回顾";
-    diaryTemplateInput.dispatchEvent(new Event("change"));
-    await Promise.resolve();
 
     allToggle.checked = true;
     allToggle.dispatchEvent(new Event("change"));
@@ -306,7 +263,6 @@ describe("plugin settings", () => {
     expect(stored).toEqual(
       expect.objectContaining({
         keepNewDocAfterPinnedTabs: true,
-        monthlyDiaryTemplate: "## {{date}} {{weekday}}\n\n- 今日回顾",
         actionEnabled: expect.objectContaining({
           "insert-backlinks": false,
         }),
@@ -346,7 +302,7 @@ describe("plugin settings", () => {
     });
 
     const setting = settingInstances[0];
-    const menuRegistrationPanel = setting.items[3]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     const groupTitles = Array.from(
       menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-group-title")
     ).map((element) => element.textContent?.trim());
@@ -387,7 +343,7 @@ describe("plugin settings", () => {
     });
 
     const setting = settingInstances[0];
-    const menuRegistrationPanel = setting.items[3]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     const moveBacklinksRow = menuRegistrationPanel.querySelector(
       "[data-action-key='move-backlinks']"
     ) as HTMLElement;
@@ -428,8 +384,8 @@ describe("plugin settings", () => {
     });
 
     const aiPanel = setting.items[1]?.actionElement as HTMLElement;
-    const diaryPanel = setting.items[2]?.actionElement as HTMLElement;
-    const menuRegistrationPanel = setting.items[3]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
+    const diaryPanel = setting.items[3]?.actionElement as HTMLElement;
     const diaryHostItem = document.createElement("div");
     diaryHostItem.className = "fn__flex b3-label config__item";
     const diaryTitle = document.createElement("div");

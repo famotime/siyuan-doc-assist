@@ -20,6 +20,15 @@ describe("alpha feature config", () => {
     });
   });
 
+  test("hides monthly diary action and linked setting by default", () => {
+    const visibleActionKeys = filterVisibleActions(ACTIONS, ALPHA_FEATURE_HIDE_CONFIG)
+      .map((action) => action.key);
+    const hiddenSettingKeys = getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG);
+
+    expect(visibleActionKeys).not.toContain("create-monthly-diary");
+    expect(hiddenSettingKeys.has("monthly-diary-template")).toBe(true);
+  });
+
   test("hides linked settings when related actions are hidden", () => {
     const hiddenSettingKeys = getHiddenPluginSettingKeys({
       hiddenActionKeys: ["create-monthly-diary"],

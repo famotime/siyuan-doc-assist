@@ -11,11 +11,12 @@ const ACTION_LINKED_SETTING_KEYS: Partial<Record<ActionKey, HiddenPluginSettingK
   "create-monthly-diary": "monthly-diary-template",
 };
 
-const DEFAULT_HIDDEN_ACTION_KEYS: ActionKey[] = ACTIONS
+const AI_GROUP_ACTION_KEYS = new Set<ActionKey>(ACTIONS
   .filter((action) => action.group === "ai")
-  .map((action) => action.key);
+  .map((action) => action.key));
 
-const AI_GROUP_ACTION_KEYS = new Set<ActionKey>(DEFAULT_HIDDEN_ACTION_KEYS);
+const DEFAULT_HIDDEN_ACTION_KEYS: ActionKey[] = Array.from(AI_GROUP_ACTION_KEYS);
+DEFAULT_HIDDEN_ACTION_KEYS.push("create-monthly-diary");
 
 export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
   hiddenActionKeys: DEFAULT_HIDDEN_ACTION_KEYS,

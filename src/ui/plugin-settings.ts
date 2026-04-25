@@ -56,20 +56,6 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     hostNormalizedPanels.push(aiPanel);
   }
 
-  if (!hiddenSettingKeys.has("monthly-diary-template")) {
-    const diaryPanel = createMonthlyDiarySettingsPanel({
-      template: options.monthlyDiaryTemplate,
-      onTemplateChange: options.onMonthlyDiaryTemplateChange,
-    });
-    setting.addItem({
-      title: "本月日记模板",
-      direction: "column",
-      description: "定义单日模板，创建本月日记时会自动按当前月份逐日展开。",
-      actionElement: diaryPanel,
-    });
-    hostNormalizedPanels.push(diaryPanel);
-  }
-
   const menuRegistrationPanel = createMenuRegistrationPanel({
     actions: options.actions,
     registration: options.registration,
@@ -84,6 +70,20 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     actionElement: menuRegistrationPanel,
   });
   hostNormalizedPanels.push(menuRegistrationPanel);
+
+  if (!hiddenSettingKeys.has("monthly-diary-template")) {
+    const diaryPanel = createMonthlyDiarySettingsPanel({
+      template: options.monthlyDiaryTemplate,
+      onTemplateChange: options.onMonthlyDiaryTemplateChange,
+    });
+    setting.addItem({
+      title: "本月日记模板",
+      direction: "column",
+      description: "定义单日模板，创建本月日记时会自动按当前月份逐日展开。",
+      actionElement: diaryPanel,
+    });
+    hostNormalizedPanels.push(diaryPanel);
+  }
 
   installSettingHostNormalizer(setting, hostNormalizedPanels);
 
