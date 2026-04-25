@@ -6,6 +6,7 @@ import {
   buildDefaultDocMenuRegistration,
 } from "@/core/doc-menu-registration-core";
 import { ACTIONS } from "@/plugin/actions";
+import { filterVisibleActions } from "@/plugin/alpha-feature-config";
 import { showMessage } from "siyuan";
 
 vi.mock("siyuan", () => {
@@ -90,6 +91,8 @@ vi.mock("siyuan", () => {
 const showMessageMock = vi.mocked(showMessage);
 
 describe("plugin menu registration", () => {
+  const visibleActions = filterVisibleActions(ACTIONS);
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -116,7 +119,7 @@ describe("plugin menu registration", () => {
     const menu = { addSeparator: vi.fn(), addItem: vi.fn() };
     plugin.emitEvent("click-editortitleicon", { menu, data: { id: "doc-1" } });
 
-    expect(menu.addItem).toHaveBeenCalledTimes(ACTIONS.length - 1);
+    expect(menu.addItem).toHaveBeenCalledTimes(visibleActions.length - 1);
     expect(menu.addItem).not.toHaveBeenCalledWith(
       expect.objectContaining({ label: "仅导出当前文档" })
     );
@@ -209,7 +212,7 @@ describe("plugin menu registration", () => {
     const commandLangKeys = plugin.addCommand.mock.calls.map((call: any[]) => call[0]?.langKey);
     expect(commandLangKeys[0]).toBe("docLinkToolkit.insert-backlinks");
     expect(commandLangKeys[1]).toBe("docLinkToolkit.export-current");
-    expect(commandLangKeys).toHaveLength(ACTIONS.length);
+    expect(commandLangKeys).toHaveLength(visibleActions.length);
   });
 
   test("persists state when toggling single action", async () => {
@@ -358,7 +361,7 @@ describe("plugin menu registration", () => {
     }));
     expect(await provider.listCommands()).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "insert-doc-summary" }),
+        expect.objectContaining({ id: "export-current" }),
       ]),
     );
   });

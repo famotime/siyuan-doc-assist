@@ -12,8 +12,8 @@ describe("power buttons provider", () => {
     const commands = await provider.listCommands();
     const commandIds = commands.map(command => command.id);
 
-    expect(commandIds).toContain("insert-doc-summary");
-    expect(commandIds).toContain("clean-ai-output");
+    expect(commandIds).not.toContain("insert-doc-summary");
+    expect(commandIds).not.toContain("clean-ai-output");
     expect(commandIds).toContain("trim-trailing-whitespace");
     expect(commandIds).not.toContain("create-monthly-diary");
   });
@@ -42,7 +42,7 @@ describe("power buttons provider", () => {
       runAction,
     });
 
-    const ok = await provider.invokeCommand("insert-doc-summary", {
+    const ok = await provider.invokeCommand("export-current", {
       trigger: "button-click",
       sourcePlugin: "siyuan-power-buttons",
     });
@@ -51,7 +51,7 @@ describe("power buttons provider", () => {
       sourcePlugin: "siyuan-power-buttons",
     });
 
-    expect(runAction).toHaveBeenCalledWith("insert-doc-summary");
+    expect(runAction).toHaveBeenCalledWith("export-current");
     expect(ok).toEqual({ ok: true, alreadyNotified: true });
     expect(missing).toEqual(expect.objectContaining({
       ok: false,
@@ -70,7 +70,7 @@ describe("power buttons provider", () => {
       }),
     });
 
-    const result = await provider.invokeCommand("insert-doc-summary", {
+    const result = await provider.invokeCommand("export-current", {
       trigger: "button-click",
       sourcePlugin: "siyuan-power-buttons",
     });

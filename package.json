@@ -1,6 +1,6 @@
 {
   "name": "siyuan-doc-assist",
-  "version": "1.4.5",
+  "version": "1.5.0",
   "type": "module",
   "description": "Doc Assistant plugin for Siyuan (https://b3log.org/siyuan)",
   "author": "",
@@ -16,8 +16,8 @@
     "release:major": "node ./release.js --mode=major",
     "build": "vite build",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "node ./scripts/vitest-sandbox.mjs run",
+    "test:watch": "node ./scripts/vitest-sandbox.mjs"
   },
   "dependencies": {},
   "devDependencies": {

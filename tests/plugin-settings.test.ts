@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { ACTIONS, getActionConfigByKey } from "@/plugin/actions";
 import { buildDefaultDocMenuRegistration } from "@/core/doc-menu-registration-core";
 import { buildDockDocActions } from "@/core/dock-panel-core";
+import { filterVisibleActions } from "@/plugin/alpha-feature-config";
 
 const {
   settingInstances,
@@ -115,6 +116,8 @@ vi.mock("siyuan", () => {
 });
 
 describe("plugin settings", () => {
+  const visibleActions = filterVisibleActions(ACTIONS);
+
   const getExpectedGroupTitles = (actions = ACTIONS) => {
     const titles: string[] = [];
     buildDockDocActions(actions, false, buildDefaultDocMenuRegistration(actions)).forEach(
@@ -150,53 +153,17 @@ describe("plugin settings", () => {
     const setting = settingInstances[1];
     expect(plugin.setting).toBe(setting);
     expect(setting.items[0]?.title).toBe("钉住页签始终保持可见");
-    expect(setting.items[1]?.title).toBe("AI 服务");
-    expect(setting.items[2]?.title).toBe("本月日记模板");
+    expect(setting.items[1]?.title).toBe("本月日记模板");
+    expect(setting.items[1]?.direction).toBe("column");
+    expect(setting.items[2]?.title).toBe("注册命令到文档菜单");
     expect(setting.items[2]?.direction).toBe("column");
-    expect(setting.items[3]?.title).toBe("注册命令到文档菜单");
-    expect(setting.items[3]?.direction).toBe("column");
-    expect(setting.items).toHaveLength(4);
+    expect(setting.items).toHaveLength(3);
 
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
     expect(tabToggle.type).toBe("checkbox");
     expect(tabToggle.checked).toBe(false);
 
-    const aiSettingsPanel = setting.items[1]?.actionElement as HTMLElement;
-    expect(aiSettingsPanel.classList.contains("doc-assistant-settings__section-card")).toBe(true);
-    const aiEnabledToggle = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-enabled']"
-    ) as HTMLInputElement;
-    const aiBaseUrlInput = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-base-url']"
-    ) as HTMLInputElement;
-    const aiApiKeyInput = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-api-key']"
-    ) as HTMLInputElement;
-    const aiModelInput = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-model']"
-    ) as HTMLInputElement;
-    const aiTimeoutInput = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-timeout-seconds']"
-    ) as HTMLInputElement;
-    const aiFields = aiSettingsPanel.querySelector(
-      "[data-setting-section='ai-fields']"
-    ) as HTMLElement;
-    const aiCollapseButton = aiSettingsPanel.querySelector(
-      "[data-setting-collapse='ai-fields']"
-    ) as HTMLButtonElement;
-    expect(aiEnabledToggle.checked).toBe(false);
-    expect(aiBaseUrlInput.value).toBe("");
-    expect(aiApiKeyInput.value).toBe("");
-    expect(aiModelInput.value).toBe("");
-    expect(aiTimeoutInput.value).toBe("30");
-    expect(aiFields.hidden).toBe(false);
-    expect(aiCollapseButton.getAttribute("aria-expanded")).toBe("true");
-    expect(
-      aiCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
-    ).toBe("收起");
-    expect(aiCollapseButton.parentElement?.lastElementChild).toBe(aiCollapseButton);
-
-    const diarySettingsPanel = setting.items[2]?.actionElement as HTMLElement;
+    const diarySettingsPanel = setting.items[1]?.actionElement as HTMLElement;
     expect(diarySettingsPanel.classList.contains("doc-assistant-settings__section-card")).toBe(true);
     const diaryTemplateInput = diarySettingsPanel.querySelector(
       "[data-setting-key='monthly-diary-template']"
@@ -216,7 +183,7 @@ describe("plugin settings", () => {
     ).toBe("收起");
     expect(diaryCollapseButton.parentElement?.lastElementChild).toBe(diaryCollapseButton);
 
-    const menuRegistrationPanel = setting.items[3]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
       true
     );
@@ -227,7 +194,7 @@ describe("plugin settings", () => {
     const groupTitles = Array.from(
       menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-group-title")
     ).map((element) => element.textContent?.trim());
-    expect(groupTitles).toEqual(getExpectedGroupTitles());
+    expect(groupTitles).toEqual(getExpectedGroupTitles(visibleActions));
 
     const firstGroupList = menuRegistrationPanel.querySelector(
       ".doc-assistant-settings__menu-registration-group-list"
@@ -249,7 +216,7 @@ describe("plugin settings", () => {
     const menuActionRows = menuRegistrationPanel.querySelectorAll(
       ".doc-assistant-settings__menu-registration-action"
     );
-    expect(menuActionRows).toHaveLength(ACTIONS.length);
+    expect(menuActionRows).toHaveLength(visibleActions.length);
 
     const genericActionMeta = Array.from(
       menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-action-meta")
@@ -267,20 +234,6 @@ describe("plugin settings", () => {
     ) as HTMLInputElement;
     expect(exportCurrentToggle.checked).toBe(false);
     expect(exportCurrentToggle.title).toBe(getActionConfigByKey("export-current").tooltip);
-
-    aiCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(aiFields.hidden).toBe(true);
-    expect(aiCollapseButton.getAttribute("aria-expanded")).toBe("false");
-    expect(
-      aiCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
-    ).toBe("展开");
-
-    aiCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(aiFields.hidden).toBe(false);
-    expect(aiCollapseButton.getAttribute("aria-expanded")).toBe("true");
-    expect(
-      aiCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
-    ).toBe("收起");
 
     menuCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(menuGroups.hidden).toBe(true);
@@ -313,27 +266,11 @@ describe("plugin settings", () => {
 
     const setting = settingInstances[1];
     const tabToggle = setting.items[0]?.actionElement as HTMLInputElement;
-    const aiSettingsPanel = setting.items[1]?.actionElement as HTMLElement;
-    const aiEnabledToggle = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-enabled']"
-    ) as HTMLInputElement;
-    const aiBaseUrlInput = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-base-url']"
-    ) as HTMLInputElement;
-    const aiApiKeyInput = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-api-key']"
-    ) as HTMLInputElement;
-    const aiModelInput = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-model']"
-    ) as HTMLInputElement;
-    const aiTimeoutInput = aiSettingsPanel.querySelector(
-      "[data-setting-key='ai-timeout-seconds']"
-    ) as HTMLInputElement;
-    const diarySettingsPanel = setting.items[2]?.actionElement as HTMLElement;
+    const diarySettingsPanel = setting.items[1]?.actionElement as HTMLElement;
     const diaryTemplateInput = diarySettingsPanel.querySelector(
       "[data-setting-key='monthly-diary-template']"
     ) as HTMLTextAreaElement;
-    const menuRegistrationPanel = setting.items[3]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     const allToggle = menuRegistrationPanel.querySelector(
       ".doc-assistant-settings__menu-registration-summary input[type='checkbox']"
     ) as HTMLInputElement;
@@ -346,26 +283,6 @@ describe("plugin settings", () => {
     await Promise.resolve();
 
     expect(plugin.keepNewDocAfterPinnedTabs).toBe(true);
-
-    aiEnabledToggle.checked = true;
-    aiEnabledToggle.dispatchEvent(new Event("change"));
-    await Promise.resolve();
-
-    aiBaseUrlInput.value = "https://api.example.com/v1";
-    aiBaseUrlInput.dispatchEvent(new Event("change"));
-    await Promise.resolve();
-
-    aiApiKeyInput.value = "sk-test";
-    aiApiKeyInput.dispatchEvent(new Event("change"));
-    await Promise.resolve();
-
-    aiModelInput.value = "gpt-4.1-mini";
-    aiModelInput.dispatchEvent(new Event("change"));
-    await Promise.resolve();
-
-    aiTimeoutInput.value = "45";
-    aiTimeoutInput.dispatchEvent(new Event("change"));
-    await Promise.resolve();
 
     diaryTemplateInput.value = "## {{date}} {{weekday}}\n\n- 今日回顾";
     diaryTemplateInput.dispatchEvent(new Event("change"));
@@ -389,13 +306,6 @@ describe("plugin settings", () => {
     expect(stored).toEqual(
       expect.objectContaining({
         keepNewDocAfterPinnedTabs: true,
-        aiSummaryConfig: expect.objectContaining({
-          enabled: true,
-          baseUrl: "https://api.example.com/v1",
-          apiKey: "sk-test",
-          model: "gpt-4.1-mini",
-          requestTimeoutSeconds: 45,
-        }),
         monthlyDiaryTemplate: "## {{date}} {{weekday}}\n\n- 今日回顾",
         actionEnabled: expect.objectContaining({
           "insert-backlinks": false,
@@ -592,7 +502,9 @@ describe("plugin settings", () => {
         menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-action")
       ).toHaveLength(ACTIONS.length - 1);
     } finally {
-      ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = [];
+      ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ACTIONS
+        .filter((action) => action.group === "ai")
+        .map((action) => action.key);
       ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
     }
   });

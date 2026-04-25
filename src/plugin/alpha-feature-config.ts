@@ -1,4 +1,4 @@
-import { ActionConfig, ActionKey } from "@/plugin/actions";
+import { ACTIONS, ActionConfig, ActionKey } from "@/plugin/actions";
 
 export type HiddenPluginSettingKey = "ai-service" | "monthly-diary-template";
 
@@ -11,8 +11,14 @@ const ACTION_LINKED_SETTING_KEYS: Partial<Record<ActionKey, HiddenPluginSettingK
   "create-monthly-diary": "monthly-diary-template",
 };
 
+const DEFAULT_HIDDEN_ACTION_KEYS: ActionKey[] = ACTIONS
+  .filter((action) => action.group === "ai")
+  .map((action) => action.key);
+
+const AI_GROUP_ACTION_KEYS = new Set<ActionKey>(DEFAULT_HIDDEN_ACTION_KEYS);
+
 export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
-  hiddenActionKeys: [],
+  hiddenActionKeys: DEFAULT_HIDDEN_ACTION_KEYS,
   hiddenSettingKeys: [],
 };
 
@@ -27,6 +33,9 @@ export function getHiddenPluginSettingKeys(
 ): Set<HiddenPluginSettingKey> {
   const hiddenSettingKeys = new Set<HiddenPluginSettingKey>(config.hiddenSettingKeys);
   getHiddenActionKeys(config).forEach((actionKey) => {
+    if (AI_GROUP_ACTION_KEYS.has(actionKey)) {
+      hiddenSettingKeys.add("ai-service");
+    }
     const linkedSettingKey = ACTION_LINKED_SETTING_KEYS[actionKey];
     if (linkedSettingKey) {
       hiddenSettingKeys.add(linkedSettingKey);
