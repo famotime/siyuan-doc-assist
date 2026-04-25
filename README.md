@@ -83,16 +83,6 @@
 
 ![image](https://github.com/famotime/siyuan-doc-assist/blob/main/assets/image-20260222174713-dh2y23m.png?raw=1)
 
-### 使用入口
-
-- 右侧 Dock 面板：提供“关键内容 / 文档处理”双标签页；
-
-- 编辑器标题菜单：可选择全部或部分命令注册到标题菜单；
-
-- 命令面板：可执行全部插件命令；
-
-- 部分动作为桌面端限定，移动端会自动置灰并给出提示；
-
 
 ## 重要说明
 
@@ -102,20 +92,3 @@
 
 插件使用问题可以在这个帖子反馈：[思源笔记文档助手，协助你整理笔记的好帮手 - 链滴](https://ld246.com/article/1772292058880)
 
-## 开发说明
-
-常用命令：
-
-- `pnpm dev`：执行 `vite build --watch`，将构建产物同步到本地思源工作区插件目录；
-- `pnpm build`：生成 `dist/` 和 `package.zip`；
-- `pnpm test`：运行全部 Vitest 测试；
-- `pnpm typecheck:strict`：执行严格 TypeScript 检查；
-
-当前主要结构边界：
-
-- `src/plugin/plugin-lifecycle.ts` 是组合根，`src/plugin/action-runner.ts` 现在只保留执行壳与运行时守卫，选区类和文档清理类动作已拆到独立 handler；
-- `src/ui/plugin-settings.ts` 现在只负责设置页装配，AI 配置、菜单注册面板、宿主节点修正和共享 DOM 原语已拆到 `src/ui/plugin-settings-*`；
-- `src/services/exporter.ts` 负责导出编排，下载与资源暂存副作用分别位于 `src/services/exporter-download.ts` 和 `src/services/exporter-staging.ts`；
-- `src/services/ai-slop-marker.ts` 负责 AI 配置校验与请求发送，prompt 模板和响应解析分别位于 `src/services/ai-slop-marker-prompts.ts` 与 `src/services/ai-slop-marker-parser.ts`；
-
-更详细的模块说明见 `docs/project-structure.md`，当前重构执行记录见 `docs/refactor-plan.md`。
