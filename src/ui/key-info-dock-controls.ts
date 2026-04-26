@@ -80,6 +80,10 @@ export function formatKeyInfoDockText(item: KeyInfoItem): string {
   return hasAnyListPrefix(content) ? content : `- ${content}`;
 }
 
+export function preserveVisibleSpaces(text: string): string {
+  return (text || "").replace(/ {2,}/g, (spaces) => "\u00A0".repeat(spaces.length));
+}
+
 export function buildKeyInfoDockRow(item: KeyInfoItem): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "doc-assistant-keyinfo__row";
@@ -87,7 +91,7 @@ export function buildKeyInfoDockRow(item: KeyInfoItem): HTMLDivElement {
   const badge = buildTypeBadge(item.type);
   const text = document.createElement("div");
   text.className = "doc-assistant-keyinfo__text";
-  text.textContent = formatKeyInfoDockText(item);
+  text.textContent = preserveVisibleSpaces(formatKeyInfoDockText(item));
 
   row.appendChild(badge);
   row.appendChild(text);

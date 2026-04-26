@@ -31,7 +31,6 @@ export function mergePreferredInlineItems(
         return {
           ...item,
           raw: match.raw || item.raw,
-          offset: match.offset ?? item.offset,
         };
       }
       return item;

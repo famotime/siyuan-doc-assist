@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@/services/kernel", () => ({
@@ -558,13 +559,10 @@ describe("key-info service heading inline merge", () => {
 
     const result = await getDocKeyInfo("doc-1");
     const paragraphItems = result.items.filter((item) => item.blockId === "p-1");
+    const highlightItems = paragraphItems.filter((item) => item.type === "highlight");
 
-    expect(
-      paragraphItems.some((item) => item.type === "highlight" && item.text === "官网")
-    ).toBe(true);
-    expect(
-      paragraphItems.some((item) => item.type === "highlight" && item.text === "示例 文档")
-    ).toBe(true);
+    expect(highlightItems).toHaveLength(1);
+    expect(highlightItems[0]?.text).toBe("官网  示例 文档");
     expect(
       paragraphItems.some((item) => item.type === "code" && item.text === "pnpm test")
     ).toBe(true);
@@ -811,6 +809,279 @@ describe("key-info service heading inline merge", () => {
     expect(boldItems[0]?.text).toBe("123456789");
     expect(highlightItems).toHaveLength(1);
     expect(highlightItems[0]?.text).toBe("456");
+  });
+
+  test("merges multiple separated highlights in the same block into one item with double spaces", async () => {
+    mockKernelSql(
+      [
+        {
+          id: "p-1",
+          parent_id: "doc-1",
+          sort: 1,
+          type: "p",
+          subtype: "",
+          content: "第一处 中间 第二处",
+          markdown: "==第一处== 中间 ==第二处==",
+          memo: "",
+          tag: "",
+        },
+      ],
+      [
+        {
+          id: "s-h-1",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "第一处",
+          markdown: "==第一处==",
+          type: "mark",
+          block_sort: 1,
+          start_offset: 0,
+        },
+        {
+          id: "s-h-2",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "第二处",
+          markdown: "==第二处==",
+          type: "mark",
+          block_sort: 1,
+          start_offset: 8,
+        },
+      ]
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const highlightItems = result.items.filter((item) => item.blockId === "p-1" && item.type === "highlight");
+
+    expect(highlightItems).toHaveLength(1);
+    expect(highlightItems[0]?.text).toBe("第一处  第二处");
+  });
+
+  test("merges font-color text highlights in original dom order when spans are unavailable", async () => {
+    mockKernelSql([
+      {
+        id: "p-1",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "p",
+        subtype: "",
+        content: "默认字体颜色 1 字体颜色 2 字体颜色 3 字体颜色 4 字体颜色 5",
+        markdown:
+          '默认字体颜色 1，<span data-type="text" style="color: var(--b3-font-color1);">字体颜色 2</span>，<span data-type="text" style="color: var(--b3-font-color2);">字体颜色 3</span>，<span data-type="text" style="color: var(--b3-font-color3);">字体颜色 4</span>，<span data-type="text" style="color: var(--b3-font-color4);">字体颜色 5</span>',
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="p-1">
+        <div contenteditable="true">
+          默认字体颜色 1，
+          <span data-type="text" style="color: var(--b3-font-color1);">字体颜色 2</span>，
+          <span data-type="text" style="color: var(--b3-font-color2);">字体颜色 3</span>，
+          <span data-type="text" style="color: var(--b3-font-color3);">字体颜色 4</span>，
+          <span data-type="text" style="color: var(--b3-font-color4);">字体颜色 5</span>
+        </div>
+      </div>
+    `;
+
+    const result = await getDocKeyInfo("doc-1", { wysiwyg: { element: root } } as any);
+    const highlightItems = result.items.filter((item) => item.blockId === "p-1" && item.type === "highlight");
+
+    expect(highlightItems).toHaveLength(1);
+    expect(highlightItems[0]?.text).toBe("字体颜色 2  字体颜色 3  字体颜色 4  字体颜色 5");
+  });
+
+  test("includes whole paragraph when block root has font or background color styling", async () => {
+    mockKernelSql([
+      {
+        id: "p-1",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "p",
+        subtype: "",
+        content:
+          "一系列的「对话录」就是柏拉图一生思考的结晶。这种方法不限于对人思维敏锐性的训练，而是一种需要想象力的技术性工作。",
+        markdown:
+          '一系列的「对话录」就是柏拉图一生思考的结晶。这种方法不限于对人思维敏锐性的训练，而是一种需要想象力的技术性工作。\n{: style="color: var(--b3-font-color8);" id="p-1"}',
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "p-2",
+        parent_id: "doc-1",
+        sort: 2,
+        type: "p",
+        subtype: "",
+        content: "另一整段背景高亮文本。",
+        markdown:
+          '另一整段背景高亮文本。\n{: style="background-color: var(--b3-font-background8);" id="p-2"}',
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="p-1" data-type="NodeParagraph" class="p" style="color: var(--b3-font-color8);">
+        <div contenteditable="true">一系列的「对话录」就是柏拉图一生思考的结晶。这种方法不限于对人思维敏锐性的训练，而是一种需要想象力的技术性工作。</div>
+      </div>
+      <div data-node-id="p-2" data-type="NodeParagraph" class="p" style="background-color: var(--b3-font-background8);">
+        <div contenteditable="true">另一整段背景高亮文本。</div>
+      </div>
+    `;
+
+    const result = await getDocKeyInfo("doc-1", { wysiwyg: { element: root } } as any);
+
+    expect(
+      result.items.some(
+        (item) =>
+          item.blockId === "p-1" &&
+          item.type === "highlight" &&
+          item.text ===
+            "一系列的「对话录」就是柏拉图一生思考的结晶。这种方法不限于对人思维敏锐性的训练，而是一种需要想象力的技术性工作。"
+      )
+    ).toBe(true);
+    expect(
+      result.items.some(
+        (item) => item.blockId === "p-2" && item.type === "highlight" && item.text === "另一整段背景高亮文本。"
+      )
+    ).toBe(true);
+  });
+
+  test("merges separated same-type key info in one block with double spaces across markers", async () => {
+    mockKernelSql([
+      {
+        id: "b-1",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "p",
+        subtype: "",
+        content: "bold",
+        markdown: "**加粗一** 中间 **加粗二**",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "i-1",
+        parent_id: "doc-1",
+        sort: 2,
+        type: "p",
+        subtype: "",
+        content: "italic",
+        markdown: "*斜体一* 中间 *斜体二*",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "u-1",
+        parent_id: "doc-1",
+        sort: 3,
+        type: "p",
+        subtype: "",
+        content: "underline",
+        markdown: "<u>下划一</u> 中间 <u>下划二</u>",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "h-1",
+        parent_id: "doc-1",
+        sort: 4,
+        type: "p",
+        subtype: "",
+        content: "highlight",
+        markdown: "==高亮一== 中间 ==高亮二==",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "r-1",
+        parent_id: "doc-1",
+        sort: 5,
+        type: "p",
+        subtype: "",
+        content: "remark",
+        markdown: "%%备注一%% 中间 %%备注二%%",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "t-1",
+        parent_id: "doc-1",
+        sort: 6,
+        type: "p",
+        subtype: "",
+        content: "tag",
+        markdown: "#标签一 #标签二",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "l-1",
+        parent_id: "doc-1",
+        sort: 7,
+        type: "p",
+        subtype: "",
+        content: "link",
+        markdown: "[链接一](https://example.com/1) 中间 [链接二](https://example.com/2)",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "f-1",
+        parent_id: "doc-1",
+        sort: 8,
+        type: "p",
+        subtype: "",
+        content: "ref",
+        markdown: '((20260202121212-bcdefg2 "引用一")) 中间 ((20260303131313-cdefgh3 "引用二"))',
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const result = await getDocKeyInfo("doc-1");
+    const expectMergedText = (blockId: string, type: string, text: string) => {
+      const items = result.items.filter((item) => item.blockId === blockId && item.type === type);
+      expect(items).toHaveLength(1);
+      expect(items[0]?.text).toBe(text);
+    };
+
+    expectMergedText("b-1", "bold", "加粗一  加粗二");
+    expectMergedText("i-1", "italic", "斜体一  斜体二");
+    expectMergedText("u-1", "underline", "下划一  下划二");
+    expectMergedText("h-1", "highlight", "高亮一  高亮二");
+    expectMergedText("r-1", "remark", "备注一  备注二");
+    expectMergedText("t-1", "tag", "标签一  标签二");
+    expectMergedText("l-1", "link", "[链接一](https://example.com/1)  [链接二](https://example.com/2)");
+    expectMergedText("f-1", "ref", '((20260202121212-bcdefg2 "引用一"))  ((20260303131313-cdefgh3 "引用二"))');
+  });
+
+  test("merges separated bold fragments in block 20250805233956-e6tnxzw with double spaces", async () => {
+    mockKernelSql([
+      {
+        id: "20250805233956-e6tnxzw",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "p",
+        subtype: "",
+        content: "正文",
+        markdown:
+          '「实用测试」听上去**并不复杂**，对许多人也具有相当的吸引力。不过，「实用测试」也受到了很多哲学层面的非议。我们对此不详加讨论。简单地说，威廉・詹姆斯认为思想产生的结果的实际效用，决定了思想的==意义和正确与否。==一个问题即使无法被现实地加以解决，但它若可以影响人类的行为，**那它就是一个「真」问题**。由此可见，威廉强调的是结果而不是原因。在《宗教经验之种种》中，他确定无疑地**说，宗教**信仰与其他大脑状态无异，同样是受神经系统节制的。而且「它的重要性不应用它的==原因来评==价，而应用它的结果来评价」。所以，宗教即使不是绝对的「真理」，对每一个个体和人类整体来说，它仍然是有**价值的**。「真理」并非绝对领域，而是一个功能性的概念。思想作为工具才能体现价值，人们也只能用「工具主义」<span data-type="text" style="color: var(--b3-font-color8);">来评论它</span>{: style="color: var(--b3-font-color8);"}们。总而言之，「对人类有用的思想才称得上『真理』」。威廉・詹姆斯笔下的道德理想纯粹而至高无上；「有用」绝不是指经济利益；将作者的「实用主义」庸俗化地理解为「有用即有价值」显然是以偏概全的。',
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const result = await getDocKeyInfo("doc-1");
+    const boldItems = result.items.filter(
+      (item) => item.blockId === "20250805233956-e6tnxzw" && item.type === "bold"
+    );
+
+    expect(boldItems).toHaveLength(1);
+    expect(boldItems[0]?.text).toBe("并不复杂  那它就是一个「真」问题  说，宗教  价值的");
   });
 
   test("keeps richer inline-memo remark and suppresses nearby weak inline duplicate in same block", async () => {

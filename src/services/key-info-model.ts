@@ -162,6 +162,38 @@ export function tokenizeType(value: string): string[] {
     .filter(Boolean);
 }
 
+function hasBackgroundHighlightStyle(value: string): boolean {
+  const normalized = (value || "").toLowerCase();
+  return (
+    normalized.includes("background-color") ||
+    normalized.includes("background:") ||
+    normalized.includes("--b3-font-background")
+  );
+}
+
+function hasColorHighlightStyle(value: string): boolean {
+  const normalized = (value || "").toLowerCase();
+  return normalized.includes("color:") || normalized.includes("--b3-font-color");
+}
+
+function hasExcludedGenericHighlightToken(tokens: string[]): boolean {
+  const hasToken = (token: string) => tokens.includes(token);
+  const hasInlineMathToken =
+    (hasToken("inline") && hasToken("math")) ||
+    hasToken("inlinemath") ||
+    hasToken("mathjax") ||
+    hasToken("katex");
+  return (
+    hasToken("code") ||
+    hasToken("kbd") ||
+    hasToken("s") ||
+    hasToken("strike") ||
+    hasToken("strikethrough") ||
+    hasToken("formula") ||
+    hasInlineMathToken
+  );
+}
+
 export function parseInlineMemoFromText(
   text: string,
   memoHint?: string
@@ -409,10 +441,20 @@ export function resolveSpanFormatType(spanType: string, ial?: string): KeyInfoTy
   if ((hasExplicitHighlightToken || hasGenericHighlightToken) && hasSuperOrSubscriptToken) {
     return null;
   }
+  if (hasExcludedGenericHighlightToken(tokens)) {
+    return null;
+  }
   if (hasExplicitHighlightToken) {
     return "highlight";
   }
-  if (!hasLinkToken && hasGenericHighlightToken) {
+  if (!hasLinkToken && hasToken("textmark")) {
+    return "highlight";
+  }
+  if (
+    !hasLinkToken &&
+    hasToken("text") &&
+    (hasBackgroundHighlightStyle(normalized) || hasColorHighlightStyle(normalized))
+  ) {
     return "highlight";
   }
   return null;

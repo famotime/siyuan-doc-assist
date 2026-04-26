@@ -2,7 +2,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import { createKeyInfoDock } from "@/ui/key-info-dock";
-import { filterKeyInfoDockItems } from "@/ui/key-info-dock-controls";
+import { filterKeyInfoDockItems, preserveVisibleSpaces } from "@/ui/key-info-dock-controls";
 import type { KeyInfoItem, KeyInfoType } from "@/core/key-info-core";
 
 function buildItem(id: string, type: KeyInfoType = "bold"): KeyInfoItem {
@@ -114,6 +114,34 @@ describe("key-info-dock controls", () => {
     expect(allFilter?.classList.contains("is-active")).toBe(true);
     expect(boldFilter?.classList.contains("is-active")).toBe(true);
     expect(titleFilter?.classList.contains("is-active")).toBe(true);
+
+    dock.destroy();
+    host.remove();
+  });
+
+  test("preserves visible double spaces in rendered key info text", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, { onExport: () => {} });
+    dock.setState({
+      items: [
+        {
+          id: "1",
+          type: "bold",
+          text: "并不复杂  那它就是一个「真」问题",
+          raw: "**并不复杂**  **那它就是一个「真」问题**",
+          offset: 0,
+          blockId: "b-1",
+          blockSort: 0,
+          order: 0,
+        },
+      ],
+    });
+
+    const text = host.querySelector(".doc-assistant-keyinfo__text")?.textContent || "";
+    expect(text).toBe("并不复杂\u00A0\u00A0那它就是一个「真」问题");
+    expect(preserveVisibleSpaces("A  B")).toBe("A\u00A0\u00A0B");
 
     dock.destroy();
     host.remove();

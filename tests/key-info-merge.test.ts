@@ -56,4 +56,42 @@ describe("key-info merge", () => {
     expect((merged[0] as any)?.listPrefix).toBe("- ");
     expect((merged[0] as any)?.listItem).toBe(true);
   });
+
+  test("keeps dom order anchors when matching span offsets are out of order", () => {
+    const domItems = [
+      {
+        ...item("d1", "highlight", "字体颜色 4", "p-1"),
+        raw: "==字体颜色 4==",
+        offset: 3,
+        order: 3,
+      },
+      {
+        ...item("d2", "highlight", "字体颜色 5", "p-1"),
+        raw: "==字体颜色 5==",
+        offset: 4,
+        order: 4,
+      },
+    ];
+    const spanItems = [
+      {
+        ...item("s1", "highlight", "字体颜色 4", "p-1"),
+        raw: "<span data-type=\"text\">字体颜色 4</span>",
+        offset: 40,
+        order: 40,
+      },
+      {
+        ...item("s2", "highlight", "字体颜色 5", "p-1"),
+        raw: "<span data-type=\"text\">字体颜色 5</span>",
+        offset: 2,
+        order: 2,
+      },
+    ];
+
+    const merged = mergePreferredInlineItems([], spanItems, domItems);
+
+    expect(merged.map((it) => `${it.text}@${it.offset}`)).toEqual([
+      "字体颜色 4@3",
+      "字体颜色 5@4",
+    ]);
+  });
 });

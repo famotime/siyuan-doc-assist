@@ -244,8 +244,73 @@ function normalizeTagItems(items: KeyInfoItem[]): KeyInfoItem[] {
   return normalized;
 }
 
+function mergeSeparatedItemsWithinBlock(items: KeyInfoItem[]): KeyInfoItem[] {
+  const mergeableTypes = new Set<KeyInfoItem["type"]>([
+    "bold",
+    "italic",
+    "underline",
+    "highlight",
+    "code",
+    "remark",
+    "tag",
+    "link",
+    "ref",
+  ]);
+  const nonMergeable: KeyInfoItem[] = [];
+  const buckets = new Map<string, KeyInfoItem[]>();
+
+  items.forEach((item) => {
+    if (!mergeableTypes.has(item.type)) {
+      nonMergeable.push(item);
+      return;
+    }
+    const key = `${item.type}|${item.blockId || ""}|${item.blockSort}`;
+    const bucket = buckets.get(key) || [];
+    bucket.push({ ...item });
+    buckets.set(key, bucket);
+  });
+
+  const mergedItems: KeyInfoItem[] = [];
+  buckets.forEach((bucket) => {
+    bucket.sort((a, b) => {
+      if (a.offset !== b.offset) {
+        return a.offset - b.offset;
+      }
+      return a.order - b.order;
+    });
+
+    const [first, ...rest] = bucket;
+    if (!first) {
+      return;
+    }
+
+    const merged = rest.reduce<KeyInfoItem>((current, item) => {
+      if (item.text === current.text) {
+        return current;
+      }
+      current.text = `${current.text}  ${item.text}`;
+      current.raw = `${current.raw}  ${item.raw}`;
+      if (!current.listPrefix && item.listPrefix) {
+        current.listPrefix = item.listPrefix;
+      }
+      if (!current.listItem && item.listItem) {
+        current.listItem = item.listItem;
+      }
+      current.order = Math.min(current.order, item.order);
+      current.offset = Math.min(current.offset, item.offset);
+      return current;
+    }, { ...first });
+
+    mergedItems.push(merged);
+  });
+
+  return [...nonMergeable, ...mergedItems];
+}
+
 export function normalizeKeyInfoItemsByPipeline(items: KeyInfoItem[]): KeyInfoItem[] {
-  return normalizeTagItems(normalizeRemarkItems(normalizeBoldItems(normalizeHighlightItems(items))));
+  return mergeSeparatedItemsWithinBlock(
+    normalizeTagItems(normalizeRemarkItems(normalizeBoldItems(normalizeHighlightItems(items))))
+  );
 }
 
 export function appendDocTitleItemIfMissing(

@@ -8,6 +8,13 @@ import { SqlKeyInfoRow } from "@/services/key-info-model";
 
 type ResolveListLine = (blockId?: string) => { listItem: boolean; listPrefix?: string };
 
+function hasWholeBlockHighlightStyle(markdown: string): boolean {
+  const normalized = (markdown || "").toLowerCase();
+  return /(?:^|\n)\{:[^}\n]*style\s*=\s*["'][^"']*(?:background-color|background:|--b3-font-background|color:|--b3-font-color)[^"']*["'][^}\n]*\}\s*$/.test(
+    normalized
+  );
+}
+
 export function collectHeadingItems(
   rows: SqlKeyInfoRow[],
   blockSortMap: Map<string, number>,
@@ -98,6 +105,25 @@ export function collectMarkdownAndMetaItems(
     const extracted = shouldExtractMarkdown
       ? extractKeyInfoFromMarkdown(markdown)
       : [];
+    if (shouldExtractMarkdown && hasWholeBlockHighlightStyle(markdown)) {
+      const listLine = resolveListLine(row.id);
+      const blockText = cleanInlineText(row.content || "");
+      if (blockText) {
+        markdownInlineItems.push({
+          id: `${row.id}-block-highlight-${order}`,
+          type: "highlight",
+          text: listLine.listPrefix ? normalizeListDecoratedText(blockText) : blockText,
+          raw: `==${blockText}==`,
+          offset: -1,
+          blockId: row.id,
+          blockSort,
+          order,
+          listItem: listLine.listItem,
+          listPrefix: listLine.listPrefix,
+        });
+        order += 1;
+      }
+    }
     for (const item of extracted) {
       const listLine = resolveListLine(row.id);
       const normalizedText = listLine.listPrefix

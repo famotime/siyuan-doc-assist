@@ -21,6 +21,17 @@ type ProtyleLike = {
   };
 };
 
+function hasBlockHighlightStyle(style: string): boolean {
+  const normalized = (style || "").toLowerCase();
+  return (
+    normalized.includes("background-color") ||
+    normalized.includes("background:") ||
+    normalized.includes("--b3-font-background") ||
+    normalized.includes("color:") ||
+    normalized.includes("--b3-font-color")
+  );
+}
+
 function getProtyleRootElement(protyle: unknown): HTMLElement | undefined {
   if (!protyle || typeof protyle !== "object") {
     return undefined;
@@ -113,6 +124,46 @@ export function extractInlineFromDom(
   if (!root) {
     return [];
   }
+  const items: KeyInfoItem[] = [];
+  const wholeBlockHighlightIds = new Set<string>();
+  let order = 0;
+
+  root.querySelectorAll<HTMLElement>("[data-node-id][style]").forEach((element) => {
+    const style = (element.getAttribute("style") || "").toLowerCase();
+    if (!hasBlockHighlightStyle(style)) {
+      return;
+    }
+    const blockId =
+      element.dataset.nodeId ||
+      element.getAttribute("data-node-id") ||
+      docId;
+    if (!blockId || wholeBlockHighlightIds.has(blockId)) {
+      return;
+    }
+    const editable =
+      (element.querySelector('[contenteditable="true"]') as HTMLElement | null) || element;
+    const text = cleanInlineText(editable.textContent || "");
+    if (!text) {
+      return;
+    }
+    const blockSort = blockSortMap.get(blockId) ?? blockSortMap.get(docId) ?? 0;
+    const listLine = resolveListLine?.(blockId) || { listItem: false };
+    items.push({
+      id: `dom-block-${blockId}-${order}`,
+      type: "highlight",
+      text: listLine.listPrefix ? normalizeListDecoratedText(text) : text,
+      raw: buildInlineRaw("highlight", text),
+      offset: -1,
+      blockId,
+      blockSort,
+      order,
+      listItem: listLine.listItem,
+      listPrefix: listLine.listPrefix,
+    });
+    wholeBlockHighlightIds.add(blockId);
+    order += 1;
+  });
+
   const selectors = [
     "strong",
     "b",
@@ -135,14 +186,31 @@ export function extractInlineFromDom(
     "span[data-type='tag']",
   ];
   const elements = root.querySelectorAll(selectors.join(","));
-  const items: KeyInfoItem[] = [];
-  let order = 0;
   elements.forEach((element) => {
     const dataType = (element.getAttribute("data-type") || "").toLowerCase();
     const dataSubtype = (element.getAttribute("data-subtype") || "").toLowerCase();
+    const inlineStyle = (element.getAttribute("style") || "").toLowerCase();
     const tagName = element.tagName.toLowerCase();
     const tokens = tokenizeType(`${dataType} ${dataSubtype}`);
     const hasToken = (token: string) => tokens.includes(token);
+    const hasHighlightBackgroundStyle =
+      inlineStyle.includes("background-color") ||
+      inlineStyle.includes("background:") ||
+      inlineStyle.includes("--b3-font-background");
+    const hasHighlightColorStyle =
+      inlineStyle.includes("color:") ||
+      inlineStyle.includes("--b3-font-color");
+    const hasExcludedHighlightToken =
+      hasToken("code") ||
+      hasToken("kbd") ||
+      hasToken("s") ||
+      hasToken("strike") ||
+      hasToken("strikethrough") ||
+      hasToken("formula") ||
+      hasToken("mathjax") ||
+      hasToken("katex") ||
+      hasToken("inlinemath") ||
+      (hasToken("inline") && hasToken("math"));
     const hasSuperOrSubscriptToken =
       tagName === "sup" ||
       tagName === "sub" ||
@@ -230,7 +298,13 @@ export function extractInlineFromDom(
       if (hasSuperOrSubscriptToken) {
         return;
       }
+      if (hasExcludedHighlightToken) {
+        return;
+      }
       if (!hasExplicitHighlight && hasLinkContext) {
+        return;
+      }
+      if (!hasExplicitHighlight && !hasToken("textmark") && !hasHighlightBackgroundStyle && !hasHighlightColorStyle) {
         return;
       }
       type = "highlight";
@@ -247,6 +321,9 @@ export function extractInlineFromDom(
       blockElement?.dataset.nodeId ||
       blockElement?.getAttribute("data-node-id") ||
       docId;
+    if (type === "highlight" && wholeBlockHighlightIds.has(blockId)) {
+      return;
+    }
     const blockSort =
       blockSortMap.get(blockId) ?? blockSortMap.get(docId) ?? 0;
     const listLine = resolveListLine?.(blockId) || { listItem: false };

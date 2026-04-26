@@ -24,6 +24,7 @@ import {
   FILTER_TYPES,
   filterKeyInfoDockItems,
   formatKeyInfoDockText,
+  preserveVisibleSpaces,
 } from "@/ui/key-info-dock-controls";
 import { renderKeyInfoDockDocActions } from "@/ui/key-info-dock-doc-actions";
 import {
@@ -363,7 +364,7 @@ export function createKeyInfoDock(
     badge.className = `doc-assistant-keyinfo__badge doc-assistant-keyinfo__badge--${item.type}`;
     badge.textContent = keyInfoTypeLabel(item.type);
     const renderedText = formatKeyInfoDockText(item);
-    text.textContent = renderedText;
+    text.textContent = preserveVisibleSpaces(renderedText);
 
     if (item.blockId && onItemClick) {
       row.classList.remove("is-disabled");
