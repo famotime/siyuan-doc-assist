@@ -26,6 +26,15 @@ describe("key-info-core", () => {
     expect(texts).toContain("highlight:标记");
   });
 
+  test("extracts a closed markdown tag without swallowing trailing plain text", () => {
+    const markdown = "正文包含 嵌套#无序#列表";
+
+    const items = extractKeyInfoFromMarkdown(markdown);
+    const tagTexts = items.filter((item) => item.type === "tag").map((item) => item.text);
+
+    expect(tagTexts).toEqual(["无序"]);
+  });
+
   test("extracts underline content separately from italic and excludes code from default filter", () => {
     const markdown = [
       "正文包含 _斜体_、<u>下划线</u>、<ins>强调下划</ins>。",

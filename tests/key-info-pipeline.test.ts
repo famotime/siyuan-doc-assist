@@ -97,4 +97,33 @@ describe("key-info pipeline", () => {
       }),
     ]);
   });
+
+  test("prefers raw tag text over list-decorated tag text when deduping list items", () => {
+    const normalized = normalizeKeyInfoItemsByPipeline([
+      item("tag-1", "tag", "-测试", {
+        raw: "#测试",
+        blockId: "p-1",
+        order: 1,
+        listItem: true,
+        listPrefix: "- ",
+      }),
+      item("tag-2", "tag", "测试", {
+        raw: "#测试",
+        blockId: "p-1",
+        order: 2,
+        listItem: true,
+        listPrefix: "- ",
+      }),
+    ]);
+
+    expect(normalized.filter((entry) => entry.type === "tag")).toEqual([
+      expect.objectContaining({
+        type: "tag",
+        text: "测试",
+        raw: "#测试",
+        blockId: "p-1",
+        listPrefix: "- ",
+      }),
+    ]);
+  });
 });

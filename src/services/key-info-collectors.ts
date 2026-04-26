@@ -70,6 +70,7 @@ export function collectMarkdownAndMetaItems(
     kramdownMap: Map<string, string>;
     blockSortMap: Map<string, number>;
     isListItemWithMappedChild: (blockId?: string) => boolean;
+    getMappedListLineChildId: (blockId?: string) => string | undefined;
     resolveListLine: ResolveListLine;
     startOrder?: number;
   }
@@ -86,8 +87,50 @@ export function collectMarkdownAndMetaItems(
     kramdownMap,
     blockSortMap,
     isListItemWithMappedChild,
+    getMappedListLineChildId,
     resolveListLine,
   } = options;
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const inlineTagTextsByRowId = new Map<string, Set<string>>();
+
+  const getInlineTagTexts = (rowId: string, markdown: string): Set<string> => {
+    const cached = inlineTagTextsByRowId.get(rowId);
+    if (cached) {
+      return cached;
+    }
+    const texts = new Set(
+      extractKeyInfoFromMarkdown(markdown)
+        .filter((item) => item.type === "tag")
+        .map((item) => item.text)
+    );
+    inlineTagTextsByRowId.set(rowId, texts);
+    return texts;
+  };
+
+  const getScopedMetaTags = (row: SqlKeyInfoRow): string[] => {
+    const metaTags = splitTags(row.tag || "");
+    if (!metaTags.length) {
+      return [];
+    }
+    if ((row.type || "").toLowerCase() === "l") {
+      return [];
+    }
+    if (row.id === rootId && hasChildBlocks) {
+      return [];
+    }
+    const mappedChildId = getMappedListLineChildId(row.id);
+    if (!mappedChildId) {
+      return metaTags;
+    }
+    const mappedChildRow = rowById.get(mappedChildId);
+    const mappedChildMarkdown =
+      kramdownMap.get(mappedChildId) || mappedChildRow?.markdown || "";
+    const inlineTagTexts = getInlineTagTexts(mappedChildId, mappedChildMarkdown);
+    if (!inlineTagTexts.size) {
+      return [];
+    }
+    return metaTags.filter((tag) => inlineTagTexts.has(tag));
+  };
   let order = options.startOrder ?? 0;
 
   rows.forEach((row, index) => {
@@ -126,7 +169,7 @@ export function collectMarkdownAndMetaItems(
     }
     for (const item of extracted) {
       const listLine = resolveListLine(row.id);
-      const normalizedText = listLine.listPrefix
+      const normalizedText = listLine.listPrefix && item.type !== "tag"
         ? normalizeListDecoratedText(item.text)
         : item.text;
       if (item.type === "title") {
@@ -181,17 +224,18 @@ export function collectMarkdownAndMetaItems(
       order += 1;
     }
 
-    const tags = splitTags(row.tag || "");
+    const tags = getScopedMetaTags(row);
     tags.forEach((tag) => {
-      const listLine = resolveListLine(row.id);
+      const anchorBlockId = getMappedListLineChildId(row.id) || row.id;
+      const listLine = resolveListLine(anchorBlockId);
       items.push({
-        id: `${row.id}-tag-${order}`,
+        id: `${anchorBlockId}-tag-${order}`,
         type: "tag",
         text: tag,
         raw: `#${tag}`,
         offset: order,
-        blockId: row.id,
-        blockSort,
+        blockId: anchorBlockId,
+        blockSort: blockSortMap.get(anchorBlockId) ?? blockSort,
         order,
         listItem: listLine.listItem,
         listPrefix: listLine.listPrefix,

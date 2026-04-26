@@ -82,6 +82,21 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     }
     return { listItem: false };
   };
+  const remapListLineAnchor = (item: KeyInfoItem): KeyInfoItem => {
+    const blockId = item.blockId;
+    const mappedBlockId = listContext.getMappedListLineChildId(blockId);
+    if (!mappedBlockId || mappedBlockId === blockId) {
+      return item;
+    }
+    const listLine = resolveListLine(mappedBlockId);
+    return {
+      ...item,
+      blockId: mappedBlockId,
+      blockSort: blockSortMap.get(mappedBlockId) ?? item.blockSort,
+      listItem: listLine.listItem,
+      listPrefix: listLine.listPrefix,
+    };
+  };
 
   rows.forEach((row, index) => {
     const blockSort =
@@ -105,6 +120,7 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     kramdownMap,
     blockSortMap,
     isListItemWithMappedChild: (blockId) => listContext.hasMappedListLineChild(blockId),
+    getMappedListLineChildId: (blockId) => listContext.getMappedListLineChildId(blockId),
     resolveListLine,
     startOrder: headingResult.nextOrder,
   });
@@ -115,8 +131,9 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     await listSpanRows(rootId),
     blockSortMap,
     resolveListLine
-  );
-  const domItems = extractInlineFromDom(protyle, blockSortMap, rootId, resolveListLine);
+  ).map(remapListLineAnchor);
+  const domItems = extractInlineFromDom(protyle, blockSortMap, rootId, resolveListLine)
+    .map(remapListLineAnchor);
   items.push(
     ...mergePreferredInlineItems(markdownInlineItems, spanItems, domItems)
   );

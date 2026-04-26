@@ -93,7 +93,7 @@ export function mapSpanRowsToItems(
       raw = hasLinkTarget ? buildInlineRaw(type, text) : (raw || buildInlineRaw(type, text));
     }
     const listLine = resolveListLine?.(blockId) || { listItem: false };
-    if (listLine.listPrefix) {
+    if (listLine.listPrefix && type !== "tag") {
       text = normalizeListDecoratedText(text);
     }
 
@@ -327,7 +327,7 @@ export function extractInlineFromDom(
     const blockSort =
       blockSortMap.get(blockId) ?? blockSortMap.get(docId) ?? 0;
     const listLine = resolveListLine?.(blockId) || { listItem: false };
-    if (listLine.listPrefix) {
+    if (listLine.listPrefix && type !== "tag") {
       text = normalizeListDecoratedText(text);
     }
 

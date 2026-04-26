@@ -30,6 +30,7 @@ export function createListContextResolver(
   isListItemBlock: (blockId?: string) => boolean;
   getListPrefix: (blockId?: string) => string | undefined;
   hasMappedListLineChild: (blockId?: string) => boolean;
+  getMappedListLineChildId: (blockId?: string) => string | undefined;
 } {
   const indexById = new Map<string, number>();
   rows.forEach((row, index) => {
@@ -65,6 +66,7 @@ export function createListContextResolver(
   const listItemIds = new Set<string>();
   const listPrefixById = new Map<string, string>();
   const listItemIdsWithMappedChild = new Set<string>();
+  const mappedListLineChildByParentId = new Map<string, string>();
   rows.forEach((row) => {
     const type = (row.type || "").toLowerCase();
     if (type === "i") {
@@ -102,6 +104,7 @@ export function createListContextResolver(
       listItemIds.add(firstTextChild.id);
       listPrefixById.set(firstTextChild.id, resolvedPrefix);
       listItemIdsWithMappedChild.add(row.id);
+      mappedListLineChildByParentId.set(row.id, firstTextChild.id);
     }
   });
 
@@ -110,6 +113,8 @@ export function createListContextResolver(
     getListPrefix: (blockId?: string) => (blockId ? listPrefixById.get(blockId) : undefined),
     hasMappedListLineChild: (blockId?: string) =>
       !!blockId && listItemIdsWithMappedChild.has(blockId),
+    getMappedListLineChildId: (blockId?: string) =>
+      blockId ? mappedListLineChildByParentId.get(blockId) : undefined,
   };
 }
 

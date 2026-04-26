@@ -344,31 +344,55 @@ function collectHtmlWrappedMatches(
 function normalizeTagText(value: string): string {
   let text = value.trim();
   text = text.replace(/^#+/, "");
-  text = text.replace(/[)\].,;:!?，。！？、]+$/g, "");
+  text = text.replace(/[)\].,;:!?，。！？、#＃]+$/g, "");
   return text.trim();
 }
 
 function extractTags(original: string, masked: string): KeyInfoExtract[] {
   const items: KeyInfoExtract[] = [];
-  const pattern = /(^|[^A-Za-z0-9_])#([^\s#][^\s]*)/gm;
-  let match: RegExpExecArray | null;
-  match = pattern.exec(masked);
-  while (match) {
-    const raw = match[2] || "";
-    const cleaned = normalizeTagText(raw);
+  const isWordChar = (value: string): boolean => /[A-Za-z0-9_]/.test(value);
+  const isWhitespace = (value: string): boolean => /\s/.test(value);
+
+  for (let index = 0; index < masked.length; index += 1) {
+    if (masked[index] !== "#") {
+      continue;
+    }
+    const prev = index > 0 ? masked[index - 1] : "";
+    if (prev && isWordChar(prev)) {
+      continue;
+    }
+    const next = masked[index + 1] || "";
+    if (!next || isWhitespace(next) || next === "#") {
+      continue;
+    }
+
+    let end = index + 1;
+    while (end < masked.length) {
+      const char = masked[end];
+      if (isWhitespace(char)) {
+        break;
+      }
+      if (char === "#") {
+        end += 1;
+        break;
+      }
+      end += 1;
+    }
+
+    const rawSlice = original.slice(index, end);
+    const cleaned = normalizeTagText(rawSlice);
     if (cleaned) {
-      const prefix = match[1] || "";
-      const rawStart = match.index + prefix.length;
-      const rawSlice = original.slice(rawStart, rawStart + match[0].length - prefix.length);
       items.push({
         type: "tag",
         text: cleaned,
         raw: (rawSlice || `#${cleaned}`).trim(),
-        offset: match.index + prefix.length,
+        offset: index,
       });
     }
-    match = pattern.exec(masked);
+
+    index = end - 1;
   }
+  let match: RegExpExecArray | null;
   const spanPattern = /<span[^>]*data-type=["']tag["'][^>]*>([\s\S]+?)<\/span>/gi;
   match = spanPattern.exec(masked);
   while (match) {

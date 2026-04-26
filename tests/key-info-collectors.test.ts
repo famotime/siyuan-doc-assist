@@ -78,6 +78,7 @@ describe("key-info-collectors", () => {
       kramdownMap: new Map(),
       blockSortMap,
       isListItemWithMappedChild: () => false,
+      getMappedListLineChildId: () => undefined,
       resolveListLine: (blockId?: string) =>
         blockId === "p1" ? { listItem: true, listPrefix: "- " } : { listItem: false },
       startOrder: 10,

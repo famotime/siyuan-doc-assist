@@ -238,6 +238,353 @@ describe("key-info service list prefix", () => {
     expect((listBoldOnParagraph as any)?.listPrefix).toBe("- ");
   });
 
+  test("suppresses parent list-item tags when the mapped first child carries the same tag", async () => {
+    mockKernelSql(
+      [
+        {
+          id: "i-1",
+          parent_id: "doc-1",
+          sort: 1,
+          type: "i",
+          subtype: "",
+          content: "20250805233956 -ut",
+          markdown: "- 20250805233956#-ut",
+          memo: "",
+          tag: "-ut",
+        },
+        {
+          id: "p-1",
+          parent_id: "i-1",
+          sort: 2,
+          type: "p",
+          subtype: "",
+          content: "20250805233956 -ut",
+          markdown: "20250805233956#-ut",
+          memo: "",
+          tag: "",
+        },
+      ],
+      [
+        {
+          id: "s-tag-1",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "-ut",
+          markdown: "#-ut",
+          type: "tag",
+          block_sort: 2,
+        },
+      ]
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const tags = result.items.filter((item) => item.type === "tag");
+
+    expect(tags).toHaveLength(1);
+    expect(tags[0]).toEqual(
+      expect.objectContaining({
+        blockId: "p-1",
+        text: "-ut",
+        listPrefix: "- ",
+      })
+    );
+  });
+
+  test("remaps list-item span tags onto the mapped first child to avoid duplicate tag rows", async () => {
+    mockKernelSql(
+      [
+        {
+          id: "i-1",
+          parent_id: "doc-1",
+          sort: 1,
+          type: "i",
+          subtype: "",
+          content: "嵌套无序列表",
+          markdown: "- 嵌套#无序#列表",
+          memo: "",
+          tag: "无序,列表",
+        },
+        {
+          id: "p-1",
+          parent_id: "i-1",
+          sort: 2,
+          type: "p",
+          subtype: "",
+          content: "嵌套无序列表",
+          markdown: "嵌套",
+          memo: "",
+          tag: "",
+        },
+      ],
+      [
+        {
+          id: "s-tag-1",
+          block_id: "i-1",
+          root_id: "doc-1",
+          content: "无序",
+          markdown: "#无序",
+          type: "tag",
+          block_sort: 1,
+        },
+        {
+          id: "s-tag-2",
+          block_id: "i-1",
+          root_id: "doc-1",
+          content: "列表",
+          markdown: "#列表",
+          type: "tag",
+          block_sort: 1,
+        },
+      ]
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const tags = result.items.filter((item) => item.type === "tag");
+
+    expect(tags).toHaveLength(1);
+    expect(tags[0]).toEqual(
+      expect.objectContaining({
+        blockId: "p-1",
+        text: "无序  列表",
+        listPrefix: "- ",
+      })
+    );
+  });
+
+  test("dedupes a closed child markdown tag with parent list-item meta tag", async () => {
+    mockKernelSql([
+      {
+        id: "i-1",
+        parent_id: "doc-1",
+        sort: 1,
+        type: "i",
+        subtype: "",
+        content: "嵌套无序列表",
+        markdown: "- 嵌套#无序#列表",
+        memo: "",
+        tag: "无序",
+      },
+      {
+        id: "p-1",
+        parent_id: "i-1",
+        sort: 2,
+        type: "p",
+        subtype: "",
+        content: "嵌套无序列表",
+        markdown: "嵌套#无序#列表",
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const result = await getDocKeyInfo("doc-1");
+    const tags = result.items.filter((item) => item.type === "tag");
+
+    expect(tags).toHaveLength(1);
+    expect(tags[0]).toEqual(
+      expect.objectContaining({
+        blockId: "p-1",
+        text: "无序",
+        listPrefix: "- ",
+      })
+    );
+  });
+
+  test("dedupes list-item tags when one inline source keeps the list decoration in text", async () => {
+    mockKernelSql(
+      [
+        {
+          id: "i-1",
+          parent_id: "doc-1",
+          sort: 1,
+          type: "i",
+          subtype: "",
+          content: "可是测试安安",
+          markdown: "- 可是#测试#安安",
+          memo: "",
+          tag: "测试",
+        },
+        {
+          id: "p-1",
+          parent_id: "i-1",
+          sort: 2,
+          type: "p",
+          subtype: "",
+          content: "可是测试安安",
+          markdown: "可是#测试#安安",
+          memo: "",
+          tag: "",
+        },
+      ],
+      [
+        {
+          id: "s-tag-1",
+          block_id: "p-1",
+          root_id: "doc-1",
+          content: "-测试",
+          markdown: "#测试",
+          type: "tag",
+          block_sort: 2,
+        },
+      ]
+    );
+
+    const result = await getDocKeyInfo("doc-1");
+    const tags = result.items.filter((item) => item.type === "tag");
+
+    expect(tags).toHaveLength(1);
+    expect(tags[0]).toEqual(
+      expect.objectContaining({
+        blockId: "p-1",
+        text: "测试",
+        raw: "#测试",
+        listPrefix: "- ",
+      })
+    );
+  });
+
+  test("suppresses aggregated ancestor tags and keeps only the actual tagged list lines", async () => {
+    mockKernelSql([
+      {
+        id: "doc-1",
+        parent_id: "",
+        sort: 0,
+        type: "d",
+        subtype: "",
+        content: "未命名",
+        markdown: "",
+        memo: "",
+        tag: "测试,安安,马里奥",
+      },
+      {
+        id: "l-1",
+        parent_id: "doc-1",
+        sort: 0,
+        type: "l",
+        subtype: "",
+        content: "",
+        markdown: "",
+        memo: "",
+        tag: "测试,安安,马里奥",
+      },
+      {
+        id: "i-1",
+        parent_id: "l-1",
+        sort: 1,
+        type: "i",
+        subtype: "",
+        content: " 可是测试啊哈哈",
+        markdown: "- 可是#测试#啊哈哈",
+        memo: "",
+        tag: "测试",
+      },
+      {
+        id: "p-1",
+        parent_id: "i-1",
+        sort: 2,
+        type: "p",
+        subtype: "",
+        content: "可是测试啊哈哈",
+        markdown: "可是#测试#啊哈哈",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "i-2",
+        parent_id: "l-1",
+        sort: 3,
+        type: "i",
+        subtype: "",
+        content: " 洗衣服、晾衣服 跟安安玩游戏：switch 马里奥派对 今日话题（每日一问）：",
+        markdown: "- 洗衣服、晾衣服",
+        memo: "",
+        tag: "安安,马里奥",
+      },
+      {
+        id: "l-2",
+        parent_id: "i-2",
+        sort: 3,
+        type: "l",
+        subtype: "",
+        content: "",
+        markdown: "",
+        memo: "",
+        tag: "安安,马里奥",
+      },
+      {
+        id: "p-2",
+        parent_id: "i-2",
+        sort: 4,
+        type: "p",
+        subtype: "",
+        content: "洗衣服、晾衣服",
+        markdown: "洗衣服、晾衣服",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "i-3",
+        parent_id: "l-2",
+        sort: 5,
+        type: "i",
+        subtype: "",
+        content: " 跟安安玩游戏：switch 马里奥派对",
+        markdown: "- 跟#安安#玩游戏：switch #马里奥#派对",
+        memo: "",
+        tag: "安安,马里奥",
+      },
+      {
+        id: "p-3",
+        parent_id: "i-3",
+        sort: 6,
+        type: "p",
+        subtype: "",
+        content: "跟安安玩游戏：switch 马里奥派对",
+        markdown: "跟#安安#玩游戏：switch #马里奥#派对",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "i-4",
+        parent_id: "l-2",
+        sort: 7,
+        type: "i",
+        subtype: "",
+        content: " 今日话题（每日一问）：",
+        markdown: "- 今日话题（每日一问）：",
+        memo: "",
+        tag: "",
+      },
+      {
+        id: "p-4",
+        parent_id: "i-4",
+        sort: 8,
+        type: "p",
+        subtype: "",
+        content: "今日话题（每日一问）：",
+        markdown: "今日话题（每日一问）：",
+        memo: "",
+        tag: "",
+      },
+    ]);
+
+    const result = await getDocKeyInfo("doc-1");
+    const tags = result.items.filter((item) => item.type === "tag");
+
+    expect(tags).toEqual([
+      expect.objectContaining({
+        blockId: "p-1",
+        text: "测试",
+        listPrefix: "- ",
+      }),
+      expect.objectContaining({
+        blockId: "p-3",
+        text: "安安  马里奥",
+        listPrefix: "- ",
+      }),
+    ]);
+  });
+
   test("skips list container and mapped list-item markdown inline extraction", async () => {
     mockKernelSql([
       {

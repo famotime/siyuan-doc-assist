@@ -223,7 +223,12 @@ function normalizeTagItems(items: KeyInfoItem[]): KeyInfoItem[] {
       return;
     }
 
-    const text = normalizeTagTextValue(item.text || item.raw || "");
+    const normalizedText = normalizeTagTextValue(item.text || "");
+    const normalizedRawText = normalizeTagTextValue(item.raw || "");
+    const text =
+      (item.listPrefix ? normalizedRawText : "") ||
+      normalizedText ||
+      normalizedRawText;
     if (!text) {
       return;
     }
