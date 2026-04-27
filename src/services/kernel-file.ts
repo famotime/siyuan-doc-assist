@@ -81,8 +81,14 @@ export async function getFileBlob(path: string): Promise<Blob> {
 
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
-    const json = (await response.json().catch(() => null)) as FileErrorRes | null;
-    throw new Error(json?.msg || "读取文件失败");
+    const json = (await response.json().catch(() => null)) as unknown;
+    if (isFileErrorEnvelope(json)) {
+      throw new Error(json.msg || "读取文件失败");
+    }
+    if (isFileSuccessEnvelope(json)) {
+      return toBlobFromSuccessData(json.data);
+    }
+    throw new Error("读取文件失败");
   }
 
   return response.blob();
@@ -102,6 +108,30 @@ function isFileSuccessEnvelope(value: unknown): value is { code: number; data?: 
   }
   const payload = value as { code?: unknown };
   return typeof payload.code === "number" && payload.code === 0;
+}
+
+function toBlobFromSuccessData(data: unknown): Blob {
+  if (typeof Blob !== "undefined" && data instanceof Blob) {
+    return data;
+  }
+  if (typeof data === "string") {
+    return new Blob([data]);
+  }
+  if (data instanceof ArrayBuffer) {
+    return new Blob([data]);
+  }
+  if (ArrayBuffer.isView(data)) {
+    const copied = new Uint8Array(data.byteLength);
+    copied.set(new Uint8Array(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength));
+    return new Blob([copied.buffer]);
+  }
+  if (data == null) {
+    return new Blob([]);
+  }
+  if (typeof data === "object") {
+    return new Blob([JSON.stringify(data)]);
+  }
+  return new Blob([String(data)]);
 }
 
 export async function getFileTextAllowJson(path: string): Promise<string> {
