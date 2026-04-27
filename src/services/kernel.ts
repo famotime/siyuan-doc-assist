@@ -124,6 +124,15 @@ export type DocMeta = {
   title: string;
 };
 
+export type NotebookDocMeta = {
+  id: string;
+  box: string;
+  path: string;
+  hPath: string;
+  updated: string;
+  title: string;
+};
+
 export type ChildDocMeta = {
   id: string;
   box: string;
@@ -288,6 +297,14 @@ export async function renderSprigTemplate(template: string): Promise<string> {
   });
 }
 
+export async function getDocAssets(id: string): Promise<unknown> {
+  return requestApi("/api/asset/getDocAssets", { id });
+}
+
+export async function statAsset(path: string): Promise<unknown> {
+  return requestApi("/api/asset/statAsset", { path });
+}
+
 export async function getDocMetaByID(id: string): Promise<DocMeta | null> {
   const rows = await sql<SqlDocRow>(
     `select id, parent_id, root_id, box, path, hpath, updated from blocks where type='d' and id='${escapeSqlLiteral(
@@ -323,6 +340,28 @@ export async function getDocMetasByIDs(ids: string[]): Promise<DocMeta[]> {
     id: row.id,
     parentId: row.parent_id,
     rootId: row.root_id,
+    box: row.box,
+    path: row.path,
+    hPath: row.hpath,
+    updated: row.updated,
+    title: toTitle(row.hpath),
+  }));
+}
+
+export async function listNotebookDocs(notebook: string): Promise<NotebookDocMeta[]> {
+  if (!notebook.trim()) {
+    return [];
+  }
+
+  const rows = await sql<SqlDocRow>(
+    `select id, parent_id, root_id, box, path, hpath, updated
+     from blocks
+     where type='d'
+       and box='${escapeSqlLiteral(notebook)}'`
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
     box: row.box,
     path: row.path,
     hPath: row.hpath,
