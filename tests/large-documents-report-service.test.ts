@@ -53,7 +53,7 @@ describe("large documents report service", () => {
     renderSprigTemplateMock.mockResolvedValue("/daily/2026/04/2026-04-27");
     listNotebookDocsMock.mockResolvedValue([
       {
-        id: "doc-a",
+        id: "20260426112233-doca",
         box: "nb-1",
         path: "/a.sy",
         hPath: "/资料/A 文档",
@@ -74,7 +74,7 @@ describe("large documents report service", () => {
     expect(createDocWithMdMock).toHaveBeenCalledWith(
       "nb-1",
       "/daily/2026/04/Top100大文件清单-20260427-153015",
-      expect.stringContaining("| 1 | [A 文档](siyuan://blocks/doc-a) | 24 B | 4 B | 20 B | 1 | /资料/A 文档 |")
+      expect.stringContaining("| 1 | [A 文档](siyuan://blocks/20260426112233-doca) | 24 B | 4 B | 20 B | 1 | 2026-04-26 | 2026-04-27 |")
     );
     expect(statAssetMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
@@ -123,7 +123,7 @@ describe("large documents report service", () => {
     renderSprigTemplateMock.mockResolvedValue("/daily/2026/04/2026-04-27");
     listNotebookDocsMock.mockResolvedValue([
       {
-        id: "doc-a",
+        id: "20260426112233-doca",
         box: "nb-1",
         path: "/a.sy",
         hPath: "/资料/A 文档",
@@ -143,7 +143,7 @@ describe("large documents report service", () => {
     expect(createDocWithMdMock).toHaveBeenCalledWith(
       "nb-1",
       "/daily/2026/04/Top100大文件清单-20260427-153015",
-      expect.stringContaining("| 1 | [A 文档](siyuan://blocks/doc-a) | 4 B | 4 B | 0 B | 0 | /资料/A 文档 |")
+      expect.stringContaining("| 1 | [A 文档](siyuan://blocks/20260426112233-doca) | 4 B | 4 B | 0 B | 0 | 2026-04-26 | 2026-04-27 |")
     );
   });
 });

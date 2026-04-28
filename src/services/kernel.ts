@@ -1,7 +1,7 @@
 import { requestApi } from "@/services/request";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { getFileTextAllowJson, getPathByID } from "@/services/kernel-file";
-import { escapeSqlLiteral, inClause, sql } from "@/services/kernel-shared";
+import { escapeSqlLiteral, inClause, sql, sqlPaged } from "@/services/kernel-shared";
 
 export {
   appendBlock,
@@ -353,7 +353,7 @@ export async function listNotebookDocs(notebook: string): Promise<NotebookDocMet
     return [];
   }
 
-  const rows = await sql<SqlDocRow>(
+  const rows = await sqlPaged<SqlDocRow>(
     `select id, parent_id, root_id, box, path, hpath, updated
      from blocks
      where type='d'

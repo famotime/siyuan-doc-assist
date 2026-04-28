@@ -18,7 +18,7 @@ describe("large documents report core", () => {
         assetCount: 2,
       },
       {
-        documentId: "doc-a",
+        documentId: "20260426112233-doca",
         title: "A 文档",
         hPath: "/资料/A 文档",
         updated: "20260427130000",
@@ -28,7 +28,7 @@ describe("large documents report core", () => {
       },
     ]);
 
-    expect(ranked.map((item) => item.documentId)).toEqual(["doc-a", "doc-b"]);
+    expect(ranked.map((item) => item.documentId)).toEqual(["20260426112233-doca", "doc-b"]);
 
     const markdown = buildLargeDocumentsReportMarkdown({
       notebookLabel: "知识库",
@@ -37,10 +37,10 @@ describe("large documents report core", () => {
     });
 
     expect(formatLargeDocumentBytes(1024)).toBe("1.0 KB");
-    expect(markdown).toContain("| 排名 | 文件名 | 文档大小 | 文档本体 | 内嵌资源 | 资源数 | 文档路径 |");
-    expect(markdown).toContain("[A 文档](siyuan://blocks/doc-a)");
+    expect(markdown).toContain("| 排名 | 文件名 | 文档大小 | 文档本体 | 内嵌资源 | 资源数 | 创建日期 | 更新日期 |");
+    expect(markdown).toContain("[A 文档](siyuan://blocks/20260426112233-doca)");
     expect(markdown).toContain(
-      "| 1 | [A 文档](siyuan://blocks/doc-a) | 400 B | 200 B | 200 B | 1 | /资料/A 文档 |"
+      "| 1 | [A 文档](siyuan://blocks/20260426112233-doca) | 400 B | 200 B | 200 B | 1 | 2026-04-26 | 2026-04-27 |"
     );
   });
 });

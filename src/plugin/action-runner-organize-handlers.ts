@@ -131,6 +131,7 @@ export function createOrganizeActionHandlers(
       const result = await createTop100LargeDocumentsReport({
         currentDocId: docId,
       });
+      openDocByProtocol(result.id);
       showMessage(`已输出 Top100 大文件清单：${result.title}（${result.docCount} 篇）`, 5000, "info");
     },
     dedupe: async (docId) => {

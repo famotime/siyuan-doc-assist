@@ -595,13 +595,14 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("已创建本月日记：2026-04 月记（30 天）", 5000, "info");
   });
 
-  test("runs the large documents report action and shows success message", async () => {
+  test("runs the large documents report action, opens the report doc, and shows success message", async () => {
     createTop100LargeDocumentsReportMock.mockResolvedValue({
       id: "report-doc",
       title: "Top100大文件清单-20260427-153015",
       path: "/daily/2026/04/Top100大文件清单-20260427-153015",
       docCount: 100,
     });
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     const runner = createRunner();
 
     await runner.runAction("create-top100-large-documents-report" as any);
@@ -609,11 +610,13 @@ describe("action-runner loading guard", () => {
     expect(createTop100LargeDocumentsReportMock).toHaveBeenCalledWith({
       currentDocId: "doc-1",
     });
+    expect(openSpy).toHaveBeenCalledWith("siyuan://blocks/report-doc");
     expect(showMessageMock).toHaveBeenCalledWith(
       "已输出 Top100 大文件清单：Top100大文件清单-20260427-153015（100 篇）",
       5000,
       "info"
     );
+    openSpy.mockRestore();
   });
 
   test("inserts ai summary before the first paragraph by default", async () => {

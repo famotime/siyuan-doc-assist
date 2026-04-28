@@ -59,17 +59,32 @@ export function buildLargeDocumentsReportMarkdown(params: {
     "统计口径：文档大小 = 文档本体 + 内嵌资源",
     `生成时间：${params.generatedAt}`,
     "",
-    "| 排名 | 文件名 | 文档大小 | 文档本体 | 内嵌资源 | 资源数 | 文档路径 |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
+    "| 排名 | 文件名 | 文档大小 | 文档本体 | 内嵌资源 | 资源数 | 创建日期 | 更新日期 |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ...params.items.map(
       (item, index) =>
         `| ${index + 1} | [${item.title}](siyuan://blocks/${item.documentId}) | ${formatLargeDocumentBytes(
           item.totalBytes
         )} | ${formatLargeDocumentBytes(item.documentBytes)} | ${formatLargeDocumentBytes(
           item.assetBytes
-        )} | ${item.assetCount} | ${item.hPath} |`
+        )} | ${item.assetCount} | ${formatReportDateFromId(item.documentId)} | ${formatReportDate(
+          item.updated
+        )} |`
     ),
   ];
 
   return lines.join("\n");
+}
+
+function formatReportDate(value: string): string {
+  const normalized = String(value || "").trim();
+  const match = normalized.match(/^(\d{4})(\d{2})(\d{2})/);
+  if (!match) {
+    return "";
+  }
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+function formatReportDateFromId(documentId: string): string {
+  return formatReportDate(String(documentId || "").split("-")[0] || "");
 }
