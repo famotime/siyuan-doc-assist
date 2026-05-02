@@ -1,4 +1,4 @@
-import { ACTIONS, ActionConfig, ActionKey } from "@/plugin/actions";
+import { ActionConfig, ActionKey } from "@/plugin/actions";
 
 export type HiddenPluginSettingKey = "ai-service" | "monthly-diary-template";
 
@@ -11,15 +11,24 @@ const ACTION_LINKED_SETTING_KEYS: Partial<Record<ActionKey, HiddenPluginSettingK
   "create-monthly-diary": "monthly-diary-template",
 };
 
-const AI_GROUP_ACTION_KEYS = new Set<ActionKey>(ACTIONS
-  .filter((action) => action.group === "ai")
-  .map((action) => action.key));
-
-const DEFAULT_HIDDEN_ACTION_KEYS: ActionKey[] = Array.from(AI_GROUP_ACTION_KEYS);
-DEFAULT_HIDDEN_ACTION_KEYS.push("create-monthly-diary");
-
+/**
+ * 在此处手动配置需要隐藏的动作和设置项。
+ * 修改后重新构建即可生效，无需改其他文件。
+ *
+ * 可用 hiddenActionKeys（动作 key）：
+ *   - "create-doc-concept-map"      生成概念地图
+ *   - "insert-doc-summary"          插入文档摘要
+ *   - "mark-irrelevant-paragraphs"  标记口水内容
+ *   - "mark-key-content"            标记关键内容
+ *   - "clean-ai-output"             清理AI输出内容
+ *   - "create-monthly-diary"        新建本月日记（联动隐藏 monthly-diary-template 设置项）
+ *
+ * 可用 hiddenSettingKeys（设置项 key）：
+ *   - "ai-service"               AI 服务接入配置（Base URL / API Key / Model）
+ *   - "monthly-diary-template"   本月日记模板
+ */
 export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
-  hiddenActionKeys: DEFAULT_HIDDEN_ACTION_KEYS,
+  hiddenActionKeys: [],
   hiddenSettingKeys: [],
 };
 
@@ -34,9 +43,6 @@ export function getHiddenPluginSettingKeys(
 ): Set<HiddenPluginSettingKey> {
   const hiddenSettingKeys = new Set<HiddenPluginSettingKey>(config.hiddenSettingKeys);
   getHiddenActionKeys(config).forEach((actionKey) => {
-    if (AI_GROUP_ACTION_KEYS.has(actionKey)) {
-      hiddenSettingKeys.add("ai-service");
-    }
     const linkedSettingKey = ACTION_LINKED_SETTING_KEYS[actionKey];
     if (linkedSettingKey) {
       hiddenSettingKeys.add(linkedSettingKey);
