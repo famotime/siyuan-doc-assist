@@ -20,12 +20,6 @@ type ForwardProxyFn = (
   contentType?: string,
 ) => Promise<ForwardProxyResponse>;
 
-export type ImageOcrItem = {
-  assetPath: string;
-  blockId: string;
-  ocrText: string;
-};
-
 export type RecognizeDocImagesOptions = {
   config?: unknown;
   docId: string;
@@ -86,9 +80,11 @@ export async function recognizeDocImages(
     return emptyReport();
   }
 
-  const ocrResults: ImageOcrItem[] = [];
+  const nextBlockIdMap = buildNextBlockIdMap(blocks);
+  const { requestApi: reqApi } = await import("@/services/request");
   let recognizedCount = 0;
   let failedCount = 0;
+  let insertedCount = 0;
 
   for (let i = 0; i < imageItems.length; i += 1) {
     const item = imageItems[i];
@@ -97,25 +93,32 @@ export async function recognizeDocImages(
       const imageBase64 = await readAssetAsBase64(item.assetPath);
       const ocrText = await requestVisionOcr(proxyFn, config, imageBase64);
       if (ocrText && ocrText !== "[NO_TEXT]") {
-        ocrResults.push({ assetPath: item.assetPath, blockId: item.blockId, ocrText });
         recognizedCount += 1;
+        const quoteMarkdown = buildOcrQuoteMarkdown(ocrText);
+        const nextId = nextBlockIdMap.get(item.blockId);
+        if (nextId) {
+          await reqApi("/api/block/insertBlock", {
+            dataType: "markdown",
+            data: quoteMarkdown,
+            nextID: nextId,
+            previousID: "",
+            parentID: normalizedDocId,
+          });
+        } else {
+          await reqApi("/api/block/insertBlock", {
+            dataType: "markdown",
+            data: quoteMarkdown,
+            nextID: "",
+            previousID: item.blockId,
+            parentID: normalizedDocId,
+          });
+        }
+        insertedCount += 1;
       }
     } catch {
       failedCount += 1;
     }
   }
-
-  if (!ocrResults.length) {
-    return {
-      scannedBlockCount: blocks.length,
-      scannedImageCount: imageItems.length,
-      recognizedCount,
-      failedCount,
-      insertedCount: 0,
-    };
-  }
-
-  const insertedCount = await insertOcrResults(normalizedDocId, blocks, ocrResults);
 
   return {
     scannedBlockCount: blocks.length,
@@ -264,55 +267,12 @@ function extractTextContent(payload: any): string {
   return "";
 }
 
-async function insertOcrResults(
-  docId: string,
-  blocks: SqlDocBlockRow[],
-  ocrResults: ImageOcrItem[],
-): Promise<number> {
-  const blockIndexMap = new Map(blocks.map((block, index) => [block.id, index]));
-  const { requestApi: reqApi } = await import("@/services/request");
-
-  const sortedResults = [...ocrResults].sort((left, right) => {
-    const leftIndex = blockIndexMap.get(left.blockId) ?? Number.MAX_SAFE_INTEGER;
-    const rightIndex = blockIndexMap.get(right.blockId) ?? Number.MAX_SAFE_INTEGER;
-    return rightIndex - leftIndex;
-  });
-
-  let insertedCount = 0;
-
-  for (const item of sortedResults) {
-    const quoteMarkdown = buildOcrQuoteMarkdown(item.ocrText);
-    const blockIndex = blockIndexMap.get(item.blockId);
-    if (blockIndex === undefined) {
-      continue;
-    }
-
-    const nextBlock = blocks[blockIndex + 1];
-    try {
-      if (nextBlock) {
-        await reqApi("/api/block/insertBlock", {
-          dataType: "markdown",
-          data: quoteMarkdown,
-          nextID: nextBlock.id,
-          previousID: "",
-          parentID: docId,
-        });
-      } else {
-        await reqApi("/api/block/insertBlock", {
-          dataType: "markdown",
-          data: quoteMarkdown,
-          nextID: "",
-          previousID: item.blockId,
-          parentID: docId,
-        });
-      }
-      insertedCount += 1;
-    } catch {
-      // continue with remaining insertions
-    }
+function buildNextBlockIdMap(blocks: SqlDocBlockRow[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (let i = 0; i < blocks.length - 1; i += 1) {
+    map.set(blocks[i].id, blocks[i + 1].id);
   }
-
-  return insertedCount;
+  return map;
 }
 
 function buildOcrQuoteMarkdown(text: string): string {
