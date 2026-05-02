@@ -105,11 +105,9 @@ export async function recognizeDocImages(
             parentID: normalizedDocId,
           });
         } else {
-          await reqApi("/api/block/insertBlock", {
+          await reqApi("/api/block/appendBlock", {
             dataType: "markdown",
             data: quoteMarkdown,
-            nextID: "",
-            previousID: item.blockId,
             parentID: normalizedDocId,
           });
         }
