@@ -69,11 +69,11 @@ export function splitDocByHeadingsCore(
       currentSection = {
         title: extractHeadingTitle(block.markdown),
         blockIds: [block.id],
-        markdown: block.markdown.trim(),
+        markdown: "",
       };
     } else if (currentSection) {
       currentSection.blockIds.push(block.id);
-      currentSection.markdown += "\n\n" + block.markdown;
+      currentSection.markdown += currentSection.markdown ? "\n\n" + block.markdown : block.markdown;
     } else {
       preHeadingBlockIds.push(block.id);
     }

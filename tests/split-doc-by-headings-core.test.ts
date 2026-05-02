@@ -46,17 +46,17 @@ describe("splitDocByHeadingsCore", () => {
     expect(result.sections[0]).toMatchObject({
       title: "Section One",
       blockIds: ["b1", "b2", "b3"],
-      markdown: "## Section One\n\npara 1a\n\npara 1b",
+      markdown: "para 1a\n\npara 1b",
     });
     expect(result.sections[1]).toMatchObject({
       title: "Section Two",
       blockIds: ["b4", "b5"],
-      markdown: "## Section Two\n\npara 2a",
+      markdown: "para 2a",
     });
     expect(result.sections[2]).toMatchObject({
       title: "Section Three",
       blockIds: ["b6"],
-      markdown: "## Section Three",
+      markdown: "",
     });
   });
 
@@ -112,7 +112,7 @@ describe("splitDocByHeadingsCore", () => {
     expect(result.sections[0].blockIds).toEqual(["b1", "b2", "b3", "b4"]);
     expect(result.sections[1].blockIds).toEqual(["b5", "b6", "b7", "b8"]);
     expect(result.sections[0].markdown).toBe(
-      "## Chapter 1\n\nintro 1\n\n### Detail 1.1\n\ndetail content"
+      "intro 1\n\n### Detail 1.1\n\ndetail content"
     );
   });
 

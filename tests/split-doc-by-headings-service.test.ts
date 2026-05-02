@@ -75,8 +75,8 @@ describe("splitDocByHeadings", () => {
     const report = await splitDocByHeadings("doc-1");
 
     expect(mockCreateDoc).toHaveBeenCalledTimes(2);
-    expect(mockCreateDoc).toHaveBeenCalledWith("nb-1", "/Notebook/TestDoc/Alpha", "## Alpha\n\ncontent A");
-    expect(mockCreateDoc).toHaveBeenCalledWith("nb-1", "/Notebook/TestDoc/Beta", "## Beta\n\ncontent B");
+    expect(mockCreateDoc).toHaveBeenCalledWith("nb-1", "/Notebook/TestDoc/Alpha", "content A");
+    expect(mockCreateDoc).toHaveBeenCalledWith("nb-1", "/Notebook/TestDoc/Beta", "content B");
     expect(mockDeleteBlocks).toHaveBeenCalledWith(["b1", "b2", "b3", "b4"]);
     expect(report).toEqual({
       sectionCount: 2,
