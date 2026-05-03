@@ -33,6 +33,7 @@ export type ActionKey =
   | "toggle-heading-bold"
   | "merge-selected-list-blocks"
   | "delete-from-current-to-end"
+  | "delete-from-start-to-current"
   | "remove-strikethrough-marked-content"
   | "bold-selected-blocks"
   | "highlight-selected-blocks"
@@ -41,7 +42,8 @@ export type ActionKey =
   | "toggle-selected-punctuation"
   | "split-doc-by-headings"
   | "recognize-doc-images"
-  | "set-selection-as-title";
+  | "set-selection-as-title"
+  | "extract-web-links";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -113,9 +115,11 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "trim-trailing-whitespace": "尾",
   "toggle-links-refs": "转",
   "delete-from-current-to-end": "删",
+  "delete-from-start-to-current": "删",
   "split-doc-by-headings": "拆",
   "recognize-doc-images": "识",
   "set-selection-as-title": "题",
+  "extract-web-links": "链",
 };
 
 const BASE_ACTIONS: BaseActionConfig[] = [
@@ -184,6 +188,17 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     ),
     group: "export",
     icon: "iconDownload",
+  },
+  {
+    key: "extract-web-links",
+    commandText: "提取本文档链接",
+    menuText: "提取本文档链接",
+    tooltip: createActionTooltip(
+      "提取本文档链接",
+      "提取当前文档中的所有 Web 链接（URL），一行一个，复制到剪贴板。"
+    ),
+    group: "export",
+    icon: "iconLink",
   },
   {
     key: "move-backlinks",
@@ -541,6 +556,18 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     tooltip: createActionTooltip(
       "删除后续段落（含本段）",
       "从当前光标所在段开始，批量删除后续所有同级正文块；适合清理文章尾部冗余内容。"
+    ),
+    group: "edit",
+    requiresWritableDoc: true,
+    icon: "iconTrashcan",
+  },
+  {
+    key: "delete-from-start-to-current",
+    commandText: "删除之前段落（含本段）",
+    menuText: "删除之前段落（含本段）",
+    tooltip: createActionTooltip(
+      "删除之前段落（含本段）",
+      "从文档开头到当前光标所在段，批量删除所有同级正文块。文首前10个段落中的分隔线（---）及之前的内容（文档概要）将被保留。"
     ),
     group: "edit",
     requiresWritableDoc: true,

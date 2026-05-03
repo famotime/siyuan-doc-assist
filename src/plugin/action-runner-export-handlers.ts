@@ -8,7 +8,7 @@ import {
   exportDocAndChildKeyInfoAsZip,
   exportDocIdsAsMarkdownZip,
 } from "@/services/exporter";
-import { getDocMetaByID } from "@/services/kernel";
+import { exportMdContent, getDocMetaByID } from "@/services/kernel";
 import { getBacklinkDocs, getChildDocs, getForwardLinkedDocIds } from "@/services/link-resolver";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 
@@ -112,6 +112,31 @@ export function createExportActionHandlers(
         forwardDocIds: ids,
       });
       await exportDocZip(ids, "正链", docId);
+    },
+    "extract-web-links": async (docId) => {
+      try {
+        const result = await exportMdContent(docId);
+        const content = result.content;
+
+        // 匹配 web 链接的正则表达式
+        const urlRegex = /https?:\/\/[^\s<>)\]>"',;]+/gi;
+        const matches = content.match(urlRegex) || [];
+
+        if (matches.length === 0) {
+          showMessage("本文档未找到任何 Web 链接", 3000, "info");
+          return;
+        }
+
+        // 去重并排序
+        const uniqueUrls = [...new Set(matches)].sort();
+
+        // 复制到剪贴板
+        await navigator.clipboard.writeText(uniqueUrls.join("\n"));
+        showMessage(`已提取 ${uniqueUrls.length} 个链接并复制到剪贴板`, 5000, "info");
+      } catch (error) {
+        console.error("提取链接失败:", error);
+        showMessage("提取链接失败", 5000, "error");
+      }
     },
   };
 }
