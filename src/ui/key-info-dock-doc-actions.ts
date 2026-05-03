@@ -25,6 +25,7 @@ const collapsedDocActionGroupsByContainer = new WeakMap<
   HTMLDivElement,
   Set<string>
 >();
+const actionSearchKeywordsByContainer = new WeakMap<HTMLDivElement, string>();
 
 function resolveActionIconText(action: DockDocAction): string {
   const preset = action.dockIconText || getActionDockIconTextByKey(action.key);
@@ -459,9 +460,90 @@ export function renderKeyInfoDockDocActions({
     }
   }
 
+  const searchKeyword = (actionSearchKeywordsByContainer.get(container) || "").trim();
+  const buildSearchBox = (): HTMLDivElement => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "doc-assistant-keyinfo__action-search";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "doc-assistant-keyinfo__action-search-input";
+    input.placeholder = "搜索命令…";
+    input.value = searchKeyword;
+    let isComposing = false;
+    const triggerSearch = () => {
+      actionSearchKeywordsByContainer.set(container, input.value);
+      renderKeyInfoDockDocActions({
+        container,
+        actions,
+        favoriteActionKeys,
+        onDocActionClick,
+        onDocActionFavoriteToggle,
+        onFavoriteActionsReorder,
+        onDocActionsReorder,
+        selectionPreservedActionKeys,
+      });
+    };
+    input.addEventListener("compositionstart", () => {
+      isComposing = true;
+    });
+    input.addEventListener("compositionend", () => {
+      isComposing = false;
+      triggerSearch();
+    });
+    input.addEventListener("input", () => {
+      if (!isComposing) {
+        triggerSearch();
+      }
+    });
+    wrapper.appendChild(input);
+    if (searchKeyword) {
+      const clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.className = "doc-assistant-keyinfo__action-search-clear";
+      clearBtn.textContent = "×";
+      clearBtn.title = "清除搜索";
+      clearBtn.addEventListener("click", () => {
+        actionSearchKeywordsByContainer.set(container, "");
+        renderKeyInfoDockDocActions({
+          container,
+          actions,
+          favoriteActionKeys,
+          onDocActionClick,
+          onDocActionFavoriteToggle,
+          onFavoriteActionsReorder,
+          onDocActionsReorder,
+          selectionPreservedActionKeys,
+        });
+      });
+      wrapper.appendChild(clearBtn);
+    }
+    return wrapper;
+  };
+  fragment.appendChild(buildSearchBox());
+
+  const lowerKeyword = searchKeyword.toLowerCase();
+  const matchesKeyword = (action: DockDocAction): boolean => {
+    if (!lowerKeyword) {
+      return true;
+    }
+    const label = (action.label || "").toLowerCase();
+    const tooltip = (action.tooltip || "").toLowerCase();
+    return label.includes(lowerKeyword) || tooltip.includes(lowerKeyword);
+  };
+
   let previousGroup = "";
+  let hasVisibleAction = false;
   docActions.forEach((action) => {
     if (!previousGroup || previousGroup !== action.group) {
+      if (lowerKeyword && !collapsedGroups.has(action.group)) {
+        const groupHasMatch = docActions.some(
+          (a) => a.group === action.group && matchesKeyword(a)
+        );
+        if (!groupHasMatch) {
+          previousGroup = action.group;
+          return;
+        }
+      }
       const separator = buildGroupLabel({
         text: action.groupLabel,
         groupKey: action.group,
@@ -501,11 +583,31 @@ export function renderKeyInfoDockDocActions({
       previousGroup = action.group;
       return;
     }
+    if (!matchesKeyword(action)) {
+      previousGroup = action.group;
+      return;
+    }
+    hasVisibleAction = true;
     fragment.appendChild(buildActionRow(action, { favoriteCopy: false }));
     previousGroup = action.group;
   });
 
+  if (lowerKeyword && !hasVisibleAction) {
+    const noResult = document.createElement("div");
+    noResult.className = "doc-assistant-keyinfo__action-no-result ft__secondary";
+    noResult.textContent = `未找到匹配"${searchKeyword}"的命令`;
+    fragment.appendChild(noResult);
+  }
+
+  const wasSearchFocused = !!container.querySelector(".doc-assistant-keyinfo__action-search-input:focus");
   container.replaceChildren(fragment);
+  if (wasSearchFocused) {
+    const newInput = container.querySelector<HTMLInputElement>(".doc-assistant-keyinfo__action-search-input");
+    if (newInput) {
+      newInput.focus();
+      newInput.setSelectionRange(newInput.value.length, newInput.value.length);
+    }
+  }
 
   container.ondragover = (event) => {
     if (!draggingKey) {
