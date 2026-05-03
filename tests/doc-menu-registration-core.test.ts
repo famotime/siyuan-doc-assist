@@ -97,14 +97,14 @@ describe("doc-menu-registration-core", () => {
     expect(sorted[1]?.key).toBe("export-current");
   });
 
-  test("places insert-blank-before-headings at the end of insert group by default", () => {
+  test("places set-selection-as-title at the end of insert group by default", () => {
     const defaultOrder = buildDefaultDocActionOrder(ACTIONS);
     const sorted = sortActionsByOrder(ACTIONS, defaultOrder);
     const insertKeys = sorted
       .filter((action) => action.group === "insert")
       .map((action) => action.key);
 
-    expect(insertKeys[insertKeys.length - 1]).toBe("insert-blank-before-headings");
+    expect(insertKeys[insertKeys.length - 1]).toBe("set-selection-as-title");
   });
 
   test("allows moving insert-blank-before-headings via custom order", () => {

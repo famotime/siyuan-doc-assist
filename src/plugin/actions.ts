@@ -40,7 +40,8 @@ export type ActionKey =
   | "remove-selected-spacing"
   | "toggle-selected-punctuation"
   | "split-doc-by-headings"
-  | "recognize-doc-images";
+  | "recognize-doc-images"
+  | "set-selection-as-title";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -114,6 +115,7 @@ const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "delete-from-current-to-end": "删",
   "split-doc-by-headings": "拆",
   "recognize-doc-images": "识",
+  "set-selection-as-title": "题",
 };
 
 const BASE_ACTIONS: BaseActionConfig[] = [
@@ -325,6 +327,18 @@ const BASE_ACTIONS: BaseActionConfig[] = [
     group: "insert",
     requiresWritableDoc: true,
     icon: "iconList",
+  },
+  {
+    key: "set-selection-as-title",
+    commandText: "选中内容作为标题",
+    menuText: "选中内容作为标题",
+    tooltip: createActionTooltip(
+      "选中内容作为标题",
+      "将选中的文字设为当前文档标题；若未选中任何内容，则将光标所在行（以换行符为分隔）的文字作为文档标题。"
+    ),
+    group: "insert",
+    requiresWritableDoc: true,
+    icon: "iconEdit",
   },
   {
     key: "create-doc-concept-map",
