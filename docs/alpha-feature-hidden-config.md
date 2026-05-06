@@ -165,6 +165,27 @@ export const ALPHA_FEATURE_HIDE_CONFIG = {
 };
 ```
 
+常见隐藏项：
+
+```ts
+export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
+  hiddenActionKeys: [
+    "create-doc-concept-map",
+    "insert-doc-summary",
+    "mark-irrelevant-paragraphs",
+    "mark-key-content",
+    "recognize-doc-images",
+    "clean-ai-output",
+    "create-monthly-diary",
+    "set-selection-as-title",
+    "toggle-heading-bold",
+    "export-keymap",
+    "import-keymap",
+  ],
+  hiddenSettingKeys: ["ai-service"],
+};
+```
+
 ## 使用建议
 
 - 需要隐藏 alpha 功能时，只改 `ALPHA_FEATURE_HIDE_CONFIG` 后重新构建。
