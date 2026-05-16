@@ -89,6 +89,7 @@ describe("image-display-size service", () => {
       resizedImageCount: 2,
       skippedImageCount: 0,
       failedImageCount: 0,
+      failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
       totalSavedBytes: 1536,
@@ -115,9 +116,53 @@ describe("image-display-size service", () => {
       resizedImageCount: 0,
       skippedImageCount: 1,
       failedImageCount: 0,
+      failedBlockCount: 0,
       replacedLinkCount: 0,
       updatedBlockCount: 0,
       totalSavedBytes: 0,
+    });
+  });
+
+  test("skips blocks that fail to update and continues remaining resize rewrites", async () => {
+    sqlPagedMock.mockResolvedValue([
+      {
+        id: "b1",
+        markdown: '![a](assets/a.png){: style="width: 300px;"}',
+      } as any,
+      {
+        id: "b2",
+        markdown: '<img src="/assets/b.jpg" style="width: 200px;" />',
+      } as any,
+    ]);
+    resizeLocalAssetImageByDisplaySizeMock
+      .mockResolvedValueOnce({
+        sourceAssetPath: "/assets/a.png",
+        targetAssetPath: "/assets/a-resized.png",
+        converted: true,
+        savedBytes: 1024,
+      } as any)
+      .mockResolvedValueOnce({
+        sourceAssetPath: "/assets/b.jpg",
+        targetAssetPath: "/assets/b-resized.jpg",
+        converted: true,
+        savedBytes: 512,
+      } as any);
+    updateBlockMarkdownMock
+      .mockRejectedValueOnce(new Error("missing block"))
+      .mockResolvedValueOnce(undefined as any);
+
+    const report = await resizeDocImagesToDisplay("doc-1");
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(report).toEqual({
+      scannedImageCount: 2,
+      resizedImageCount: 2,
+      skippedImageCount: 0,
+      failedImageCount: 0,
+      failedBlockCount: 1,
+      replacedLinkCount: 1,
+      updatedBlockCount: 1,
+      totalSavedBytes: 1536,
     });
   });
 });

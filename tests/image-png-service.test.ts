@@ -72,8 +72,53 @@ describe("image-png service", () => {
       convertedImageCount: 2,
       skippedImageCount: 1,
       failedImageCount: 0,
+      failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
+      totalSavedBytes: 0,
+    });
+  });
+
+  test("skips blocks that fail to update and continues remaining png rewrites", async () => {
+    sqlPagedMock.mockResolvedValue([
+      {
+        id: "b1",
+        markdown: "![a](assets/a.jpg)",
+      } as any,
+      {
+        id: "b2",
+        markdown: '<img src="/assets/b.webp" />',
+      } as any,
+    ]);
+
+    convertLocalAssetImageToPngMock
+      .mockResolvedValueOnce({
+        sourceAssetPath: "/assets/a.jpg",
+        targetAssetPath: "/assets/a.png",
+        converted: true,
+        savedBytes: 0,
+      } as any)
+      .mockResolvedValueOnce({
+        sourceAssetPath: "/assets/b.webp",
+        targetAssetPath: "/assets/b.png",
+        converted: true,
+        savedBytes: 0,
+      } as any);
+    updateBlockMarkdownMock
+      .mockRejectedValueOnce(new Error("stale block"))
+      .mockResolvedValueOnce(undefined as any);
+
+    const report = await convertDocImagesToPng("doc-1");
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(report).toEqual({
+      scannedImageCount: 2,
+      convertedImageCount: 2,
+      skippedImageCount: 0,
+      failedImageCount: 0,
+      failedBlockCount: 1,
+      replacedLinkCount: 1,
+      updatedBlockCount: 1,
       totalSavedBytes: 0,
     });
   });

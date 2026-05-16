@@ -657,6 +657,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "image",
         requiresWritableDoc: true,
+        runInBackground: true,
         icon: "iconImage",
       },
       {

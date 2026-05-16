@@ -1324,6 +1324,7 @@ describe("action-runner loading guard", () => {
       skippedImageCount: 1,
       skippedGifCount: 1,
       failedImageCount: 0,
+      failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
       totalSavedBytes: 2048,
@@ -1333,11 +1334,50 @@ describe("action-runner loading guard", () => {
     await runner.runAction("convert-images-to-webp" as any);
 
     expect(convertDocImagesToWebpMock).toHaveBeenCalledWith("doc-1");
+    expect(showMessageMock).toHaveBeenCalledWith("已开始在后台执行“批量转换为WebP”", 3000, "info");
     expect(showMessageMock).toHaveBeenCalledWith(
       "图片转换完成：替换 3 处，更新 2 个块，转换 2 张，节省 2.0 KB（已忽略 GIF 1 张）",
       6000,
       "info"
     );
+  });
+
+  test("runs webp conversion in background without toggling busy state", async () => {
+    let resolveConversion!: (value: any) => void;
+    convertDocImagesToWebpMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveConversion = resolve;
+        })
+    );
+    const setBusy = vi.fn();
+    const runner = createRunner(setBusy);
+
+    const result = await runner.runAction("convert-images-to-webp" as any);
+
+    expect(result).toEqual({ ok: true, alreadyNotified: true });
+    expect(setBusy).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("已开始在后台执行“批量转换为WebP”", 3000, "info");
+
+    resolveConversion({
+      scannedImageCount: 1,
+      convertedImageCount: 1,
+      skippedImageCount: 0,
+      skippedGifCount: 0,
+      failedImageCount: 0,
+      failedBlockCount: 0,
+      replacedLinkCount: 1,
+      updatedBlockCount: 1,
+      totalSavedBytes: 1024,
+    });
+    await flushMicrotasks();
+
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "图片转换完成：替换 1 处，更新 1 个块，转换 1 张，节省 1.0 KB",
+      6000,
+      "info"
+    );
+    expect(setBusy).not.toHaveBeenCalled();
   });
 
   test("converts local images to png for current doc and ignores gif", async () => {
@@ -1346,6 +1386,7 @@ describe("action-runner loading guard", () => {
       convertedImageCount: 2,
       skippedImageCount: 1,
       failedImageCount: 0,
+      failedBlockCount: 0,
       replacedLinkCount: 2,
       updatedBlockCount: 1,
       totalSavedBytes: 0,
@@ -1368,6 +1409,7 @@ describe("action-runner loading guard", () => {
       resizedImageCount: 2,
       skippedImageCount: 0,
       failedImageCount: 0,
+      failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
       totalSavedBytes: 1536,
@@ -1381,6 +1423,96 @@ describe("action-runner loading guard", () => {
       "图片尺寸调整完成：替换 3 处，更新 2 个块，缩减 2 张，节省 1.5 KB",
       6000,
       "info"
+    );
+  });
+
+  test("formats saved bytes as MB when media conversion saves more than 1 MB", async () => {
+    convertDocImagesToWebpMock.mockResolvedValue({
+      scannedImageCount: 79,
+      convertedImageCount: 68,
+      skippedImageCount: 11,
+      skippedGifCount: 1,
+      failedImageCount: 0,
+      failedBlockCount: 0,
+      replacedLinkCount: 79,
+      updatedBlockCount: 66,
+      totalSavedBytes: 158293504,
+    });
+    const runner = createRunner();
+
+    await runner.runAction("convert-images-to-webp" as any);
+
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "图片转换完成：替换 79 处，更新 66 个块，转换 68 张，节省 151.0 MB（已忽略 GIF 1 张）",
+      6000,
+      "info"
+    );
+  });
+
+  test("reports partial webp rewrite result when some blocks are skipped", async () => {
+    convertDocImagesToWebpMock.mockResolvedValue({
+      scannedImageCount: 3,
+      convertedImageCount: 2,
+      skippedImageCount: 1,
+      skippedGifCount: 0,
+      failedImageCount: 0,
+      failedBlockCount: 1,
+      replacedLinkCount: 2,
+      updatedBlockCount: 1,
+      totalSavedBytes: 2048,
+    });
+    const runner = createRunner();
+
+    await runner.runAction("convert-images-to-webp" as any);
+
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "图片转换完成：替换 2 处，更新 1 个块，转换 2 张，节省 2.0 KB，跳过 1 个块",
+      7000,
+      "error"
+    );
+  });
+
+  test("reports partial png rewrite result when some blocks are skipped", async () => {
+    convertDocImagesToPngMock.mockResolvedValue({
+      scannedImageCount: 3,
+      convertedImageCount: 2,
+      skippedImageCount: 1,
+      failedImageCount: 0,
+      failedBlockCount: 1,
+      replacedLinkCount: 2,
+      updatedBlockCount: 1,
+      totalSavedBytes: 0,
+    });
+    const runner = createRunner();
+
+    await runner.runAction("convert-images-to-png" as any);
+
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "PNG 转换完成：替换 2 处，更新 1 个块，转换 2 张（已忽略 GIF），跳过 1 个块",
+      7000,
+      "error"
+    );
+  });
+
+  test("reports partial resize result when some blocks are skipped", async () => {
+    resizeDocImagesToDisplayMock.mockResolvedValue({
+      scannedImageCount: 2,
+      resizedImageCount: 2,
+      skippedImageCount: 0,
+      failedImageCount: 0,
+      failedBlockCount: 1,
+      replacedLinkCount: 2,
+      updatedBlockCount: 1,
+      totalSavedBytes: 1536,
+    });
+    const runner = createRunner();
+
+    await runner.runAction("resize-images-to-display" as any);
+
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "图片尺寸调整完成：替换 2 处，更新 1 个块，缩减 2 张，节省 1.5 KB，跳过 1 个块",
+      7000,
+      "error"
     );
   });
 

@@ -73,6 +73,7 @@ describe("image-webp service", () => {
       skippedImageCount: 0,
       skippedGifCount: 0,
       failedImageCount: 0,
+      failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
       totalSavedBytes: 2000,
@@ -104,9 +105,55 @@ describe("image-webp service", () => {
       skippedImageCount: 3,
       skippedGifCount: 1,
       failedImageCount: 0,
+      failedBlockCount: 0,
       replacedLinkCount: 0,
       updatedBlockCount: 0,
       totalSavedBytes: 0,
+    });
+  });
+
+  test("skips blocks that fail to update and continues remaining webp rewrites", async () => {
+    sqlPagedMock.mockResolvedValue([
+      {
+        id: "b1",
+        markdown: "![a](assets/a.png)",
+      } as any,
+      {
+        id: "b2",
+        markdown: "![b](assets/b.jpg)",
+      } as any,
+    ]);
+
+    convertLocalAssetImageToWebpMock
+      .mockResolvedValueOnce({
+        sourceAssetPath: "/assets/a.png",
+        targetAssetPath: "/assets/a.webp",
+        converted: true,
+        savedBytes: 1200,
+      } as any)
+      .mockResolvedValueOnce({
+        sourceAssetPath: "/assets/b.jpg",
+        targetAssetPath: "/assets/b.webp",
+        converted: true,
+        savedBytes: 800,
+      } as any);
+    updateBlockMarkdownMock
+      .mockRejectedValueOnce(new Error("block not found"))
+      .mockResolvedValueOnce(undefined as any);
+
+    const report = await convertDocImagesToWebp("doc-1");
+
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
+    expect(report).toEqual({
+      scannedImageCount: 2,
+      convertedImageCount: 2,
+      skippedImageCount: 0,
+      skippedGifCount: 0,
+      failedImageCount: 0,
+      failedBlockCount: 1,
+      replacedLinkCount: 1,
+      updatedBlockCount: 1,
+      totalSavedBytes: 2000,
     });
   });
 });

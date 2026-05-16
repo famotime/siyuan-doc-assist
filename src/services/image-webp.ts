@@ -18,6 +18,7 @@ export type ConvertDocImagesToWebpReport = {
   skippedImageCount: number;
   skippedGifCount: number;
   failedImageCount: number;
+  failedBlockCount: number;
   replacedLinkCount: number;
   updatedBlockCount: number;
   totalSavedBytes: number;
@@ -29,6 +30,7 @@ const EMPTY_REPORT: ConvertDocImagesToWebpReport = {
   skippedImageCount: 0,
   skippedGifCount: 0,
   failedImageCount: 0,
+  failedBlockCount: 0,
   replacedLinkCount: 0,
   updatedBlockCount: 0,
   totalSavedBytes: 0,
@@ -98,6 +100,7 @@ export async function convertDocImagesToWebp(docId: string): Promise<ConvertDocI
 
   let replacedLinkCount = 0;
   let updatedBlockCount = 0;
+  let failedBlockCount = 0;
   if (replacementMap.size > 0) {
     const replacements = Object.fromEntries(replacementMap.entries());
     for (const block of blocks) {
@@ -109,9 +112,13 @@ export async function convertDocImagesToWebp(docId: string): Promise<ConvertDocI
       if (replaced.replacedCount <= 0 || replaced.markdown === source) {
         continue;
       }
-      await updateBlockMarkdown(block.id, replaced.markdown);
-      replacedLinkCount += replaced.replacedCount;
-      updatedBlockCount += 1;
+      try {
+        await updateBlockMarkdown(block.id, replaced.markdown);
+        replacedLinkCount += replaced.replacedCount;
+        updatedBlockCount += 1;
+      } catch {
+        failedBlockCount += 1;
+      }
     }
   }
 
@@ -121,6 +128,7 @@ export async function convertDocImagesToWebp(docId: string): Promise<ConvertDocI
     skippedImageCount,
     skippedGifCount,
     failedImageCount,
+    failedBlockCount,
     replacedLinkCount,
     updatedBlockCount,
     totalSavedBytes,

@@ -1,4 +1,5 @@
 import { showMessage } from "siyuan";
+import { formatByteSize } from "@/core/byte-format-core";
 import { resizeDocImagesToDisplay } from "@/services/image-display-size";
 import { removeDocImageLinks } from "@/services/image-remove";
 import { convertDocImagesToPng } from "@/services/image-png";
@@ -14,20 +15,28 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
         return;
       }
       if (report.replacedLinkCount <= 0) {
-        if (report.failedImageCount > 0) {
-          showMessage(`未完成任何替换，失败 ${report.failedImageCount} 张图片`, 7000, "error");
+        if (report.failedImageCount > 0 || report.failedBlockCount > 0) {
+          const suffix = [
+            report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张图片` : "",
+            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+          ].filter(Boolean).join("，");
+          showMessage(`未完成任何替换${suffix ? `，${suffix}` : ""}`, 7000, "error");
           return;
         }
         showMessage("未完成任何替换（可能已是 WebP 或压缩收益不足）", 5000, "info");
         return;
       }
-      const savedKb = (report.totalSavedBytes / 1024).toFixed(1);
+      const savedText = formatByteSize(report.totalSavedBytes);
       const gifSuffix = report.skippedGifCount > 0 ? `（已忽略 GIF ${report.skippedGifCount} 张）` : "";
-      const suffix = report.failedImageCount > 0 ? `，失败 ${report.failedImageCount} 张` : "";
+      const suffixParts = [
+        report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张` : "",
+        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+      ].filter(Boolean);
+      const suffix = suffixParts.length > 0 ? `，${suffixParts.join("，")}` : "";
       showMessage(
-        `图片转换完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，转换 ${report.convertedImageCount} 张，节省 ${savedKb} KB${gifSuffix}${suffix}`,
-        report.failedImageCount > 0 ? 7000 : 6000,
-        report.failedImageCount > 0 ? "error" : "info"
+        `图片转换完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，转换 ${report.convertedImageCount} 张，节省 ${savedText}${gifSuffix}${suffix}`,
+        suffixParts.length > 0 ? 7000 : 6000,
+        suffixParts.length > 0 ? "error" : "info"
       );
     },
     "convert-images-to-png": async (docId) => {
@@ -37,19 +46,26 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
         return;
       }
       if (report.replacedLinkCount <= 0) {
-        if (report.failedImageCount > 0) {
-          showMessage(`未完成任何替换，失败 ${report.failedImageCount} 张图片`, 7000, "error");
+        if (report.failedImageCount > 0 || report.failedBlockCount > 0) {
+          const suffix = [
+            report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张图片` : "",
+            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+          ].filter(Boolean).join("，");
+          showMessage(`未完成任何替换${suffix ? `，${suffix}` : ""}`, 7000, "error");
           return;
         }
         showMessage("未完成任何替换（已是 PNG 或仅包含 GIF）", 5000, "info");
         return;
       }
-      const suffix =
-        report.failedImageCount > 0 ? `，失败 ${report.failedImageCount} 张` : "";
+      const suffixParts = [
+        report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张` : "",
+        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+      ].filter(Boolean);
+      const suffix = suffixParts.length > 0 ? `，${suffixParts.join("，")}` : "";
       showMessage(
         `PNG 转换完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，转换 ${report.convertedImageCount} 张（已忽略 GIF）${suffix}`,
-        report.failedImageCount > 0 ? 7000 : 6000,
-        report.failedImageCount > 0 ? "error" : "info"
+        suffixParts.length > 0 ? 7000 : 6000,
+        suffixParts.length > 0 ? "error" : "info"
       );
     },
     "resize-images-to-display": async (docId) => {
@@ -59,20 +75,27 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
         return;
       }
       if (report.replacedLinkCount <= 0) {
-        if (report.failedImageCount > 0) {
-          showMessage(`未完成任何替换，失败 ${report.failedImageCount} 张图片`, 7000, "error");
+        if (report.failedImageCount > 0 || report.failedBlockCount > 0) {
+          const suffix = [
+            report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张图片` : "",
+            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+          ].filter(Boolean).join("，");
+          showMessage(`未完成任何替换${suffix ? `，${suffix}` : ""}`, 7000, "error");
           return;
         }
         showMessage("未完成任何替换（可能尺寸未缩小或压缩收益不足）", 5000, "info");
         return;
       }
-      const savedKb = (report.totalSavedBytes / 1024).toFixed(1);
-      const suffix =
-        report.failedImageCount > 0 ? `，失败 ${report.failedImageCount} 张` : "";
+      const savedText = formatByteSize(report.totalSavedBytes);
+      const suffixParts = [
+        report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张` : "",
+        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+      ].filter(Boolean);
+      const suffix = suffixParts.length > 0 ? `，${suffixParts.join("，")}` : "";
       showMessage(
-        `图片尺寸调整完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，缩减 ${report.resizedImageCount} 张，节省 ${savedKb} KB${suffix}`,
-        report.failedImageCount > 0 ? 7000 : 6000,
-        report.failedImageCount > 0 ? "error" : "info"
+        `图片尺寸调整完成：替换 ${report.replacedLinkCount} 处，更新 ${report.updatedBlockCount} 个块，缩减 ${report.resizedImageCount} 张，节省 ${savedText}${suffix}`,
+        suffixParts.length > 0 ? 7000 : 6000,
+        suffixParts.length > 0 ? "error" : "info"
       );
     },
     "remove-doc-images": async (docId) => {
