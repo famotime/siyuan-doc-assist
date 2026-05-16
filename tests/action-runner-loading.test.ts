@@ -619,6 +619,53 @@ describe("action-runner loading guard", () => {
     openSpy.mockRestore();
   });
 
+  test("runs large documents report in background without blocking other document actions", async () => {
+    let resolveReport!: (value: {
+      id: string;
+      title: string;
+      path: string;
+      docCount: number;
+    }) => void;
+    createTop100LargeDocumentsReportMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveReport = resolve;
+        })
+    );
+    exportCurrentDocMarkdownMock.mockResolvedValue({
+      mode: "md",
+      fileName: "doc-1.md",
+    } as any);
+    const setBusy = vi.fn();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const runner = createRunner(setBusy);
+
+    const pendingReport = runner.runAction("create-top100-large-documents-report" as any);
+    await Promise.resolve();
+    const exportResult = await runner.runAction("export-current");
+
+    expect(await pendingReport).toEqual({ ok: true, alreadyNotified: true });
+    expect(exportResult).toEqual({ ok: true, alreadyNotified: true });
+    expect(setBusy.mock.calls).toEqual([[true], [false]]);
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已开始在后台执行“输出Top100大文件清单”",
+      3000,
+      "info"
+    );
+    expect(showMessageMock).not.toHaveBeenCalledWith("正在处理中，请等待当前任务完成", 4000, "info");
+
+    resolveReport({
+      id: "report-doc",
+      title: "Top100大文件清单-20260427-153015",
+      path: "/daily/2026/04/Top100大文件清单-20260427-153015",
+      docCount: 100,
+    });
+    await flushMicrotasks();
+    expect(openSpy).toHaveBeenCalledWith("siyuan://blocks/report-doc");
+
+    openSpy.mockRestore();
+  });
+
   test("inserts ai summary before the first paragraph by default", async () => {
     getRootDocRawMarkdownMock.mockResolvedValue("# 标题\n\n第一段正文\n\n第二段正文");
     getDocMetaByIDMock.mockResolvedValue({

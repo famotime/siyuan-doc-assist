@@ -288,6 +288,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "统计当前笔记本内文档本体与内嵌资源总大小最大的前 100 篇文档，并在 Daily Note 父目录下生成报告文档。"
         ),
         group: "organize",
+        runInBackground: true,
         icon: "iconList",
       },
       {
