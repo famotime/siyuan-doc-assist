@@ -41,7 +41,13 @@ type SqlDocBlockRow = {
 };
 
 const VISION_SYSTEM_PROMPT
-  = "Image text recognition assistant. Output all text from the image verbatim. Organize into natural paragraphs; do not strictly follow the original line breaks in the image. If no text, reply [NO_TEXT].";
+  = [
+    "你是图片 OCR 文字识别助手。",
+    "只输出 OCR 识别出的文字，按自然段落整理。",
+    "不要解读图片，不要描述画面，不要添加说明、标题、前言或结论。",
+    "不要使用列表或代码块包装结果。",
+    "如果图片中没有可识别文字，只回复 [NO_TEXT]。",
+  ].join("\n");
 
 const aiOcrLogger = createDocAssistantLogger("AiImageOCR");
 
@@ -110,15 +116,13 @@ export async function recognizeDocImages(
     }
 
     recognizedCount += 1;
-    const quoteMarkdown = buildOcrQuoteMarkdown(ocrText);
-    const freshBlocks = await queryDocBlocks(normalizedDocId);
-    const nextId = findNextSiblingId(freshBlocks, imageItems[i].blockId);
+    const ocrMarkdown = buildOcrQuoteMarkdown(ocrText);
     await reqApi("/api/block/insertBlock", {
       dataType: "markdown",
-      data: quoteMarkdown,
-      nextID: nextId || "",
-      previousID: nextId ? "" : imageItems[i].blockId,
-      parentID: normalizedDocId,
+      data: ocrMarkdown,
+      nextID: "",
+      previousID: imageItems[i].blockId,
+      parentID: "",
     });
     insertedCount += 1;
   }
@@ -270,29 +274,10 @@ function extractTextContent(payload: any): string {
   return "";
 }
 
-async function queryDocBlocks(docId: string): Promise<SqlDocBlockRow[]> {
-  const rows = await sqlPaged<SqlDocBlockRow>(
-    `select id, markdown
-     from blocks
-     where root_id='${escapeSqlLiteral(docId)}'
-       and type != 'd'
-     order by sort asc`,
-  );
-  return (rows || []).filter((row) => row?.id && typeof row.markdown === "string");
-}
-
-function findNextSiblingId(blocks: SqlDocBlockRow[], blockId: string): string | undefined {
-  for (let i = 0; i < blocks.length - 1; i += 1) {
-    if (blocks[i].id === blockId) {
-      return blocks[i + 1].id;
-    }
-  }
-  return undefined;
-}
-
 function buildOcrQuoteMarkdown(text: string): string {
   return text
+    .trim()
     .split(/\r?\n/)
-    .map((line) => `> ${line}`)
+    .map((line) => line.trim() ? `> ${line}` : ">")
     .join("\n");
 }
