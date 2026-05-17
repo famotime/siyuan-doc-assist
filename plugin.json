@@ -17,8 +17,8 @@
     "zh_CN": "文档助手"
   },
   "description": {
-    "default": "SiYuan Notes plugin, which provides functions such as extracting key content of documents, quickly organizing backlinked documents, and quickly editing document content.",
-    "zh_CN": "思源笔记插件，提供文档关键内容提取、反链文档快捷整理、文档内容快捷编辑等功能。"
+    "default": "文档关键内容展示和提取，反链文档快捷整理、文档内容快捷编辑等20+辅助功能。让关键信息一目了然，让笔记整理一键完成。",
+    "en_US": "SiYuan Notes plugin, which provides functions such as extracting key content of documents, quickly organizing backlinked documents, and quickly editing document content."
   },
   "readme": {
     "default": "README.md"

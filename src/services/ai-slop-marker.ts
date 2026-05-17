@@ -82,6 +82,25 @@ async function requestChatCompletion(params: {
     status: response?.status,
     elapsed: response?.elapsed,
     bodyLength: response?.body?.length ?? 0,
+    content: (() => {
+      try {
+        const parsed = JSON.parse(response?.body || "{}");
+        const msg = parsed?.choices?.[0]?.message;
+        return typeof msg?.content === "string" ? msg.content.slice(0, 200) : String(msg?.content)?.slice(0, 200);
+      } catch {
+        return "(parse error)";
+      }
+    })(),
+    reasoning: (() => {
+      try {
+        const parsed = JSON.parse(response?.body || "{}");
+        const msg = parsed?.choices?.[0]?.message;
+        const r = msg?.reasoning_content;
+        return typeof r === "string" ? r.slice(0, 200) : "(none)";
+      } catch {
+        return "(parse error)";
+      }
+    })(),
   });
 
   if (!response || response.status < 200 || response.status >= 300) {
@@ -130,6 +149,7 @@ export function createAiSlopMarkerService(deps: {
           }),
           max_tokens: Math.min(config.maxTokens, 400),
           temperature: config.temperature,
+          response_format: { type: "json_object" },
         }),
         failureMessage: "AI 口水内容筛选请求失败",
       });
@@ -163,6 +183,7 @@ export function createAiKeyContentMarkerService(deps: {
           }),
           max_tokens: Math.min(config.maxTokens, 700),
           temperature: config.temperature,
+          response_format: { type: "json_object" },
         }),
         failureMessage: "AI 关键内容识别请求失败",
       });

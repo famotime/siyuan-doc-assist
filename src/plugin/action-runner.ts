@@ -47,10 +47,15 @@ export type ActionRunResult =
 
 type ActionRunErrorCode = Extract<ActionRunResult, { ok: false }>["errorCode"];
 
+export type ConfirmDetailItem = {
+  label: string;
+  description?: string;
+};
+
 type ActionRunnerDeps = {
   isMobile: () => boolean;
   resolveDocId: (explicitId?: string, protyle?: ProtyleLike) => string;
-  askConfirm: (title: string, text: string) => Promise<boolean>;
+  askConfirm: (title: string, text: string, detailItems?: ConfirmDetailItem[]) => Promise<boolean>;
   setBusy?: (busy: boolean) => void;
   getKeyInfoFilter?: () => KeyInfoFilter | undefined;
   getAiSummaryConfig?: () => AiServiceConfig | undefined;
@@ -140,13 +145,19 @@ export class ActionRunner {
     } as ActionHandlerMap;
   }
 
-  private async askConfirmWithVisibleDialog(title: string, text: string): Promise<boolean> {
+  private async askConfirmWithVisibleDialog(
+    title: string,
+    text: string,
+    detailItems?: ConfirmDetailItem[]
+  ): Promise<boolean> {
     if (this.shouldAutoConfirm()) {
       return true;
     }
     this.deps.setBusy?.(false);
     try {
-      return await this.deps.askConfirm(title, text);
+      return detailItems?.length
+        ? await this.deps.askConfirm(title, text, detailItems)
+        : await this.deps.askConfirm(title, text);
     } finally {
       this.deps.setBusy?.(true);
     }

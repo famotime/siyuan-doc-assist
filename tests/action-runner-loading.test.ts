@@ -1,15 +1,28 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { getActiveEditorMock, showMessageMock } = vi.hoisted(() => ({
-  getActiveEditorMock: vi.fn(),
-  showMessageMock: vi.fn(),
-}));
+const { getActiveEditorMock, showMessageMock, MockDialog } = vi.hoisted(() => {
+  class MockDialog {
+    element: HTMLElement;
+    constructor(options: { title?: string; content?: string; width?: string }) {
+      this.element = document.createElement("div");
+      this.element.innerHTML = options.content || "";
+    }
+    destroy() {}
+  }
+  return {
+    getActiveEditorMock: vi.fn(),
+    showMessageMock: vi.fn(),
+    MockDialog,
+  };
+});
+
 vi.mock(
   "siyuan",
   () => ({
     getActiveEditor: getActiveEditorMock,
     showMessage: showMessageMock,
+    Dialog: MockDialog,
   })
 );
 

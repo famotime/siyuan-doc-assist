@@ -29,19 +29,21 @@ const ACTION_LINKED_SETTING_KEYS: Partial<Record<ActionKey, HiddenPluginSettingK
  */
 export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
   hiddenActionKeys: [
-    "create-doc-concept-map",
-    "insert-doc-summary",
-    "mark-irrelevant-paragraphs",
-    "mark-key-content",
-    "recognize-doc-images",
-    "clean-ai-output",
-    "create-monthly-diary",
-    "set-selection-as-title",
-    "toggle-heading-bold",
-    "export-keymap",
-    "import-keymap",
+    // "create-doc-concept-map",
+    // "insert-doc-summary",
+    // "mark-irrelevant-paragraphs",
+    // "mark-key-content",
+    // "recognize-doc-images",
+    // "clean-ai-output",
+    // "create-monthly-diary",
+    // "set-selection-as-title",
+    // "toggle-heading-bold",
+    // "export-keymap",
+    // "import-keymap",
   ],
-  hiddenSettingKeys: ["ai-service"],
+  hiddenSettingKeys: [
+    // "ai-service"
+  ],
 };
 
 export function getHiddenActionKeys(

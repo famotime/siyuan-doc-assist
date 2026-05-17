@@ -1,4 +1,7 @@
+import { createDocAssistantLogger } from "@/core/logger-core";
 import { IrrelevantParagraphCandidate } from "@/services/ai-slop-marker-prompts";
+
+const parserLogger = createDocAssistantLogger("AiSlopMarker");
 
 export type KeyContentParagraphHighlight = {
   paragraphId: string;
@@ -11,11 +14,13 @@ export function extractIrrelevantParagraphIds(
 ): string[] {
   const content = extractMessageContent(payload);
   if (!content) {
-    throw new Error("AI 未返回可用的段落筛选结果");
+    throw new Error("AI 未返回可用的段落筛选结果（响应内容为空）");
   }
 
+  parserLogger.debug("extracted content", { length: content.length, preview: content.slice(0, 300) });
+
   const allowedIds = new Set(paragraphs.map((item) => item.id));
-  const parsed = parseJsonObject(content);
+  const parsed = parseJsonObject(content, "段落筛选");
   const ids = Array.isArray(parsed?.paragraphIds) ? parsed.paragraphIds : [];
   const deduped: string[] = [];
   for (const value of ids) {
@@ -37,8 +42,10 @@ export function extractKeyContentParagraphHighlights(
     throw new Error("AI 未返回可用的关键内容识别结果");
   }
 
+  parserLogger.debug("extracted content", { length: content.length, preview: content.slice(0, 300) });
+
   const allowedIds = new Set(paragraphs.map((item) => item.id));
-  const parsed = parseJsonObject(content);
+  const parsed = parseJsonObject(content, "关键内容");
   const entries = resolveKeyContentEntries(parsed);
   const merged = new Map<string, string[]>();
 
@@ -137,12 +144,18 @@ function resolveEntryHighlights(entry: any): unknown[] {
 }
 
 function extractMessageContent(payload: any): string {
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content === "string") {
-    return content.trim();
-  }
-  if (Array.isArray(content)) {
-    return content
+  const message = payload?.choices?.[0]?.message;
+  // 优先取 content，若为空则回退到 reasoning_content（部分国产推理模型会将输出放在此字段）
+  const raw = extractFirstNonEmptyString([
+    message?.content,
+    message?.reasoning_content,
+  ]);
+
+  let content: string;
+  if (typeof raw === "string") {
+    content = raw;
+  } else if (Array.isArray(raw)) {
+    content = raw
       .map((item) =>
         typeof item?.text === "string"
           ? item.text
@@ -150,13 +163,42 @@ function extractMessageContent(payload: any): string {
             ? item
             : ""
       )
-      .join("\n")
-      .trim();
+      .join("\n");
+  } else {
+    return "";
   }
-  return "";
+
+  // 部分模型会在 content 中包裹推理块标签，需要去除
+  content = content
+    .replace(/<think>[\s\S]*?<\/think>/gu, "")
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gu, "")
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gu, "")
+    .trim();
+
+  // 如果去除推理块后内容为空，尝试直接从原始内容中提取 JSON 对象
+  if (!content && typeof raw === "string") {
+    const jsonMatch = raw.match(/\{[\s\S]*\}/u);
+    if (jsonMatch) {
+      content = jsonMatch[0];
+    }
+  }
+
+  return content.trim();
 }
 
-function parseJsonObject(content: string): any {
+function extractFirstNonEmptyString(values: unknown[]): unknown {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+    if (Array.isArray(value) && value.length > 0) {
+      return value;
+    }
+  }
+  return values[0];
+}
+
+function parseJsonObject(content: string, label = "结果"): any {
   const trimmed = (content || "").trim();
   const normalized = trimmed
     .replace(/^```(?:json)?\s*/iu, "")
@@ -170,6 +212,9 @@ function parseJsonObject(content: string): any {
   try {
     return JSON.parse(jsonText);
   } catch {
-    throw new Error("AI 返回的段落筛选结果不是有效 JSON");
+    const preview = normalized.length > 150
+      ? `${normalized.slice(0, 150)}…`
+      : normalized;
+    throw new Error(`AI 返回的${label}不是有效 JSON：${preview}`);
   }
 }

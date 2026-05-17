@@ -24,10 +24,15 @@ import {
   updateBlockMarkdown,
 } from "@/services/kernel";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import type { ConfirmDetailItem } from "@/plugin/action-runner";
 
 type CreateAiActionHandlersOptions = {
   getAiSummaryConfig?: () => AiServiceConfig | undefined;
-  askConfirmWithVisibleDialog?: (title: string, text: string) => Promise<boolean>;
+  askConfirmWithVisibleDialog?: (
+    title: string,
+    text: string,
+    detailItems?: ConfirmDetailItem[]
+  ) => Promise<boolean>;
   resolveNetworkLensPlugin?: () => NetworkLensPluginLike | null | undefined;
   setBusy?: (busy: boolean) => void;
 };
@@ -139,10 +144,15 @@ export function createAiActionHandlers(
         return;
       }
 
+      const detailItems: ConfirmDetailItem[] = updates.map((item) => ({
+        label: truncateForDisplay(paragraphMap.get(item.id)?.markdown || "", 200),
+      }));
+
       const ok = options.askConfirmWithVisibleDialog
         ? await options.askConfirmWithVisibleDialog(
           "确认标记口水内容",
-          `AI 判定可标记 ${updates.length} 段。将为 ${updates.length} 个块添加删除线，是否继续？`
+          `AI 判定可标记 ${updates.length} 段。将为 ${updates.length} 个块添加删除线，是否继续？`,
+          detailItems
         )
         : true;
       if (!ok) {
@@ -220,10 +230,17 @@ export function createAiActionHandlers(
         return;
       }
 
+      const detailItems: ConfirmDetailItem[] = highlightResults
+        .filter((item) => paragraphMap.has(item.paragraphId))
+        .map((item) => ({
+          label: truncateForDisplay(paragraphMap.get(item.paragraphId)?.markdown || "", 200),
+        }));
+
       const ok = options.askConfirmWithVisibleDialog
         ? await options.askConfirmWithVisibleDialog(
           "确认标记关键内容",
-          `AI 判定可标记 ${updates.length} 段关键内容。将为 ${updates.length} 个块添加局部加粗，是否继续？`
+          `AI 判定可标记 ${updates.length} 段关键内容。将为 ${updates.length} 个块添加局部加粗，是否继续？`,
+          detailItems
         )
         : true;
       if (!ok) {
@@ -305,6 +322,11 @@ export function createAiActionHandlers(
       showMessage(result.message || "Wiki 文档生成完成", 5000, "info");
     },
   };
+}
+
+function truncateForDisplay(text: string, maxLen: number): string {
+  const value = (text || "").replace(/[\r\n]+/gu, " ").trim();
+  return value.length > maxLen ? `${value.slice(0, maxLen)}…` : value;
 }
 
 function openDocByProtocol(blockId: string) {
