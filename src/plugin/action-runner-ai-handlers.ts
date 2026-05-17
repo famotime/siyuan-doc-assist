@@ -11,7 +11,7 @@ import {
 import { recognizeDocImages } from "@/services/ai-image-ocr";
 import { NetworkLensPluginLike, loadFreshNetworkLensDocumentSummary } from "@/services/network-lens-ai-index";
 import {
-  detectIrrelevantParagraphIds,
+  detectIrrelevantParagraphMarks,
   detectKeyContentParagraphHighlights,
 } from "@/services/ai-slop-marker";
 import {
@@ -124,34 +124,47 @@ export function createAiActionHandlers(
         docMeta = null;
       }
 
-      const markedIds = await detectIrrelevantParagraphIds({
+      const marks = await detectIrrelevantParagraphMarks({
         config: options.getAiSummaryConfig?.(),
         documentTitle: docMeta?.title,
         paragraphs,
       });
       const paragraphMap = new Map(paragraphs.map((item) => [item.id, item]));
-      const updates = markedIds
-        .map((id) => paragraphMap.get(id))
+      const updates = marks
+        .map((mark) => {
+          const paragraph = paragraphMap.get(mark.paragraphId);
+          if (!paragraph) {
+            return null;
+          }
+          const result = applyStrikethroughToIrrelevantSegments(paragraph.markdown, mark.segments);
+          return {
+            id: paragraph.id,
+            markdown: result.markdown,
+            markedCount: result.markedCount,
+            detailLabels: result.detailLabels.length
+              ? result.detailLabels
+              : [toConfirmDetailText(paragraph.markdown)],
+          };
+        })
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
-        .map((item) => ({
-          id: item.id,
-          markdown: wrapParagraphWithStrikethrough(item.markdown),
-        }))
-        .filter((item) => item.markdown && item.markdown !== paragraphMap.get(item.id)?.markdown);
+        .filter((item) => item.markdown && item.markdown !== paragraphMap.get(item.id)?.markdown && item.markedCount > 0);
 
       if (!updates.length) {
         showMessage("AI 未识别出需要标记的口水内容", 5000, "info");
         return;
       }
 
-      const detailItems: ConfirmDetailItem[] = updates.map((item) => ({
-        label: truncateForDisplay(paragraphMap.get(item.id)?.markdown || "", 200),
-      }));
+      const markedCount = updates.reduce((sum, item) => sum + item.markedCount, 0);
+      const detailItems: ConfirmDetailItem[] = updates.flatMap((item) =>
+        item.detailLabels.map((label) => ({
+          label: truncateForDisplay(label, 200),
+        }))
+      );
 
       const ok = options.askConfirmWithVisibleDialog
         ? await options.askConfirmWithVisibleDialog(
           "确认标记口水内容",
-          `AI 判定可标记 ${updates.length} 段。将为 ${updates.length} 个块添加删除线，是否继续？`,
+          `AI 判定可标记 ${markedCount} 处，涉及 ${updates.length} 个块。将为对应内容添加删除线，是否继续？`,
           detailItems
         )
         : true;
@@ -176,7 +189,7 @@ export function createAiActionHandlers(
         return;
       }
 
-      const summary = `已标记口水内容 ${updatedBlockCount} 段，共更新 ${updatedBlockCount} 个块`;
+      const summary = `已标记口水内容 ${markedCount} 处，共更新 ${updatedBlockCount} 个块`;
       if (failedBlockCount > 0) {
         showMessage(`${summary}，失败 ${failedBlockCount} 个块`, 7000, "error");
         return;
@@ -232,9 +245,9 @@ export function createAiActionHandlers(
 
       const detailItems: ConfirmDetailItem[] = highlightResults
         .filter((item) => paragraphMap.has(item.paragraphId))
-        .map((item) => ({
-          label: truncateForDisplay(paragraphMap.get(item.paragraphId)?.markdown || "", 200),
-        }));
+        .flatMap((item) => item.highlights.map((highlight) => ({
+          label: truncateForDisplay(stripMarkdownMarkersForDisplay(highlight), 200),
+        })));
 
       const ok = options.askConfirmWithVisibleDialog
         ? await options.askConfirmWithVisibleDialog(
@@ -400,6 +413,161 @@ function wrapParagraphWithStrikethrough(markdown: string): string {
 
   const wrapped = `~~${content}~~`;
   return ialLines.length ? `${wrapped}\n${ialLines.join("\n")}` : wrapped;
+}
+
+function applyStrikethroughToIrrelevantSegments(
+  markdown: string,
+  segments: string[]
+): { markdown: string; markedCount: number; detailLabels: string[] } {
+  const normalizedSegments = Array.isArray(segments)
+    ? segments.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
+    : [];
+  if (!normalizedSegments.length) {
+    const wrapped = wrapParagraphWithStrikethrough(markdown);
+    return {
+      markdown: wrapped,
+      markedCount: wrapped !== markdown ? 1 : 0,
+      detailLabels: [],
+    };
+  }
+
+  const lines = (markdown || "").split(/\r?\n/);
+  const ialLines: string[] = [];
+  let contentEndIndex = lines.length - 1;
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const trimmed = lines[index].trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (/^\{:/.test(trimmed)) {
+      ialLines.unshift(lines[index]);
+      contentEndIndex = index - 1;
+      continue;
+    }
+    break;
+  }
+
+  let content = lines.slice(0, contentEndIndex + 1).join("\n");
+  const contentText = content.trim();
+  let markedCount = 0;
+  const detailLabels: string[] = [];
+
+  for (const segment of normalizedSegments) {
+    if (isWholeMixedParagraphSegment(contentText, segment)) {
+      continue;
+    }
+    const next = replaceAllPlainSegmentsWithStrikethrough(content, segment);
+    if (next.count <= 0) {
+      continue;
+    }
+    content = next.markdown;
+    markedCount += next.count;
+    for (let index = 0; index < next.count; index += 1) {
+      detailLabels.push(stripMarkdownMarkersForDisplay(segment));
+    }
+  }
+
+  const nextMarkdown = ialLines.length ? `${content}\n${ialLines.join("\n")}` : content;
+  return {
+    markdown: nextMarkdown,
+    markedCount,
+    detailLabels,
+  };
+}
+
+function stripMarkdownMarkersForDisplay(markdown: string): string {
+  return (markdown || "")
+    .replace(/\*\*([^*]+)\*\*/gu, "$1")
+    .replace(/__([^_]+)__/gu, "$1")
+    .replace(/~~([^~]+)~~/gu, "$1")
+    .replace(/`([^`]+)`/gu, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/gu, "$1")
+    .trim();
+}
+
+function isWholeMixedParagraphSegment(markdown: string, segment: string): boolean {
+  const normalizedMarkdown = (markdown || "").trim();
+  const normalizedSegment = (segment || "").trim();
+  if (!normalizedMarkdown || normalizedMarkdown !== normalizedSegment) {
+    return false;
+  }
+  return countSentenceLikeUnits(normalizedMarkdown) > 1;
+}
+
+function countSentenceLikeUnits(value: string): number {
+  const compact = (value || "")
+    .replace(/~~/gu, "")
+    .replace(/`[^`]*`/gu, "")
+    .trim();
+  if (!compact) {
+    return 0;
+  }
+  const matches = compact.match(/[。！？!?；;]+/gu);
+  if (matches?.length) {
+    return matches.length;
+  }
+  return compact.split(/\s{2,}|\n+/u).filter(Boolean).length;
+}
+
+function replaceAllPlainSegmentsWithStrikethrough(
+  markdown: string,
+  segment: string
+): { markdown: string; count: number } {
+  if (!markdown || !segment) {
+    return { markdown, count: 0 };
+  }
+
+  let next = "";
+  let cursor = 0;
+  let count = 0;
+  while (cursor < markdown.length) {
+    const index = markdown.indexOf(segment, cursor);
+    if (index < 0) {
+      next += markdown.slice(cursor);
+      break;
+    }
+    if (isInsideStrikethrough(markdown, index)) {
+      next += markdown.slice(cursor, index + segment.length);
+      cursor = index + segment.length;
+      continue;
+    }
+    next += `${markdown.slice(cursor, index)}~~${segment}~~`;
+    cursor = index + segment.length;
+    count += 1;
+  }
+
+  return { markdown: next, count };
+}
+
+function isInsideStrikethrough(markdown: string, index: number): boolean {
+  const before = markdown.slice(0, index).match(/~~/gu)?.length || 0;
+  return before % 2 === 1;
+}
+
+function toConfirmDetailText(markdown: string): string {
+  const value = markdown || "";
+  if (!value) {
+    return "";
+  }
+
+  const lines = value.split(/\r?\n/);
+  while (lines.length > 0) {
+    const trimmed = lines[lines.length - 1].trim();
+    if (!trimmed) {
+      lines.pop();
+      continue;
+    }
+    if (/^\{:/.test(trimmed)) {
+      lines.pop();
+      continue;
+    }
+    break;
+  }
+
+  return stripMarkdownMarkersForDisplay(
+    lines.join("\n").trim().replace(/^~~([\s\S]+)~~$/u, "$1").trim()
+  );
 }
 
 function resolveBlocksAfterOpeningSeparator<

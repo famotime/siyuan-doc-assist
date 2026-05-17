@@ -116,7 +116,8 @@ export class ActionRunner {
       }),
       ...createAiActionHandlers({
         getAiSummaryConfig: this.deps.getAiSummaryConfig,
-        askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
+        askConfirmWithVisibleDialog: (title, text, detailItems) =>
+          this.askConfirmWithVisibleDialog(title, text, detailItems),
         resolveNetworkLensPlugin: this.deps.resolveNetworkLensPlugin,
         setBusy: this.deps.setBusy,
       }),

@@ -7,14 +7,16 @@ import {
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse } from "@/services/kernel";
 import {
-  extractIrrelevantParagraphIds,
+  extractIrrelevantParagraphMarks,
   extractKeyContentParagraphHighlights,
+  IrrelevantParagraphMark,
   KeyContentParagraphHighlight,
 } from "@/services/ai-slop-marker-parser";
 import {
   buildIrrelevantParagraphMessages,
   buildKeyContentParagraphMessages,
   IrrelevantParagraphCandidate,
+  IrrelevantSegmentCandidate,
   normalizeParagraphCandidates,
 } from "@/services/ai-slop-marker-prompts";
 
@@ -51,6 +53,7 @@ function resolveRequestTimeoutMs(config: AiServiceConfig): number {
 }
 
 const aiSlopLogger = createDocAssistantLogger("AiSlopMarker");
+const IRRELEVANT_PARAGRAPH_MAX_OUTPUT_TOKENS = 2048;
 
 async function requestChatCompletion(params: {
   forwardProxy: ForwardProxyFn;
@@ -132,11 +135,19 @@ export function createAiSlopMarkerService(deps: {
     async detectIrrelevantParagraphIds(
       params: DetectIrrelevantParagraphIdsParams
     ): Promise<string[]> {
+      const marks = await this.detectIrrelevantParagraphMarks(params);
+      return marks.map((item) => item.paragraphId);
+    },
+
+    async detectIrrelevantParagraphMarks(
+      params: DetectIrrelevantParagraphIdsParams
+    ): Promise<IrrelevantParagraphMark[]> {
       const config = resolveActiveAiConfig(params.config);
       const paragraphs = normalizeParagraphCandidates(params.paragraphs);
       if (!paragraphs.length) {
         return [];
       }
+      const segments = buildIrrelevantSegmentCandidates(paragraphs);
 
       const payload = await requestChatCompletion({
         forwardProxy: deps.forwardProxy,
@@ -146,17 +157,74 @@ export function createAiSlopMarkerService(deps: {
           messages: buildIrrelevantParagraphMessages({
             documentTitle: params.documentTitle,
             paragraphs,
+            segments,
           }),
-          max_tokens: Math.min(config.maxTokens, 400),
+          max_tokens: Math.min(config.maxTokens, IRRELEVANT_PARAGRAPH_MAX_OUTPUT_TOKENS),
           temperature: config.temperature,
           response_format: { type: "json_object" },
         }),
         failureMessage: "AI 口水内容筛选请求失败",
       });
 
-      return extractIrrelevantParagraphIds(payload, paragraphs);
+      return extractIrrelevantParagraphMarks(payload, paragraphs, segments);
     },
   };
+}
+
+function buildIrrelevantSegmentCandidates(
+  paragraphs: IrrelevantParagraphCandidate[]
+): IrrelevantSegmentCandidate[] {
+  const segments: IrrelevantSegmentCandidate[] = [];
+  for (const paragraph of paragraphs) {
+    const text = stripTrailingIalLines(paragraph.markdown);
+    for (const segmentText of splitParagraphIntoCandidateSegments(text)) {
+      segments.push({
+        id: `s${segments.length + 1}`,
+        paragraphId: paragraph.id,
+        text: stripMarkdownMarkersForAiSegment(segmentText),
+        sourceText: segmentText,
+      });
+    }
+  }
+  return segments;
+}
+
+function stripMarkdownMarkersForAiSegment(markdown: string): string {
+  return (markdown || "")
+    .replace(/\*\*([^*]+)\*\*/gu, "$1")
+    .replace(/__([^_]+)__/gu, "$1")
+    .replace(/~~([^~]+)~~/gu, "$1")
+    .replace(/`([^`]+)`/gu, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/gu, "$1")
+    .trim();
+}
+
+function stripTrailingIalLines(markdown: string): string {
+  const lines = (markdown || "").split(/\r?\n/);
+  while (lines.length > 0) {
+    const trimmed = lines[lines.length - 1].trim();
+    if (!trimmed) {
+      lines.pop();
+      continue;
+    }
+    if (/^\{:/.test(trimmed)) {
+      lines.pop();
+      continue;
+    }
+    break;
+  }
+  return lines.join("\n").trim();
+}
+
+function splitParagraphIntoCandidateSegments(markdown: string): string[] {
+  const value = (markdown || "").trim();
+  if (!value) {
+    return [];
+  }
+
+  const matches = value.match(/[^。！？!?；;\n]+[。！？!?；;]?/gu) || [];
+  const segments = matches.map((item) => item.trim()).filter(Boolean);
+  return segments.length > 0 ? segments : [value];
 }
 
 export function createAiKeyContentMarkerService(deps: {
@@ -171,6 +239,7 @@ export function createAiKeyContentMarkerService(deps: {
       if (!paragraphs.length) {
         return [];
       }
+      const segments = buildIrrelevantSegmentCandidates(paragraphs);
 
       const payload = await requestChatCompletion({
         forwardProxy: deps.forwardProxy,
@@ -180,6 +249,7 @@ export function createAiKeyContentMarkerService(deps: {
           messages: buildKeyContentParagraphMessages({
             documentTitle: params.documentTitle,
             paragraphs,
+            segments,
           }),
           max_tokens: Math.min(config.maxTokens, 700),
           temperature: config.temperature,
@@ -188,7 +258,7 @@ export function createAiKeyContentMarkerService(deps: {
         failureMessage: "AI 关键内容识别请求失败",
       });
 
-      return extractKeyContentParagraphHighlights(payload, paragraphs);
+      return extractKeyContentParagraphHighlights(payload, paragraphs, segments);
     },
   };
 }
@@ -202,6 +272,12 @@ export async function detectIrrelevantParagraphIds(
   return aiSlopMarkerService.detectIrrelevantParagraphIds(params);
 }
 
+export async function detectIrrelevantParagraphMarks(
+  params: DetectIrrelevantParagraphIdsParams
+): Promise<IrrelevantParagraphMark[]> {
+  return aiSlopMarkerService.detectIrrelevantParagraphMarks(params);
+}
+
 export async function detectKeyContentParagraphHighlights(
   params: DetectKeyContentParagraphHighlightsParams
 ): Promise<KeyContentParagraphHighlight[]> {
@@ -212,6 +288,7 @@ export type {
   AiServiceConfig,
   DetectIrrelevantParagraphIdsParams,
   DetectKeyContentParagraphHighlightsParams,
+  IrrelevantParagraphMark,
   IrrelevantParagraphCandidate,
   KeyContentParagraphHighlight,
 };

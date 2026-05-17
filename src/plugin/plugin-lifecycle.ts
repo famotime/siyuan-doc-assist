@@ -91,7 +91,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     isMobile: () => this.isMobile,
     resolveDocId: (explicitId?: string, protyle?: ProtyleLike) =>
       this.resolveDocId(explicitId, protyle),
-    askConfirm: (title, text) => this.askConfirm(title, text),
+    askConfirm: (title, text, detailItems) => this.askConfirm(title, text, detailItems),
     setBusy: (busy) => this.setActionBusy(busy),
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
     getAiSummaryConfig: () => this.aiSummaryConfig,
@@ -268,7 +268,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
         <div class="doc-assistant-confirm-detail">
           <div class="doc-assistant-confirm-detail__text">${escapeHtml(text)}</div>
           <details class="doc-assistant-confirm-detail__toggle">
-            <summary class="doc-assistant-confirm-detail__summary">展开详情（${detailItems.length} 项）</summary>
+            <summary class="doc-assistant-confirm-detail__summary">打开详情（${detailItems.length} 项）</summary>
             <div class="doc-assistant-confirm-detail__list">${listHtml}</div>
           </details>
         </div>`;

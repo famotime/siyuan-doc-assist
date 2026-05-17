@@ -1,5 +1,8 @@
 import { createDocAssistantLogger } from "@/core/logger-core";
-import { IrrelevantParagraphCandidate } from "@/services/ai-slop-marker-prompts";
+import {
+  IrrelevantParagraphCandidate,
+  IrrelevantSegmentCandidate,
+} from "@/services/ai-slop-marker-prompts";
 
 const parserLogger = createDocAssistantLogger("AiSlopMarker");
 
@@ -8,10 +11,23 @@ export type KeyContentParagraphHighlight = {
   highlights: string[];
 };
 
+export type IrrelevantParagraphMark = {
+  paragraphId: string;
+  segments: string[];
+};
+
 export function extractIrrelevantParagraphIds(
   payload: any,
   paragraphs: IrrelevantParagraphCandidate[]
 ): string[] {
+  return extractIrrelevantParagraphMarks(payload, paragraphs).map((item) => item.paragraphId);
+}
+
+export function extractIrrelevantParagraphMarks(
+  payload: any,
+  paragraphs: IrrelevantParagraphCandidate[],
+  segmentCandidates: IrrelevantSegmentCandidate[] = []
+): IrrelevantParagraphMark[] {
   const content = extractMessageContent(payload);
   if (!content) {
     throw new Error("AI 未返回可用的段落筛选结果（响应内容为空）");
@@ -19,23 +35,153 @@ export function extractIrrelevantParagraphIds(
 
   parserLogger.debug("extracted content", { length: content.length, preview: content.slice(0, 300) });
 
-  const allowedIds = new Set(paragraphs.map((item) => item.id));
+  const paragraphMap = new Map(paragraphs.map((item) => [item.id, item]));
+  const allowedIds = new Set(paragraphMap.keys());
   const parsed = parseJsonObject(content, "段落筛选");
+  const segmentIdMarks = resolveSegmentIdMarks(parsed, segmentCandidates);
+  if (segmentIdMarks.length > 0) {
+    return segmentIdMarks;
+  }
+
+  const entries = resolveIrrelevantParagraphEntries(parsed);
+  if (entries.length > 0) {
+    const marks: IrrelevantParagraphMark[] = [];
+    for (const entry of entries) {
+      const paragraphId = typeof entry?.paragraphId === "string"
+        ? entry.paragraphId.trim()
+        : typeof entry?.id === "string"
+          ? entry.id.trim()
+          : "";
+      const paragraph = paragraphId ? paragraphMap.get(paragraphId) : undefined;
+      if (!paragraph) {
+        continue;
+      }
+
+      const rawSegments = resolveEntrySegments(entry);
+      const segments: string[] = [];
+      for (const value of rawSegments) {
+        const segment = typeof value === "string" ? value.trim() : "";
+        if (!segment || segments.includes(segment) || !paragraph.markdown.includes(segment)) {
+          continue;
+        }
+        segments.push(segment);
+      }
+      if (segments.length > 0) {
+        marks.push({ paragraphId, segments });
+      }
+    }
+    return marks;
+  }
+
   const ids = Array.isArray(parsed?.paragraphIds) ? parsed.paragraphIds : [];
-  const deduped: string[] = [];
+  const deduped: IrrelevantParagraphMark[] = [];
   for (const value of ids) {
     const id = typeof value === "string" ? value.trim() : "";
-    if (!id || !allowedIds.has(id) || deduped.includes(id)) {
+    if (!id || !allowedIds.has(id) || deduped.some((item) => item.paragraphId === id)) {
       continue;
     }
-    deduped.push(id);
+    deduped.push({ paragraphId: id, segments: [] });
   }
   return deduped;
 }
 
+function resolveSegmentIdMarks(
+  parsed: any,
+  segmentCandidates: IrrelevantSegmentCandidate[]
+): IrrelevantParagraphMark[] {
+  if (!Array.isArray(segmentCandidates) || !segmentCandidates.length) {
+    return [];
+  }
+  const ids = Array.isArray(parsed?.segmentIds)
+    ? parsed.segmentIds
+    : Array.isArray(parsed?.segments)
+      ? parsed.segments
+      : [];
+  if (!ids.length) {
+    return [];
+  }
+
+  const segmentMap = new Map(segmentCandidates.map((item) => [item.id, item]));
+  const grouped = new Map<string, string[]>();
+  for (const value of ids) {
+    const id = typeof value === "string" ? value.trim() : "";
+    const segment = id ? segmentMap.get(id) : undefined;
+    if (!segment) {
+      continue;
+    }
+    const current = grouped.get(segment.paragraphId) || [];
+    const sourceText = segment.sourceText || segment.text;
+    if (!current.includes(sourceText)) {
+      current.push(sourceText);
+    }
+    grouped.set(segment.paragraphId, current);
+  }
+
+  return Array.from(grouped.entries()).map(([paragraphId, segments]) => ({
+    paragraphId,
+    segments,
+  }));
+}
+
+function resolveIrrelevantParagraphEntries(parsed: any): any[] {
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return [];
+  }
+
+  const candidates = [
+    parsed?.paragraphs,
+    parsed?.items,
+    parsed?.results,
+    parsed?.entries,
+    parsed?.data,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (typeof parsed?.paragraphId === "string" || typeof parsed?.id === "string") {
+    return [parsed];
+  }
+
+  return [];
+}
+
+function resolveEntrySegments(entry: any): unknown[] {
+  const candidates = [
+    entry?.segments,
+    entry?.snippets,
+    entry?.phrases,
+    entry?.texts,
+    entry?.sentences,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (typeof entry?.segment === "string") {
+    return [entry.segment];
+  }
+  if (typeof entry?.snippet === "string") {
+    return [entry.snippet];
+  }
+  if (typeof entry?.text === "string") {
+    return [entry.text];
+  }
+
+  return [];
+}
+
 export function extractKeyContentParagraphHighlights(
   payload: any,
-  paragraphs: IrrelevantParagraphCandidate[]
+  paragraphs: IrrelevantParagraphCandidate[],
+  segmentCandidates: IrrelevantSegmentCandidate[] = []
 ): KeyContentParagraphHighlight[] {
   const content = extractMessageContent(payload);
   if (!content) {
@@ -46,6 +192,11 @@ export function extractKeyContentParagraphHighlights(
 
   const allowedIds = new Set(paragraphs.map((item) => item.id));
   const parsed = parseJsonObject(content, "关键内容");
+  const segmentHighlights = resolveSegmentIdHighlights(parsed, segmentCandidates);
+  if (segmentHighlights.length > 0) {
+    return segmentHighlights;
+  }
+
   const entries = resolveKeyContentEntries(parsed);
   const merged = new Map<string, string[]>();
 
@@ -79,6 +230,44 @@ export function extractKeyContentParagraphHighlights(
   }
 
   return Array.from(merged.entries()).map(([paragraphId, highlights]) => ({
+    paragraphId,
+    highlights,
+  }));
+}
+
+function resolveSegmentIdHighlights(
+  parsed: any,
+  segmentCandidates: IrrelevantSegmentCandidate[]
+): KeyContentParagraphHighlight[] {
+  if (!Array.isArray(segmentCandidates) || !segmentCandidates.length) {
+    return [];
+  }
+  const ids = Array.isArray(parsed?.segmentIds)
+    ? parsed.segmentIds
+    : Array.isArray(parsed?.highlightSegmentIds)
+      ? parsed.highlightSegmentIds
+      : [];
+  if (!ids.length) {
+    return [];
+  }
+
+  const segmentMap = new Map(segmentCandidates.map((item) => [item.id, item]));
+  const grouped = new Map<string, string[]>();
+  for (const value of ids) {
+    const id = typeof value === "string" ? value.trim() : "";
+    const segment = id ? segmentMap.get(id) : undefined;
+    if (!segment) {
+      continue;
+    }
+    const current = grouped.get(segment.paragraphId) || [];
+    const sourceText = segment.sourceText || segment.text;
+    if (!current.includes(sourceText)) {
+      current.push(sourceText);
+    }
+    grouped.set(segment.paragraphId, current);
+  }
+
+  return Array.from(grouped.entries()).map(([paragraphId, highlights]) => ({
     paragraphId,
     highlights,
   }));
@@ -215,6 +404,17 @@ function parseJsonObject(content: string, label = "结果"): any {
     const preview = normalized.length > 150
       ? `${normalized.slice(0, 150)}…`
       : normalized;
+    if (looksLikeTruncatedJson(normalized)) {
+      throw new Error(`AI 返回的${label}不是有效 JSON，可能被模型截断，请调高 AI 最大输出 Tokens 后重试：${preview}`);
+    }
     throw new Error(`AI 返回的${label}不是有效 JSON：${preview}`);
   }
+}
+
+function looksLikeTruncatedJson(content: string): boolean {
+  const value = (content || "").trim();
+  if (!value.startsWith("{") && !value.startsWith("[")) {
+    return false;
+  }
+  return !(value.endsWith("}") || value.endsWith("]"));
 }

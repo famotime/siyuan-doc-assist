@@ -3,7 +3,6 @@ import {
   BASE_ACTIONS,
   type ActionConfig,
   type ActionKey,
-  formatActionTooltip,
 } from "@/plugin/action-definitions";
 
 export type { ActionConfig, ActionKey } from "@/plugin/action-definitions";
