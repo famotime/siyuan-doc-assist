@@ -48,6 +48,7 @@ vi.mock("@/services/kernel", () => ({
   getDocMetaByID: vi.fn(),
   getRootDocRawMarkdown: vi.fn(),
   insertBlockBefore: vi.fn(),
+  setBlockAttrs: vi.fn(),
   updateBlockDom: vi.fn(),
   updateBlockMarkdown: vi.fn(),
 }));
@@ -155,6 +156,7 @@ import {
   getDocMetaByID,
   getRootDocRawMarkdown,
   insertBlockBefore,
+  setBlockAttrs,
   updateBlockDom,
   updateBlockMarkdown,
 } from "@/services/kernel";
@@ -186,6 +188,7 @@ const getChildBlockRefsByParentIdMock = vi.mocked(getChildBlockRefsByParentId);
 const getChildBlocksByParentIdMock = vi.mocked(getChildBlocksByParentId);
 const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
 const getRootDocRawMarkdownMock = vi.mocked(getRootDocRawMarkdown);
+const setBlockAttrsMock = vi.mocked(setBlockAttrs);
 const getBacklinkDocsMock = vi.mocked(getBacklinkDocs);
 const getChildDocsMock = vi.mocked(getChildDocs);
 const getForwardLinkedDocIdsMock = vi.mocked(getForwardLinkedDocIds);
@@ -213,7 +216,7 @@ const detectKeyContentParagraphHighlightsMock = vi.mocked(detectKeyContentParagr
 const createMonthlyDiaryDocMock = vi.mocked(createMonthlyDiaryDoc);
 const createTop100LargeDocumentsReportMock = vi.mocked(createTop100LargeDocumentsReport);
 
-function createRunner(setBusy?: (busy: boolean) => void) {
+function createRunner(setBusy?: (busy: boolean) => void, overrides: Record<string, unknown> = {}) {
   return new ActionRunner({
     isMobile: () => false,
     resolveDocId: () => "doc-1",
@@ -227,6 +230,7 @@ function createRunner(setBusy?: (busy: boolean) => void) {
       requestTimeoutSeconds: 45,
     }),
     getMonthlyDiaryTemplate: () => "## {{date}} {{weekday}}\n\n- 记录",
+    ...overrides,
   } as any);
 }
 
@@ -824,6 +828,134 @@ describe("action-runner loading guard", () => {
       "~~关注公众号“示例”，回复关键词领取资料。~~\n{: id=\"20260517120000-p3\"}"
     );
     expect(showMessageMock).toHaveBeenCalledWith("已标记口水内容 2 处，共更新 2 个块", 5000, "info");
+  });
+
+  test("adds related links and tags from network lens AI suggestions after confirmation", async () => {
+    const askConfirm = vi.fn(async () => true);
+    const invokeCommand = vi.fn(async () => ({
+      ok: true,
+      message: "已生成建议",
+      data: {
+        summary: "建议补充 2 个关联文档和 2 个标签",
+        suggestions: [
+          {
+            targetDocumentId: "target-1",
+            targetTitle: "AI 索引",
+            confidence: "high",
+            reason: "同属 AI 主题",
+            tagSuggestions: [
+              { tag: "AI", source: "existing", reason: "主题匹配" },
+              { tag: "知识管理", source: "new", reason: "内容相关" },
+            ],
+          },
+          {
+            targetDocumentId: "target-2",
+            targetTitle: "机器学习",
+            confidence: "medium",
+            reason: "概念相邻",
+            tagSuggestions: [{ tag: "AI", source: "existing" }],
+          },
+        ],
+      },
+    }));
+    const runner = createRunner(undefined, {
+      askConfirm,
+      resolveNetworkLensPlugin: () => ({
+        getWikiCommandIntegration: () => ({
+          invokeCommand,
+        }),
+      }),
+    });
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "first-block", type: "p", content: "正文", markdown: "正文" },
+    ]);
+    getBlockAttrsMock.mockResolvedValue({ tags: "已有标签" });
+
+    await runner.runAction("add-related-links-and-tags" as any);
+
+    expect(invokeCommand).toHaveBeenCalledWith("suggest-orphan-links-and-tags", {
+      trigger: "manual",
+      sourcePlugin: "siyuan-doc-assist",
+      themeDocumentId: "doc-1",
+    });
+    expect(askConfirm).toHaveBeenCalledWith(
+      "确认添加相关链接和标签",
+      expect.stringContaining("建议补充 2 个关联文档和 2 个标签"),
+      expect.arrayContaining([
+        expect.objectContaining({ label: "链接：AI 索引", description: "同属 AI 主题" }),
+        expect.objectContaining({ label: "标签：知识管理", description: "内容相关" }),
+      ])
+    );
+    expect(insertBlockBeforeMock).toHaveBeenCalledWith(
+      '((target-1 "AI 索引"))    ((target-2 "机器学习"))',
+      "first-block",
+      "doc-1"
+    );
+    expect(setBlockAttrsMock).toHaveBeenCalledWith("doc-1", {
+      tags: "已有标签,AI,知识管理",
+    });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已添加相关链接 2 个、标签 2 个",
+      5000,
+      "info"
+    );
+  });
+
+  test("adds only selected related links and tags from the preview dialog", async () => {
+    const askConfirm = vi.fn(async (_title, _text, detailItems: any[]) => {
+      for (const item of detailItems) {
+        item.selected = item.id === "link:target-2" || item.id === "tag:知识管理";
+      }
+      return true;
+    });
+    const invokeCommand = vi.fn(async () => ({
+      ok: true,
+      data: {
+        summary: "请选择要写入的建议",
+        suggestions: [
+          {
+            targetDocumentId: "target-1",
+            targetTitle: "AI 索引",
+            reason: "同属 AI 主题",
+            tagSuggestions: [{ tag: "AI", source: "existing" }],
+          },
+          {
+            targetDocumentId: "target-2",
+            targetTitle: "机器学习",
+            reason: "概念相邻",
+            tagSuggestions: [{ tag: "知识管理", source: "new" }],
+          },
+        ],
+      },
+    }));
+    const runner = createRunner(undefined, {
+      askConfirm,
+      resolveNetworkLensPlugin: () => ({
+        getWikiCommandIntegration: () => ({
+          invokeCommand,
+        }),
+      }),
+    });
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "first-block", type: "p", content: "正文", markdown: "正文" },
+    ]);
+    getBlockAttrsMock.mockResolvedValue({ tags: "已有标签" });
+
+    await runner.runAction("add-related-links-and-tags" as any);
+
+    expect(insertBlockBeforeMock).toHaveBeenCalledWith(
+      '((target-2 "机器学习"))',
+      "first-block",
+      "doc-1"
+    );
+    expect(setBlockAttrsMock).toHaveBeenCalledWith("doc-1", {
+      tags: "已有标签,知识管理",
+    });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已添加相关链接 1 个、标签 1 个",
+      5000,
+      "info"
+    );
   });
 
   test("skips full-paragraph segments when a paragraph contains multiple sentences", async () => {

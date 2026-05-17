@@ -256,11 +256,19 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
     return new Promise((resolve) => {
       const listHtml = detailItems
-        .map((item) => {
+        .map((item, index) => {
           const desc = item.description
             ? `<span class="doc-assistant-confirm-detail__desc">${escapeHtml(item.description)}</span>`
             : "";
-          return `<div class="doc-assistant-confirm-detail__item"><span class="doc-assistant-confirm-detail__label">${escapeHtml(item.label)}</span>${desc}</div>`;
+          const toneClass = item.tone
+            ? ` doc-assistant-confirm-detail__label--${item.tone}`
+            : "";
+          const labelHtml = `<span class="doc-assistant-confirm-detail__label${toneClass}">${escapeHtml(item.label)}</span>`;
+          if (item.selectable) {
+            const checked = item.selected !== false ? " checked" : "";
+            return `<label class="doc-assistant-confirm-detail__item doc-assistant-confirm-detail__item--selectable"><input class="doc-assistant-confirm-detail__checkbox" type="checkbox" data-detail-index="${index}"${checked}>${labelHtml}${desc}</label>`;
+          }
+          return `<div class="doc-assistant-confirm-detail__item">${labelHtml}${desc}</div>`;
         })
         .join("");
 
@@ -293,6 +301,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
       root.appendChild(btnRow);
 
       confirmBtn.addEventListener("click", () => {
+        root.querySelectorAll<HTMLInputElement>(".doc-assistant-confirm-detail__checkbox").forEach((checkbox) => {
+          const index = Number(checkbox.dataset.detailIndex);
+          if (Number.isInteger(index) && detailItems[index]) {
+            detailItems[index].selected = checkbox.checked;
+          }
+        });
         dialog.destroy();
         resolve(true);
       });

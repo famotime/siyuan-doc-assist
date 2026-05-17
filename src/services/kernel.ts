@@ -26,6 +26,7 @@ export {
   getBlockAttrs,
   getDocReadonlyState,
   isReadonlyAttrValue,
+  setBlockAttrs,
 } from "@/services/kernel-attr";
 
 export {

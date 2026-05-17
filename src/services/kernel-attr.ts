@@ -11,6 +11,13 @@ export async function getBlockAttrs(id: string): Promise<BlockAttrs> {
   return requestApi<BlockAttrs>("/api/attr/getBlockAttrs", { id });
 }
 
+export async function setBlockAttrs(id: string, attrs: BlockAttrs): Promise<void> {
+  if (!id) {
+    return;
+  }
+  await requestApi("/api/attr/setBlockAttrs", { id, attrs });
+}
+
 export function isReadonlyAttrValue(value: unknown): boolean {
   if (typeof value === "boolean") {
     return value;

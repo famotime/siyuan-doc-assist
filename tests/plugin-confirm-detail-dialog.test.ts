@@ -47,4 +47,31 @@ describe("plugin confirm detail dialog", () => {
     dialogElement?.querySelector<HTMLButtonElement>(".doc-assistant-confirm-detail__actions .b3-button--outline")?.click();
     await expect(promise).resolves.toBe(false);
   });
+
+  test("renders selectable detail items checked by default and persists unchecked items on confirm", async () => {
+    const plugin = new DocAssistPlugin({} as any);
+    const detailItems = [
+      { id: "link:target-1", label: "链接：AI 索引", selectable: true, selected: true, tone: "link" },
+      { id: "tag:AI", label: "标签：AI", selectable: true, selected: true, tone: "tag" },
+    ];
+    const promise = (plugin as any).askConfirm("确认添加相关链接和标签", "请选择要写入的建议。", detailItems);
+
+    const dialogElement = dialogInstances[dialogInstances.length - 1];
+    const checkboxes = Array.from(dialogElement.querySelectorAll<HTMLInputElement>(
+      ".doc-assistant-confirm-detail__checkbox"
+    ));
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes.every((item) => item.checked)).toBe(true);
+    expect(dialogElement.querySelector(".doc-assistant-confirm-detail__label--link")?.textContent).toBe("链接：AI 索引");
+    expect(dialogElement.querySelector(".doc-assistant-confirm-detail__label--tag")?.textContent).toBe("标签：AI");
+
+    checkboxes[0].checked = false;
+    dialogElement.querySelector<HTMLButtonElement>(".doc-assistant-confirm-detail__actions .b3-button--text")?.click();
+
+    await expect(promise).resolves.toBe(true);
+    expect(detailItems).toEqual([
+      expect.objectContaining({ id: "link:target-1", selected: false }),
+      expect.objectContaining({ id: "tag:AI", selected: true }),
+    ]);
+  });
 });

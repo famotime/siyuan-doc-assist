@@ -30,6 +30,7 @@ describe("power buttons provider", () => {
     const commandIds = commands.map(command => command.id);
 
     expect(commandIds).toContain("insert-doc-summary");
+    expect(commandIds).toContain("add-related-links-and-tags");
     expect(commandIds).toContain("clean-ai-output");
     expect(commandIds).toContain("trim-trailing-whitespace");
     expect(commandIds).not.toContain("create-monthly-diary");

@@ -42,6 +42,7 @@ export type ActionKey =
   | "toggle-selected-punctuation"
   | "split-doc-by-headings"
   | "recognize-doc-images"
+  | "add-related-links-and-tags"
   | "set-selection-as-title"
   | "extract-web-links"
   | "export-keymap"
@@ -127,6 +128,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "delete-from-start-to-current": "删",
   "split-doc-by-headings": "拆",
   "recognize-doc-images": "识",
+  "add-related-links-and-tags": "链",
   "set-selection-as-title": "题",
   "extract-web-links": "链",
   "export-keymap": "出",
@@ -483,6 +485,18 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "ai",
         requiresWritableDoc: true,
         icon: "iconTrashcan",
+      },
+      {
+        key: "add-related-links-and-tags",
+        commandText: "添加相关链接和标签",
+        menuText: "添加相关链接和标签",
+        tooltip: createActionTooltip(
+          "添加相关链接和标签",
+          "调用脉络镜插件对当前文档生成 AI 关联建议，确认后在文首插入相关文档链接并给当前文档写入建议标签。"
+        ),
+        group: "ai",
+        requiresWritableDoc: true,
+        icon: "iconLink",
       },
       {
         key: "generate-llm-wiki",

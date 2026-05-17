@@ -24,6 +24,7 @@ describe("plugin actions", () => {
     expect(isActionKey("clean-ai-output")).toBe(true);
     expect(isActionKey("mark-irrelevant-paragraphs")).toBe(true);
     expect(isActionKey("mark-key-content")).toBe(true);
+    expect(isActionKey("add-related-links-and-tags")).toBe(true);
     expect(isActionKey("insert-blank-before-headings")).toBe(true);
     expect(isActionKey("toggle-heading-bold")).toBe(true);
     expect(isActionKey("mark-invalid-links-refs")).toBe(true);

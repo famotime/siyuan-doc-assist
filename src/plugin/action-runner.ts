@@ -48,8 +48,12 @@ export type ActionRunResult =
 type ActionRunErrorCode = Extract<ActionRunResult, { ok: false }>["errorCode"];
 
 export type ConfirmDetailItem = {
+  id?: string;
   label: string;
   description?: string;
+  selectable?: boolean;
+  selected?: boolean;
+  tone?: "link" | "tag";
 };
 
 type ActionRunnerDeps = {

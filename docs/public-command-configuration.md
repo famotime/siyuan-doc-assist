@@ -68,10 +68,10 @@ Provider 的关键字段：
 - `protocolVersion: 1`
 - `providerId: "siyuan-doc-assist"`
 
-当前动作全集共 37 个，其中：
+当前动作全集共 38 个，其中：
 
-- 已对外开放：13 个
-- 当前未对外开放：24 个
+- 已对外开放：18 个
+- 当前未对外开放：20 个
 
 ### 已对外开放
 
@@ -91,7 +91,11 @@ Provider 的关键字段：
 | `toggle-links-refs` | 链接<->引用批量互转 |
 | `insert-doc-summary` | 插入文档摘要 |
 | `delete-from-current-to-end` | 删除后续段落（含本段） |
+| `delete-from-start-to-current` | 删除之前段落（含本段） |
 | `convert-images-to-webp` | 批量转换为WebP |
+| `recognize-doc-images` | 本文档图片文字识别 |
+| `add-related-links-and-tags` | 添加相关链接和标签 |
+| `generate-llm-wiki` | 生成 LLM Wiki 文档 |
 
 这份列表直接来自：
 
@@ -109,7 +113,11 @@ const PUBLIC_ACTION_KEYS = new Set<ActionKey>([
   "toggle-links-refs",
   "insert-doc-summary",
   "delete-from-current-to-end",
+  "delete-from-start-to-current",
   "convert-images-to-webp",
+  "recognize-doc-images",
+  "add-related-links-and-tags",
+  "generate-llm-wiki",
 ]);
 ```
 

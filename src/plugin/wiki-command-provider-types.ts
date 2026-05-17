@@ -13,7 +13,7 @@ export type WikiCommandInvokeErrorCode =
   | "execution-failed";
 
 export type WikiCommandInvokeResult =
-  | { ok: true; message?: string }
+  | { ok: true; message?: string; data?: unknown }
   | { ok: false; message?: string; errorCode: WikiCommandInvokeErrorCode };
 
 export interface WikiPublicCommand {

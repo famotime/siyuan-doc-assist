@@ -1788,11 +1788,51 @@
   border: 1px solid color-mix(in srgb, var(--b3-border-color) 60%, transparent);
 }
 
+.doc-assistant-confirm-detail__item--selectable {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: start;
+  cursor: pointer;
+}
+
+.doc-assistant-confirm-detail__checkbox {
+  margin: 3px 0 0;
+}
+
+.doc-assistant-confirm-detail__item--selectable .doc-assistant-confirm-detail__desc {
+  grid-column: 2;
+}
+
 .doc-assistant-confirm-detail__label {
+  justify-self: start;
   font-size: 13px;
   line-height: 1.5;
   color: var(--b3-theme-on-surface);
   word-break: break-word;
+}
+
+.doc-assistant-confirm-detail__label--link,
+.doc-assistant-confirm-detail__label--tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  max-width: 100%;
+  padding: 1px 8px;
+  border: 1px solid transparent;
+}
+
+.doc-assistant-confirm-detail__label--link {
+  border-radius: 4px;
+  color: color-mix(in srgb, var(--b3-theme-primary) 82%, #111);
+  background: color-mix(in srgb, var(--b3-theme-primary) 12%, var(--b3-theme-background));
+  border-color: color-mix(in srgb, var(--b3-theme-primary) 28%, transparent);
+}
+
+.doc-assistant-confirm-detail__label--tag {
+  border-radius: 999px;
+  color: color-mix(in srgb, #15803d 78%, var(--b3-theme-on-surface));
+  background: color-mix(in srgb, #22c55e 14%, var(--b3-theme-background));
+  border-color: color-mix(in srgb, #22c55e 36%, transparent);
 }
 
 .doc-assistant-confirm-detail__desc {
