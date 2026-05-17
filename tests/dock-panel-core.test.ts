@@ -1,5 +1,12 @@
-import { describe, expect, test } from "vitest";
-import { buildDockDocActions, DOCK_TABS } from "@/core/dock-panel-core";
+import { describe, expect, test, vi } from "vitest";
+import {
+  buildDockDocActions,
+  DOCK_ACTIVE_TAB_STORAGE_KEY,
+  DOCK_TABS,
+  loadPersistedDockActiveTab,
+  normalizeDockTabKey,
+  savePersistedDockActiveTab,
+} from "@/core/dock-panel-core";
 
 describe("dock-panel-core", () => {
   test("defines key info and doc process tabs", () => {
@@ -187,5 +194,47 @@ describe("dock-panel-core", () => {
         menuToggleDisabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
       },
     ]);
+  });
+
+  test("normalizes persisted dock tab keys", () => {
+    expect(normalizeDockTabKey("doc-process")).toBe("doc-process");
+    expect(normalizeDockTabKey("key-info")).toBe("key-info");
+    expect(normalizeDockTabKey("invalid")).toBe("key-info");
+    expect(normalizeDockTabKey("invalid", "doc-process")).toBe("doc-process");
+  });
+
+  test("loads and saves persisted dock active tab defensively", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        values.set(key, value);
+      }),
+    };
+
+    expect(loadPersistedDockActiveTab(storage)).toBe("key-info");
+
+    savePersistedDockActiveTab(storage, "doc-process");
+
+    expect(storage.setItem).toHaveBeenCalledWith(DOCK_ACTIVE_TAB_STORAGE_KEY, "doc-process");
+    expect(loadPersistedDockActiveTab(storage)).toBe("doc-process");
+
+    values.set(DOCK_ACTIVE_TAB_STORAGE_KEY, "invalid");
+
+    expect(loadPersistedDockActiveTab(storage)).toBe("key-info");
+  });
+
+  test("ignores dock active tab storage errors", () => {
+    const throwingStorage = {
+      getItem: vi.fn(() => {
+        throw new Error("storage offline");
+      }),
+      setItem: vi.fn(() => {
+        throw new Error("storage offline");
+      }),
+    };
+
+    expect(loadPersistedDockActiveTab(throwingStorage)).toBe("key-info");
+    expect(() => savePersistedDockActiveTab(throwingStorage, "doc-process")).not.toThrow();
   });
 });

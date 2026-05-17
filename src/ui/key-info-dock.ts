@@ -16,7 +16,12 @@ import {
   releaseKeyInfoListScrollLockOnUserScroll,
 } from "@/core/key-info-scroll-lock-core";
 import type { KeyInfoListScrollLock } from "@/core/key-info-scroll-lock-core";
-import { DockDocAction, DockTabKey } from "@/core/dock-panel-core";
+import {
+  DockDocAction,
+  DockTabKey,
+  loadPersistedDockActiveTab,
+  savePersistedDockActiveTab,
+} from "@/core/dock-panel-core";
 import {
   buildKeyInfoDockRow,
   COLLAPSIBLE_FILTER_TYPES,
@@ -85,6 +90,7 @@ export function createKeyInfoDock(
   element: HTMLElement,
   callbacks: KeyInfoDockCallbacks
 ): KeyInfoDockHandle {
+  const tabStorage = typeof localStorage !== "undefined" ? localStorage : null;
   const state: KeyInfoDockState = {
     docTitle: "",
     items: [],
@@ -93,7 +99,7 @@ export function createKeyInfoDock(
     loading: false,
     isRefreshing: false,
     emptyText: "暂无关键内容",
-    activeTab: "key-info",
+    activeTab: loadPersistedDockActiveTab(tabStorage),
     docMenuRegisterAll: false,
     docActions: [],
     favoriteActionKeys: [],
@@ -118,6 +124,7 @@ export function createKeyInfoDock(
   } = createKeyInfoDockChrome(element, {
     onTabSelect: (tab) => {
       setState({ activeTab: tab });
+      savePersistedDockActiveTab(tabStorage, tab);
       if (tab === "doc-process") {
         callbacks.onDocProcessActivate?.();
       }

@@ -38,6 +38,41 @@ export const DOCK_TABS: DockTab[] = [
   { key: "doc-process", label: "文档处理" },
 ];
 
+export const DOCK_ACTIVE_TAB_STORAGE_KEY = "doc-assistant.key-info-dock.active-tab";
+
+export function isDockTabKey(value: unknown): value is DockTabKey {
+  return value === "key-info" || value === "doc-process";
+}
+
+export function normalizeDockTabKey(value: unknown, fallback: DockTabKey = "key-info"): DockTabKey {
+  return isDockTabKey(value) ? value : fallback;
+}
+
+export function loadPersistedDockActiveTab(storage: Pick<Storage, "getItem"> | null | undefined): DockTabKey {
+  if (!storage || typeof storage.getItem !== "function") {
+    return "key-info";
+  }
+  try {
+    return normalizeDockTabKey(storage.getItem(DOCK_ACTIVE_TAB_STORAGE_KEY));
+  } catch {
+    return "key-info";
+  }
+}
+
+export function savePersistedDockActiveTab(
+  storage: Pick<Storage, "setItem"> | null | undefined,
+  tab: DockTabKey
+): void {
+  if (!storage || typeof storage.setItem !== "function") {
+    return;
+  }
+  try {
+    storage.setItem(DOCK_ACTIVE_TAB_STORAGE_KEY, tab);
+  } catch {
+    // Ignore storage write errors so tab switching still works.
+  }
+}
+
 const DOCK_ACTION_GROUP_LABELS: Record<DockDocActionGroup, string> = {
   export: "导出",
   insert: "插入",
