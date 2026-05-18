@@ -393,6 +393,61 @@ describe("key-info-dock scroll interaction", () => {
     host.remove();
   });
 
+
+  test("shows a spinner on running background doc action and removes it when finished", async () => {
+    let resolveRunAction: (() => void) | undefined;
+    const runActionPromise = new Promise<void>((resolve) => {
+      resolveRunAction = resolve;
+    });
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onDocActionClick: () => runActionPromise,
+    });
+
+    dock.setState({
+      docActions: [
+        {
+          key: "create-top100-large-documents-report",
+          label: "输出Top100大文件清单",
+          icon: "iconList",
+          group: "organize",
+          groupLabel: "整理",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+          runInBackground: true,
+        },
+      ],
+    });
+
+    const button = host.querySelector(".doc-assistant-keyinfo__action-btn") as HTMLButtonElement | null;
+    expect(button).toBeTruthy();
+
+    button!.click();
+
+    expect(button!.classList.contains("is-running")).toBe(true);
+    expect(button!.getAttribute("aria-busy")).toBe("true");
+    expect(
+      button!.querySelector(".doc-assistant-keyinfo__action-running-spinner")
+    ).toBeTruthy();
+
+    resolveRunAction?.();
+    await runActionPromise;
+    await Promise.resolve();
+
+    expect(button!.classList.contains("is-running")).toBe(false);
+    expect(button!.getAttribute("aria-busy")).toBe("false");
+    expect(
+      button!.querySelector(".doc-assistant-keyinfo__action-running-spinner")
+    ).toBeNull();
+
+    dock.destroy();
+    host.remove();
+  });
+
   test("renders tooltip for every doc action command button", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);

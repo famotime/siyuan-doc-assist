@@ -1011,6 +1011,20 @@
   color: var(--b3-theme-on-surface);
 }
 
+.doc-assistant-keyinfo__action-running-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--b3-theme-primary) 24%, transparent);
+  border-top-color: var(--b3-theme-primary);
+  animation: doc-assistant-action-processing-spin 0.75s linear infinite;
+  flex: 0 0 auto;
+}
+
+.doc-assistant-keyinfo__action-btn.is-running {
+  cursor: progress;
+}
+
 .doc-assistant-keyinfo__row {
   display: flex;
   align-items: flex-start;

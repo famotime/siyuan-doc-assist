@@ -51,6 +51,7 @@ export type KeyInfoDockState = {
   docMenuRegisterAll: boolean;
   docActions: DockDocAction[];
   favoriteActionKeys: string[];
+  runningDocActionKeys: string[];
   scrollContextKey: string;
 };
 
@@ -60,7 +61,7 @@ export type KeyInfoDockCallbacks = {
   onDocProcessActivate?: () => void;
   onItemClick?: (item: KeyInfoItem) => void;
   onFilterChange?: (filter: KeyInfoFilter) => void;
-  onDocActionClick?: (actionKey: string) => void;
+  onDocActionClick?: (actionKey: string) => void | Promise<void>;
   onDocMenuToggleAll?: (enabled: boolean) => void;
   onDocActionMenuToggle?: (actionKey: string, enabled: boolean) => void;
   onDocActionReorder?: (order: string[]) => void;
@@ -103,6 +104,7 @@ export function createKeyInfoDock(
     docMenuRegisterAll: false,
     docActions: [],
     favoriteActionKeys: [],
+    runningDocActionKeys: [],
     scrollContextKey: "",
   };
 
@@ -322,6 +324,7 @@ export function createKeyInfoDock(
         callbacks.onDocActionReorder?.(next.map((action) => action.key));
       },
       favoriteActionKeys: state.favoriteActionKeys,
+      runningActionKeys: state.runningDocActionKeys,
       onDocActionFavoriteToggle: callbacks.onDocActionFavoriteToggle,
       onFavoriteActionsReorder: (next) => {
         setState({ favoriteActionKeys: next });
@@ -533,6 +536,7 @@ export function createKeyInfoDock(
       docMenuRegisterAll: state.docMenuRegisterAll,
       docActions: state.docActions,
       favoriteActionKeys: state.favoriteActionKeys,
+      runningDocActionKeys: state.runningDocActionKeys,
       scrollContextKey: state.scrollContextKey,
     };
     Object.assign(state, next);

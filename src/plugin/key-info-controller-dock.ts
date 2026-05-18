@@ -47,7 +47,7 @@ export function createKeyInfoControllerDockCallbacks(options: {
       }
       const currentDocId = deps.getCurrentDocId();
       const currentProtyle = deps.getCurrentProtyle();
-      void deps.runAction(actionKey, currentDocId, currentProtyle);
+      return deps.runAction(actionKey, currentDocId, currentProtyle);
     },
     onDocMenuToggleAll: (enabled) => {
       void deps.setAllDocMenuRegistration(enabled);

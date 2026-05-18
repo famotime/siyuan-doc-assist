@@ -93,6 +93,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.resolveDocId(explicitId, protyle),
     askConfirm: (title, text, detailItems) => this.askConfirm(title, text, detailItems),
     setBusy: (busy) => this.setActionBusy(busy),
+    setBackgroundActionRunning: (action, _docId, running) =>
+      this.keyInfoController.setDocActionRunning(action, running),
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
     getAiSummaryConfig: () => this.aiSummaryConfig,
     getMonthlyDiaryTemplate: () => this.monthlyDiaryTemplate,

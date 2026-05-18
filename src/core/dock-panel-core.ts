@@ -14,6 +14,7 @@ export type DockDocActionSource<T extends string = string> = {
   group: DockDocActionGroup;
   desktopOnly?: boolean;
   requiresWritableDoc?: boolean;
+  runInBackground?: boolean;
 };
 
 export type DockDocActionGroup = "export" | "insert" | "organize" | "ai" | "edit" | "image";
@@ -31,6 +32,7 @@ export type DockDocAction<T extends string = string> = {
   menuRegistered: boolean;
   menuToggleDisabled: boolean;
   menuToggleDisabledReason?: string;
+  runInBackground?: boolean;
 };
 
 export const DOCK_TABS: DockTab[] = [
@@ -109,6 +111,7 @@ export function buildDockDocActions<T extends string>(
       group: action.group,
       groupLabel: DOCK_ACTION_GROUP_LABELS[action.group],
       disabled,
+      ...(action.runInBackground ? { runInBackground: true } : {}),
       menuRegistered,
       menuToggleDisabled: disabled,
       ...(disabledReason ? { disabledReason } : {}),

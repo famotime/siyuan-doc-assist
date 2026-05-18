@@ -61,6 +61,7 @@ type ActionRunnerDeps = {
   resolveDocId: (explicitId?: string, protyle?: ProtyleLike) => string;
   askConfirm: (title: string, text: string, detailItems?: ConfirmDetailItem[]) => Promise<boolean>;
   setBusy?: (busy: boolean) => void;
+  setBackgroundActionRunning?: (action: ActionKey, docId: string, running: boolean) => void;
   getKeyInfoFilter?: () => KeyInfoFilter | undefined;
   getAiSummaryConfig?: () => AiServiceConfig | undefined;
   getMonthlyDiaryTemplate?: () => string | undefined;
@@ -274,6 +275,7 @@ export class ActionRunner {
     }
 
     this.backgroundTaskKeys.add(taskKey);
+    this.deps.setBackgroundActionRunning?.(action, docId, true);
     showMessage(`已开始在后台执行“${config.commandText}”`, 3000, "info");
 
     void (async () => {
@@ -283,6 +285,7 @@ export class ActionRunner {
         this.showActionError(error);
       } finally {
         this.backgroundTaskKeys.delete(taskKey);
+        this.deps.setBackgroundActionRunning?.(action, docId, false);
       }
     })();
 

@@ -45,6 +45,7 @@ export class KeyInfoController {
   private docReadonlyRequestId = 0;
   private keyInfoDocId = "";
   private currentDocReadonly = false;
+  private readonly runningDocActionKeys = new Set<ActionKey>();
   private readonly navigation = createKeyInfoNavigation();
 
   constructor(private readonly deps: KeyInfoControllerDeps) {}
@@ -103,20 +104,32 @@ export class KeyInfoController {
     this.keyInfoDock = undefined;
   }
 
+  setDocActionRunning(action: ActionKey, running: boolean) {
+    if (running) {
+      this.runningDocActionKeys.add(action);
+    } else {
+      this.runningDocActionKeys.delete(action);
+    }
+    this.keyInfoDock?.setState({
+      runningDocActionKeys: Array.from(this.runningDocActionKeys),
+    });
+  }
+
   syncDocActions() {
     if (!this.keyInfoDock) {
       return;
     }
     const registration = this.deps.getDocMenuRegistrationState();
-    this.keyInfoDock.setState(
-      buildKeyInfoControllerDockActionState({
+    this.keyInfoDock.setState({
+      ...buildKeyInfoControllerDockActionState({
         actions: this.deps.actions(),
         isMobile: this.deps.isMobile(),
         registration,
         favoriteActionKeys: this.deps.getDocFavoriteActionKeys(),
         docReadonly: this.currentDocReadonly,
-      })
-    );
+      }),
+      runningDocActionKeys: Array.from(this.runningDocActionKeys),
+    });
   }
 
   getCurrentFilter(): KeyInfoFilter | undefined {

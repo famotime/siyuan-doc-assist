@@ -10,6 +10,7 @@ export type KeyInfoDockStateSnapshot = {
   docMenuRegisterAll: boolean;
   docActions: DockDocAction[];
   favoriteActionKeys: string[];
+  runningDocActionKeys: string[];
   scrollContextKey: string;
 };
 
@@ -35,7 +36,8 @@ export function deriveKeyInfoDockRenderFlags(
       scrollContextChanged,
     renderDocActions:
       prev.docActions !== next.docActions ||
-      prev.favoriteActionKeys !== next.favoriteActionKeys,
+      prev.favoriteActionKeys !== next.favoriteActionKeys ||
+      prev.runningDocActionKeys !== next.runningDocActionKeys,
     renderDocMenuToggle: prev.docMenuRegisterAll !== next.docMenuRegisterAll,
     scrollContextChanged,
   };

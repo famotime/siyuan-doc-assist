@@ -13,7 +13,8 @@ type RenderDocActionsOptions = {
   container: HTMLDivElement;
   actions: DockDocAction[];
   favoriteActionKeys?: readonly string[];
-  onDocActionClick?: (actionKey: string) => void;
+  onDocActionClick?: (actionKey: string) => void | Promise<void>;
+  runningActionKeys?: readonly string[];
   onDocActionFavoriteToggle?: (actionKey: string, favorited: boolean) => void;
   onFavoriteActionsReorder?: (actionKeys: string[]) => void;
   onDocActionsReorder?: (actions: DockDocAction[]) => void;
@@ -146,6 +147,7 @@ export function renderKeyInfoDockDocActions({
   actions,
   favoriteActionKeys = [],
   onDocActionClick,
+  runningActionKeys = [],
   onDocActionFavoriteToggle,
   onFavoriteActionsReorder,
   onDocActionsReorder,
@@ -169,6 +171,7 @@ export function renderKeyInfoDockDocActions({
   const docActionMap = new Map(docActions.map((action) => [action.key, action]));
   const actionGroupMap = buildDocActionGroupMap(docActions);
   const favoriteActionSet = new Set(favoriteActionKeys);
+  const runningActionSet = new Set(runningActionKeys);
   const collapsedGroups = getCollapsedDocActionGroups(container);
   const toggleGroup = (groupKey: string) => {
     if (collapsedGroups.has(groupKey)) {
@@ -242,6 +245,22 @@ export function renderKeyInfoDockDocActions({
     return favoriteButton;
   };
 
+  const setActionButtonRunning = (button: HTMLButtonElement, running: boolean): void => {
+    button.classList.toggle("is-running", running);
+    button.setAttribute("aria-busy", running ? "true" : "false");
+    let spinner = button.querySelector(".doc-assistant-keyinfo__action-running-spinner") as HTMLSpanElement | null;
+    if (running) {
+      if (!spinner) {
+        spinner = document.createElement("span");
+        spinner.className = "doc-assistant-keyinfo__action-running-spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        button.appendChild(spinner);
+      }
+      return;
+    }
+    spinner?.remove();
+  };
+
   const buildActionButton = (action: DockDocAction): HTMLButtonElement => {
     const button = document.createElement("button");
     button.type = "button";
@@ -259,6 +278,7 @@ export function renderKeyInfoDockDocActions({
     button.appendChild(label);
     button.disabled = action.disabled;
     button.title = formatActionTooltip(action.tooltip, action.label, action.disabledReason);
+    setActionButtonRunning(button, Boolean(action.runInBackground && runningActionSet.has(action.key)));
     button.addEventListener("mousedown", (event) => {
       if (!selectionPreservedActionKeys.has(action.key)) {
         return;
@@ -269,7 +289,13 @@ export function renderKeyInfoDockDocActions({
       if (action.disabled) {
         return;
       }
-      onDocActionClick?.(action.key);
+      const result = onDocActionClick?.(action.key);
+      if (action.runInBackground && result && typeof result.then === "function") {
+        setActionButtonRunning(button, true);
+        result.finally(() => {
+          setActionButtonRunning(button, false);
+        });
+      }
     });
     return button;
   };
