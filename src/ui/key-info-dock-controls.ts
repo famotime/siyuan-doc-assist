@@ -38,6 +38,7 @@ export type KeyInfoDockChrome = {
   filterToggleButton: HTMLButtonElement;
   refreshButton: HTMLButtonElement;
   exportButton: HTMLButtonElement;
+  canvasButton: HTMLButtonElement;
   list: HTMLDivElement;
   keyInfoPanel: HTMLDivElement;
   keyInfoLoadingOverlay: HTMLDivElement;
@@ -51,6 +52,7 @@ type KeyInfoDockChromeCallbacks = {
   onFilterToggleExpanded: () => void;
   onRefresh: () => void;
   onExport: () => void;
+  onGenerateCanvas: () => void;
   onDocActionOrderReset: () => void;
 };
 
@@ -221,8 +223,20 @@ export function createKeyInfoDockChrome(
   exportBtn.appendChild(exportIcon);
   exportBtn.appendChild(exportLabel);
   exportBtn.addEventListener("click", callbacks.onExport);
+  const canvasBtn = document.createElement("button");
+  canvasBtn.className =
+    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--canvas";
+  const canvasIcon = document.createElement("span");
+  canvasIcon.className = "doc-assistant-keyinfo__footer-icon";
+  canvasIcon.textContent = "◆";
+  const canvasLabel = document.createElement("span");
+  canvasLabel.textContent = "生成Canvas";
+  canvasBtn.appendChild(canvasIcon);
+  canvasBtn.appendChild(canvasLabel);
+  canvasBtn.addEventListener("click", callbacks.onGenerateCanvas);
   footer.appendChild(refreshBtn);
   footer.appendChild(exportBtn);
+  footer.appendChild(canvasBtn);
 
   const keyInfoPanel = document.createElement("div");
   keyInfoPanel.className = "doc-assistant-keyinfo__panel doc-assistant-keyinfo__panel--key-info";
@@ -279,6 +293,7 @@ export function createKeyInfoDockChrome(
     filterToggleButton,
     refreshButton: refreshBtn,
     exportButton: exportBtn,
+    canvasButton: canvasBtn,
     list,
     keyInfoPanel,
     keyInfoLoadingOverlay,

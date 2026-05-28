@@ -57,6 +57,7 @@ export type KeyInfoDockState = {
 
 export type KeyInfoDockCallbacks = {
   onExport: () => void;
+  onGenerateCanvas?: () => void;
   onRefresh?: () => void;
   onDocProcessActivate?: () => void;
   onItemClick?: (item: KeyInfoItem) => void;
@@ -118,6 +119,7 @@ export function createKeyInfoDock(
     filterToggleButton,
     refreshButton,
     exportButton,
+    canvasButton,
     list,
     keyInfoPanel,
     keyInfoLoadingOverlay,
@@ -155,6 +157,7 @@ export function createKeyInfoDock(
     },
     onRefresh: () => callbacks.onRefresh?.(),
     onExport: () => callbacks.onExport(),
+    onGenerateCanvas: () => callbacks.onGenerateCanvas?.(),
     onDocActionOrderReset: () => callbacks.onDocActionOrderReset?.(),
   });
 
@@ -312,6 +315,8 @@ export function createKeyInfoDock(
     keyInfoLoadingOverlay.setAttribute("aria-hidden", state.loading ? "false" : "true");
     refreshButton.disabled = state.loading;
     exportButton.disabled = state.loading;
+    canvasButton.disabled = state.loading;
+    canvasButton.disabled = state.loading;
   };
 
   const renderDocActions = () => {

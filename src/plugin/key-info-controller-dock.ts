@@ -27,13 +27,15 @@ type KeyInfoControllerDockDeps = {
 export function createKeyInfoControllerDockCallbacks(options: {
   deps: KeyInfoControllerDockDeps;
   onExport: () => void;
+  onGenerateCanvas: () => void;
   onRefresh: () => Promise<void> | void;
   onDocProcessActivate?: () => Promise<void> | void;
   onItemClick: (item: KeyInfoItem) => void;
 }): KeyInfoDockCallbacks {
-  const { deps, onExport, onRefresh, onDocProcessActivate, onItemClick } = options;
+  const { deps, onExport, onGenerateCanvas, onRefresh, onDocProcessActivate, onItemClick } = options;
   return {
     onExport,
+    onGenerateCanvas,
     onRefresh: () => {
       void onRefresh();
     },
