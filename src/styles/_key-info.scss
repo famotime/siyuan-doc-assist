@@ -773,6 +773,34 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
+.doc-assistant-keyinfo__footer-btn--canvas {
+  --keyinfo-footer-color: var(--b3-theme-primary);
+  color: var(--keyinfo-footer-color);
+  border-color: color-mix(in srgb, var(--keyinfo-footer-color) 64%, var(--b3-border-color));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--b3-theme-primary-light) 88%, #ffffff 12%) 0%,
+      color-mix(in srgb, var(--b3-theme-primary-light) 82%, var(--b3-theme-surface) 18%) 100%
+    );
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--b3-theme-primary) 16%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.doc-assistant-keyinfo__footer-btn--canvas:hover {
+  border-color: color-mix(in srgb, var(--keyinfo-footer-color) 72%, var(--b3-border-color));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--b3-theme-primary-light) 92%, #ffffff 8%) 0%,
+      color-mix(in srgb, var(--b3-theme-primary-light) 86%, var(--b3-theme-surface) 14%) 100%
+    );
+  box-shadow:
+    0 11px 20px color-mix(in srgb, var(--b3-theme-primary) 20%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
 .doc-assistant-keyinfo__footer-icon {
   font-size: 13px;
   line-height: 1;

@@ -16,6 +16,8 @@ import {
 import { createKeyInfoNavigation } from "@/plugin/key-info-navigation";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { ProtyleLike } from "@/plugin/doc-context";
+import { buildCanvasFromKeyInfoItems } from "@/services/canvas-generator";
+import type { CanvasPluginLike } from "@/services/canvas-plugin-resolver";
 import { getDocReadonlyState } from "@/services/kernel";
 import { getDocKeyInfo } from "@/services/key-info";
 import { createKeyInfoDock, KeyInfoDockHandle } from "@/ui/key-info-dock";
@@ -37,6 +39,7 @@ type KeyInfoControllerDeps = {
   getDocFavoriteActionKeys: () => ActionKey[];
   setDocActionFavorite: (key: ActionKey, favorited: boolean) => Promise<void> | void;
   setDocFavoriteActionOrder: (order: ActionKey[]) => Promise<void> | void;
+  resolveCanvasPlugin?: () => CanvasPluginLike | null;
 };
 
 export class KeyInfoController {
@@ -70,6 +73,7 @@ export class KeyInfoController {
             ...createKeyInfoControllerDockCallbacks({
               deps: this.deps,
               onExport: () => this.exportKeyInfoMarkdown(),
+              onGenerateCanvas: () => this.generateCanvas(),
               onRefresh: () => this.refresh(),
               onDocProcessActivate: () => this.syncCurrentDocReadonlyState(),
               onItemClick: (item) => {
@@ -264,5 +268,31 @@ export class KeyInfoController {
     setTimeout(() => {
       URL.revokeObjectURL(url);
     }, 1000);
+  }
+
+  private async generateCanvas() {
+    if (!this.keyInfoDock) {
+      return;
+    }
+    const items = this.keyInfoDock.getVisibleItems();
+    if (!items.length) {
+      showMessage("没有可生成Canvas的关键内容", 4000, "info");
+      return;
+    }
+
+    const canvasPlugin = this.deps.resolveCanvasPlugin?.();
+    if (!canvasPlugin?.openCanvasTab) {
+      showMessage("请先安装 siyuan-canvas（无界）插件", 5000, "error");
+      return;
+    }
+
+    const state = this.keyInfoDock.getState();
+    const docTitle = state.docTitle || this.deps.getCurrentDocId() || "canvas";
+    const canvasDoc = buildCanvasFromKeyInfoItems(items, docTitle);
+    await canvasPlugin.openCanvasTab({
+      raw: JSON.stringify(canvasDoc),
+      title: docTitle,
+    });
+    showMessage("已生成Canvas", 3000, "info");
   }
 }

@@ -52,6 +52,7 @@ import {
   showActionProcessingOverlay,
 } from "@/ui/action-processing-overlay";
 import { resolveNetworkLensPluginFromPlugins } from "@/services/network-lens-ai-index";
+import { resolveCanvasPluginFromPlugins } from "@/services/canvas-plugin-resolver";
 import { createPowerButtonsProvider } from "@/plugin/power-buttons-provider";
 import type { PowerButtonsCommandProvider } from "@/plugin/power-buttons-provider-types";
 import { askConfirmWithDetail } from "@/ui/confirm-detail-dialog";
@@ -115,6 +116,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.setDocActionFavorite(key, favorited),
     setDocFavoriteActionOrder: (order) =>
       this.setDocFavoriteActionOrder(order),
+    resolveCanvasPlugin: () => resolveCanvasPluginFromPlugins(this.app?.plugins),
   });
 
   private readonly onSwitchProtyle = (event: CustomEvent<{ protyle?: ProtyleLike }>) => {
