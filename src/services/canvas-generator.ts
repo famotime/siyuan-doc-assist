@@ -153,9 +153,6 @@ export function buildCanvasFromKeyInfoItems(
     };
   }
 
-  const minLevel = Math.min(...sections.filter((s) => s.level > 0).map((s) => s.level));
-  const effectiveMin = Number.isFinite(minLevel) ? minLevel : 1;
-
   // root node = document title
   const rootId = createCanvasId("node-");
   const rootNode: CanvasTextNode = {
@@ -168,6 +165,29 @@ export function buildCanvasFromKeyInfoItems(
     height: NODE_HEIGHT,
   };
 
+  // If the first H1 section matches the document title, skip creating a
+  // separate child node for it — the root node already displays the title.
+  // Any body content under that heading is merged into the root node.
+  const effectiveSections = [...sections];
+  const firstH1 = effectiveSections[0];
+  if (firstH1 && firstH1.level === 1 && firstH1.title.trim() === docTitle.trim()) {
+    effectiveSections.shift();
+    const body = firstH1.text.replace(/^#[^\n]*\n?/, "").trim();
+    if (body) {
+      rootNode.text += "\n" + body;
+    }
+  }
+
+  if (!effectiveSections.length) {
+    return {
+      nodes: [rootNode],
+      edges: [],
+    };
+  }
+
+  const minLevel = Math.min(...effectiveSections.filter((s) => s.level > 0).map((s) => s.level));
+  const effectiveMin = Number.isFinite(minLevel) ? minLevel : 1;
+
   const nodes: CanvasTextNode[] = [rootNode];
   const edges: CanvasEdge[] = [];
   const parentById = new Map<string, string>();
@@ -177,7 +197,7 @@ export function buildCanvasFromKeyInfoItems(
   const columnCounts = new Map<number, number>();
   const existingForOverlap = [rootNode];
 
-  for (const section of sections) {
+  for (const section of effectiveSections) {
     if (section.level === 0) {
       // content before first heading — append to root
       const body = section.text.trim();

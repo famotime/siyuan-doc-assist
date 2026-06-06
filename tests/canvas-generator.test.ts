@@ -80,6 +80,44 @@ describe("buildCanvasFromKeyInfoItems", () => {
     );
   });
 
+  test("skips child node when first H1 matches docTitle to avoid duplication", () => {
+    const items = [
+      makeItem({ type: "title", text: "My Doc", raw: "# My Doc", blockSort: 0, order: 0 }),
+      makeItem({ type: "title", text: "Section", raw: "## Section", blockSort: 1, order: 1 }),
+    ];
+    const result = buildCanvasFromKeyInfoItems(items, "My Doc");
+    // root node only — no duplicate H1 child node
+    expect(result.nodes).toHaveLength(2);
+    expect(result.nodes[0].text).toBe("**My Doc**");
+    expect(result.nodes[1].text).toBe("## Section");
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].fromNode).toBe(result.nodes[0].id);
+    expect(result.edges[0].toNode).toBe(result.nodes[1].id);
+  });
+
+  test("merges body content of skipped doc-title H1 into root", () => {
+    const items = [
+      makeItem({ type: "title", text: "My Doc", raw: "# My Doc", blockSort: 0, order: 0 }),
+      makeItem({ type: "bold", text: "Summary", raw: "**Summary**", blockSort: 1, order: 1 }),
+      makeItem({ type: "title", text: "Details", raw: "## Details", blockSort: 2, order: 2 }),
+    ];
+    const result = buildCanvasFromKeyInfoItems(items, "My Doc");
+    const root = result.nodes[0];
+    expect(root.text).toContain("**My Doc**");
+    expect(root.text).toContain("**Summary**");
+    expect(result.nodes.find((n) => n.text === "# My Doc")).toBeUndefined();
+  });
+
+  test("does not skip H1 that does not match docTitle", () => {
+    const items = [
+      makeItem({ type: "title", text: "Introduction", raw: "# Introduction", blockSort: 0, order: 0 }),
+    ];
+    const result = buildCanvasFromKeyInfoItems(items, "My Doc");
+    expect(result.nodes).toHaveLength(2);
+    expect(result.nodes[0].text).toBe("**My Doc**");
+    expect(result.nodes[1].text).toBe("# Introduction");
+  });
+
   test("content before first heading goes to root", () => {
     const items = [
       makeItem({ type: "bold", text: "Preamble", raw: "**Preamble**", blockSort: 0, order: 0 }),
