@@ -46,7 +46,9 @@ vi.mock("@/services/kernel", () => ({
   getBlockKramdowns: vi.fn(),
   getChildBlocksByParentId: vi.fn(),
   getDocMetaByID: vi.fn(),
+  getDocMetasByIDs: vi.fn(),
   getRootDocRawMarkdown: vi.fn(),
+  exportMdContent: vi.fn(),
   insertBlockBefore: vi.fn(),
   setBlockAttrs: vi.fn(),
   updateBlockDom: vi.fn(),
@@ -59,9 +61,9 @@ vi.mock("@/services/block-lineage", () => ({
 
 vi.mock("@/services/link-resolver", () => ({
   filterDocRefsByExistingLinks: vi.fn(),
-  getBacklinkDocs: vi.fn(),
-  getChildDocs: vi.fn(),
-  getForwardLinkedDocIds: vi.fn(),
+  getBacklinkDocs: vi.fn().mockResolvedValue([]),
+  getChildDocs: vi.fn().mockResolvedValue([]),
+  getForwardLinkedDocIds: vi.fn().mockResolvedValue([]),
   toBacklinkMarkdown: vi.fn(),
   toChildDocMarkdown: vi.fn(),
 }));
@@ -154,7 +156,9 @@ import {
   getChildBlockRefsByParentId,
   getChildBlocksByParentId,
   getDocMetaByID,
+  getDocMetasByIDs,
   getRootDocRawMarkdown,
+  exportMdContent,
   insertBlockBefore,
   setBlockAttrs,
   updateBlockDom,
@@ -245,6 +249,9 @@ describe("action-runner loading guard", () => {
     vi.clearAllMocks();
     resetDocAssistantDebugSetting();
     getDocReadonlyStateMock.mockResolvedValue(false);
+    getBacklinkDocsMock.mockResolvedValue([]);
+    getChildDocsMock.mockResolvedValue([]);
+    getForwardLinkedDocIdsMock.mockResolvedValue([]);
   });
 
   test("defines a handler for every registered action", () => {
@@ -1442,6 +1449,7 @@ describe("action-runner loading guard", () => {
       },
       documentTitle: "当前文档",
       documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
+      relatedDocuments: [],
     });
     expect(createDocWithMdMock).toHaveBeenCalledWith(
       "notebook-1",

@@ -34,6 +34,7 @@ type GenerateDocumentConceptMapParams = {
   config?: unknown;
   documentTitle?: string;
   documentMarkdown: string;
+  relatedDocuments?: Array<{ title: string; markdown: string }>;
 };
 
 type ChatMessage = {
@@ -78,6 +79,7 @@ export function createAiSummaryService(deps: {
         messages: buildConceptMapMessages({
           documentTitle: params.documentTitle,
           documentMarkdown: params.documentMarkdown,
+          relatedDocuments: params.relatedDocuments,
         }),
       });
     },
@@ -220,12 +222,24 @@ function buildSummaryMessages(params: {
 function buildConceptMapMessages(params: {
   documentTitle?: string;
   documentMarkdown: string;
+  relatedDocuments?: Array<{ title: string; markdown: string }>;
 }): ChatMessage[] {
+  const hasRelated = !!params.relatedDocuments && params.relatedDocuments.length > 0;
+  const relatedSection = hasRelated
+    ? "\n\n=== 关联文档 ===\n\n"
+      + params.relatedDocuments!
+        .map((doc) => `--- 文档：${doc.title} ---\n${doc.markdown}`)
+        .join("\n\n")
+    : "";
+
   return [
     {
       role: "system",
       content:
-        "你是思源笔记的概念地图助手。请基于文档内容识别并聚焦最突出的核心主题，生成该主题的概念地图。输出必须是层次化的 Markdown 列表，所有内容均为列表项和列表项说明，没有标题和普通正文段落。整体结构需遵循“总-分-细节”层次，最多5层。同级概念按重要性或逻辑顺序排列。每个列表项都要包含一个简短的概念或关键点（不超过15字）以及详细说明（20-100字）。说明需提炼总结，避免直接摘录大段原文。要求非常详尽地列出层次化概念要点，不要遗漏。",
+        "你是思源笔记的概念地图助手。请基于文档内容识别并聚焦最突出的核心主题，生成该主题的概念地图。输出必须是层次化的 Markdown 列表，所有内容均为列表项和列表项说明，没有标题和普通正文段落。整体结构需遵循“总-分-细节”层次，最多5层。同级概念按重要性或逻辑顺序排列。每个列表项都要包含一个简短的概念或关键点（不超过15字）以及详细说明（20-100字）。说明需提炼总结，避免直接摘录大段原文。要求非常详尽地列出层次化概念要点，不要遗漏。"
+        + (hasRelated
+          ? "如果有相关文档内容，请一并纳入分析，综合提炼跨文档的层次化概念关系。当前文档是核心，相关文档提供补充视角。"
+          : ""),
     },
     {
       role: "user",
@@ -236,6 +250,7 @@ function buildConceptMapMessages(params: {
         params.documentTitle ? `文档标题：${params.documentTitle}` : "",
         "文档正文：",
         params.documentMarkdown || "",
+        relatedSection || "",
       ]
         .filter(Boolean)
         .join("\n\n"),

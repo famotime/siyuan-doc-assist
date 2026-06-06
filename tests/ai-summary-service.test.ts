@@ -199,6 +199,79 @@ describe("ai summary service", () => {
     expect(String(forwardProxy.mock.calls[0]?.[2] || "")).toContain("没有标题和普通正文段落");
   });
 
+  test("concept map request includes related documents in the prompt", async () => {
+    const forwardProxy = vi.fn().mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: "- 核心主题：综合概念。\n  - 子文档要点：子文档内容概述。",
+            },
+          },
+        ],
+      }),
+    });
+    const service = createAiSummaryService({ forwardProxy });
+
+    const result = await (service as any).generateDocumentConceptMap({
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4.1-mini",
+        requestTimeoutSeconds: 45,
+      },
+      documentTitle: "主题文档",
+      documentMarkdown: "# 主题\n\n正文内容",
+      relatedDocuments: [
+        { title: "子文档A", markdown: "子文档A 的正文内容" },
+        { title: "链接文档B", markdown: "链接文档B 的正文内容" },
+      ],
+    });
+
+    expect(result).toBe("- 核心主题：综合概念。\n  - 子文档要点：子文档内容概述。");
+    const body = String(forwardProxy.mock.calls[0]?.[2] || "");
+    expect(body).toContain("关联文档");
+    expect(body).toContain("子文档A");
+    expect(body).toContain("子文档A 的正文内容");
+    expect(body).toContain("链接文档B");
+    expect(body).toContain("链接文档B 的正文内容");
+    expect(body).toContain("综合提炼跨文档的层次化概念关系");
+  });
+
+  test("concept map request without related documents omits related section", async () => {
+    const forwardProxy = vi.fn().mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: "- 核心主题：单一文档概念。",
+            },
+          },
+        ],
+      }),
+    });
+    const service = createAiSummaryService({ forwardProxy });
+
+    await (service as any).generateDocumentConceptMap({
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test",
+        model: "gpt-4.1-mini",
+        requestTimeoutSeconds: 45,
+      },
+      documentTitle: "主题文档",
+      documentMarkdown: "# 主题\n\n正文内容",
+    });
+
+    const body = String(forwardProxy.mock.calls[0]?.[2] || "");
+    expect(body).not.toContain("关联文档");
+    expect(body).not.toContain("综合提炼跨文档");
+  });
+
   test("falls back to reasoning_content when content is empty (reasoning model)", async () => {
     const forwardProxy = vi.fn().mockResolvedValue({
       status: 200,

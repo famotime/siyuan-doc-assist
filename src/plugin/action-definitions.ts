@@ -420,7 +420,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         menuText: "生成概念地图",
         tooltip: createActionTooltip(
           "生成概念地图",
-          "读取当前文档正文生成概念地图子文档，输出为层次化列表项和说明，并自动打开新文档。"
+          "读取当前文档及关联文档（子文档、正向链接、反向链接）生成概念地图子文档，输出为层次化列表项和说明，并自动打开新文档。"
         ),
         group: "ai",
         requiresWritableDoc: true,

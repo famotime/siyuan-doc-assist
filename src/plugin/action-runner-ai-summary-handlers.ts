@@ -8,15 +8,22 @@ import {
   generateDocumentConceptMap,
   generateDocumentSummary,
 } from "@/services/ai-summary";
-import { loadFreshNetworkLensDocumentSummary } from "@/services/network-lens-ai-index";
 import {
   appendBlock,
   createDocWithMd,
+  exportMdContent,
   getChildBlocksByParentId,
   getDocMetaByID,
+  getDocMetasByIDs,
   getRootDocRawMarkdown,
   insertBlockBefore,
 } from "@/services/kernel";
+import {
+  getBacklinkDocs,
+  getChildDocs,
+  getForwardLinkedDocIds,
+} from "@/services/link-resolver";
+import { loadFreshNetworkLensDocumentSummary } from "@/services/network-lens-ai-index";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { openDocByProtocol } from "@/plugin/action-runner-ai-shared";
 import { CreateAiActionHandlersOptions } from "@/plugin/action-runner-ai-types";
@@ -27,26 +34,71 @@ export function createAiSummaryActionHandlers(
   return {
     "create-doc-concept-map": async (docId) => {
       const documentMarkdown = (await getRootDocRawMarkdown(docId)).trim();
-      if (!documentMarkdown) {
-        showMessage("当前文档没有可供生成概念地图的正文", 5000, "info");
-        return;
-      }
 
       const docMeta = await getDocMetaByID(docId).catch(() => null);
       if (!docMeta?.box) {
         throw new Error("未找到当前文档信息，无法生成概念地图");
       }
 
+      const [childDocs, forwardDocIds, backlinkDocs] = await Promise.all([
+        getChildDocs(docId).catch(() => []),
+        getForwardLinkedDocIds(docId).catch(() => []),
+        getBacklinkDocs(docId).catch(() => []),
+      ]);
+
+      const relatedIdSet = new Set<string>();
+      for (const item of childDocs) {
+        if (item.id && item.id !== docId) relatedIdSet.add(item.id);
+      }
+      for (const id of forwardDocIds) {
+        if (id && id !== docId) relatedIdSet.add(id);
+      }
+      for (const item of backlinkDocs) {
+        if (item.id && item.id !== docId) relatedIdSet.add(item.id);
+      }
+
+      const relatedDocIds = [...relatedIdSet];
+      let relatedDocuments: Array<{ title: string; markdown: string }> = [];
+      if (relatedDocIds.length) {
+        const metas = await getDocMetasByIDs(relatedDocIds).catch(() => []);
+        const metaMap = new Map(metas.map((m) => [m.id, m]));
+        const settled = await Promise.allSettled(
+          relatedDocIds.map(async (id) => {
+            const md = await exportMdContent(id);
+            const meta = metaMap.get(id);
+            const title = meta?.title || id;
+            return { title, markdown: (md.content || "").trim() };
+          })
+        );
+        relatedDocuments = settled
+          .filter((r): r is PromiseFulfilledResult<{ title: string; markdown: string }> =>
+            r.status === "fulfilled" && !!r.value.markdown
+          )
+          .map((r) => r.value);
+      }
+
+      if (!documentMarkdown && !relatedDocuments.length) {
+        showMessage("当前文档及关联文档均没有可供生成概念地图的正文", 5000, "info");
+        return;
+      }
+
       const conceptMap = await generateDocumentConceptMap({
         config: options.getAiSummaryConfig?.(),
         documentTitle: docMeta.title,
         documentMarkdown,
+        relatedDocuments,
       });
-      const title = buildConceptMapDocTitle(docMeta.title);
-      const path = joinChildDocHPath(docMeta.hPath, title);
-      const conceptDocId = await createDocWithMd(docMeta.box, path, conceptMap);
-      openDocByProtocol(conceptDocId);
-      showMessage("已生成概念地图子文档", 5000, "info");
+
+      if (!documentMarkdown) {
+        await appendBlock(conceptMap, docId);
+        showMessage("已将概念地图写入当前文档", 5000, "info");
+      } else {
+        const title = buildConceptMapDocTitle(docMeta.title);
+        const path = joinChildDocHPath(docMeta.hPath, title);
+        const conceptDocId = await createDocWithMd(docMeta.box, path, conceptMap);
+        openDocByProtocol(conceptDocId);
+        showMessage("已生成概念地图子文档", 5000, "info");
+      }
     },
     "insert-doc-summary": async (docId) => {
       const documentMarkdown = (await getRootDocRawMarkdown(docId)).trim();
