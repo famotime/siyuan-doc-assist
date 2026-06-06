@@ -28,7 +28,6 @@
 }
 
 .doc-assistant-settings__host-item > .doc-assistant-settings__ai-panel,
-.doc-assistant-settings__host-item > .doc-assistant-settings__diary-panel,
 .doc-assistant-settings__host-item > .doc-assistant-settings__menu-registration {
   grid-column: 1 / -1;
   margin-top: 0 !important;
@@ -47,27 +46,6 @@
       135deg,
       color-mix(in srgb, var(--b3-theme-background) 95%, #eef6fb 5%),
       color-mix(in srgb, var(--b3-theme-surface) 92%, #e3f1f9 8%)
-    );
-  width: 100%;
-  display: grid;
-  align-content: start;
-  grid-auto-rows: max-content;
-  height: auto !important;
-  min-height: 0 !important;
-  gap: 0;
-}
-
-.doc-assistant-settings__diary-panel {
-  --doc-assistant-settings-accent-border: color-mix(
-    in srgb,
-    var(--b3-border-color) 72%,
-    #d7bf86 28%
-  );
-  --doc-assistant-settings-accent-bg:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--b3-theme-background) 95%, #fbf4e8 5%),
-      color-mix(in srgb, var(--b3-theme-surface) 92%, #f6eddc 8%)
     );
   width: 100%;
   display: grid;

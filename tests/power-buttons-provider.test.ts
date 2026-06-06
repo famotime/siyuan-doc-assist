@@ -33,7 +33,7 @@ describe("power buttons provider", () => {
     expect(commandIds).toContain("add-related-links-and-tags");
     expect(commandIds).toContain("clean-ai-output");
     expect(commandIds).toContain("trim-trailing-whitespace");
-    expect(commandIds).not.toContain("create-monthly-diary");
+    expect(commandIds).not.toContain("move-backlinks");
     expect(commandIds).not.toContain("toggle-selected-punctuation");
   });
 

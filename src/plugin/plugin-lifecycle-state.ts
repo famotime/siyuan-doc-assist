@@ -22,10 +22,6 @@ import {
   KeyInfoFilter,
   normalizeKeyInfoFilter,
 } from "@/core/key-info-core";
-import {
-  DEFAULT_MONTHLY_DIARY_TEMPLATE,
-  normalizeMonthlyDiaryTemplate,
-} from "@/core/monthly-diary-core";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 
 export type PluginDocMenuState = {
@@ -34,13 +30,11 @@ export type PluginDocMenuState = {
   docFavoriteActionKeys: ActionKey[];
   keyInfoFilterState: KeyInfoFilter;
   aiSummaryConfig: AiServiceConfig;
-  monthlyDiaryTemplate: string;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   keyInfoFilter?: unknown;
   aiSummaryConfig?: unknown;
-  monthlyDiaryTemplate?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -52,7 +46,6 @@ export function buildDefaultPluginDocMenuState(
     docFavoriteActionKeys: [],
     keyInfoFilterState: buildDefaultKeyInfoFilter(),
     aiSummaryConfig: buildDefaultAiServiceConfig(),
-    monthlyDiaryTemplate: DEFAULT_MONTHLY_DIARY_TEMPLATE,
   };
 }
 
@@ -66,7 +59,6 @@ export function normalizePluginDocMenuState(
     docFavoriteActionKeys: normalizeDocFavoriteActionKeys(raw, actions),
     keyInfoFilterState: normalizeStoredKeyInfoFilter(raw),
     aiSummaryConfig: normalizeStoredAiSummaryConfig(raw),
-    monthlyDiaryTemplate: normalizeStoredMonthlyDiaryTemplate(raw),
   };
 }
 
@@ -90,13 +82,6 @@ function normalizeStoredAiSummaryConfig(raw: unknown): AiServiceConfig {
   return normalizeAiServiceConfig((raw as PluginDocMenuStorageV1).aiSummaryConfig);
 }
 
-function normalizeStoredMonthlyDiaryTemplate(raw: unknown): string {
-  if (!raw || typeof raw !== "object") {
-    return DEFAULT_MONTHLY_DIARY_TEMPLATE;
-  }
-  return normalizeMonthlyDiaryTemplate((raw as PluginDocMenuStorageV1).monthlyDiaryTemplate);
-}
-
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -107,7 +92,6 @@ export function serializePluginDocMenuState(
     favoriteActionKeys: state.docFavoriteActionKeys,
     keyInfoFilter: state.keyInfoFilterState,
     aiSummaryConfig: state.aiSummaryConfig,
-    monthlyDiaryTemplate: state.monthlyDiaryTemplate,
   };
 }
 
@@ -212,15 +196,5 @@ export function setAiSummaryConfig(
   return {
     ...state,
     aiSummaryConfig: normalizeAiServiceConfig(config),
-  };
-}
-
-export function setMonthlyDiaryTemplate(
-  state: PluginDocMenuState,
-  template: string
-): PluginDocMenuState {
-  return {
-    ...state,
-    monthlyDiaryTemplate: normalizeMonthlyDiaryTemplate(template),
   };
 }

@@ -19,8 +19,6 @@ describe("plugin lifecycle state", () => {
       temperature: 0.7,
       maxTokens: 4096,
     });
-    expect(state.monthlyDiaryTemplate).toContain("{{date}}");
-    expect(state.monthlyDiaryTemplate).toContain("{{weekday}}");
   });
 
   test("normalizes and serializes ai summary config", () => {
@@ -55,20 +53,6 @@ describe("plugin lifecycle state", () => {
           temperature: 0.7,
           maxTokens: 4096,
         },
-      })
-    );
-  });
-
-  test("normalizes and serializes monthly diary template", () => {
-    const normalized = normalizePluginDocMenuState({
-      monthlyDiaryTemplate: "## {{date}} {{weekday}}\n\n- 今日回顾",
-    }, ACTIONS);
-
-    expect(normalized.monthlyDiaryTemplate).toBe("## {{date}} {{weekday}}\n\n- 今日回顾");
-
-    expect(serializePluginDocMenuState(normalized)).toEqual(
-      expect.objectContaining({
-        monthlyDiaryTemplate: "## {{date}} {{weekday}}\n\n- 今日回顾",
       })
     );
   });

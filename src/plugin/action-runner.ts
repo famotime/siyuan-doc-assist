@@ -48,7 +48,6 @@ type ActionRunnerDeps = {
   setBackgroundActionRunning?: (action: ActionKey, docId: string, running: boolean) => void;
   getKeyInfoFilter?: () => KeyInfoFilter | undefined;
   getAiSummaryConfig?: () => AiServiceConfig | undefined;
-  getMonthlyDiaryTemplate?: () => string | undefined;
   resolveNetworkLensPlugin?: () => NetworkLensPluginLike | null | undefined;
 };
 
@@ -76,9 +75,7 @@ export class ActionRunner {
         resolveNetworkLensPlugin: this.deps.resolveNetworkLensPlugin,
         setBusy: this.deps.setBusy,
       }),
-      ...createInsertActionHandlers({
-        getMonthlyDiaryTemplate: this.deps.getMonthlyDiaryTemplate,
-      }),
+      ...createInsertActionHandlers(),
       ...createOrganizeActionHandlers({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
         ensureDocWritable: (docId, actionLabel) => this.ensureDocWritable(docId, actionLabel),

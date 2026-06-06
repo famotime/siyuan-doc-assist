@@ -7,14 +7,9 @@ import {
   toBacklinkMarkdown,
   toChildDocMarkdown,
 } from "@/services/link-resolver";
-import { createMonthlyDiaryDoc } from "@/services/monthly-diary";
 import { resolveCurrentBlockId } from "@/plugin/action-runner-context";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { ProtyleLike } from "@/plugin/doc-context";
-
-type CreateInsertActionHandlersOptions = {
-  getMonthlyDiaryTemplate?: () => string | undefined;
-};
 
 function findCurrentLineInElement(editable: HTMLElement, cursorOffset: number): string | null {
   const nodes: Array<{ text: string; offset: number }> = [];
@@ -102,9 +97,7 @@ function resolveTextFromProtyle(docId: string, protyle?: ProtyleLike): string | 
   return text || null;
 }
 
-export function createInsertActionHandlers(
-  options: CreateInsertActionHandlersOptions = {}
-): PartialActionHandlerMap {
+export function createInsertActionHandlers(): PartialActionHandlerMap {
   return {
     "set-selection-as-title": async (docId, protyle) => {
       const text = resolveTextFromProtyle(docId, protyle);
@@ -146,13 +139,6 @@ export function createInsertActionHandlers(
       await appendBlock(markdown, docId);
       const skipSuffix = filtered.skipped.length ? `，跳过已存在 ${filtered.skipped.length} 个` : "";
       showMessage(`已插入 ${filtered.items.length} 个子文档链接${skipSuffix}`, 5000, "info");
-    },
-    "create-monthly-diary": async (docId) => {
-      const result = await createMonthlyDiaryDoc({
-        currentDocId: docId,
-        template: options.getMonthlyDiaryTemplate?.(),
-      });
-      showMessage(`已创建本月日记：${result.title}（${result.dayCount} 天）`, 5000, "info");
     },
   };
 }

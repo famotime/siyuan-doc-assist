@@ -6,7 +6,6 @@ export type ActionKey =
   | "export-related-docs-zip"
   | "insert-backlinks"
   | "insert-child-docs"
-  | "create-monthly-diary"
   | "export-child-key-info-zip"
   | "export-backlinks-zip"
   | "export-forward-zip"
@@ -101,7 +100,6 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   dedupe: "重",
   "insert-backlinks": "反",
   "insert-child-docs": "子",
-  "create-monthly-diary": "月",
   "insert-blank-before-headings": "空",
   "toggle-heading-bold": "题",
   "merge-selected-list-blocks": "列",
@@ -348,17 +346,6 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "insert",
         requiresWritableDoc: true,
-        icon: "iconList",
-      },
-      {
-        key: "create-monthly-diary",
-        commandText: "新建本月日记",
-        menuText: "新建本月日记",
-        tooltip: createActionTooltip(
-          "新建本月日记",
-          "按当前笔记本的 Daily Note 保存目录创建一篇本月月记，并按设置中的 Markdown 模板自动展开本月每天的小节。"
-        ),
-        group: "insert",
         icon: "iconList",
       },
       {

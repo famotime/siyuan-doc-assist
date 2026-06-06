@@ -108,10 +108,6 @@ vi.mock("@/ui/dialogs", () => ({
   openDedupeDialog: vi.fn(),
 }));
 
-vi.mock("@/services/monthly-diary", () => ({
-  createMonthlyDiaryDoc: vi.fn(),
-}));
-
 vi.mock("@/services/large-documents-report", () => ({
   createTop100LargeDocumentsReport: vi.fn(),
 }));
@@ -171,7 +167,6 @@ import {
   detectKeyContentParagraphHighlights,
 } from "@/services/ai-slop-marker";
 import { openDedupeDialog } from "@/ui/dialogs";
-import { createMonthlyDiaryDoc } from "@/services/monthly-diary";
 import { createTop100LargeDocumentsReport } from "@/services/large-documents-report";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
@@ -217,7 +212,6 @@ const generateDocumentConceptMapMock = vi.mocked(
 const detectIrrelevantParagraphIdsMock = vi.mocked(detectIrrelevantParagraphIds);
 const detectIrrelevantParagraphMarksMock = vi.mocked(detectIrrelevantParagraphMarks);
 const detectKeyContentParagraphHighlightsMock = vi.mocked(detectKeyContentParagraphHighlights);
-const createMonthlyDiaryDocMock = vi.mocked(createMonthlyDiaryDoc);
 const createTop100LargeDocumentsReportMock = vi.mocked(createTop100LargeDocumentsReport);
 
 function createRunner(setBusy?: (busy: boolean) => void, overrides: Record<string, unknown> = {}) {
@@ -233,7 +227,6 @@ function createRunner(setBusy?: (busy: boolean) => void, overrides: Record<strin
       model: "gpt-4.1-mini",
       requestTimeoutSeconds: 45,
     }),
-    getMonthlyDiaryTemplate: () => "## {{date}} {{weekday}}\n\n- 记录",
     ...overrides,
   } as any);
 }
@@ -602,24 +595,6 @@ describe("action-runner loading guard", () => {
 
     expect(appendBlockMock).toHaveBeenCalledWith("- [Child B](siyuan://blocks/child-b)", "doc-1");
     expect(showMessageMock).toHaveBeenCalledWith("已插入 1 个子文档链接，跳过已存在 1 个", 5000, "info");
-  });
-
-  test("creates monthly diary doc with current template", async () => {
-    createMonthlyDiaryDocMock.mockResolvedValue({
-      id: "monthly-doc",
-      title: "2026-04 月记",
-      path: "/daily note/2026/04/2026-04 月记",
-      dayCount: 30,
-    });
-    const runner = createRunner();
-
-    await runner.runAction("create-monthly-diary" as any);
-
-    expect(createMonthlyDiaryDocMock).toHaveBeenCalledWith({
-      currentDocId: "doc-1",
-      template: "## {{date}} {{weekday}}\n\n- 记录",
-    });
-    expect(showMessageMock).toHaveBeenCalledWith("已创建本月日记：2026-04 月记（30 天）", 5000, "info");
   });
 
   test("runs the large documents report action, opens the report doc, and shows success message", async () => {

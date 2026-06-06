@@ -37,7 +37,6 @@ import {
   serializePluginDocMenuState,
   setAllPluginDocMenuRegistration,
   setAiSummaryConfig,
-  setMonthlyDiaryTemplate,
   setPluginDocActionFavorite,
   setPluginDocActionOrder,
   setPluginKeyInfoFilter,
@@ -68,7 +67,6 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private docFavoriteActionKeys: ActionKey[] = [];
   private keyInfoFilterState: KeyInfoFilter = buildDefaultKeyInfoFilter();
   private aiSummaryConfig = buildDefaultPluginDocMenuState(ACTIONS).aiSummaryConfig;
-  private monthlyDiaryTemplate = buildDefaultPluginDocMenuState(ACTIONS).monthlyDiaryTemplate;
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
     pluginVersion: pluginInfo.version,
     runAction: (action, context) => this.actionRunner.runAction(action, context),
@@ -84,7 +82,6 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.keyInfoController.setDocActionRunning(action, running),
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
     getAiSummaryConfig: () => this.aiSummaryConfig,
-    getMonthlyDiaryTemplate: () => this.monthlyDiaryTemplate,
     resolveNetworkLensPlugin: () => resolveNetworkLensPluginFromPlugins(this.app?.plugins),
   });
 
@@ -243,10 +240,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       registration: this.docMenuRegistrationState,
       isMobile: this.isMobile,
       aiSummaryConfig: this.aiSummaryConfig,
-      monthlyDiaryTemplate: this.monthlyDiaryTemplate,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
-      onMonthlyDiaryTemplateChange: (template) => this.setMonthlyDiaryTemplate(template),
       onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
       onToggleSingle: (key, enabled) =>
         this.setSingleDocMenuRegistration(key, enabled),
@@ -285,7 +280,6 @@ export default class DocLinkToolkitPlugin extends Plugin {
       docFavoriteActionKeys: this.docFavoriteActionKeys,
       keyInfoFilterState: this.keyInfoFilterState,
       aiSummaryConfig: this.aiSummaryConfig,
-      monthlyDiaryTemplate: this.monthlyDiaryTemplate,
     };
   }
 
@@ -295,7 +289,6 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.docFavoriteActionKeys = state.docFavoriteActionKeys;
     this.keyInfoFilterState = state.keyInfoFilterState;
     this.aiSummaryConfig = state.aiSummaryConfig;
-    this.monthlyDiaryTemplate = state.monthlyDiaryTemplate;
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {
@@ -356,13 +349,6 @@ export default class DocLinkToolkitPlugin extends Plugin {
   async setAiSummaryConfig(config: AiServiceConfig) {
     this.applyDocMenuState(
       setAiSummaryConfig(this.snapshotDocMenuState(), config)
-    );
-    await this.persistDocMenuRegistrationState();
-  }
-
-  async setMonthlyDiaryTemplate(template: string) {
-    this.applyDocMenuState(
-      setMonthlyDiaryTemplate(this.snapshotDocMenuState(), template)
     );
     await this.persistDocMenuRegistrationState();
   }

@@ -21,22 +21,18 @@ describe("alpha feature config", () => {
   });
 
   test("shows all settings by default when config is empty", () => {
-    const visibleActionKeys = filterVisibleActions(ACTIONS, ALPHA_FEATURE_HIDE_CONFIG)
-      .map((action) => action.key);
     const hiddenSettingKeys = getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG);
 
-    expect(visibleActionKeys).toContain("create-monthly-diary");
-    expect(hiddenSettingKeys.has("monthly-diary-template")).toBe(false);
+    expect(hiddenSettingKeys.has("ai-service")).toBe(false);
   });
 
-  test("hides linked settings when related actions are hidden", () => {
+  test("returns hidden setting keys from config directly", () => {
     const hiddenSettingKeys = getHiddenPluginSettingKeys({
-      hiddenActionKeys: ["create-monthly-diary"],
-      hiddenSettingKeys: [],
+      hiddenActionKeys: [],
+      hiddenSettingKeys: ["ai-service"],
     });
 
-    expect(hiddenSettingKeys.has("monthly-diary-template")).toBe(true);
-    expect(hiddenSettingKeys.has("ai-service")).toBe(false);
+    expect(hiddenSettingKeys.has("ai-service")).toBe(true);
   });
 
   test("does not auto-hide ai service setting when ai actions are hidden", () => {
@@ -54,11 +50,11 @@ describe("alpha feature config", () => {
 
   test("filters hidden actions from visible action lists", () => {
     const visibleActions = filterVisibleActions(ACTIONS, {
-      hiddenActionKeys: ["create-monthly-diary", "mark-key-content"],
+      hiddenActionKeys: ["insert-backlinks", "mark-key-content"],
       hiddenSettingKeys: [],
     });
 
-    expect(visibleActions.map((action) => action.key)).not.toContain("create-monthly-diary");
+    expect(visibleActions.map((action) => action.key)).not.toContain("insert-backlinks");
     expect(visibleActions.map((action) => action.key)).not.toContain("mark-key-content");
     expect(visibleActions).toHaveLength(ACTIONS.length - 2);
   });

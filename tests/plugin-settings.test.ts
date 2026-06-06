@@ -138,7 +138,7 @@ describe("plugin settings", () => {
     ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ACTIONS
       .filter((action) => action.group === "ai")
       .map((action) => action.key);
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "monthly-diary-template"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service"];
   });
 
   afterEach(() => {
@@ -290,9 +290,7 @@ describe("plugin settings", () => {
         model: "",
         requestTimeoutSeconds: 30,
       },
-      monthlyDiaryTemplate: "## {{date}} {{weekday}}",
       onAiSummaryConfigChange: vi.fn(),
-      onMonthlyDiaryTemplateChange: vi.fn(),
       onToggleAll: vi.fn(),
       onToggleSingle: vi.fn(),
     });
@@ -329,9 +327,7 @@ describe("plugin settings", () => {
         model: "",
         requestTimeoutSeconds: 30,
       },
-      monthlyDiaryTemplate: "## {{date}} {{weekday}}",
       onAiSummaryConfigChange: vi.fn(),
-      onMonthlyDiaryTemplateChange: vi.fn(),
       onToggleAll: vi.fn(),
       onToggleSingle: vi.fn(),
     });
@@ -368,23 +364,13 @@ describe("plugin settings", () => {
         model: "",
         requestTimeoutSeconds: 30,
       },
-      monthlyDiaryTemplate: "## {{date}} {{weekday}}",
       onAiSummaryConfigChange: vi.fn(),
-      onMonthlyDiaryTemplateChange: vi.fn(),
       onToggleAll: vi.fn(),
       onToggleSingle: vi.fn(),
     });
 
     const aiPanel = setting.items[0]?.actionElement as HTMLElement;
     const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
-    const diaryPanel = setting.items[2]?.actionElement as HTMLElement;
-    const diaryHostItem = document.createElement("div");
-    diaryHostItem.className = "fn__flex b3-label config__item";
-    const diaryTitle = document.createElement("div");
-    diaryTitle.className = "fn__flex-1";
-    const diarySpace = document.createElement("span");
-    diarySpace.className = "fn__space";
-    diaryHostItem.append(diaryTitle, diarySpace, diaryPanel);
     const aiHostItem = document.createElement("div");
     aiHostItem.className = "fn__flex b3-label config__item";
     const aiTitle = document.createElement("div");
@@ -402,32 +388,26 @@ describe("plugin settings", () => {
     menuHostItem.append(menuTitle, menuSpace, menuRegistrationPanel);
 
     aiPanel.classList.add("fn__flex-center", "fn__size200");
-    diaryPanel.classList.add("fn__flex-center", "fn__size200");
     menuRegistrationPanel.classList.add("fn__flex-center", "fn__size200");
 
     setting.open("siyuan-doc-assist");
 
     expect(aiPanel.classList.contains("fn__flex-center")).toBe(false);
     expect(aiPanel.classList.contains("fn__size200")).toBe(false);
-    expect(diaryPanel.classList.contains("fn__flex-center")).toBe(false);
-    expect(diaryPanel.classList.contains("fn__size200")).toBe(false);
     expect(menuRegistrationPanel.classList.contains("fn__flex-center")).toBe(false);
     expect(menuRegistrationPanel.classList.contains("fn__size200")).toBe(false);
-    expect(diaryHostItem.classList.contains("doc-assistant-settings__host-item")).toBe(true);
     expect(aiHostItem.classList.contains("doc-assistant-settings__host-item")).toBe(true);
     expect(menuHostItem.classList.contains("doc-assistant-settings__host-item")).toBe(true);
-    expect(diaryTitle.classList.contains("doc-assistant-settings__host-title")).toBe(true);
     expect(aiTitle.classList.contains("doc-assistant-settings__host-title")).toBe(true);
     expect(menuTitle.classList.contains("doc-assistant-settings__host-title")).toBe(true);
-    expect(diarySpace.classList.contains("doc-assistant-settings__host-space")).toBe(true);
     expect(aiSpace.classList.contains("doc-assistant-settings__host-space")).toBe(true);
     expect(menuSpace.classList.contains("doc-assistant-settings__host-space")).toBe(true);
   });
 
   test("hides alpha actions and related settings panels when configured", async () => {
     const { ALPHA_FEATURE_HIDE_CONFIG } = await import("@/plugin/alpha-feature-config");
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["create-monthly-diary"];
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "monthly-diary-template"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["clean-ai-output"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service"];
 
     try {
       const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
@@ -443,7 +423,7 @@ describe("plugin settings", () => {
 
       const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
       expect(
-        menuRegistrationPanel.querySelector("[data-action-key='create-monthly-diary']")
+        menuRegistrationPanel.querySelector("[data-action-key='clean-ai-output']")
       ).toBeNull();
       expect(
         menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-action")
