@@ -1,8 +1,8 @@
 {
   "name": "siyuan-doc-assist",
-  "version": "1.5.5",
+  "version": "1.6.0",
   "type": "module",
-  "description": "Doc Assistant plugin for Siyuan (https://b3log.org/siyuan)",
+  "description": "Doc Assistant plugin for Siyuan",
   "author": "",
   "license": "MIT",
   "homepage": "",
