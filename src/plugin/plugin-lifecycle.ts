@@ -67,6 +67,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private docFavoriteActionKeys: ActionKey[] = [];
   private keyInfoFilterState: KeyInfoFilter = buildDefaultKeyInfoFilter();
   private aiSummaryConfig = buildDefaultPluginDocMenuState(ACTIONS).aiSummaryConfig;
+  private managedAiConfig: AiServiceConfig | null = null;
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
     pluginVersion: pluginInfo.version,
     runAction: (action, context) => this.actionRunner.runAction(action, context),
@@ -81,7 +82,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     setBackgroundActionRunning: (action, _docId, running) =>
       this.keyInfoController.setDocActionRunning(action, running),
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
-    getAiSummaryConfig: () => this.aiSummaryConfig,
+    getAiSummaryConfig: () => this.managedAiConfig || this.aiSummaryConfig,
     resolveNetworkLensPlugin: () => resolveNetworkLensPluginFromPlugins(this.app?.plugins),
   });
 
@@ -172,9 +173,14 @@ export default class DocLinkToolkitPlugin extends Plugin {
         await this.actionRunner.runAction(action, explicitId, protyle);
       },
     });
+
+    this.initApiSwitchSync();
   }
 
   onunload() {
+    if (window.siyuanApiSwitch) {
+      window.siyuanApiSwitch.unregister(this.name);
+    }
     unbindPluginLifecycleEvents(this.eventBus, {
       onSwitchProtyle: this.onSwitchProtyle,
       onEditorTitleMenu: this.onEditorTitleMenu,
@@ -240,12 +246,58 @@ export default class DocLinkToolkitPlugin extends Plugin {
       registration: this.docMenuRegistrationState,
       isMobile: this.isMobile,
       aiSummaryConfig: this.aiSummaryConfig,
+      managedAiConfig: this.managedAiConfig,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
       onToggleSingle: (key, enabled) =>
         this.setSingleDocMenuRegistration(key, enabled),
     });
+  }
+
+  private initApiSwitchSync() {
+    const sync = (shared: any | null) => {
+      if (shared) {
+        this.managedAiConfig = {
+          enabled: true,
+          baseUrl: shared.baseUrl,
+          apiKey: shared.apiKey,
+          model: shared.model,
+          requestTimeoutSeconds: shared.requestTimeoutSeconds ?? 60,
+          temperature: shared.temperature ?? 0.7,
+          maxTokens: shared.maxTokens ?? 4096,
+        };
+      } else {
+        this.managedAiConfig = null;
+      }
+      
+      if (this.setting) {
+        const updater = (this.setting as any).updateManagedConfig;
+        if (typeof updater === "function") {
+          updater(this.managedAiConfig);
+        }
+      }
+    };
+
+    const local = {
+      provider: "custom",
+      baseUrl: this.aiSummaryConfig.baseUrl,
+      apiKey: this.aiSummaryConfig.apiKey,
+      model: this.aiSummaryConfig.model,
+      requestTimeoutSeconds: this.aiSummaryConfig.requestTimeoutSeconds,
+      temperature: this.aiSummaryConfig.temperature,
+      maxTokens: this.aiSummaryConfig.maxTokens,
+    };
+
+    if (window.siyuanApiSwitch) {
+      window.siyuanApiSwitch.register(this.name, this.displayName, sync, local);
+    } else {
+      window.addEventListener("siyuan-api-switch:ready", () => {
+        if (window.siyuanApiSwitch) {
+          window.siyuanApiSwitch.register(this.name, this.displayName, sync, local);
+        }
+      }, { once: true });
+    }
   }
 
   private async loadDocMenuRegistrationState() {
