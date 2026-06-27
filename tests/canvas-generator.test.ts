@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildCanvasFromKeyInfoItems, preprocessItemsForCanvas } from "@/services/canvas-generator";
+import { buildCanvasFromKeyInfoItems, preprocessItemsForCanvas, parseMarkdownToKeyInfoItems } from "@/services/canvas-generator";
 import type { KeyInfoItem } from "@/core/key-info-core";
 
 function makeItem(
@@ -231,3 +231,42 @@ describe("preprocessItemsForCanvas", () => {
     expect(result[0]).toBe(items[0]);
   });
 });
+
+describe("parseMarkdownToKeyInfoItems", () => {
+  test("parses headings and paragraphs correctly", () => {
+    const md = `
+# Core Concept
+This is a summary of the core concept.
+
+## Subconcept 1
+Details about subconcept 1.
+- bullet point
+
+## Subconcept 2
+`;
+    const result = parseMarkdownToKeyInfoItems(md);
+    expect(result).toHaveLength(6);
+
+    expect(result[0].type).toBe("title");
+    expect(result[0].text).toBe("Core Concept");
+    expect(result[0].raw).toBe("# Core Concept");
+
+    expect(result[1].type).toBe("remark");
+    expect(result[1].text).toBe("This is a summary of the core concept.");
+
+    expect(result[2].type).toBe("title");
+    expect(result[2].text).toBe("Subconcept 1");
+    expect(result[2].raw).toBe("## Subconcept 1");
+
+    expect(result[3].type).toBe("remark");
+    expect(result[3].text).toBe("Details about subconcept 1.");
+
+    expect(result[4].type).toBe("remark");
+    expect(result[4].text).toBe("- bullet point");
+
+    expect(result[5].type).toBe("title");
+    expect(result[5].text).toBe("Subconcept 2");
+    expect(result[5].raw).toBe("## Subconcept 2");
+  });
+});
+

@@ -47,6 +47,7 @@ export type ActionKey =
   | "extract-web-links"
   | "export-keymap"
   | "import-keymap"
+  | "generate-canvas-from-selected"
   | "generate-llm-wiki";
 
 export type ActionConfig = {
@@ -133,6 +134,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "extract-web-links": "链",
   "export-keymap": "出",
   "import-keymap": "入",
+  "generate-canvas-from-selected": "画",
   "generate-llm-wiki": "智",
 };
 
@@ -401,6 +403,18 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
   {
     group: "ai",
     actions: [
+      {
+        key: "generate-canvas-from-selected",
+        commandText: "选中内容生成Canvas",
+        menuText: "选中内容生成Canvas",
+        tooltip: createActionTooltip(
+          "选中内容生成Canvas",
+          "根据选中的正文内容（未选中则用全文）经AI总结提炼后，一键生成并打开.canvas画布页签。需要已安装并配置好无界画布插件。"
+        ),
+        group: "ai",
+        requiresWritableDoc: false,
+        icon: "iconLayout",
+      },
       {
         key: "create-doc-concept-map",
         commandText: "生成概念地图",

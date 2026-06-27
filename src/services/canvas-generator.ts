@@ -252,3 +252,48 @@ export function buildCanvasFromKeyInfoItems(
 
   return { nodes, edges };
 }
+
+/**
+ * Parses markdown outline into a flat array of KeyInfoItems,
+ * so it can be laid out using the local canvas tree layout algorithm.
+ */
+export function parseMarkdownToKeyInfoItems(markdown: string): KeyInfoItem[] {
+  const lines = (markdown || "").split(/\r?\n/);
+  const items: KeyInfoItem[] = [];
+  let counter = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      const titleText = headingMatch[2].trim();
+      items.push({
+        id: `ai-canvas-item-${counter}`,
+        type: "title",
+        text: titleText,
+        raw: trimmed,
+        offset: 0,
+        blockSort: counter,
+        order: counter,
+      });
+    } else {
+      items.push({
+        id: `ai-canvas-item-${counter}`,
+        type: "remark",
+        text: trimmed,
+        raw: trimmed,
+        offset: 0,
+        blockSort: counter,
+        order: counter,
+      });
+    }
+    counter++;
+  }
+
+  return items;
+}
+

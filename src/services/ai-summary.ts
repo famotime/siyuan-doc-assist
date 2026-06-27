@@ -37,6 +37,12 @@ type GenerateDocumentConceptMapParams = {
   relatedDocuments?: Array<{ title: string; markdown: string }>;
 };
 
+type GenerateCanvasOutlineParams = {
+  config?: unknown;
+  documentTitle?: string;
+  documentMarkdown: string;
+};
+
 type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
@@ -80,6 +86,21 @@ export function createAiSummaryService(deps: {
           documentTitle: params.documentTitle,
           documentMarkdown: params.documentMarkdown,
           relatedDocuments: params.relatedDocuments,
+        }),
+      });
+    },
+
+    async generateCanvasOutline(
+      params: GenerateCanvasOutlineParams
+    ): Promise<string> {
+      return requestChatCompletionText(deps.forwardProxy, {
+        config: params.config,
+        disabledMessage: "请先在设置中启用 AI 文档功能",
+        failureMessage: "AI 画布大纲请求失败",
+        emptyMessage: "AI 未返回可用的画布大纲",
+        messages: buildCanvasOutlineMessages({
+          documentTitle: params.documentTitle,
+          documentMarkdown: params.documentMarkdown,
         }),
       });
     },
@@ -304,5 +325,41 @@ export async function generateDocumentConceptMap(
     forwardProxy,
   }).generateDocumentConceptMap(params);
 }
+
+function buildCanvasOutlineMessages(params: {
+  documentTitle?: string;
+  documentMarkdown: string;
+}): ChatMessage[] {
+  return [
+    {
+      role: "system",
+      content:
+        "你是思源笔记的画布大纲生成助手。请基于用户提供的内容，总结提炼出核心主题以及分支概念，生成一份用于制作可视化 Canvas 画布的大纲。\n"
+        + "大纲必须使用标准的 Markdown 标题层级格式（使用 #, ##, ### 等表达概念间的从属和发散关系，最多4层）。\n"
+        + "每一个标题下方，都可以跟上 1-2 句（不超过100字）的简短描述或正文。\n"
+        + "只输出上述标准的 Markdown 文本，不要带有任何包围的说明、反引号（除代码块外）或引言。",
+    },
+    {
+      role: "user",
+      content: [
+        "基于以下内容，提炼并生成概念大纲，准备用于生成 Canvas 画布：",
+        params.documentTitle ? `文档标题：${params.documentTitle}` : "",
+        "输入正文：",
+        params.documentMarkdown || "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    },
+  ];
+}
+
+export async function generateCanvasOutline(
+  params: GenerateCanvasOutlineParams
+): Promise<string> {
+  return createAiSummaryService({
+    forwardProxy,
+  }).generateCanvasOutline(params);
+}
+
 
 export type { AiServiceConfig };

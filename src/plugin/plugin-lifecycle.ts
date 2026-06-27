@@ -84,6 +84,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
     getAiSummaryConfig: () => this.managedAiConfig || this.aiSummaryConfig,
     resolveNetworkLensPlugin: () => resolveNetworkLensPluginFromPlugins(this.app?.plugins),
+    resolveCanvasPlugin: () => resolveCanvasPluginFromPlugins(this.app?.plugins),
   });
 
   private readonly keyInfoController: KeyInfoController = new KeyInfoController({

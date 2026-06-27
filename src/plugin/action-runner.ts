@@ -4,6 +4,7 @@ import { KeyInfoFilter } from "@/core/key-info-core";
 import { getDocReadonlyState } from "@/services/kernel";
 import { ActionConfig, ActionKey, ACTIONS } from "@/plugin/actions";
 import { createAiActionHandlers } from "@/plugin/action-runner-ai-handlers";
+import { CanvasPluginLike } from "@/services/canvas-plugin-resolver";
 import { createCleanupActionHandlers } from "@/plugin/action-runner-cleanup-handlers";
 import { createDeleteRangeActionHandlers } from "@/plugin/action-runner-delete-range-handlers";
 import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
@@ -49,6 +50,7 @@ type ActionRunnerDeps = {
   getKeyInfoFilter?: () => KeyInfoFilter | undefined;
   getAiSummaryConfig?: () => AiServiceConfig | undefined;
   resolveNetworkLensPlugin?: () => NetworkLensPluginLike | null | undefined;
+  resolveCanvasPlugin?: () => CanvasPluginLike | null | undefined;
 };
 
 type ActionRunInput =
@@ -73,6 +75,7 @@ export class ActionRunner {
         askConfirmWithVisibleDialog: (title, text, detailItems) =>
           this.askConfirmWithVisibleDialog(title, text, detailItems),
         resolveNetworkLensPlugin: this.deps.resolveNetworkLensPlugin,
+        resolveCanvasPlugin: this.deps.resolveCanvasPlugin,
         setBusy: this.deps.setBusy,
       }),
       ...createInsertActionHandlers(),

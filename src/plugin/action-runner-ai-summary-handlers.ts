@@ -7,6 +7,7 @@ import {
 import {
   generateDocumentConceptMap,
   generateDocumentSummary,
+  generateCanvasOutline,
 } from "@/services/ai-summary";
 import {
   appendBlock,
@@ -17,6 +18,7 @@ import {
   getDocMetasByIDs,
   getRootDocRawMarkdown,
   insertBlockBefore,
+  getBlockKramdowns,
 } from "@/services/kernel";
 import {
   getBacklinkDocs,
@@ -27,6 +29,12 @@ import { loadFreshNetworkLensDocumentSummary } from "@/services/network-lens-ai-
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { openDocByProtocol } from "@/plugin/action-runner-ai-shared";
 import { CreateAiActionHandlersOptions } from "@/plugin/action-runner-ai-types";
+import { getSelectedBlockIds } from "@/plugin/action-runner-context";
+import {
+  buildCanvasFromKeyInfoItems,
+  parseMarkdownToKeyInfoItems,
+  preprocessItemsForCanvas,
+} from "@/services/canvas-generator";
 
 export function createAiSummaryActionHandlers(
   options: CreateAiActionHandlersOptions = {}
@@ -136,6 +144,67 @@ export function createAiSummaryActionHandlers(
       }
 
       showMessage("已插入 AI 文档摘要", 5000, "info");
+    },
+    "generate-canvas-from-selected": async (docId, protyle) => {
+      const canvasPlugin = options.resolveCanvasPlugin?.();
+      if (!canvasPlugin?.openCanvasTab) {
+        showMessage("请先安装 siyuan-canvas（无界）插件", 5000, "error");
+        return;
+      }
+
+      let docMeta: Awaited<ReturnType<typeof getDocMetaByID>> = null;
+      try {
+        docMeta = await getDocMetaByID(docId);
+      } catch {
+        docMeta = null;
+      }
+      const docTitle = docMeta?.title || "未命名文档";
+
+      let inputText = "";
+      const selectedBlockIds = getSelectedBlockIds(protyle);
+
+      if (selectedBlockIds.length > 0) {
+        const kramdownsRes = await getBlockKramdowns(selectedBlockIds);
+        inputText = kramdownsRes
+          .map((item) => (item?.kramdown || "").trim())
+          .filter(Boolean)
+          .join("\n\n");
+      }
+
+      if (!inputText.trim()) {
+        inputText = (await getRootDocRawMarkdown(docId)).trim();
+      }
+
+      if (!inputText.trim()) {
+        showMessage("没有可供总结的文本内容", 5000, "info");
+        return;
+      }
+
+      options.setBusy?.(true);
+      try {
+        const aiOutlineMarkdown = await generateCanvasOutline({
+          config: options.getAiSummaryConfig?.(),
+          documentTitle: docTitle,
+          documentMarkdown: inputText,
+        });
+
+        if (!aiOutlineMarkdown.trim()) {
+          showMessage("AI 未返回可用的画布大纲", 5000, "info");
+          return;
+        }
+
+        const items = parseMarkdownToKeyInfoItems(aiOutlineMarkdown);
+        const processedItems = preprocessItemsForCanvas(items, docTitle);
+        const canvasDoc = buildCanvasFromKeyInfoItems(processedItems, docTitle);
+
+        await canvasPlugin.openCanvasTab({
+          raw: JSON.stringify(canvasDoc),
+          title: docTitle + " - AI画布",
+        });
+        showMessage("Canvas画布已生成并打开", 3000, "info");
+      } finally {
+        options.setBusy?.(false);
+      }
     },
   };
 }
