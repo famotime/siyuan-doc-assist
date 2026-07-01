@@ -1,6 +1,6 @@
 # Alpha 功能隐藏配置
 
-更新时间：`2026-05-06`
+更新时间：`2026-07-01`
 
 ## 目的
 
@@ -42,7 +42,7 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 
 ### hiddenActionKeys（动作 key）
 
-共 41 个动作，按分组列出。
+共 48 个动作，按分组列出。
 
 **导出（export）**
 
@@ -75,7 +75,6 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 |-----|------|
 | `insert-backlinks` | 插入反链文档列表（去重） |
 | `insert-child-docs` | 插入子文档列表（去重） |
-| `create-monthly-diary` | 新建本月日记 |
 | `toggle-links-refs` | 链接<->引用批量互转 |
 | `mark-invalid-links-refs` | 标示无效链接/引用 |
 | `insert-blank-before-headings` | 标题前增加空段落 |
@@ -85,12 +84,16 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 
 | key | 名称 |
 |-----|------|
+| `generate-canvas-from-selected` | 选中内容生成Canvas |
 | `create-doc-concept-map` | 生成概念地图 |
 | `insert-doc-summary` | 插入文档摘要 |
 | `mark-irrelevant-paragraphs` | 标记口水内容 |
 | `mark-key-content` | 标记关键内容 |
 | `recognize-doc-images` | 本文档图片文字识别 |
+| `translate-doc-paragraphs` | 本文档逐段翻译 |
 | `clean-ai-output` | 清理AI输出内容 |
+| `add-related-links-and-tags` | 添加相关链接和标签 |
+| `generate-llm-wiki` | 生成 LLM Wiki 文档 |
 
 **编辑（edit）**
 
@@ -124,27 +127,20 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 | key | 名称 |
 |-----|------|
 | `ai-service` | AI 服务接入配置（Base URL / API Key / Model） |
-| `monthly-diary-template` | 本月日记模板 |
 
 ## 联动规则
 
-部分动作隐藏时会自动带上对应设置项，无需重复填写。
-
-当前内置映射：
-
-- `"create-monthly-diary"` → `"monthly-diary-template"`
-
-即：在 `hiddenActionKeys` 中加入 `"create-monthly-diary"`，设置页里的"本月日记模板"也会自动隐藏。
+当前版本无内置的动作与设置项强制联动关系。
 
 AI 接入配置需单独在 `hiddenSettingKeys` 中加入 `"ai-service"` 才会隐藏。
 
 ## 示例
 
-隐藏"新建本月日记"和 AI 接入配置：
+隐藏"选中内容生成Canvas"和 AI 接入配置：
 
 ```ts
 export const ALPHA_FEATURE_HIDE_CONFIG = {
-  hiddenActionKeys: ["create-monthly-diary"],
+  hiddenActionKeys: ["generate-canvas-from-selected"],
   hiddenSettingKeys: ["ai-service"],
 };
 ```
@@ -154,12 +150,16 @@ export const ALPHA_FEATURE_HIDE_CONFIG = {
 ```ts
 export const ALPHA_FEATURE_HIDE_CONFIG = {
   hiddenActionKeys: [
+    "generate-canvas-from-selected",
     "create-doc-concept-map",
     "insert-doc-summary",
     "mark-irrelevant-paragraphs",
     "mark-key-content",
     "recognize-doc-images",
+    "translate-doc-paragraphs",
     "clean-ai-output",
+    "add-related-links-and-tags",
+    "generate-llm-wiki",
   ],
   hiddenSettingKeys: ["ai-service"],
 };
@@ -170,13 +170,16 @@ export const ALPHA_FEATURE_HIDE_CONFIG = {
 ```ts
 export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
   hiddenActionKeys: [
+    "generate-canvas-from-selected",
     "create-doc-concept-map",
     "insert-doc-summary",
     "mark-irrelevant-paragraphs",
     "mark-key-content",
     "recognize-doc-images",
+    "translate-doc-paragraphs",
     "clean-ai-output",
-    "create-monthly-diary",
+    "add-related-links-and-tags",
+    "generate-llm-wiki",
     "set-selection-as-title",
     "toggle-heading-bold",
     "export-keymap",
@@ -190,4 +193,3 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 
 - 需要隐藏 alpha 功能时，只改 `ALPHA_FEATURE_HIDE_CONFIG` 后重新构建。
 - 恢复显示时，从数组中移除对应 key 即可。
-- 如后续新增"动作 ↔ 设置项"联动关系，请同步更新同文件中的 `ACTION_LINKED_SETTING_KEYS`。

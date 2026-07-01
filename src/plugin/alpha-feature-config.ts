@@ -26,14 +26,14 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
   hiddenActionKeys: [
     // "create-doc-concept-map",
     // "insert-doc-summary",
-    // "mark-irrelevant-paragraphs",
-    // "mark-key-content",
+    "mark-irrelevant-paragraphs",
+    "mark-key-content",
     // "recognize-doc-images",
     // "clean-ai-output",
-    // "set-selection-as-title",
+    "set-selection-as-title",
     // "toggle-heading-bold",
-    // "export-keymap",
-    // "import-keymap",
+    "export-keymap",
+    "import-keymap",
   ],
   hiddenSettingKeys: [
     // "ai-service"
