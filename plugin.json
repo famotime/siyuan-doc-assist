@@ -2,14 +2,16 @@
   "name": "siyuan-doc-assist",
   "author": "Quincy Zou",
   "url": "https://github.com/famotime/siyuan-doc-assist",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "minAppVersion": "3.5.7",
   "disabledInPublish": true,
   "backends": [
-    "all"
+    "windows"
   ],
   "frontends": [
-    "all"
+    "desktop",
+    "browser-desktop",
+    "desktop-window"
   ],
   "displayName": {
     "default": "文档助手 / Doc Assist",

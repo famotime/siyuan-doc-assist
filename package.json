@@ -1,12 +1,12 @@
 {
   "name": "siyuan-doc-assist",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "description": "Doc Assistant plugin for Siyuan",
-  "author": "",
+  "author": "Quincy Zou",
   "license": "MIT",
-  "homepage": "",
-  "repository": "",
+  "homepage": "https://github.com/famotime/siyuan-doc-assist",
+  "repository": "https://github.com/famotime/siyuan-doc-assist",
   "scripts": {
     "dev": "vite build --watch",
     "release": "node ./release.js",
