@@ -151,6 +151,8 @@ describe("plugin settings", () => {
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
 
+    expect(plugin.displayName).toBe("文档助手");
+
     expect(settingInstances).toHaveLength(1);
     expect(plugin.setting).toBe(settingInstances[0]);
     expect(addIconsMock).not.toHaveBeenCalled();

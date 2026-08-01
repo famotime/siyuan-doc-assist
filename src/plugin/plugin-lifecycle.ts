@@ -55,7 +55,7 @@ import type { PowerButtonsCommandProvider } from "@/plugin/power-buttons-provide
 import { askConfirmWithDetail } from "@/ui/confirm-detail-dialog";
 
 export default class DocLinkToolkitPlugin extends Plugin {
-  public displayName?: string;
+  declare displayName: string;
   public setting?: ReturnType<typeof createPluginSettings>;
   private currentDocId = "";
   private currentProtyle?: ProtyleLike;
@@ -157,6 +157,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
   };
 
   async onload() {
+    if (!this.displayName) {
+      this.displayName =
+        pluginInfo.displayName?.zh_CN ||
+        pluginInfo.displayName?.default ||
+        "文档助手";
+    }
     await this.loadDocMenuRegistrationState();
     const frontend = getFrontend();
     this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
