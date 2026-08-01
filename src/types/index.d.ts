@@ -125,6 +125,7 @@ interface Window {
   _sy_doc_assistant: {
     [key: string]: any;
   };
+  siyuanApiSwitch?: any;
 }
 
 

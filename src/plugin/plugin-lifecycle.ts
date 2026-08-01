@@ -55,6 +55,7 @@ import type { PowerButtonsCommandProvider } from "@/plugin/power-buttons-provide
 import { askConfirmWithDetail } from "@/ui/confirm-detail-dialog";
 
 export default class DocLinkToolkitPlugin extends Plugin {
+  public displayName?: string;
   public setting?: ReturnType<typeof createPluginSettings>;
   private currentDocId = "";
   private currentProtyle?: ProtyleLike;

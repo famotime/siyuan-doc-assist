@@ -33,6 +33,8 @@ export type ActionKey =
   | "merge-selected-list-blocks"
   | "delete-from-current-to-end"
   | "delete-from-start-to-current"
+  | "select-from-start-to-current"
+  | "select-from-current-to-end"
   | "remove-strikethrough-marked-content"
   | "bold-selected-blocks"
   | "highlight-selected-blocks"
@@ -126,6 +128,8 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "toggle-links-refs": "转",
   "delete-from-current-to-end": "删",
   "delete-from-start-to-current": "删",
+  "select-from-start-to-current": "首",
+  "select-from-current-to-end": "尾",
   "split-doc-by-headings": "拆",
   "recognize-doc-images": "识",
   "translate-doc-paragraphs": "译",
@@ -675,6 +679,30 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "edit",
         requiresWritableDoc: true,
         icon: "iconTrashcan",
+      },
+      {
+        key: "select-from-start-to-current",
+        commandText: "选中当前到开头",
+        menuText: "选中当前到开头",
+        tooltip: createActionTooltip(
+          "选中当前到开头",
+          "从文档开头选中至当前光标所在段落（含本段），为后续剪切、复制等操作准备。"
+        ),
+        group: "edit",
+        requiresWritableDoc: true,
+        icon: "iconSelect",
+      },
+      {
+        key: "select-from-current-to-end",
+        commandText: "选中当前到结尾",
+        menuText: "选中当前到结尾",
+        tooltip: createActionTooltip(
+          "选中当前到结尾",
+          "从当前光标所在段落（含本段）选中至文档结尾，为后续剪切、复制等操作准备。"
+        ),
+        group: "edit",
+        requiresWritableDoc: true,
+        icon: "iconSelect",
       },
       {
         key: "remove-strikethrough-marked-content",

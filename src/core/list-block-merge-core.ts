@@ -19,6 +19,7 @@ export type MergeSelectedListBlocksPreview = {
 
 const ATTR_LINE_REGEX = /^\s*\{:\s*[^}]+\}\s*$/;
 const LIST_MARKER_REGEX = /^(\s*)([-+*]|\d+\.)\s+(.+)$/;
+const BULLET_ONLY_REGEX = /^\s*[•·●]\s*$/;
 
 export function isOrderedListBlock(markdown: string): boolean {
   const lines = cleanupMarkdownLines(markdown);
@@ -57,8 +58,10 @@ function cleanupMarkdownLines(markdown: string): string[] {
   return normalizeLineEndings(markdown)
     .split("\n")
     .map((line) => line.replace(/\s+$/g, ""))
-    .filter((line) => !ATTR_LINE_REGEX.test(line));
+    .filter((line) => !ATTR_LINE_REGEX.test(line))
+    .filter((line) => !BULLET_ONLY_REGEX.test(line));
 }
+
 
 function formatListItem(firstLine: string, continuationLines: string[], marker: string): string {
   const first = (firstLine || "").trim();

@@ -11,7 +11,7 @@ describe("alpha feature config", () => {
     const aiActionKeys = ACTIONS
       .filter((action) => action.group === "ai")
       .map((action) => action.key);
-    const visibleActionKeys = filterVisibleActions(ACTIONS, ALPHA_FEATURE_HIDE_CONFIG)
+    const visibleActionKeys = filterVisibleActions(ACTIONS, { hiddenActionKeys: [], hiddenSettingKeys: [] })
       .map((action) => action.key);
 
     expect(aiActionKeys).not.toHaveLength(0);

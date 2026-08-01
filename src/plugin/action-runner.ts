@@ -7,6 +7,7 @@ import { createAiActionHandlers } from "@/plugin/action-runner-ai-handlers";
 import { CanvasPluginLike } from "@/services/canvas-plugin-resolver";
 import { createCleanupActionHandlers } from "@/plugin/action-runner-cleanup-handlers";
 import { createDeleteRangeActionHandlers } from "@/plugin/action-runner-delete-range-handlers";
+import { createSelectRangeActionHandlers } from "@/plugin/action-runner-select-range-handlers";
 import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { createExportActionHandlers } from "@/plugin/action-runner-export-handlers";
 import { createInsertActionHandlers } from "@/plugin/action-runner-insert-handlers";
@@ -101,6 +102,7 @@ export class ActionRunner {
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
         setBusy: this.deps.setBusy,
       }),
+      ...createSelectRangeActionHandlers(),
     } as ActionHandlerMap;
   }
 

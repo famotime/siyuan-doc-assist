@@ -20,6 +20,8 @@ const PUBLIC_ACTION_KEYS = new Set<ActionKey>([
   "insert-doc-summary",
   "delete-from-current-to-end",
   "delete-from-start-to-current",
+  "select-from-start-to-current",
+  "select-from-current-to-end",
   "convert-images-to-webp",
   "recognize-doc-images",
   "translate-doc-paragraphs",

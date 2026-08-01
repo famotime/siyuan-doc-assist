@@ -26,6 +26,8 @@ export {
   findDeleteFromStartToCurrentBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
+  findSelectFromStartToCurrentBlockIds,
+  findSelectFromCurrentToEndBlockIds,
 } from "@/core/markdown-cleanup-block-core";
 export type {
   BlankParagraphCleanupResult,
@@ -34,4 +36,5 @@ export type {
   DeleteFromCurrentBlockResult,
   HeadingBlankParagraphInsertResult,
   ParagraphBlockMeta,
+  SelectBlockRangeResult,
 } from "@/core/markdown-cleanup-block-core";

@@ -25,6 +25,11 @@ export type DeleteFromCurrentBlockResult = {
   deleteCount: number;
 };
 
+export type SelectBlockRangeResult = {
+  selectedIds: string[];
+  selectedCount: number;
+};
+
 export type ClippedListContinuationMerge = {
   markerBlockId: string;
   contentBlockId: string;
@@ -212,6 +217,46 @@ export function findDeleteFromStartToCurrentBlockIds(
   return {
     deleteIds,
     deleteCount: deleteIds.length,
+  };
+}
+
+export function findSelectFromStartToCurrentBlockIds(
+  blocks: Pick<ParagraphBlockMeta, "id">[],
+  currentBlockId: string
+): SelectBlockRangeResult {
+  if (!currentBlockId) {
+    return { selectedIds: [], selectedCount: 0 };
+  }
+
+  const currentIndex = blocks.findIndex((block) => block.id === currentBlockId);
+  if (currentIndex < 0) {
+    return { selectedIds: [], selectedCount: 0 };
+  }
+
+  const selectedIds = blocks.slice(0, currentIndex + 1).map((block) => block.id);
+  return {
+    selectedIds,
+    selectedCount: selectedIds.length,
+  };
+}
+
+export function findSelectFromCurrentToEndBlockIds(
+  blocks: Pick<ParagraphBlockMeta, "id">[],
+  currentBlockId: string
+): SelectBlockRangeResult {
+  if (!currentBlockId) {
+    return { selectedIds: [], selectedCount: 0 };
+  }
+
+  const startIndex = blocks.findIndex((block) => block.id === currentBlockId);
+  if (startIndex < 0) {
+    return { selectedIds: [], selectedCount: 0 };
+  }
+
+  const selectedIds = blocks.slice(startIndex).map((block) => block.id);
+  return {
+    selectedIds,
+    selectedCount: selectedIds.length,
   };
 }
 

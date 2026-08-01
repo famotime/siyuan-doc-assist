@@ -50,4 +50,20 @@ describe("list-block-merge-core", () => {
     expect(preview.resultItemCount).toBe(3);
     expect(preview.mergedMarkdown).toBe("- 父项\n  - 子项\n    子项说明\n- 末项");
   });
+
+  test("filters out lines containing only bullet points like •", () => {
+    const preview = buildMergeSelectedListBlocksPreview([
+      { id: "a", type: "p", markdown: "•" },
+      { id: "b", type: "p", markdown: "文章配图、知识解释图、概念拆解图" },
+      { id: "c", type: "p", markdown: "  •  " },
+      { id: "d", type: "p", markdown: "工作汇报配图、项目状态图" },
+      { id: "e", type: "p", markdown: "•\n产品机制图、系统架构图\n•" },
+    ]);
+
+    expect(preview.resultItemCount).toBe(3);
+    expect(preview.mergedMarkdown).toBe(
+      "- 文章配图、知识解释图、概念拆解图\n- 工作汇报配图、项目状态图\n- 产品机制图、系统架构图"
+    );
+  });
 });
+

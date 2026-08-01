@@ -30,6 +30,8 @@ describe("plugin actions", () => {
     expect(isActionKey("toggle-heading-bold")).toBe(true);
     expect(isActionKey("mark-invalid-links-refs")).toBe(true);
     expect(isActionKey("delete-from-current-to-end")).toBe(true);
+    expect(isActionKey("select-from-start-to-current")).toBe(true);
+    expect(isActionKey("select-from-current-to-end")).toBe(true);
     expect(isActionKey("merge-selected-list-blocks")).toBe(true);
     expect(isActionKey("remove-strikethrough-marked-content")).toBe(true);
     expect(isActionKey("toggle-linebreaks-paragraphs")).toBe(true);
