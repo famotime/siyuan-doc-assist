@@ -190,6 +190,22 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
     expect(result.deleteCount).toBe(2);
   });
 
+  test("preserves last separator and blocks before it when multiple separators exist in first 10 blocks", () => {
+    const blocks = [
+      { id: "summary1", markdown: "摘要1" },
+      { id: "sep1", markdown: "---" },
+      { id: "summary2", markdown: "摘要2" },
+      { id: "sep2", markdown: "---" },
+      { id: "a", markdown: "正文A" },
+      { id: "b", markdown: "正文B" },
+      { id: "c", markdown: "正文C" },
+    ];
+
+    const result = findDeleteFromStartToCurrentBlockIds(blocks, "b");
+    expect(result.deleteIds).toEqual(["a", "b"]);
+    expect(result.deleteCount).toBe(2);
+  });
+
   test("separator at position 0 preserves nothing before it", () => {
     const blocks = [
       { id: "sep", markdown: "---" },

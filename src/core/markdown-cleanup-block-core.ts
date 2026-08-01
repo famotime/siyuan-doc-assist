@@ -195,9 +195,14 @@ export function findDeleteFromStartToCurrentBlockIds(
     return { deleteIds: [], deleteCount: 0 };
   }
 
-  const separatorIndex = blocks
-    .slice(0, OPENING_SEPARATOR_WINDOW)
-    .findIndex((b) => (b.markdown || "").trim() === SEPARATOR_MARKDOWN);
+  const windowBlocks = blocks.slice(0, OPENING_SEPARATOR_WINDOW);
+  let separatorIndex = -1;
+  for (let i = windowBlocks.length - 1; i >= 0; i -= 1) {
+    if ((windowBlocks[i].markdown || "").trim() === SEPARATOR_MARKDOWN) {
+      separatorIndex = i;
+      break;
+    }
+  }
 
   const deleteStart = separatorIndex >= 0 ? separatorIndex + 1 : 0;
   if (deleteStart > currentIndex) {

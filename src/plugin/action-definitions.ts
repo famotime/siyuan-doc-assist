@@ -674,7 +674,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         menuText: "删除之前段落（含本段）",
         tooltip: createActionTooltip(
           "删除之前段落（含本段）",
-          "从文档开头到当前光标所在段，批量删除所有同级正文块。文首前10个段落中的分隔线（---）及之前的内容（文档概要）将被保留。"
+          "从文档开头到当前光标所在段，批量删除所有同级正文块。文首前10个段落中的最后一个分隔线（---）及之前的内容（文档概要）将被保留。"
         ),
         group: "edit",
         requiresWritableDoc: true,
