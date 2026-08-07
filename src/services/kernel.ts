@@ -13,6 +13,7 @@ export {
   insertBlockBefore,
   updateBlockDom,
   updateBlockMarkdown,
+  renderKramdownToBlockDOM,
 } from "@/services/kernel-block";
 export type {
   ChildBlockMeta,

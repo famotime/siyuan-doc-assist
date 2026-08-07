@@ -1,3 +1,7 @@
+import { ProtyleLike } from "@/plugin/doc-context";
+import { IOperation, resolveSubmitBlockElement, runProtyleTransaction } from "@/plugin/transaction-runner";
+import { renderKramdownToBlockDOM } from "@/services/kernel";
+
 type TransformableBlock = {
   id: string;
   markdown?: string;
@@ -14,6 +18,7 @@ type ApplyBlockMarkdownTransformOptions<T extends BlockTransformBaseResult> = {
   transform: (source: string, block: TransformableBlock) => T;
   updateBlockMarkdown: (id: string, markdown: string) => Promise<void>;
   onUpdated?: (result: T, block: TransformableBlock) => void;
+  protyle?: ProtyleLike;
 };
 
 export type ApplyBlockMarkdownTransformReport = {
@@ -32,6 +37,7 @@ export async function applyMarkdownTransformToBlocks<T extends BlockTransformBas
     transform,
     updateBlockMarkdown,
     onUpdated,
+    protyle,
   } = options;
 
   let changedCount = 0;
@@ -52,8 +58,26 @@ export async function applyMarkdownTransformToBlocks<T extends BlockTransformBas
     if (transformed.changedCount <= 0 || transformed.markdown === source) {
       continue;
     }
+    
+    let appliedTransaction = false;
+    if (protyle) {
+      const liveDom = resolveSubmitBlockElement(protyle, block.id);
+      if (liveDom) {
+        const newHtml = await renderKramdownToBlockDOM(transformed.markdown);
+        if (newHtml) {
+          const doOperations: IOperation[] = [{ action: "update", id: block.id, data: newHtml }];
+          const undoOperations: IOperation[] = [{ action: "update", id: block.id, data: liveDom.outerHTML }];
+          if (runProtyleTransaction(protyle, doOperations, undoOperations)) {
+            appliedTransaction = true;
+          }
+        }
+      }
+    }
+
     try {
-      await updateBlockMarkdown(block.id, transformed.markdown);
+      if (!appliedTransaction) {
+        await updateBlockMarkdown(block.id, transformed.markdown);
+      }
       updatedBlockCount += 1;
       changedCount += transformed.changedCount;
       onUpdated?.(transformed, block);

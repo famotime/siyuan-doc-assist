@@ -13,10 +13,12 @@ type CreatePluginSettingsOptions = {
   isMobile: boolean;
   aiSummaryConfig: AiServiceConfig;
   managedAiConfig: AiServiceConfig | null; // 添加被管家接管的配置
+  debugLogEnabled: boolean;
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
   onToggleAll: (enabled: boolean) => Promise<void> | void;
   onToggleSingle: (key: ActionKey, enabled: boolean) => Promise<void> | void;
+  onDebugLogEnabledChange: (enabled: boolean) => Promise<void> | void;
 };
 
 function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
@@ -95,6 +97,23 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     actionElement: menuRegistrationPanel,
   });
   hostNormalizedPanels.push(menuRegistrationPanel);
+
+  if (options.onDebugLogEnabledChange && !hiddenSettingKeys.has("debug-mode")) {
+    const debugLogToggle = document.createElement("input");
+    debugLogToggle.className = "b3-switch fn__flex-center";
+    debugLogToggle.type = "checkbox";
+    debugLogToggle.checked = options.debugLogEnabled;
+    debugLogToggle.addEventListener("change", () => {
+      options.onDebugLogEnabledChange?.(debugLogToggle.checked);
+    });
+    
+    setting.addItem({
+      title: "调试模式",
+      direction: "row",
+      description: "开启后，会在控制台打印插件执行操作时的 transaction 明细日志，方便定位撤销/重做失效等问题。",
+      actionElement: debugLogToggle,
+    });
+  }
 
   installSettingHostNormalizer(setting, hostNormalizedPanels);
 

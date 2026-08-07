@@ -17,6 +17,7 @@ import {
 import {
   appendBlock,
   deleteBlocksByIds,
+  getBlockDOMs,
   getChildBlocksByParentId,
   getDocMetaByID,
   insertBlockBefore,
@@ -24,6 +25,8 @@ import {
 } from "@/services/kernel";
 import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { IOperation, runProtyleTransaction } from "@/plugin/transaction-runner";
+import { ProtyleLike } from "@/plugin/doc-context";
 
 type CreateCleanupActionHandlersDeps = {
   askConfirmWithVisibleDialog: (title: string, text: string) => Promise<boolean>;
@@ -137,7 +140,7 @@ function previewStrikethroughCleanup(
 export function createCleanupActionHandlers(
   deps: CreateCleanupActionHandlersDeps
 ): PartialActionHandlerMap {
-  const handleRemoveExtraBlankLines = async (docId: string) => {
+  const handleRemoveExtraBlankLines = async (docId: string, protyle?: ProtyleLike) => {
     const blocks = await getChildBlocksByParentId(docId);
     if (!blocks.length) {
       showMessage("当前文档没有可处理的段落", 4000, "info");
@@ -158,6 +161,44 @@ export function createCleanupActionHandlers(
       return;
     }
     deps.setBusy?.(true);
+
+    if (protyle) {
+      const doOperations: IOperation[] = [];
+      const undoOperations: IOperation[] = [];
+      let canUseTransaction = true;
+      
+      const domRes = await getBlockDOMs(result.deleteIds);
+      const domMap = new Map(domRes.map((r) => [r.id, r.dom]));
+
+      for (const deleteId of result.deleteIds) {
+        const domStr = domMap.get(deleteId);
+        if (!domStr) {
+          console.warn(`[doc-assist] Fallback: Block ${deleteId} DOM not returned by backend`);
+          canUseTransaction = false;
+          break;
+        }
+        
+        const blockIndex = blocks.findIndex(b => b.id === deleteId);
+        let previousID: string | undefined = undefined;
+        if (blockIndex > 0) {
+          previousID = blocks[blockIndex - 1].id;
+        }
+        
+        doOperations.push({ action: "delete", id: deleteId });
+        undoOperations.push({ 
+          action: "insert", 
+          id: deleteId, 
+          data: domStr, 
+          previousID, 
+          parentID: docId 
+        });
+      }
+
+      if (canUseTransaction && runProtyleTransaction(protyle, doOperations, undoOperations)) {
+        showMessage(`已去除 ${result.removedCount} 个空段落 (支持撤销)`, 5000, "info");
+        return;
+      }
+    }
 
     const deleteResult = await deleteBlocksByIds(result.deleteIds, {
       concurrency: DELETE_BLOCK_CONCURRENCY,
@@ -342,7 +383,7 @@ export function createCleanupActionHandlers(
     showMessage(`已标示 ${markedCount} 处无效链接/引用，共更新 ${updatedBlockCount} 个块`, 5000, "info");
   };
 
-  const handleCleanAiOutput = async (docId: string) => {
+  const handleCleanAiOutput = async (docId: string, protyle?: ProtyleLike) => {
     const blocks = await getChildBlocksByParentId(docId);
     if (!blocks.length) {
       showMessage("当前文档没有可处理的段落", 4000, "info");
@@ -382,6 +423,7 @@ export function createCleanupActionHandlers(
       blocks,
       isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
       updateBlockMarkdown,
+      protyle,
       transform: (source) => {
         const cleaned = cleanupAiOutputArtifactsInMarkdown(source);
         return {
@@ -563,7 +605,7 @@ export function createCleanupActionHandlers(
     showMessage(summary, 5000, "info");
   };
 
-  const handleRemoveStrikethroughMarkedContent = async (docId: string) => {
+  const handleRemoveStrikethroughMarkedContent = async (docId: string, protyle?: ProtyleLike) => {
     const blocks = await getChildBlocksByParentId(docId);
     if (!blocks.length) {
       showMessage("当前文档没有可处理的段落", 4000, "info");
@@ -598,6 +640,7 @@ export function createCleanupActionHandlers(
       blocks,
       isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
       updateBlockMarkdown,
+      protyle,
       transform: (source) => {
         const cleaned = removeStrikethroughMarkedContentFromMarkdown(source);
         return {
@@ -630,7 +673,7 @@ export function createCleanupActionHandlers(
     showMessage(summary, 5000, "info");
   };
 
-  const handleToggleLinksRefs = async (docId: string) => {
+  const handleToggleLinksRefs = async (docId: string, protyle?: ProtyleLike) => {
     const blocks = await getChildBlocksByParentId(docId);
     if (!blocks.length) {
       showMessage("当前文档没有可处理的段落", 4000, "info");
@@ -694,6 +737,7 @@ export function createCleanupActionHandlers(
       blocks,
       isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
       updateBlockMarkdown,
+      protyle,
       transform: (source) => {
         const converted = convertSiyuanLinksAndRefsInMarkdown(source, preferredMode);
         return {

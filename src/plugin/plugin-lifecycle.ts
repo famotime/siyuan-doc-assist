@@ -19,6 +19,7 @@ import {
 } from "@/plugin/alpha-feature-config";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
+import { setTransactionDebugLogEnabled } from "@/plugin/transaction-runner";
 import {
   bindPluginLifecycleEvents,
   unbindPluginLifecycleEvents,
@@ -68,6 +69,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private docFavoriteActionKeys: ActionKey[] = [];
   private keyInfoFilterState: KeyInfoFilter = buildDefaultKeyInfoFilter();
   private aiSummaryConfig = buildDefaultPluginDocMenuState(ACTIONS).aiSummaryConfig;
+  private debugLogEnabled = false;
   private managedAiConfig: AiServiceConfig | null = null;
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
     pluginVersion: pluginInfo.version,
@@ -183,6 +185,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     });
 
     this.initApiSwitchSync();
+    setTransactionDebugLogEnabled(this.debugLogEnabled);
   }
 
   onunload() {
@@ -255,11 +258,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
       isMobile: this.isMobile,
       aiSummaryConfig: this.aiSummaryConfig,
       managedAiConfig: this.managedAiConfig,
+      debugLogEnabled: this.debugLogEnabled,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
       onToggleSingle: (key, enabled) =>
         this.setSingleDocMenuRegistration(key, enabled),
+      onDebugLogEnabledChange: (enabled) => this.setDebugLogEnabled(enabled),
     });
   }
 
@@ -340,6 +345,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       docFavoriteActionKeys: this.docFavoriteActionKeys,
       keyInfoFilterState: this.keyInfoFilterState,
       aiSummaryConfig: this.aiSummaryConfig,
+      debugLogEnabled: this.debugLogEnabled,
     };
   }
 
@@ -349,6 +355,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.docFavoriteActionKeys = state.docFavoriteActionKeys;
     this.keyInfoFilterState = state.keyInfoFilterState;
     this.aiSummaryConfig = state.aiSummaryConfig;
+    this.debugLogEnabled = state.debugLogEnabled ?? false;
+    setTransactionDebugLogEnabled(this.debugLogEnabled);
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {
@@ -410,6 +418,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.applyDocMenuState(
       setAiSummaryConfig(this.snapshotDocMenuState(), config)
     );
+    await this.persistDocMenuRegistrationState();
+  }
+
+  async setDebugLogEnabled(enabled: boolean) {
+    const state = this.snapshotDocMenuState();
+    state.debugLogEnabled = enabled;
+    this.applyDocMenuState(state);
     await this.persistDocMenuRegistrationState();
   }
 }

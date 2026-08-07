@@ -380,3 +380,20 @@ export async function getChildBlockRefsByParentId(
   });
   return toOrderedChildBlockRefs(childList);
 }
+
+export async function renderKramdownToBlockDOM(kramdown: string): Promise<string | null> {
+  try {
+    const res = await requestApi<any>("/api/lute/md2BlockDOM", { kramdown });
+    if (res && typeof res === "string") {
+      return res;
+    }
+    if (res && res.dom) {
+      return res.dom;
+    }
+    return null;
+  } catch (err) {
+    console.warn("[doc-assist] renderKramdownToBlockDOM fallback required", err);
+    return null;
+  }
+}
+

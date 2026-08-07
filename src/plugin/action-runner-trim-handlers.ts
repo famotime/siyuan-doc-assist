@@ -3,8 +3,10 @@ import {
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
 } from "@/core/markdown-cleanup-core";
-import { getBlockDOMs, getBlockKramdowns, getChildBlocksByParentId, updateBlockDom, updateBlockMarkdown } from "@/services/kernel";
+import { getBlockDOMs, getBlockKramdowns, getChildBlocksByParentId, updateBlockDom, updateBlockMarkdown, renderKramdownToBlockDOM } from "@/services/kernel";
 import { createDocAssistantLogger as createLogger } from "@/core/logger-core";
+import { IOperation, resolveSubmitBlockElement, runProtyleTransaction } from "@/plugin/transaction-runner";
+import { ProtyleLike } from "@/plugin/doc-context";
 
 const trailingWhitespaceLogger = createLogger("TrailingWhitespace");
 type TrimTrailingWhitespaceDeps = {
@@ -43,7 +45,8 @@ function isHighRiskForMarkdownWrite(value: string): boolean {
 
 export async function handleTrimTrailingWhitespace(
   deps: TrimTrailingWhitespaceDeps,
-  docId: string
+  docId: string,
+  protyle?: ProtyleLike
 ) {
   const blocks = await getChildBlocksByParentId(docId);
   const paragraphBlocks = blocks.filter((block) => (block.type || "").toLowerCase() === "p");
@@ -211,16 +214,39 @@ export async function handleTrimTrailingWhitespace(
     for (let attempt = 1; attempt <= maxApplyAttempts; attempt += 1) {
       attempts = attempt;
       try {
-        if (item.dataType === "dom") {
-          await updateBlockDom(item.id, currentData);
-        } else {
-          await updateBlockMarkdown(item.id, currentData);
+        let appliedTransaction = false;
+        if (protyle) {
+          const liveDom = resolveSubmitBlockElement(protyle, item.id);
+          if (liveDom) {
+            let newHtml = "";
+            if (item.dataType === "dom") {
+              newHtml = currentData;
+            } else {
+              newHtml = (await renderKramdownToBlockDOM(currentData)) || "";
+            }
+            if (newHtml) {
+              const doOperations: IOperation[] = [{ action: "update", id: item.id, data: newHtml }];
+              const undoOperations: IOperation[] = [{ action: "update", id: item.id, data: liveDom.outerHTML }];
+              if (runProtyleTransaction(protyle, doOperations, undoOperations)) {
+                appliedTransaction = true;
+                applied = true;
+              }
+            }
+          }
+        }
+
+        if (!appliedTransaction) {
+          if (item.dataType === "dom") {
+            await updateBlockDom(item.id, currentData);
+          } else {
+            await updateBlockMarkdown(item.id, currentData);
+          }
         }
       } catch (error: unknown) {
         failureMessage = error instanceof Error ? error.message : String(error);
         break;
       }
-      if (item.dataType === "dom") {
+      if (item.dataType === "dom" || applied) {
         applied = true;
         break;
       }

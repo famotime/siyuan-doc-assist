@@ -7,12 +7,14 @@ import {
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import {
   deleteBlocksByIds,
+  getBlockDOMs,
   getChildBlocksByParentId,
   getChildBlockRefsByParentId,
 } from "@/services/kernel";
 import { resolveCurrentBlockId } from "@/plugin/action-runner-context";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { ProtyleLike } from "@/plugin/doc-context";
+import { IOperation, runProtyleTransaction } from "@/plugin/transaction-runner";
 
 const deleteFromCurrentLogger = createDocAssistantLogger("DeleteFromCurrent");
 const deleteFromStartToCurrentLogger = createDocAssistantLogger("DeleteFromStartToCurrent");
@@ -85,7 +87,43 @@ async function handleDeleteFromCurrentToEnd(
   if (!ok) {
     return;
   }
-  deps.setBusy?.(true);
+  if (protyle) {
+    const doOperations: IOperation[] = [];
+    const undoOperations: IOperation[] = [];
+    let canUseTransaction = true;
+    
+    const domRes = await getBlockDOMs(result.deleteIds);
+    const domMap = new Map(domRes.map((r) => [r.id, r.dom]));
+
+    for (const deleteId of result.deleteIds) {
+      const domStr = domMap.get(deleteId);
+      if (!domStr) {
+        console.warn(`[doc-assist] Fallback: Block ${deleteId} DOM not returned by backend`);
+        canUseTransaction = false;
+        break;
+      }
+      
+      const blockIndex = blocks.findIndex(b => b.id === deleteId);
+      let previousID: string | undefined = undefined;
+      if (blockIndex > 0) {
+        previousID = blocks[blockIndex - 1].id;
+      }
+      
+      doOperations.push({ action: "delete", id: deleteId });
+      undoOperations.push({ 
+        action: "insert", 
+        id: deleteId, 
+        data: domStr, 
+        previousID, 
+        parentID: docId 
+      });
+    }
+
+    if (canUseTransaction && runProtyleTransaction(protyle, doOperations, undoOperations)) {
+      showMessage(`已删除 ${result.deleteCount} 个段落 (支持撤销)`, 5000, "info");
+      return;
+    }
+  }
 
   const deleteResult = await deleteBlocksByIds(result.deleteIds, {
     concurrency: DELETE_BLOCK_CONCURRENCY,
@@ -150,7 +188,43 @@ async function handleDeleteFromStartToCurrent(
   if (!ok) {
     return;
   }
-  deps.setBusy?.(true);
+  if (protyle) {
+    const doOperations: IOperation[] = [];
+    const undoOperations: IOperation[] = [];
+    let canUseTransaction = true;
+
+    const domRes = await getBlockDOMs(result.deleteIds);
+    const domMap = new Map(domRes.map((r) => [r.id, r.dom]));
+
+    for (const deleteId of result.deleteIds) {
+      const domStr = domMap.get(deleteId);
+      if (!domStr) {
+        console.warn(`[doc-assist] Fallback: Block ${deleteId} DOM not returned by backend`);
+        canUseTransaction = false;
+        break;
+      }
+      
+      const blockIndex = blocks.findIndex(b => b.id === deleteId);
+      let previousID: string | undefined = undefined;
+      if (blockIndex > 0) {
+        previousID = blocks[blockIndex - 1].id;
+      }
+      
+      doOperations.push({ action: "delete", id: deleteId });
+      undoOperations.push({ 
+        action: "insert", 
+        id: deleteId, 
+        data: domStr, 
+        previousID, 
+        parentID: docId 
+      });
+    }
+
+    if (canUseTransaction && runProtyleTransaction(protyle, doOperations, undoOperations)) {
+      showMessage(`已删除 ${result.deleteCount} 个段落 (支持撤销)`, 5000, "info");
+      return;
+    }
+  }
 
   const deleteResult = await deleteBlocksByIds(result.deleteIds, {
     concurrency: DELETE_BLOCK_CONCURRENCY,

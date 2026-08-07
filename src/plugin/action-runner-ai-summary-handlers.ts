@@ -69,11 +69,11 @@ export function createAiSummaryActionHandlers(
       let relatedDocuments: Array<{ title: string; markdown: string }> = [];
       if (relatedDocIds.length) {
         const metas = await getDocMetasByIDs(relatedDocIds).catch(() => []);
-        const metaMap = new Map(metas.map((m) => [m.id, m]));
+        const metaMap = new Map<string, any>(metas.map((m: any) => [m.id, m] as [string, any]));
         const settled = await Promise.allSettled(
           relatedDocIds.map(async (id) => {
             const md = await exportMdContent(id);
-            const meta = metaMap.get(id);
+            const meta: any = metaMap.get(id);
             const title = meta?.title || id;
             return { title, markdown: (md.content || "").trim() };
           })

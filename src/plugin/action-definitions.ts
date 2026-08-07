@@ -359,7 +359,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         commandText: "链接<->引用批量互转",
         menuText: "链接<->引用批量互转",
         tooltip: createActionTooltip(
-          "链接<->引用批量互转",
+          "链接<->引用批量互转（支持 Ctrl + Z 回退）",
           "自动判断当前文档以链接还是引用为主，并批量执行“链接转引用”或“引用转链接”。"
         ),
         group: "insert",
@@ -438,10 +438,11 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         menuText: "插入文档摘要",
         tooltip: createActionTooltip(
           "插入文档摘要",
-          "读取当前文档正文生成 AI 摘要，并插入到正文开头附近；已有导语链接时会避开首段。"
+          "读取当前文档正文在后台生成 AI 摘要，不遮挡当前正文，并插入到正文开头附近；已有导语链接时会避开首段。"
         ),
         group: "ai",
         requiresWritableDoc: true,
+        runInBackground: true,
         icon: "iconList",
       },
       {
@@ -499,7 +500,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         commandText: "清理AI输出内容",
         menuText: "清理AI输出内容",
         tooltip: createActionTooltip(
-          "清理AI输出内容",
+          "清理AI输出内容（支持 Ctrl + Z 回退）",
           "清理常见 AI 报告残留，如脚注上标、^^ 标记、隐藏引用 span、引用标记和”互联网”来源链接；目前主要适配 Deep Research 类输出。"
         ),
         group: "ai",
@@ -625,7 +626,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         commandText: "清理行尾空格（含Tab）",
         menuText: "清理行尾空格（含Tab）",
         tooltip: createActionTooltip(
-          "清理行尾空格（含Tab）",
+          "清理行尾空格（含Tab）（支持 Ctrl + Z 回退）",
           "清理当前文档所有段落末尾的空格和 Tab，仅处理行尾多余空白。"
         ),
         group: "edit",
@@ -637,7 +638,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         commandText: "清理剪藏内容",
         menuText: "清理剪藏内容",
         tooltip: createActionTooltip(
-          "清理剪藏内容",
+          "清理剪藏内容（支持 Ctrl + Z 回退）",
           "清理网页剪藏后的列表噪音：合并断开的列表项、去掉重复前缀，并按需要拆分中英双语段落。"
         ),
         group: "edit",
@@ -649,7 +650,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         commandText: "去除本文档空段落",
         menuText: "去除本文档空段落",
         tooltip: createActionTooltip(
-          "去除本文档空段落",
+          "去除本文档空段落（支持 Ctrl + Z 回退）",
           "删除当前文档中的空段落，让正文更紧凑。"
         ),
         group: "edit",
@@ -661,7 +662,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         commandText: "删除后续段落（含本段）",
         menuText: "删除后续段落（含本段）",
         tooltip: createActionTooltip(
-          "删除后续段落（含本段）",
+          "删除后续段落（含本段）（支持 Ctrl + Z 回退）",
           "从当前光标所在段开始，批量删除后续所有同级正文块；适合清理文章尾部冗余内容。"
         ),
         group: "edit",
@@ -673,7 +674,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         commandText: "删除之前段落（含本段）",
         menuText: "删除之前段落（含本段）",
         tooltip: createActionTooltip(
-          "删除之前段落（含本段）",
+          "删除之前段落（含本段）（支持 Ctrl + Z 回退）",
           "从文档开头到当前光标所在段，批量删除所有同级正文块。文首前10个段落中的最后一个分隔线（---）及之前的内容（文档概要）将被保留。"
         ),
         group: "edit",
@@ -709,7 +710,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         commandText: "清理预删除内容",
         menuText: "清理预删除内容",
         tooltip: createActionTooltip(
-          "清理预删除内容",
+          "清理预删除内容（支持 Ctrl + Z 回退）",
           "删除整篇文档中被删除线标记的内容，适合配合“标记口水内容”或手工预删除流程做最终清理。"
         ),
         group: "edit",

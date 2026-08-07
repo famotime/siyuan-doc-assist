@@ -94,10 +94,10 @@ export class ActionRunner {
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
         setBusy: this.deps.setBusy,
       }),
-      "trim-trailing-whitespace": async (docId) => handleTrimTrailingWhitespace({
+      "trim-trailing-whitespace": async (docId, protyle) => handleTrimTrailingWhitespace({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
         setBusy: this.deps.setBusy,
-      }, docId),
+      }, docId, protyle),
       ...createDeleteRangeActionHandlers({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
         setBusy: this.deps.setBusy,

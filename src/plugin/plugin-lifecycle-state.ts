@@ -30,11 +30,13 @@ export type PluginDocMenuState = {
   docFavoriteActionKeys: ActionKey[];
   keyInfoFilterState: KeyInfoFilter;
   aiSummaryConfig: AiServiceConfig;
+  debugLogEnabled: boolean;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   keyInfoFilter?: unknown;
   aiSummaryConfig?: unknown;
+  debugLogEnabled?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -46,6 +48,7 @@ export function buildDefaultPluginDocMenuState(
     docFavoriteActionKeys: [],
     keyInfoFilterState: buildDefaultKeyInfoFilter(),
     aiSummaryConfig: buildDefaultAiServiceConfig(),
+    debugLogEnabled: false,
   };
 }
 
@@ -59,6 +62,7 @@ export function normalizePluginDocMenuState(
     docFavoriteActionKeys: normalizeDocFavoriteActionKeys(raw, actions),
     keyInfoFilterState: normalizeStoredKeyInfoFilter(raw),
     aiSummaryConfig: normalizeStoredAiSummaryConfig(raw),
+    debugLogEnabled: normalizeStoredDebugLogEnabled(raw),
   };
 }
 
@@ -82,6 +86,14 @@ function normalizeStoredAiSummaryConfig(raw: unknown): AiServiceConfig {
   return normalizeAiServiceConfig((raw as PluginDocMenuStorageV1).aiSummaryConfig);
 }
 
+function normalizeStoredDebugLogEnabled(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") {
+    return false;
+  }
+  const value = (raw as PluginDocMenuStorageV1).debugLogEnabled;
+  return typeof value === "boolean" ? value : false;
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -92,6 +104,7 @@ export function serializePluginDocMenuState(
     favoriteActionKeys: state.docFavoriteActionKeys,
     keyInfoFilter: state.keyInfoFilterState,
     aiSummaryConfig: state.aiSummaryConfig,
+    debugLogEnabled: state.debugLogEnabled,
   };
 }
 

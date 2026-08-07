@@ -242,6 +242,7 @@ describe("action-runner loading guard", () => {
     vi.clearAllMocks();
     resetDocAssistantDebugSetting();
     getDocReadonlyStateMock.mockResolvedValue(false);
+    getBlockDOMsMock.mockResolvedValue([]);
     getBacklinkDocsMock.mockResolvedValue([]);
     getChildDocsMock.mockResolvedValue([]);
     getForwardLinkedDocIdsMock.mockResolvedValue([]);
@@ -684,6 +685,7 @@ describe("action-runner loading guard", () => {
     const runner = createRunner();
 
     await runner.runAction("insert-doc-summary" as any);
+    await flushMicrotasks();
 
     expect(generateDocumentSummaryMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -703,6 +705,7 @@ describe("action-runner loading guard", () => {
       "p1",
       "doc-1"
     );
+    expect(showMessageMock).toHaveBeenCalledWith("已开始在后台执行“插入文档摘要”", 3000, "info");
     expect(showMessageMock).toHaveBeenCalledWith("已插入 AI 文档摘要", 5000, "info");
   });
 
@@ -716,6 +719,7 @@ describe("action-runner loading guard", () => {
     const runner = createRunner();
 
     await runner.runAction("insert-doc-summary" as any);
+    await flushMicrotasks();
 
     expect(insertBlockBeforeMock).toHaveBeenCalledWith(
       "---\n\n这是 AI 生成的摘要。\n\n---",
@@ -723,6 +727,24 @@ describe("action-runner loading guard", () => {
       "doc-1"
     );
     expect(appendBlockMock).not.toHaveBeenCalled();
+  });
+
+  test("runs ai summary insertion in background without toggling busy state", async () => {
+    getRootDocRawMarkdownMock.mockResolvedValue("# 标题\n\n正文第一段");
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "h1", type: "h", markdown: "# 标题", resolved: true } as any,
+      { id: "p1", type: "p", markdown: "正文第一段", resolved: true } as any,
+    ]);
+    generateDocumentSummaryMock.mockResolvedValue("这是 AI 生成的摘要。");
+    const setBusy = vi.fn();
+    const runner = createRunner(setBusy);
+
+    await runner.runAction("insert-doc-summary" as any);
+    await flushMicrotasks();
+
+    expect(setBusy).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("已开始在后台执行“插入文档摘要”", 3000, "info");
+    expect(showMessageMock).toHaveBeenCalledWith("已插入 AI 文档摘要", 5000, "info");
   });
 
   test("marks legacy whole-paragraph slop results only when the whole paragraph is short", async () => {
