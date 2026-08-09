@@ -291,4 +291,116 @@ describe("ai-image-ocr service", () => {
       parentID: "",
     });
   });
+
+  test("recognizes only selected images when targetBlockIds contain images", async () => {
+    // 第一次 SQL 查询（针对 targetBlockIds）
+    sqlPagedMock.mockResolvedValueOnce([
+      { id: "img-selected", markdown: "![sel](assets/sel.png)" },
+    ] as any);
+
+    const forwardProxy = vi.fn().mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({ choices: [{ message: { content: "选中图片文字" } }] }),
+    });
+
+    const report = await recognizeDocImages({
+      docId: "doc-1",
+      targetBlockIds: ["img-selected"],
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com",
+        apiKey: "key",
+        model: "vision-model",
+      },
+      forwardProxy,
+    });
+
+    expect(sqlPagedMock).toHaveBeenCalledTimes(1);
+    expect(forwardProxy).toHaveBeenCalledTimes(1);
+    expect(requestApiMock).toHaveBeenCalledWith("/api/block/insertBlock", {
+      dataType: "markdown",
+      data: "> 选中图片文字",
+      nextID: "",
+      previousID: "img-selected",
+      parentID: "",
+    });
+    expect(report.scannedImageCount).toBe(1);
+    expect(report.insertedCount).toBe(1);
+  });
+
+  test("falls back to full document OCR when targetBlockIds contain no images", async () => {
+    // 第一次 SQL 查询（targetBlockIds 返回无图片的纯文本块）
+    sqlPagedMock.mockResolvedValueOnce([
+      { id: "text-block", markdown: "纯文本段落无图片" },
+    ] as any);
+    // 第二次 SQL 查询（回退全文查询，返回包含图片的文档块）
+    sqlPagedMock.mockResolvedValueOnce([
+      { id: "text-block", markdown: "纯文本段落无图片" },
+      { id: "img-all", markdown: "![all](assets/all.png)" },
+    ] as any);
+
+    const forwardProxy = vi.fn().mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({ choices: [{ message: { content: "全文图片文字" } }] }),
+    });
+
+    const report = await recognizeDocImages({
+      docId: "doc-1",
+      targetBlockIds: ["text-block"],
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com",
+        apiKey: "key",
+        model: "vision-model",
+      },
+      forwardProxy,
+    });
+
+    expect(sqlPagedMock).toHaveBeenCalledTimes(2);
+    expect(forwardProxy).toHaveBeenCalledTimes(1);
+    expect(requestApiMock).toHaveBeenCalledWith("/api/block/insertBlock", {
+      dataType: "markdown",
+      data: "> 全文图片文字",
+      nextID: "",
+      previousID: "img-all",
+      parentID: "",
+    });
+    expect(report.scannedImageCount).toBe(1);
+    expect(report.insertedCount).toBe(1);
+  });
+
+  test("filters by targetAssetPaths when multiple images are in selected blocks", async () => {
+    sqlPagedMock.mockResolvedValueOnce([
+      { id: "multi-img-block", markdown: "![img1](assets/1.png)\n![img2](assets/2.png)" },
+    ] as any);
+
+    const forwardProxy = vi.fn().mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({ choices: [{ message: { content: "图2文字" } }] }),
+    });
+
+    const report = await recognizeDocImages({
+      docId: "doc-1",
+      targetBlockIds: ["multi-img-block"],
+      targetAssetPaths: ["/assets/2.png"],
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com",
+        apiKey: "key",
+        model: "vision-model",
+      },
+      forwardProxy,
+    });
+
+    expect(forwardProxy).toHaveBeenCalledTimes(1);
+    expect(requestApiMock).toHaveBeenCalledWith("/api/block/insertBlock", {
+      dataType: "markdown",
+      data: "> 图2文字",
+      nextID: "",
+      previousID: "multi-img-block",
+      parentID: "",
+    });
+    expect(report.scannedImageCount).toBe(1);
+    expect(report.insertedCount).toBe(1);
+  });
 });

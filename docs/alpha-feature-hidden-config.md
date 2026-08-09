@@ -89,7 +89,7 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 | `insert-doc-summary` | 插入文档摘要 |
 | `mark-irrelevant-paragraphs` | 标记口水内容 |
 | `mark-key-content` | 标记关键内容 |
-| `recognize-doc-images` | 本文档图片文字识别 |
+| `recognize-doc-images` | 图片文字识别(OCR) |
 | `translate-doc-paragraphs` | 本文档逐段翻译 |
 | `clean-ai-output` | 清理AI输出内容 |
 | `add-related-links-and-tags` | 添加相关链接和标签 |

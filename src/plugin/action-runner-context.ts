@@ -1,3 +1,4 @@
+import { normalizeLocalImageAssetPath } from "@/core/image-webp-core";
 import { getActiveEditor } from "siyuan";
 import { ProtyleLike } from "@/plugin/doc-context";
 
@@ -66,6 +67,12 @@ function getFocusedBlockIdFromDom(protyle?: ProtyleLike): string {
     return fromFocused;
   }
 
+  const editing = root.querySelector("[data-editing='true']");
+  const fromEditing = resolveFromElement(editing);
+  if (fromEditing) {
+    return fromEditing;
+  }
+
   return "";
 }
 
@@ -84,6 +91,9 @@ function collectExplicitSelectedBlockIds(root: HTMLElement): string[] {
     ".protyle-wysiwyg__select",
     ".protyle-wysiwyg--selecting",
     "[data-node-id][data-node-selected]",
+    ".img--select",
+    "[data-type='img'].img--select",
+    "img.img--select",
   ];
   const nodes = root.querySelectorAll(selectors.join(","));
   const ids: string[] = [];
@@ -140,6 +150,41 @@ export function getExplicitlySelectedBlockIds(protyle?: ProtyleLike): string[] {
     return [];
   }
   return collectExplicitSelectedBlockIds(root);
+}
+
+export function getSelectedImageAssetPaths(protyle?: ProtyleLike): string[] {
+  const root = resolveSelectionRoot(protyle);
+  if (!root) {
+    return [];
+  }
+  const imageSelectors = [
+    ".img--select img",
+    "[data-type='img'].img--select img",
+    "img.img--select",
+    ".img--select",
+    "[data-type='img'].img--select",
+  ];
+  const nodes = root.querySelectorAll(imageSelectors.join(","));
+  const assetPaths: string[] = [];
+  const seen = new Set<string>();
+
+  nodes.forEach((node) => {
+    const imgElement =
+      node.tagName === "IMG"
+        ? (node as HTMLImageElement)
+        : (node.querySelector("img") as HTMLImageElement | null);
+    const src =
+      imgElement?.getAttribute("data-src") ||
+      imgElement?.getAttribute("src") ||
+      "";
+    const normalized = normalizeLocalImageAssetPath(src);
+    if (normalized && !seen.has(normalized)) {
+      seen.add(normalized);
+      assetPaths.push(normalized);
+    }
+  });
+
+  return assetPaths;
 }
 
 export function getSelectedBlockIds(protyle?: ProtyleLike): string[] {

@@ -11,7 +11,10 @@ import {
   normalizeAiServiceConfig,
 } from "@/core/ai-service-config-core";
 import { normalizeAiSummaryText } from "@/core/ai-summary-core";
-import { collectLocalImageAssetPathsFromMarkdown } from "@/core/image-webp-core";
+import {
+  collectLocalImageAssetPathsFromMarkdown,
+  normalizeLocalImageAssetPath,
+} from "@/core/image-webp-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse } from "@/services/kernel";
 import { getFileBlob } from "@/services/kernel";
@@ -30,6 +33,8 @@ type ForwardProxyFn = (
 export type RecognizeDocImagesOptions = {
   config?: unknown;
   docId: string;
+  targetBlockIds?: string[];
+  targetAssetPaths?: string[];
   forwardProxy?: ForwardProxyFn;
   onProgress?: (current: number, total: number, assetPath: string) => void;
 };
@@ -76,21 +81,67 @@ export async function recognizeDocImages(
 
   const proxyFn = options.forwardProxy || forwardProxy;
 
-  const rows = await sqlPaged<SqlDocBlockRow>(
-    `select id, markdown
-     from blocks
-     where root_id='${escapeSqlLiteral(normalizedDocId)}'
-       and type != 'd'
-     order by sort asc`,
-  );
-  const blocks = (rows || []).filter((row) => row?.id && typeof row.markdown === "string");
-  if (!blocks.length) {
-    return emptyReport();
+  const targetBlockIds = Array.isArray(options.targetBlockIds)
+    ? options.targetBlockIds.map((id) => (id || "").trim()).filter(Boolean)
+    : [];
+  const targetAssetPaths = Array.isArray(options.targetAssetPaths)
+    ? options.targetAssetPaths
+        .map((path) => normalizeLocalImageAssetPath(path) || path.trim())
+        .filter(Boolean)
+    : [];
+
+  let blocks: SqlDocBlockRow[] = [];
+  let imageItems: ImageItem[] = [];
+
+  // 若当前选中了包含图片的块，仅识别选中的图片
+  if (targetBlockIds.length > 0) {
+    const selectedRows = await sqlPaged<SqlDocBlockRow>(
+      `select id, markdown
+       from blocks
+       where root_id='${escapeSqlLiteral(normalizedDocId)}'
+         and id in (${targetBlockIds.map((id) => `'${escapeSqlLiteral(id)}'`).join(",")})
+         and type != 'd'
+       order by sort asc`,
+    );
+    const selectedBlocks = (selectedRows || []).filter(
+      (row) => row?.id && typeof row.markdown === "string",
+    );
+    let selectedImageItems = collectImageItems(selectedBlocks);
+
+    // 若指定了选中的具体图片路径，进一步精确过滤
+    if (selectedImageItems.length > 0 && targetAssetPaths.length > 0) {
+      const filtered = selectedImageItems.filter((item) =>
+        targetAssetPaths.includes(normalizeLocalImageAssetPath(item.assetPath) || item.assetPath),
+      );
+      if (filtered.length > 0) {
+        selectedImageItems = filtered;
+      }
+    }
+
+    if (selectedImageItems.length > 0) {
+      blocks = selectedBlocks;
+      imageItems = selectedImageItems;
+    }
   }
 
-  const imageItems = collectImageItems(blocks);
+  // 若未选中图片或选中块不包含图片，则对本文档所有图片做 OCR
   if (!imageItems.length) {
-    return emptyReport();
+    const rows = await sqlPaged<SqlDocBlockRow>(
+      `select id, markdown
+       from blocks
+       where root_id='${escapeSqlLiteral(normalizedDocId)}'
+         and type != 'd'
+       order by sort asc`,
+    );
+    blocks = (rows || []).filter((row) => row?.id && typeof row.markdown === "string");
+    if (!blocks.length) {
+      return emptyReport();
+    }
+
+    imageItems = collectImageItems(blocks);
+    if (!imageItems.length) {
+      return emptyReport();
+    }
   }
 
   // Phase 1: concurrent OCR requests (order doesn't matter yet)

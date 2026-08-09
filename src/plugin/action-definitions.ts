@@ -471,11 +471,11 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
       },
       {
         key: "recognize-doc-images",
-        commandText: "本文档图片文字识别",
-        menuText: "本文档图片文字识别",
+        commandText: "图片文字识别(OCR)",
+        menuText: "图片文字识别(OCR)",
         tooltip: createActionTooltip(
-          "本文档图片文字识别",
-          "将本文档所有图片逐个发送给 AI 视觉服务，识别成文字后以引用格式插入到对应图片下方。"
+          "图片文字识别(OCR)",
+          "若当前选中了包含图片的块则仅识别选中图片，否则识别全文所有图片。调用 AI 视觉服务识别成文字后以引用格式插入到对应图片下方。"
         ),
         group: "ai",
         requiresWritableDoc: true,

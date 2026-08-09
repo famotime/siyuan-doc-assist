@@ -3,15 +3,23 @@ import { recognizeDocImages } from "@/services/ai-image-ocr";
 import { translateDocParagraphs } from "@/services/ai-paragraph-translation";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { CreateAiActionHandlersOptions } from "@/plugin/action-runner-ai-types";
+import {
+  getSelectedBlockIds,
+  getSelectedImageAssetPaths,
+} from "@/plugin/action-runner-context";
 
 export function createAiMediaActionHandlers(
   options: CreateAiActionHandlersOptions = {}
 ): PartialActionHandlerMap {
   return {
-    "recognize-doc-images": async (docId) => {
+    "recognize-doc-images": async (docId, protyle) => {
+      const selectedBlockIds = getSelectedBlockIds(protyle);
+      const selectedAssetPaths = getSelectedImageAssetPaths(protyle);
       const report = await recognizeDocImages({
         config: options.getAiSummaryConfig?.(),
         docId,
+        targetBlockIds: selectedBlockIds,
+        targetAssetPaths: selectedAssetPaths,
         onProgress: (current, total, assetPath) => {
           const basename = assetPath.split("/").filter(Boolean).pop() || assetPath;
           showMessage(`图片文字识别中（${current}/${total}）：${basename}`, 3000, "info");

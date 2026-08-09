@@ -93,7 +93,7 @@ Provider 的关键字段：
 | `delete-from-current-to-end` | 删除后续段落（含本段） |
 | `delete-from-start-to-current` | 删除之前段落（含本段） |
 | `convert-images-to-webp` | 批量转换为WebP |
-| `recognize-doc-images` | 本文档图片文字识别 |
+| `recognize-doc-images` | 图片文字识别(OCR) |
 | `add-related-links-and-tags` | 添加相关链接和标签 |
 | `generate-llm-wiki` | 生成 LLM Wiki 文档 |
 
