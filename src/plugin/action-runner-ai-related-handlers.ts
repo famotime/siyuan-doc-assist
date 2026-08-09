@@ -40,9 +40,10 @@ export function createAiRelatedActionHandlers(
 
       const payload = normalizeRelatedSuggestionPayload(result.data);
       const links = dedupeRelatedSuggestions(payload.suggestions);
-      const tagItems = dedupeTagSuggestionItems(
-        links.flatMap((item) => item.tagSuggestions)
-      );
+      const tagItems = dedupeTagSuggestionItems([
+        ...(payload.tagSuggestions ?? []),
+        ...links.flatMap((item) => item.tagSuggestions),
+      ]);
       const tags = tagItems.map((item) => item.tag);
       if (!links.length && !tags.length) {
         showMessage("AI 未返回可添加的相关链接或标签", 5000, "info");

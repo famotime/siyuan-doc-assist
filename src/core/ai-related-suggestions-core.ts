@@ -1,18 +1,21 @@
+export type TagSuggestionItem = {
+  tag: string;
+  source?: string;
+  reason?: string;
+};
+
 export type RelatedSuggestion = {
   targetDocumentId: string;
   targetTitle: string;
   confidence?: string;
   reason?: string;
-  tagSuggestions: Array<{
-    tag: string;
-    source?: string;
-    reason?: string;
-  }>;
+  tagSuggestions: TagSuggestionItem[];
 };
 
 export type RelatedSuggestionPayload = {
   summary: string;
   suggestions: RelatedSuggestion[];
+  tagSuggestions: TagSuggestionItem[];
 };
 
 export function normalizeRelatedSuggestionPayload(value: unknown): RelatedSuggestionPayload {
@@ -22,9 +25,15 @@ export function normalizeRelatedSuggestionPayload(value: unknown): RelatedSugges
       .map(normalizeRelatedSuggestion)
       .filter((item): item is RelatedSuggestion => Boolean(item))
     : [];
+  const tagSuggestions = Array.isArray(source.tagSuggestions)
+    ? source.tagSuggestions
+      .map(normalizeTagSuggestion)
+      .filter((item): item is TagSuggestionItem => Boolean(item))
+    : [];
   return {
     summary: typeof source.summary === "string" ? source.summary.trim() : "",
     suggestions,
+    tagSuggestions,
   };
 }
 

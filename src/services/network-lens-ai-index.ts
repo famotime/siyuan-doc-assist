@@ -30,6 +30,25 @@ export async function loadFreshNetworkLensDocumentSummary(params: {
   documentUpdatedAt: string;
 }): Promise<NetworkLensDocumentSummary | null> {
   const snapshot = await params.networkLensPlugin?.loadData?.("ai-document-index.json");
+  if (snapshot && typeof snapshot.schemaVersion === "number" && snapshot.schemaVersion >= 3) {
+    const v3Profile = snapshot?.documentProfiles?.[params.documentId];
+    if (v3Profile && v3Profile.sourceUpdatedAt === params.documentUpdatedAt && v3Profile.positioning?.trim()) {
+      const positioning = v3Profile.positioning.trim();
+      const primaryBlocks = parseJsonStringArray(v3Profile.primarySourceBlocksJson);
+      const snippets = Array.isArray(primaryBlocks)
+        ? (primaryBlocks as any[]).map((item) => (typeof item === "object" && item?.text ? item.text : String(item)))
+        : [];
+      return {
+        summaryShort: positioning,
+        summaryMedium: positioning,
+        keywords: parseJsonStringArray(v3Profile.keywordsJson),
+        evidenceSnippets: snippets,
+        indexedAt: v3Profile.generatedAt || "",
+        sourceHash: v3Profile.sourceHash || "",
+      };
+    }
+  }
+
   const profile = snapshot?.semanticProfiles?.[params.documentId] as
     | NetworkLensDocumentSemanticProfileRecord
     | undefined;

@@ -32,6 +32,7 @@ describe("ai related suggestions core", () => {
           tagSuggestions: [{ tag: "AI", source: "existing", reason: undefined }],
         },
       ],
+      tagSuggestions: [],
     });
   });
 
