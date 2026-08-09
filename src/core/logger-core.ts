@@ -33,6 +33,16 @@ function parseBooleanFlag(value: unknown): boolean | null {
 export function setDocAssistantDebugEnabled(enabled: boolean) {
   debugOverride = enabled;
   (globalThis as Record<string, unknown>)[DEBUG_GLOBAL_KEY] = enabled;
+  try {
+    if (
+      typeof localStorage !== "undefined" &&
+      typeof localStorage.setItem === "function"
+    ) {
+      localStorage.setItem(DEBUG_STORAGE_KEY, enabled ? "true" : "false");
+    }
+  } catch {
+    // Ignore storage write errors.
+  }
 }
 
 export function resetDocAssistantDebugSetting() {

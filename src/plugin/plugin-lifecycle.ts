@@ -20,6 +20,7 @@ import {
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
 import { setTransactionDebugLogEnabled } from "@/plugin/transaction-runner";
+import { setDocAssistantDebugEnabled } from "@/core/logger-core";
 import {
   bindPluginLifecycleEvents,
   unbindPluginLifecycleEvents,
@@ -357,6 +358,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.aiSummaryConfig = state.aiSummaryConfig;
     this.debugLogEnabled = state.debugLogEnabled ?? false;
     setTransactionDebugLogEnabled(this.debugLogEnabled);
+    setDocAssistantDebugEnabled(this.debugLogEnabled);
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {

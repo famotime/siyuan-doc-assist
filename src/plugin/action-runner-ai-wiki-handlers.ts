@@ -1,6 +1,9 @@
 import { showMessage } from "siyuan";
+import { createDocAssistantLogger } from "@/core/logger-core";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { CreateAiActionHandlersOptions } from "@/plugin/action-runner-ai-types";
+
+const aiWikiLogger = createDocAssistantLogger("AiWiki");
 
 export function createAiWikiActionHandlers(
   _options: CreateAiActionHandlersOptions = {}
@@ -17,7 +20,7 @@ export function createAiWikiActionHandlers(
         showMessage("脉络镜插件版本不支持 Wiki 命令，请更新插件", 5000, "error");
         return;
       }
-      console.log("[DocAssist Wiki] 开始生成，docId:", docId, "时间:", new Date().toISOString());
+      aiWikiLogger.debug("开始生成 Wiki", { docId, time: new Date().toISOString() });
       let result;
       try {
         result = await wikiProvider.invokeCommand("generate-llm-wiki", {
@@ -26,11 +29,11 @@ export function createAiWikiActionHandlers(
           themeDocumentId: docId,
         });
       } catch (e) {
-        console.error("[DocAssist Wiki] invokeCommand 抛出异常:", e);
+        aiWikiLogger.error("invokeCommand 抛出异常", e);
         showMessage(`Wiki 命令执行异常: ${e instanceof Error ? e.message : String(e)}`, 5000, "error");
         return;
       }
-      console.log("[DocAssist Wiki] invokeCommand 返回:", JSON.stringify(result));
+      aiWikiLogger.debug("invokeCommand 返回", result);
       if (!result?.ok) {
         showMessage(result?.message || "Wiki 文档生成失败", 5000, "error");
         return;

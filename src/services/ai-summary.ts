@@ -382,7 +382,7 @@ export async function generateDocumentTagSuggestions(
 ): Promise<string[]> {
   const config = normalizeAiServiceConfig(params.config);
   if (!config.enabled || !isAiServiceConfigComplete(config)) {
-    console.log("[DocAssistant][AiRelated][Fallback] generateDocumentTagSuggestions 校验未通过:", {
+    aiSummaryLogger.debug("generateDocumentTagSuggestions 校验未通过", {
       enabled: config.enabled,
       hasBaseUrl: Boolean(config.baseUrl),
       hasApiKey: Boolean(config.apiKey),
@@ -421,10 +421,10 @@ export async function generateDocumentTagSuggestions(
       messages,
     });
     const parsed = parseTagsFromAiResponse(text);
-    console.log("[DocAssistant][AiRelated][Fallback] AI 标签推荐请求成功，解析结果:", parsed);
+    aiSummaryLogger.debug("AI 标签推荐请求成功，解析结果", parsed);
     return parsed;
   } catch (error) {
-    console.warn("[DocAssistant][AiRelated][Fallback] AI 标签推荐请求失败，异常信息:", error);
+    aiSummaryLogger.warn("AI 标签推荐请求失败，异常信息", error);
     return [];
   }
 }

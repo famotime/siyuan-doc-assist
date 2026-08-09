@@ -26,7 +26,7 @@ function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
   const inputs = aiPanel.querySelectorAll("input, textarea, select");
   inputs.forEach((input) => {
     const key = (input as HTMLElement).dataset.settingKey;
-    if (key === "ai-enabled" || key === "ai-debug") {
+    if (key === "ai-enabled") {
       return;
     }
     input.setAttribute("disabled", "true");

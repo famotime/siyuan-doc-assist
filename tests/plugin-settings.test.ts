@@ -435,4 +435,36 @@ describe("plugin settings", () => {
       ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
     }
   });
+
+  test("debug mode toggle controls logger-core debug state and AI settings panel does not contain AI log switch", async () => {
+    const { isDocAssistantDebugEnabled } = await import("@/core/logger-core");
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
+    plugin.openSetting();
+
+    const setting = settingInstances[1];
+    const itemTitles = setting.items.map((item) => item.title);
+    expect(itemTitles).toContain("AI 服务");
+    expect(itemTitles).toContain("调试模式");
+
+    const aiPanelItem = setting.items.find((item) => item.title === "AI 服务");
+    const aiPanel = aiPanelItem?.actionElement as HTMLElement;
+    expect(aiPanel.querySelector('[data-setting-key="ai-debug"]')).toBeNull();
+
+    const debugModeItem = setting.items.find((item) => item.title === "调试模式");
+    const debugToggle = debugModeItem?.actionElement as HTMLInputElement;
+
+    expect(isDocAssistantDebugEnabled()).toBe(false);
+    expect(debugToggle.checked).toBe(false);
+
+    debugToggle.checked = true;
+    debugToggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.debugLogEnabled).toBe(true);
+    expect(isDocAssistantDebugEnabled()).toBe(true);
+  });
 });

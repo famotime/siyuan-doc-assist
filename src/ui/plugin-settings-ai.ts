@@ -5,10 +5,6 @@ import {
   normalizeAiServiceConfig,
 } from "@/core/ai-service-config-core";
 import {
-  isDocAssistantDebugEnabled,
-  setDocAssistantDebugEnabled,
-} from "@/core/logger-core";
-import {
   createCheckbox,
   createCollapseButton,
   createElement,
@@ -273,30 +269,6 @@ export function createAiSettingsPanel(
       input: aiMaxTokensInput,
     })
   );
-
-  const aiDebugInput = createCheckbox({
-    checked: isDocAssistantDebugEnabled(),
-    title: "启用 AI 日志",
-    onChange: (checked) => {
-      setDocAssistantDebugEnabled(checked);
-      try {
-        if (typeof localStorage !== "undefined") {
-          localStorage.setItem("doc-assistant.debug", checked ? "true" : "false");
-        }
-      } catch {
-        // ignore
-      }
-    },
-  });
-  aiDebugInput.dataset.settingKey = "ai-debug";
-
-  const debugFieldRow = createFieldRow({
-    label: "AI 日志",
-    hint: "打开后会在浏览器控制台输出 AI 服务的请求和响应日志，用于故障分析定位。",
-    input: aiDebugInput,
-  });
-  debugFieldRow.classList.add("doc-assistant-settings__ai-debug-row");
-  fields.append(debugFieldRow);
 
   const controls = createElement("div", "doc-assistant-settings__section-controls");
   controls.append(
