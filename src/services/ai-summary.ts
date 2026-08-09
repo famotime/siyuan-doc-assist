@@ -283,7 +283,7 @@ function extractTextContent(payload: any): string {
   const message = payload?.choices?.[0]?.message;
   const content = message?.content;
   if (typeof content === "string" && content.trim()) {
-    return normalizeAiSummaryText(content);
+    return stripThinkingProcess(normalizeAiSummaryText(content));
   }
   if (Array.isArray(content)) {
     const joined = normalizeAiSummaryText(
@@ -298,15 +298,25 @@ function extractTextContent(payload: any): string {
         .join("\n")
     );
     if (joined) {
-      return joined;
+      return stripThinkingProcess(joined);
     }
   }
 
   const reasoning = message?.reasoning_content;
   if (typeof reasoning === "string" && reasoning.trim()) {
-    return normalizeAiSummaryText(reasoning);
+    return stripThinkingProcess(normalizeAiSummaryText(reasoning));
   }
   return "";
+}
+
+function stripThinkingProcess(text: string): string {
+  if (!text) {
+    return "";
+  }
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "")
+    .trim();
 }
 
 export async function generateDocumentSummary(
@@ -361,5 +371,175 @@ export async function generateCanvasOutline(
   }).generateCanvasOutline(params);
 }
 
+export type GenerateDocumentTagSuggestionsParams = {
+  config?: unknown;
+  documentTitle?: string;
+  documentMarkdown: string;
+};
+
+export async function generateDocumentTagSuggestions(
+  params: GenerateDocumentTagSuggestionsParams
+): Promise<string[]> {
+  const config = normalizeAiServiceConfig(params.config);
+  if (!config.enabled || !isAiServiceConfigComplete(config)) {
+    console.log("[DocAssistant][AiRelated][Fallback] generateDocumentTagSuggestions 校验未通过:", {
+      enabled: config.enabled,
+      hasBaseUrl: Boolean(config.baseUrl),
+      hasApiKey: Boolean(config.apiKey),
+      hasModel: Boolean(config.model),
+    });
+    return [];
+  }
+
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content:
+        "你是专业的文档标签提取助手。请基于文档标题和正文，提炼出 3-5 个最准确、简短的主题标签（每个标签 2-8 个字）。"
+        + "必须仅输出 JSON 字符串数组格式，例如 [\"标签1\", \"标签2\", \"标签3\"]，不要包含 Markdown 标记、代码块或任何解释文字。",
+    },
+    {
+      role: "user",
+      content: [
+        params.documentTitle ? `文档标题：${params.documentTitle}` : "",
+        "文档正文：",
+        params.documentMarkdown ? params.documentMarkdown.slice(0, 2000) : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    },
+  ];
+
+  try {
+    const text = await requestChatCompletionText(forwardProxy, {
+      config,
+      disabledMessage: "AI 未启用",
+      failureMessage: "AI 标签推荐失败",
+      emptyMessage: "AI 未返回标签",
+      maxTokens: config.maxTokens,
+      temperature: 0.3,
+      messages,
+    });
+    const parsed = parseTagsFromAiResponse(text);
+    console.log("[DocAssistant][AiRelated][Fallback] AI 标签推荐请求成功，解析结果:", parsed);
+    return parsed;
+  } catch (error) {
+    console.warn("[DocAssistant][AiRelated][Fallback] AI 标签推荐请求失败，异常信息:", error);
+    return [];
+  }
+}
+
+export function parseTagsFromAiResponse(text: string): string[] {
+  if (!text || typeof text !== "string" || !text.trim()) {
+    return [];
+  }
+
+  const raw = text.trim();
+
+  // 策略 1：解析标准 JSON 数组或包含在 Markdown 代码块中的 JSON 数组
+  try {
+    const start = raw.indexOf("[");
+    const end = raw.lastIndexOf("]");
+    if (start >= 0 && end > start) {
+      const jsonStr = raw.slice(start, end + 1);
+      const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed)) {
+        const items = parsed
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => sanitizeTagItem(item))
+          .filter((tag) => !isMetaThinkingNoise(tag));
+        if (items.length) {
+          return Array.from(new Set(items));
+        }
+      }
+    }
+  } catch {
+    // 忽略 JSON 解析失败，继续走文本解构
+  }
+
+  // 策略 2：按行解析 (支持 "1. 卡车司机：核心叙事", "- 自由与代价", "• 阶层固化" 等有序/无序列表)
+  const lines = raw
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const parsedFromLines: string[] = [];
+  for (const line of lines) {
+    const cleanedLine = line
+      .replace(/^[\d.、\-*•#]+\s*/u, "")
+      .replace(/^标签\d*[:：]\s*/u, "")
+      .replace(/["'“”‘’《》【】\[\]]/gu, " ")
+      .trim();
+
+    if (!cleanedLine) {
+      continue;
+    }
+
+    const mainTerm = cleanedLine.split(/[:：—\-]/u)[0]?.trim() || cleanedLine;
+    const subTerms = mainTerm.split(/[,，、;]/u).map((s) => sanitizeTagItem(s)).filter(Boolean);
+    for (const sub of subTerms) {
+      if (!isMetaThinkingNoise(sub)) {
+        parsedFromLines.push(sub);
+      }
+    }
+  }
+
+  if (parsedFromLines.length) {
+    return Array.from(new Set(parsedFromLines)).slice(0, 5);
+  }
+
+  // 策略 3：按顿号/逗号/井号分隔符切分 (如 "卡车司机、自由与代价、阶层固化")
+  const splitItems = raw
+    .split(/[,，、;\s#]+/u)
+    .map((item) => sanitizeTagItem(item))
+    .filter((tag) => !isMetaThinkingNoise(tag));
+
+  return Array.from(new Set(splitItems)).slice(0, 5);
+}
+
+const META_THINKING_PATTERNS = [
+  /^用户/u,
+  /^思考/u,
+  /^分析/u,
+  /^需要/u,
+  /^根据/u,
+  /^首先/u,
+  /^总结/u,
+  /^提示/u,
+  /^以下是/u,
+  /^标签推荐/u,
+  /思考过程/u,
+  /提取[\d\-\s]*个/u,
+  /主题标签/u,
+  /核心主题/u,
+  /核心.*点/u,
+  /讨论/u,
+  /调整/u,
+  /等下/u,
+  /试试/u,
+];
+
+function isMetaThinkingNoise(tag: string): boolean {
+  if (!tag || tag.length < 2 || tag.length > 15) {
+    return true;
+  }
+  if (/[。！？\?!]/u.test(tag)) {
+    return true;
+  }
+  for (const pattern of META_THINKING_PATTERNS) {
+    if (pattern.test(tag)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function sanitizeTagItem(item: string): string {
+  return item
+    .replace(/^#+\s*/u, "")
+    .replace(/["'“”‘’《》【】\[\]]/gu, "")
+    .trim();
+}
 
 export type { AiServiceConfig };
+

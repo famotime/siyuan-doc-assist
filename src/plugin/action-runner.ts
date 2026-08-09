@@ -114,13 +114,24 @@ export class ActionRunner {
     if (this.shouldAutoConfirm()) {
       return true;
     }
+    const wasBusy = this.isRunning;
     this.deps.setBusy?.(false);
     try {
-      return detailItems?.length
+      const ok = detailItems?.length
         ? await this.deps.askConfirm(title, text, detailItems)
         : await this.deps.askConfirm(title, text);
-    } finally {
-      this.deps.setBusy?.(true);
+      if (!ok) {
+        return false;
+      }
+      if (wasBusy) {
+        this.deps.setBusy?.(true);
+      }
+      return true;
+    } catch (error) {
+      if (wasBusy) {
+        this.deps.setBusy?.(true);
+      }
+      throw error;
     }
   }
 

@@ -876,6 +876,7 @@ describe("action-runner loading guard", () => {
     getBlockAttrsMock.mockResolvedValue({ tags: "已有标签" });
 
     await runner.runAction("add-related-links-and-tags" as any);
+    await flushMicrotasks();
 
     expect(invokeCommand).toHaveBeenCalledWith("suggest-orphan-links-and-tags", {
       trigger: "manual",
@@ -946,6 +947,7 @@ describe("action-runner loading guard", () => {
     getBlockAttrsMock.mockResolvedValue({ tags: "已有标签" });
 
     await runner.runAction("add-related-links-and-tags" as any);
+    await flushMicrotasks();
 
     expect(insertBlockBeforeMock).toHaveBeenCalledWith(
       '((target-2 "机器学习"))',
@@ -960,6 +962,116 @@ describe("action-runner loading guard", () => {
       5000,
       "info"
     );
+  });
+
+  test("falls back to generating related tags when AI link completion fails due to insufficient info", async () => {
+    const askConfirm = vi.fn(async () => true);
+    const invokeCommand = vi.fn(async (cmd: string) => {
+      if (cmd === "suggest-orphan-links-and-tags") {
+        return {
+          ok: false,
+          errorCode: "execution-failed" as const,
+          message: "AI 补链请求失败",
+        };
+      }
+      return {
+        ok: true,
+        data: {
+          tagSuggestions: [
+            { tag: "降级标签1", source: "fallback", reason: "推荐标签" },
+            { tag: "降级标签2", source: "fallback", reason: "推荐标签" },
+          ],
+        },
+      };
+    });
+
+    const runner = createRunner(undefined, {
+      askConfirm,
+      resolveNetworkLensPlugin: () => ({
+        getWikiCommandIntegration: () => ({
+          listCommands: () => [{ id: "suggest-orphan-tags", title: "建议标签" }],
+          invokeCommand,
+        }),
+      }),
+    });
+    getBlockAttrsMock.mockResolvedValue({ tags: "原标签" });
+
+    await runner.runAction("add-related-links-and-tags" as any);
+    await flushMicrotasks();
+
+    expect(askConfirm).toHaveBeenCalledWith(
+      "确认添加相关链接和标签",
+      expect.stringContaining("（补链提示：AI 补链请求失败）"),
+      expect.arrayContaining([
+        expect.objectContaining({ label: "标签：降级标签1" }),
+        expect.objectContaining({ label: "标签：降级标签2" }),
+      ])
+    );
+    expect(setBlockAttrsMock).toHaveBeenCalledWith("doc-1", {
+      tags: "原标签,降级标签1,降级标签2",
+    });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已添加相关标签 2 个",
+      5000,
+      "info"
+    );
+  });
+
+  test("runs add-related-links-and-tags in background without masking page", async () => {
+    const invokeCommand = vi.fn(async () => ({
+      ok: true,
+      data: { tagSuggestions: [{ tag: "后台标签" }] },
+    }));
+    const setBusy = vi.fn();
+    const setBackgroundActionRunning = vi.fn();
+
+    const runner = createRunner(undefined, {
+      setBusy,
+      setBackgroundActionRunning,
+      askConfirm: async () => true,
+      resolveNetworkLensPlugin: () => ({
+        getWikiCommandIntegration: () => ({
+          invokeCommand,
+        }),
+      }),
+    });
+    getBlockAttrsMock.mockResolvedValue({ tags: "" });
+
+    const runResult = await runner.runAction("add-related-links-and-tags" as any);
+
+    expect(runResult).toEqual({ ok: true, alreadyNotified: true });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已开始在后台执行“添加相关链接和标签”",
+      3000,
+      "info"
+    );
+    expect(setBusy).not.toHaveBeenCalledWith(true);
+  });
+
+  test("does not restore setBusy(true) when user cancels the preview dialog in background or foreground action", async () => {
+    const invokeCommand = vi.fn(async () => ({
+      ok: true,
+      data: { tagSuggestions: [{ tag: "取消标签" }] },
+    }));
+    const setBusy = vi.fn();
+    const askConfirm = vi.fn(async () => false); // User clicks Cancel
+
+    const runner = createRunner(undefined, {
+      setBusy,
+      askConfirm,
+      resolveNetworkLensPlugin: () => ({
+        getWikiCommandIntegration: () => ({
+          invokeCommand,
+        }),
+      }),
+    });
+
+    await runner.runAction("add-related-links-and-tags" as any);
+    await flushMicrotasks();
+
+    expect(askConfirm).toHaveBeenCalled();
+    expect(setBusy).toHaveBeenCalledWith(false);
+    expect(setBusy).not.toHaveBeenCalledWith(true);
   });
 
   test("skips full-paragraph segments when a paragraph contains multiple sentences", async () => {

@@ -517,6 +517,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "ai",
         requiresWritableDoc: true,
+        runInBackground: true,
         icon: "iconLink",
       },
       {
