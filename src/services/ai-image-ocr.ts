@@ -1,4 +1,10 @@
 import {
+  calculateImageSliceRects,
+  mergeOcrResults,
+  buildOcrQuoteMarkdown,
+  MAX_OCR_IMAGE_HEIGHT,
+} from "@/core/ai-image-ocr-core";
+import {
   AiServiceConfig,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
@@ -91,8 +97,18 @@ export async function recognizeDocImages(
   const ocrPromises = imageItems.map(async (item, index) => {
     options.onProgress?.(index + 1, imageItems.length, item.assetPath);
     try {
-      const imageBase64 = await readAssetAsBase64(item.assetPath);
-      return await requestVisionOcr(proxyFn, config, imageBase64);
+      const imageBase64List = await readAssetAsBase64List(item.assetPath);
+      if (!imageBase64List.length) {
+        return null;
+      }
+      if (imageBase64List.length === 1) {
+        return await requestVisionOcr(proxyFn, config, imageBase64List[0]);
+      }
+      // 多切片并行请求 OCR
+      const sliceResults = await Promise.all(
+        imageBase64List.map((base64) => requestVisionOcr(proxyFn, config, base64)),
+      );
+      return mergeOcrResults(sliceResults);
     } catch {
       return null;
     }
@@ -162,11 +178,104 @@ function collectImageItems(blocks: SqlDocBlockRow[]): ImageItem[] {
   return items;
 }
 
-async function readAssetAsBase64(assetPath: string): Promise<string> {
+export async function readAssetAsBase64List(
+  assetPath: string,
+  maxSliceHeight = MAX_OCR_IMAGE_HEIGHT,
+): Promise<string[]> {
   const normalized = assetPath.startsWith("/") ? assetPath : `/${assetPath}`;
   const workspacePath = `/data${normalized}`;
   const blob = await getFileBlob(workspacePath);
-  return blobToBase64(blob);
+  return sliceImageBlobToBase64List(blob, maxSliceHeight);
+}
+
+async function sliceImageBlobToBase64List(
+  blob: Blob,
+  maxSliceHeight = MAX_OCR_IMAGE_HEIGHT,
+): Promise<string[]> {
+  try {
+    const imageSource = await loadImageSource(blob);
+    try {
+      const { width, height } = imageSource;
+      if (height <= maxSliceHeight || typeof document === "undefined") {
+        return [await blobToBase64(blob)];
+      }
+
+      const rects = calculateImageSliceRects(width, height, maxSliceHeight);
+      if (rects.length <= 1) {
+        return [await blobToBase64(blob)];
+      }
+
+      const results: string[] = [];
+      for (const rect of rects) {
+        const canvas = document.createElement("canvas");
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          throw new Error("无法创建 Canvas 2D 绘图上下文");
+        }
+        ctx.drawImage(
+          imageSource.source,
+          rect.x,
+          rect.y,
+          rect.width,
+          rect.height,
+          0,
+          0,
+          rect.width,
+          rect.height,
+        );
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        const commaIndex = dataUrl.indexOf(",");
+        results.push(commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl);
+      }
+      return results;
+    } finally {
+      imageSource.cleanup();
+    }
+  } catch (error) {
+    aiOcrLogger.warn("图片切片处理失败，回退为完整图片", { error });
+    return [await blobToBase64(blob)];
+  }
+}
+
+async function loadImageSource(blob: Blob): Promise<{
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  cleanup: () => void;
+}> {
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(blob);
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      cleanup: () => {
+        bitmap.close?.();
+      },
+    };
+  }
+
+  if (typeof Image === "undefined" || typeof URL === "undefined") {
+    throw new Error("当前环境不支持图片解码");
+  }
+
+  const objectUrl = URL.createObjectURL(blob);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error("图片解码失败"));
+    element.src = objectUrl;
+  });
+  return {
+    source: image,
+    width: image.naturalWidth || image.width,
+    height: image.naturalHeight || image.height,
+    cleanup: () => {
+      URL.revokeObjectURL(objectUrl);
+    },
+  };
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -271,12 +380,4 @@ function extractTextContent(payload: any): string {
     );
   }
   return "";
-}
-
-function buildOcrQuoteMarkdown(text: string): string {
-  return text
-    .trim()
-    .split(/\r?\n/)
-    .map((line) => line.trim() ? `> ${line}` : ">")
-    .join("\n");
 }

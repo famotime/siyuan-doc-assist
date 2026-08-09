@@ -41,6 +41,8 @@ describe("ai-image-ocr service", () => {
     getFileBlobMock.mockReset();
     requestApiMock.mockReset();
     vi.stubGlobal("FileReader", TestFileReader);
+    vi.unstubAllGlobals();
+    vi.stubGlobal("FileReader", TestFileReader);
     getFileBlobMock.mockResolvedValue(new Blob(["image"]));
     requestApiMock.mockResolvedValue({});
   });
@@ -152,5 +154,141 @@ describe("ai-image-ocr service", () => {
     expect(promptText).toContain("只输出 OCR 识别出的文字");
     expect(promptText).toContain("不要解读图片");
     expect(promptText).toContain("不要添加说明");
+  });
+
+  test("slices image with height > 3000 into multiple parts and joins results with '---' separator", async () => {
+    sqlPagedMock.mockResolvedValueOnce([
+      { id: "img-long", markdown: "![long](assets/long.png)" },
+    ] as any);
+
+    const mockBitmap = {
+      width: 1000,
+      height: 7000,
+      close: vi.fn(),
+    };
+    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue(mockBitmap));
+
+    let sliceCallCount = 0;
+    const mockDocument = {
+      createElement: vi.fn((tagName: string) => {
+        if (tagName === "canvas") {
+          sliceCallCount += 1;
+          const currentSlice = sliceCallCount;
+          return {
+            width: 0,
+            height: 0,
+            getContext: () => ({
+              drawImage: vi.fn(),
+            }),
+            toDataURL: () => `data:image/jpeg;base64,slice-${currentSlice}-data`,
+          };
+        }
+        return {};
+      }),
+    };
+    vi.stubGlobal("document", mockDocument);
+
+    const forwardProxy = vi.fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ choices: [{ message: { content: "第一部分识别文字" } }] }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ choices: [{ message: { content: "第二部分识别文字" } }] }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ choices: [{ message: { content: "第三部分识别文字" } }] }),
+      });
+
+    const report = await recognizeDocImages({
+      docId: "doc-1",
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com",
+        apiKey: "key",
+        model: "vision-model",
+      },
+      forwardProxy,
+    });
+
+    // 7000px 切片为 3000 + 3000 + 1000 = 3 片
+    expect(forwardProxy).toHaveBeenCalledTimes(3);
+    expect(mockBitmap.close).toHaveBeenCalled();
+
+    // 验证插入到 SiYuan 的 Markdown 引用块包含 "---" 分割线
+    expect(requestApiMock).toHaveBeenCalledTimes(1);
+    expect(requestApiMock).toHaveBeenCalledWith("/api/block/insertBlock", {
+      dataType: "markdown",
+      data: "> 第一部分识别文字\n> ---\n> 第二部分识别文字\n> ---\n> 第三部分识别文字",
+      nextID: "",
+      previousID: "img-long",
+      parentID: "",
+    });
+    expect(report.insertedCount).toBe(1);
+    expect(report.recognizedCount).toBe(1);
+  });
+
+  test("handles sliced image where some slices return [NO_TEXT]", async () => {
+    sqlPagedMock.mockResolvedValueOnce([
+      { id: "img-long", markdown: "![long](assets/long.png)" },
+    ] as any);
+
+    const mockBitmap = {
+      width: 1000,
+      height: 6000,
+      close: vi.fn(),
+    };
+    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue(mockBitmap));
+
+    let sliceCallCount = 0;
+    const mockDocument = {
+      createElement: vi.fn((tagName: string) => {
+        if (tagName === "canvas") {
+          sliceCallCount += 1;
+          const currentSlice = sliceCallCount;
+          return {
+            width: 0,
+            height: 0,
+            getContext: () => ({
+              drawImage: vi.fn(),
+            }),
+            toDataURL: () => `data:image/jpeg;base64,slice-${currentSlice}-data`,
+          };
+        }
+        return {};
+      }),
+    };
+    vi.stubGlobal("document", mockDocument);
+
+    const forwardProxy = vi.fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ choices: [{ message: { content: "第一部分有效文字" } }] }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ choices: [{ message: { content: "[NO_TEXT]" } }] }),
+      });
+
+    await recognizeDocImages({
+      docId: "doc-1",
+      config: {
+        enabled: true,
+        baseUrl: "https://api.example.com",
+        apiKey: "key",
+        model: "vision-model",
+      },
+      forwardProxy,
+    });
+
+    expect(requestApiMock).toHaveBeenCalledWith("/api/block/insertBlock", {
+      dataType: "markdown",
+      data: "> 第一部分有效文字",
+      nextID: "",
+      previousID: "img-long",
+      parentID: "",
+    });
   });
 });
