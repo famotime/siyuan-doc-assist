@@ -51,7 +51,7 @@ function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
     line-height: 1.5;
     color: var(--b3-theme-on-background);
   `;
-  tip.innerHTML = `💡 通用 AI API 已由 <strong>API 管家</strong> 接管 (Profile: ${managedConfig.profileName || '未命名'})。如需修改，请前往 API 管家插件面板。`;
+  tip.innerHTML = `💡 通用 AI API 已由 <strong>API 旋钮 (siyuan-api-switch)</strong> 接管 (Profile: ${managedConfig.profileName || '未命名'})。如需修改，请前往 API 旋钮插件面板。`;
   
   // 插入到面板最上方
   aiPanel.insertBefore(tip, aiPanel.firstChild);
