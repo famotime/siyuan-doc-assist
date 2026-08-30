@@ -2,7 +2,10 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ACTIONS, getActionConfigByKey } from "@/plugin/actions";
-import { buildDefaultDocMenuRegistration } from "@/core/doc-menu-registration-core";
+import {
+  buildDefaultDocActionEnabled,
+  buildDefaultDocMenuRegistration,
+} from "@/core/doc-menu-registration-core";
 import { buildDockDocActions } from "@/core/dock-panel-core";
 import { ALPHA_FEATURE_HIDE_CONFIG, filterVisibleActions } from "@/plugin/alpha-feature-config";
 
@@ -33,22 +36,15 @@ const {
 
 vi.mock("siyuan", () => {
   class Plugin {
-    public readonly storage = new Map<string, any>();
     public readonly listeners = new Map<string, Set<(event: any) => void>>();
+    public readonly storage = new Map<string, any>();
     public readonly addDock = vi.fn();
     public readonly addCommand = vi.fn();
-    public readonly addTopBar = vi.fn((config: {
-      icon: string;
-      title: string;
-      callback: (event: MouseEvent) => void;
-      position?: "right" | "left";
-    }) => {
+    public readonly addTopBar = vi.fn((config: any) => {
       topBarConfigs.push(config);
       return document.createElement("div");
     });
     public readonly addIcons = addIconsMock;
-    public readonly name = "siyuan-doc-assist";
-    public setting?: Setting;
 
     public readonly eventBus = {
       on: (name: string, handler: (event: any) => void) => {
@@ -61,6 +57,12 @@ vi.mock("siyuan", () => {
       },
     };
 
+    emitEvent(name: string, detail: any) {
+      for (const handler of this.listeners.get(name) || []) {
+        handler({ detail });
+      }
+    }
+
     async loadData(storageName: string): Promise<any> {
       return this.storage.get(storageName);
     }
@@ -68,24 +70,30 @@ vi.mock("siyuan", () => {
     async saveData(storageName: string, content: any): Promise<void> {
       this.storage.set(storageName, content);
     }
+
+    async removeData(storageName: string): Promise<any> {
+      const current = this.storage.get(storageName);
+      this.storage.delete(storageName);
+      return current;
+    }
   }
 
   class Setting {
     public readonly items: Array<{
       title: string;
-      direction?: "column" | "row";
+      direction?: "row" | "column";
       description?: string;
       actionElement: HTMLElement;
     }> = [];
     public readonly open = vi.fn();
 
-    constructor(_options: { width?: string; height?: string }) {
+    constructor() {
       settingInstances.push(this);
     }
 
     addItem(options: {
       title: string;
-      direction?: "column" | "row";
+      direction?: "row" | "column";
       description?: string;
       actionElement?: HTMLElement;
       createActionElement?: () => HTMLElement;
@@ -116,8 +124,6 @@ vi.mock("siyuan", () => {
 });
 
 describe("plugin settings", () => {
-  const visibleActions = filterVisibleActions(ACTIONS);
-
   const getExpectedGroupTitles = (actions = ACTIONS) => {
     const titles: string[] = [];
     buildDockDocActions(actions, false, buildDefaultDocMenuRegistration(actions)).forEach(
@@ -163,7 +169,7 @@ describe("plugin settings", () => {
     expect(settingInstances).toHaveLength(2);
     const setting = settingInstances[1];
     expect(plugin.setting).toBe(setting);
-    expect(setting.items[0]?.title).toBe("注册命令到文档菜单");
+    expect(setting.items[0]?.title).toBe("启用命令");
     expect(setting.items[0]?.direction).toBe("column");
     expect(setting.items).toHaveLength(1);
 
@@ -209,17 +215,49 @@ describe("plugin settings", () => {
     ).find((element) => element.textContent?.includes("加入文档标题菜单"));
     expect(genericActionMeta).toBeUndefined();
 
-    const allToggle = menuRegistrationPanel.querySelector(
+    // Summary batch toggles
+    const summaryToggles = menuRegistrationPanel.querySelectorAll(
       ".doc-assistant-settings__menu-registration-summary input[type='checkbox']"
-    ) as HTMLInputElement;
-    expect(allToggle.type).toBe("checkbox");
-    expect(allToggle.checked).toBe(false);
+    );
+    expect(summaryToggles).toHaveLength(2);
+    const allEnabledToggle = summaryToggles[0] as HTMLInputElement;
+    const allMenuToggle = summaryToggles[1] as HTMLInputElement;
+    expect(allEnabledToggle.checked).toBe(false); // because bold-selected-blocks & highlight-selected-blocks are false
+    expect(allMenuToggle.checked).toBe(false);
 
-    const exportCurrentToggle = menuRegistrationPanel.querySelector(
-      "[data-action-key='export-current'] input[type='checkbox']"
-    ) as HTMLInputElement;
-    expect(exportCurrentToggle.checked).toBe(false);
-    expect(exportCurrentToggle.title).toBe(getActionConfigByKey("export-current").tooltip);
+    const summarySwitchLabels = Array.from(
+      menuRegistrationPanel.querySelectorAll(
+        ".doc-assistant-settings__menu-registration-summary-switch-label"
+      )
+    ).map((el) => el.textContent?.trim());
+    expect(summarySwitchLabels).toEqual(["全部启用", "全部注册"]);
+
+    // export-current action row switches
+    const exportCurrentRow = menuRegistrationPanel.querySelector(
+      "[data-action-key='export-current']"
+    ) as HTMLElement;
+    const exportSwitches = exportCurrentRow.querySelectorAll("input[type='checkbox']");
+    expect(exportSwitches).toHaveLength(2);
+    const exportEnabledSwitch = exportSwitches[0] as HTMLInputElement;
+    const exportMenuSwitch = exportSwitches[1] as HTMLInputElement;
+    expect(exportEnabledSwitch.checked).toBe(true);
+    expect(exportMenuSwitch.checked).toBe(false);
+
+    const rowSwitchLabels = Array.from(
+      exportCurrentRow.querySelectorAll(".doc-assistant-settings__action-switch-label")
+    ).map((el) => el.textContent?.trim());
+    expect(rowSwitchLabels).toEqual(["启用", "注册"]);
+
+    // bold-selected-blocks (default disabled)
+    const boldRow = menuRegistrationPanel.querySelector(
+      "[data-action-key='bold-selected-blocks']"
+    ) as HTMLElement;
+    if (boldRow) {
+      const boldSwitches = boldRow.querySelectorAll("input[type='checkbox']");
+      expect(boldSwitches[0]?.checked).toBe(false);
+      expect(boldSwitches[1]?.checked).toBe(false);
+      expect(boldSwitches[1]?.disabled).toBe(true);
+    }
 
     menuCollapseButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(menuGroups.hidden).toBe(true);
@@ -227,7 +265,6 @@ describe("plugin settings", () => {
     expect(
       menuCollapseButton.querySelector(".doc-assistant-settings__collapse-button-label")?.textContent
     ).toBe("展开");
-
   });
 
   test("updates persisted registration state when toggling switches in settings page", async () => {
@@ -239,23 +276,24 @@ describe("plugin settings", () => {
 
     const setting = settingInstances[1];
     const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
-    const allToggle = menuRegistrationPanel.querySelector(
+    const summaryToggles = menuRegistrationPanel.querySelectorAll(
       ".doc-assistant-settings__menu-registration-summary input[type='checkbox']"
-    ) as HTMLInputElement;
-    const singleToggle = menuRegistrationPanel.querySelector(
+    );
+    const allMenuToggle = summaryToggles[1] as HTMLInputElement;
+    const singleMenuToggle = menuRegistrationPanel.querySelectorAll(
       "[data-action-key='insert-backlinks'] input[type='checkbox']"
-    ) as HTMLInputElement;
+    )[1] as HTMLInputElement;
 
-    allToggle.checked = true;
-    allToggle.dispatchEvent(new Event("change"));
+    allMenuToggle.checked = true;
+    allMenuToggle.dispatchEvent(new Event("change"));
     await Promise.resolve();
 
     expect(
       Object.values(plugin.docMenuRegistrationState).every((enabled) => enabled === true)
     ).toBe(true);
 
-    singleToggle.checked = false;
-    singleToggle.dispatchEvent(new Event("change"));
+    singleMenuToggle.checked = false;
+    singleMenuToggle.dispatchEvent(new Event("change"));
     await Promise.resolve();
 
     expect(plugin.docMenuRegistrationState["insert-backlinks"]).toBe(false);
@@ -263,7 +301,7 @@ describe("plugin settings", () => {
     const stored = await plugin.loadData("doc-menu-registration");
     expect(stored).toEqual(
       expect.objectContaining({
-        actionEnabled: expect.objectContaining({
+        actionMenuRegistered: expect.objectContaining({
           "insert-backlinks": false,
         }),
       })
@@ -283,6 +321,7 @@ describe("plugin settings", () => {
 
     createPluginSettings({
       actions: regroupedActions,
+      enabledState: buildDefaultDocActionEnabled(regroupedActions),
       registration: buildDefaultDocMenuRegistration(regroupedActions),
       isMobile: false,
       aiSummaryConfig: {
@@ -293,8 +332,10 @@ describe("plugin settings", () => {
         requestTimeoutSeconds: 30,
       },
       onAiSummaryConfigChange: vi.fn(),
-      onToggleAll: vi.fn(),
-      onToggleSingle: vi.fn(),
+      onToggleAllEnabled: vi.fn(),
+      onToggleAllMenu: vi.fn(),
+      onToggleSingleEnabled: vi.fn(),
+      onToggleSingleMenu: vi.fn(),
     });
 
     const setting = settingInstances[0];
@@ -320,6 +361,7 @@ describe("plugin settings", () => {
 
     createPluginSettings({
       actions: ACTIONS,
+      enabledState: buildDefaultDocActionEnabled(ACTIONS),
       registration: buildDefaultDocMenuRegistration(ACTIONS),
       isMobile: true,
       aiSummaryConfig: {
@@ -330,8 +372,10 @@ describe("plugin settings", () => {
         requestTimeoutSeconds: 30,
       },
       onAiSummaryConfigChange: vi.fn(),
-      onToggleAll: vi.fn(),
-      onToggleSingle: vi.fn(),
+      onToggleAllEnabled: vi.fn(),
+      onToggleAllMenu: vi.fn(),
+      onToggleSingleEnabled: vi.fn(),
+      onToggleSingleMenu: vi.fn(),
     });
 
     const setting = settingInstances[0];
@@ -339,16 +383,16 @@ describe("plugin settings", () => {
     const moveBacklinksRow = menuRegistrationPanel.querySelector(
       "[data-action-key='move-backlinks']"
     ) as HTMLElement;
-    const moveBacklinksToggle = moveBacklinksRow.querySelector(
+    const moveBacklinksSwitches = moveBacklinksRow.querySelectorAll(
       "input[type='checkbox']"
-    ) as HTMLInputElement;
+    );
+    const moveBacklinksMenuToggle = moveBacklinksSwitches[1] as HTMLInputElement;
     const moveBacklinksMeta = moveBacklinksRow.querySelector(
       ".doc-assistant-settings__menu-registration-action-meta"
     ) as HTMLElement;
 
-    expect(moveBacklinksRow.dataset.disabled).toBe("true");
-    expect(moveBacklinksToggle.disabled).toBe(true);
-    expect(moveBacklinksToggle.title).toContain("该操作当前仅支持桌面端");
+    expect(moveBacklinksMenuToggle.disabled).toBe(true);
+    expect(moveBacklinksMenuToggle.title).toContain("该操作当前仅支持桌面端");
     expect(moveBacklinksMeta.textContent).toContain("该操作当前仅支持桌面端");
   });
 
@@ -357,6 +401,7 @@ describe("plugin settings", () => {
 
     const setting = createPluginSettings({
       actions: ACTIONS,
+      enabledState: buildDefaultDocActionEnabled(ACTIONS),
       registration: buildDefaultDocMenuRegistration(ACTIONS),
       isMobile: false,
       aiSummaryConfig: {
@@ -367,8 +412,10 @@ describe("plugin settings", () => {
         requestTimeoutSeconds: 30,
       },
       onAiSummaryConfigChange: vi.fn(),
-      onToggleAll: vi.fn(),
-      onToggleSingle: vi.fn(),
+      onToggleAllEnabled: vi.fn(),
+      onToggleAllMenu: vi.fn(),
+      onToggleSingleEnabled: vi.fn(),
+      onToggleSingleMenu: vi.fn(),
     });
 
     const aiPanel = setting.items[0]?.actionElement as HTMLElement;
@@ -420,7 +467,7 @@ describe("plugin settings", () => {
 
       const setting = settingInstances[1];
       expect(setting.items.map((item) => item.title)).toEqual([
-        "注册命令到文档菜单",
+        "启用命令",
       ]);
 
       const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;

@@ -27,14 +27,27 @@ export function populateEditorTitleMenu(options: {
   protyle?: ProtyleLike;
   actions: ActionConfig[];
   docMenuRegistrationState: Record<ActionKey, boolean>;
+  docActionEnabledState?: Record<ActionKey, boolean>;
   runAction: RunAction;
 }): boolean {
-  const { menu, docId, protyle, actions, docMenuRegistrationState, runAction } = options;
+  const {
+    menu,
+    docId,
+    protyle,
+    actions,
+    docMenuRegistrationState,
+    docActionEnabledState,
+    runAction,
+  } = options;
   if (!menu || !docId) {
     return false;
   }
 
-  const menuActions = filterDocMenuActions(actions, docMenuRegistrationState);
+  const menuActions = filterDocMenuActions(
+    actions,
+    docMenuRegistrationState,
+    docActionEnabledState
+  );
   if (!menuActions.length) {
     return false;
   }

@@ -1,5 +1,8 @@
 import { buildDockDocActions } from "@/core/dock-panel-core";
-import { DocMenuRegistrationState } from "@/core/doc-menu-registration-core";
+import {
+  DocActionEnabledState,
+  DocMenuRegistrationState,
+} from "@/core/doc-menu-registration-core";
 import { ActionConfig, ActionKey, formatActionTooltip } from "@/plugin/actions";
 import {
   createCheckbox,
@@ -13,12 +16,15 @@ type MenuRegistrationGroup = {
   actions: ReturnType<typeof buildDockDocActions<ActionKey>>;
 };
 
-type CreateMenuRegistrationPanelOptions = {
+export type CreateMenuRegistrationPanelOptions = {
   actions: ActionConfig[];
+  enabledState: DocActionEnabledState;
   registration: DocMenuRegistrationState;
   isMobile: boolean;
-  onToggleAll: (enabled: boolean) => Promise<void> | void;
-  onToggleSingle: (key: ActionKey, enabled: boolean) => Promise<void> | void;
+  onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
+  onToggleAllMenu: (enabled: boolean) => Promise<void> | void;
+  onToggleSingleEnabled: (key: ActionKey, enabled: boolean) => Promise<void> | void;
+  onToggleSingleMenu: (key: ActionKey, enabled: boolean) => Promise<void> | void;
 };
 
 function buildMenuRegistrationGroups(
@@ -46,43 +52,97 @@ function buildMenuRegistrationGroups(
 export function createMenuRegistrationPanel(
   options: CreateMenuRegistrationPanelOptions
 ): HTMLDivElement {
-  const state: DocMenuRegistrationState = { ...options.registration };
-  const actionSwitches = new Map<ActionKey, HTMLInputElement>();
+  const enabledState: DocActionEnabledState = { ...options.enabledState };
+  const menuState: DocMenuRegistrationState = { ...options.registration };
+
+  const enabledSwitches = new Map<ActionKey, HTMLInputElement>();
+  const menuSwitches = new Map<ActionKey, HTMLInputElement>();
+  const menuSwitchWraps = new Map<ActionKey, HTMLElement>();
+  const actionDisabledMap = new Map<ActionKey, boolean>();
+
   const visibleActionKeys = options.actions.map((action) => action.key);
   const totalActionCount = visibleActionKeys.length;
+
   const enabledSummary = createElement(
     "div",
     "doc-assistant-settings__menu-registration-summary-meta"
   );
+
   const syncEnabledSummary = () => {
-    const enabledCount = visibleActionKeys.filter((key) => state[key] === true).length;
-    enabledSummary.textContent = `加入文档标题菜单 · 已启用 ${enabledCount}/${totalActionCount} 项`;
+    const enabledCount = visibleActionKeys.filter((key) => enabledState[key] === true).length;
+    const menuCount = visibleActionKeys.filter(
+      (key) => enabledState[key] === true && menuState[key] === true
+    ).length;
+    enabledSummary.textContent = `已启用 ${enabledCount}/${totalActionCount} 项 · 已注册 ${menuCount}/${totalActionCount} 项`;
   };
-  const syncAllSwitch = (allSwitch: HTMLInputElement) => {
-    allSwitch.checked =
-      totalActionCount > 0
-      && visibleActionKeys.every((key) => state[key] === true);
-    syncEnabledSummary();
+
+  const syncActionRow = (key: ActionKey) => {
+    const isEnabled = enabledState[key] === true;
+    const isMenuRegistered = menuState[key] === true;
+    const isMobileDisabled = actionDisabledMap.get(key) === true;
+    const isMenuDisabled = !isEnabled || isMobileDisabled;
+
+    const enabledCheckbox = enabledSwitches.get(key);
+    if (enabledCheckbox) {
+      enabledCheckbox.checked = isEnabled;
+    }
+
+    const menuCheckbox = menuSwitches.get(key);
+    if (menuCheckbox) {
+      menuCheckbox.checked = isMenuRegistered;
+      menuCheckbox.disabled = isMenuDisabled;
+    }
+
+    const menuWrap = menuSwitchWraps.get(key);
+    if (menuWrap) {
+      menuWrap.dataset.disabled = isMenuDisabled ? "true" : "false";
+      if (!isEnabled) {
+        menuWrap.title = "需先启用命令，才可注册到文档菜单";
+      } else if (isMobileDisabled) {
+        menuWrap.title = "该操作当前仅支持桌面端";
+      } else {
+        menuWrap.title = "是否注册到文档菜单";
+      }
+    }
   };
-  const syncActionSwitches = () => {
-    actionSwitches.forEach((checkbox, key) => {
-      checkbox.checked = state[key] === true;
-    });
+
+  const syncAllSwitches = () => {
+    allEnabledSwitch.checked =
+      totalActionCount > 0 && visibleActionKeys.every((key) => enabledState[key] === true);
+    allMenuSwitch.checked =
+      totalActionCount > 0 && visibleActionKeys.every((key) => menuState[key] === true);
     syncEnabledSummary();
   };
 
-  const allSwitch = createCheckbox({
+  const allEnabledSwitch = createCheckbox({
     checked:
-      totalActionCount > 0
-      && visibleActionKeys.every((key) => state[key] === true),
-    title: "全部启用文档标题菜单命令",
+      totalActionCount > 0 && visibleActionKeys.every((key) => enabledState[key] === true),
+    title: "全部启用/停用命令在侧面板中的显示",
     onChange: async (checked) => {
       for (const key of visibleActionKeys) {
-        state[key] = checked;
+        enabledState[key] = checked;
       }
-      syncActionSwitches();
-      syncAllSwitch(allSwitch);
-      await options.onToggleAll(checked);
+      for (const key of visibleActionKeys) {
+        syncActionRow(key);
+      }
+      syncAllSwitches();
+      await options.onToggleAllEnabled(checked);
+    },
+  });
+
+  const allMenuSwitch = createCheckbox({
+    checked:
+      totalActionCount > 0 && visibleActionKeys.every((key) => menuState[key] === true),
+    title: "全部注册/取消注册命令到文档菜单",
+    onChange: async (checked) => {
+      for (const key of visibleActionKeys) {
+        menuState[key] = checked;
+      }
+      for (const key of visibleActionKeys) {
+        syncActionRow(key);
+      }
+      syncAllSwitches();
+      await options.onToggleAllMenu(checked);
     },
   });
 
@@ -102,23 +162,43 @@ export function createMenuRegistrationPanel(
     createElement(
       "div",
       "doc-assistant-settings__menu-registration-summary-title",
-      "文档标题菜单命令"
+      "操作命令配置"
     ),
     enabledSummary
   );
 
-  const summarySwitch = createElement(
+  const summarySwitchesWrap = createElement(
+    "div",
+    "doc-assistant-settings__menu-registration-summary-switches"
+  );
+
+  const allEnabledLabelWrap = createElement(
     "label",
     "doc-assistant-settings__menu-registration-summary-switch"
   );
-  summarySwitch.append(
+  allEnabledLabelWrap.append(
     createElement(
       "span",
       "doc-assistant-settings__menu-registration-summary-switch-label",
       "全部启用"
     ),
-    allSwitch
+    allEnabledSwitch
   );
+
+  const allMenuLabelWrap = createElement(
+    "label",
+    "doc-assistant-settings__menu-registration-summary-switch"
+  );
+  allMenuLabelWrap.append(
+    createElement(
+      "span",
+      "doc-assistant-settings__menu-registration-summary-switch-label",
+      "全部注册"
+    ),
+    allMenuSwitch
+  );
+
+  summarySwitchesWrap.append(allEnabledLabelWrap, allMenuLabelWrap);
 
   const groupsWrap = createElement(
     "div",
@@ -130,17 +210,17 @@ export function createMenuRegistrationPanel(
     "doc-assistant-settings__section-controls"
   );
   summaryControls.append(
-    summarySwitch,
+    summarySwitchesWrap,
     createCollapseButton({
       key: "menu-registration-groups",
-      label: "文档标题菜单命令",
+      label: "操作命令配置",
       content: groupsWrap,
     })
   );
   summary.append(summaryText, summaryControls);
   panel.append(summary, groupsWrap);
 
-  buildMenuRegistrationGroups(options.actions, options.isMobile, state).forEach((group) => {
+  buildMenuRegistrationGroups(options.actions, options.isMobile, menuState).forEach((group) => {
     const groupCard = createElement(
       "section",
       "doc-assistant-settings__menu-registration-group"
@@ -170,14 +250,12 @@ export function createMenuRegistrationPanel(
     );
 
     group.actions.forEach((action) => {
+      actionDisabledMap.set(action.key, Boolean(action.menuToggleDisabled));
       const row = createElement(
-        "label",
+        "div",
         "doc-assistant-settings__menu-registration-action"
       );
       row.dataset.actionKey = action.key;
-      if (action.menuToggleDisabled) {
-        row.dataset.disabled = "true";
-      }
       row.title = formatActionTooltip(
         action.tooltip,
         action.label,
@@ -205,23 +283,68 @@ export function createMenuRegistrationPanel(
         );
       }
 
-      const checkbox = createCheckbox({
-        checked: action.menuRegistered,
-        disabled: action.menuToggleDisabled,
-        title: formatActionTooltip(
-          action.tooltip,
-          action.label,
-          action.menuToggleDisabledReason
-        ),
+      // Switches Container
+      const switchesWrap = createElement(
+        "div",
+        "doc-assistant-settings__action-switches"
+      );
+
+      // Switch 1: 启用（侧面板显示）
+      const enabledItem = createElement(
+        "label",
+        "doc-assistant-settings__action-switch-item"
+      );
+      enabledItem.title = "是否在侧面板“文档处理”中显示";
+      const enabledLabel = createElement(
+        "span",
+        "doc-assistant-settings__action-switch-label",
+        "启用"
+      );
+      const enabledCheckbox = createCheckbox({
+        checked: enabledState[action.key] === true,
+        title: "是否在侧面板“文档处理”中显示",
         onChange: async (checked) => {
-          state[action.key] = checked;
-          syncAllSwitch(allSwitch);
-          await options.onToggleSingle(action.key, checked);
+          enabledState[action.key] = checked;
+          syncActionRow(action.key);
+          syncAllSwitches();
+          await options.onToggleSingleEnabled(action.key, checked);
         },
       });
+      enabledSwitches.set(action.key, enabledCheckbox);
+      enabledItem.append(enabledLabel, enabledCheckbox);
 
-      actionSwitches.set(action.key, checkbox);
-      row.append(rowText, checkbox);
+      // Switch 2: 注册到文档菜单
+      const isEnabled = enabledState[action.key] === true;
+      const isMenuDisabled = !isEnabled || action.menuToggleDisabled;
+      const menuItem = createElement(
+        "label",
+        "doc-assistant-settings__action-switch-item"
+      );
+      menuItem.dataset.disabled = isMenuDisabled ? "true" : "false";
+      menuItem.title = !isEnabled
+        ? "需先启用命令，才可注册到文档菜单"
+        : action.menuToggleDisabledReason || "是否注册到文档菜单";
+      const menuLabel = createElement(
+        "span",
+        "doc-assistant-settings__action-switch-label",
+        "注册"
+      );
+      const menuCheckbox = createCheckbox({
+        checked: menuState[action.key] === true,
+        disabled: isMenuDisabled,
+        title: menuItem.title,
+        onChange: async (checked) => {
+          menuState[action.key] = checked;
+          syncAllSwitches();
+          await options.onToggleSingleMenu(action.key, checked);
+        },
+      });
+      menuSwitches.set(action.key, menuCheckbox);
+      menuSwitchWraps.set(action.key, menuItem);
+      menuItem.append(menuLabel, menuCheckbox);
+
+      switchesWrap.append(enabledItem, menuItem);
+      row.append(rowText, switchesWrap);
       groupList.append(row);
     });
 

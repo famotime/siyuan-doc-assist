@@ -339,12 +339,11 @@
 }
 
 .doc-assistant-settings__menu-registration-action {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 9px 10px 8px;
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--b3-border-color) 68%, transparent);
   background: color-mix(in srgb, var(--b3-theme-surface) 88%, transparent);
@@ -357,22 +356,69 @@
 }
 
 .doc-assistant-settings__menu-registration-action-text {
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .doc-assistant-settings__menu-registration-action-label {
   font-size: 13px;
+  font-weight: 500;
   line-height: 1.35;
   color: var(--b3-theme-on-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .doc-assistant-settings__menu-registration-action-meta {
   font-size: 11px;
   line-height: 1.35;
   color: var(--b3-theme-on-surface-light);
+}
+
+.doc-assistant-settings__action-switches {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  width: 100%;
+  padding-top: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--b3-border-color) 35%, transparent);
+}
+
+.doc-assistant-settings__action-switch-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--b3-theme-on-surface);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &[data-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+
+    input[type="checkbox"] {
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
+}
+
+.doc-assistant-settings__action-switch-label {
+  font-size: 12px;
+  user-select: none;
+}
+
+.doc-assistant-settings__menu-registration-summary-switches {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 640px) {
@@ -384,6 +430,12 @@
   .doc-assistant-settings__menu-registration-summary-switch {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .doc-assistant-settings__action-switches {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 16px;
   }
 }
 

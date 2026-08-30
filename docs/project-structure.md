@@ -79,13 +79,14 @@
 
 | 文件 | 职责 |
 | --- | --- |
+| `src/core/action-default-config.ts` | 插件命令初始启用状态与菜单注册状态配置 |
 | `src/core/ai-service-config-core.ts` | AI 服务配置默认值、规范化与完整性判定 |
 | `src/core/ai-summary-core.ts` | AI 摘要文本清理、内部链接识别与插入位置 |
 | `src/core/ai-concept-map-core.ts` | 概念地图文档标题与子文档路径拼接 |
 | `src/core/ai-marker-action-core.ts` | AI 口水内容/关键内容标记与确认详情文本处理 |
 | `src/core/ai-related-suggestions-core.ts` | AI 相关链接与标签建议归一化、去重与合并 |
 | `src/core/dedupe-core.ts` | 重复标题归一化、分组与保留建议 |
-| `src/core/doc-menu-registration-core.ts` | 文档菜单注册状态、排序与标准化 |
+| `src/core/doc-menu-registration-core.ts` | 命令启用与菜单注册状态、排序与标准化 |
 | `src/core/dock-doc-action-order-core.ts` | Dock 文档动作排序与拖拽检查 |
 | `src/core/dock-doc-action-drag-core.ts` | Dock 文档动作拖拽几何判断与收藏重排 |
 | `src/core/dock-panel-core.ts` | Dock 标签页与动作面板模型构建 |

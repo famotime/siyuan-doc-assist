@@ -4,16 +4,21 @@ import {
   normalizeAiServiceConfig,
 } from "@/core/ai-service-config-core";
 import {
+  buildDefaultDocActionEnabled,
   buildDefaultDocActionOrder,
   buildDefaultDocMenuRegistration,
+  DocActionEnabledState,
   DocMenuRegistrationState,
   DocMenuRegistrationStorageV1,
+  normalizeDocActionEnabled,
   normalizeDocActionOrder,
   normalizeDocFavoriteActionKeys,
   normalizeDocMenuRegistration,
   reorderDocFavoriteActions,
+  setAllDocActionEnabled as setAllDocActionEnabledState,
   setAllDocMenuRegistration as setAllDocMenuRegistrationState,
   setDocFavoriteAction as setDocFavoriteActionState,
+  setSingleDocActionEnabled as setSingleDocActionEnabledState,
   setSingleDocMenuRegistration as setSingleDocMenuRegistrationState,
   sortActionsByOrder,
 } from "@/core/doc-menu-registration-core";
@@ -25,6 +30,7 @@ import {
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 
 export type PluginDocMenuState = {
+  docActionEnabledState: DocActionEnabledState;
   docMenuRegistrationState: DocMenuRegistrationState;
   docActionOrderState: ActionKey[];
   docFavoriteActionKeys: ActionKey[];
@@ -43,6 +49,7 @@ export function buildDefaultPluginDocMenuState(
   actions: ActionConfig[]
 ): PluginDocMenuState {
   return {
+    docActionEnabledState: buildDefaultDocActionEnabled(actions),
     docMenuRegistrationState: buildDefaultDocMenuRegistration(actions),
     docActionOrderState: buildDefaultDocActionOrder(actions),
     docFavoriteActionKeys: [],
@@ -57,6 +64,7 @@ export function normalizePluginDocMenuState(
   actions: ActionConfig[]
 ): PluginDocMenuState {
   return {
+    docActionEnabledState: normalizeDocActionEnabled(raw, actions),
     docMenuRegistrationState: normalizeDocMenuRegistration(raw, actions),
     docActionOrderState: normalizeDocActionOrder(raw, actions),
     docFavoriteActionKeys: normalizeDocFavoriteActionKeys(raw, actions),
@@ -99,7 +107,8 @@ export function serializePluginDocMenuState(
 ): PluginDocMenuStorageV1 {
   return {
     version: 1,
-    actionEnabled: state.docMenuRegistrationState,
+    actionEnabled: state.docActionEnabledState,
+    actionMenuRegistered: state.docMenuRegistrationState,
     actionOrder: state.docActionOrderState,
     favoriteActionKeys: state.docFavoriteActionKeys,
     keyInfoFilter: state.keyInfoFilterState,
@@ -115,15 +124,47 @@ export function getOrderedPluginActions(
   return sortActionsByOrder(actions, state.docActionOrderState);
 }
 
+export function setAllPluginDocActionEnabled(
+  state: PluginDocMenuState,
+  enabled: boolean,
+  actionKeys?: Iterable<ActionKey>
+): PluginDocMenuState {
+  return {
+    ...state,
+    docActionEnabledState: setAllDocActionEnabledState(
+      state.docActionEnabledState,
+      enabled,
+      actionKeys
+    ),
+  };
+}
+
+export function setSinglePluginDocActionEnabled(
+  state: PluginDocMenuState,
+  key: ActionKey,
+  enabled: boolean
+): PluginDocMenuState {
+  return {
+    ...state,
+    docActionEnabledState: setSingleDocActionEnabledState(
+      state.docActionEnabledState,
+      key,
+      enabled
+    ),
+  };
+}
+
 export function setAllPluginDocMenuRegistration(
   state: PluginDocMenuState,
-  enabled: boolean
+  enabled: boolean,
+  actionKeys?: Iterable<ActionKey>
 ): PluginDocMenuState {
   return {
     ...state,
     docMenuRegistrationState: setAllDocMenuRegistrationState(
       state.docMenuRegistrationState,
-      enabled
+      enabled,
+      actionKeys
     ),
   };
 }

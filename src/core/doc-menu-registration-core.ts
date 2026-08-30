@@ -1,22 +1,65 @@
+import {
+  isActionDefaultEnabled,
+  isActionDefaultMenuRegistered,
+} from "@/core/action-default-config";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 
+export type DocActionEnabledState = Record<ActionKey, boolean>;
 export type DocMenuRegistrationState = Record<ActionKey, boolean>;
 
 export type DocMenuRegistrationStorageV1 = {
   version: 1;
-  actionEnabled: Partial<Record<ActionKey, boolean>>;
+  actionEnabled?: Partial<Record<ActionKey, boolean>>;
+  actionMenuRegistered?: Partial<Record<ActionKey, boolean>>;
   actionOrder?: ActionKey[];
   favoriteActionKeys?: ActionKey[];
 };
+
+export function buildDefaultDocActionEnabled(
+  actions: Pick<ActionConfig, "key">[]
+): DocActionEnabledState {
+  const state = {} as DocActionEnabledState;
+  for (const action of actions) {
+    state[action.key] = isActionDefaultEnabled(action.key);
+  }
+  return state;
+}
 
 export function buildDefaultDocMenuRegistration(
   actions: Pick<ActionConfig, "key">[]
 ): DocMenuRegistrationState {
   const state = {} as DocMenuRegistrationState;
   for (const action of actions) {
-    state[action.key] = false;
+    state[action.key] = isActionDefaultMenuRegistered(action.key);
   }
   return state;
+}
+
+export function normalizeDocActionEnabled(
+  raw: unknown,
+  actions: Pick<ActionConfig, "key">[]
+): DocActionEnabledState {
+  const defaultState = buildDefaultDocActionEnabled(actions);
+  if (!raw || typeof raw !== "object") {
+    return defaultState;
+  }
+  // 老版本存储中 actionEnabled 实际为菜单注册数据，且不存在 actionMenuRegistered 字段。
+  // 若未检测到 actionMenuRegistered，说明是老版本数据，直接返回全新默认启用状态，避免老数据污染。
+  if (typeof (raw as Record<string, unknown>).actionMenuRegistered === "undefined") {
+    return defaultState;
+  }
+  const source = (raw as { actionEnabled?: unknown }).actionEnabled;
+  if (!source || typeof source !== "object") {
+    return defaultState;
+  }
+  const normalized = { ...defaultState };
+  for (const action of actions) {
+    const value = (source as Record<string, unknown>)[action.key];
+    if (typeof value === "boolean") {
+      normalized[action.key] = value;
+    }
+  }
+  return normalized;
 }
 
 export function normalizeDocMenuRegistration(
@@ -27,33 +70,77 @@ export function normalizeDocMenuRegistration(
   if (!raw || typeof raw !== "object") {
     return defaultState;
   }
-  const source = (raw as { actionEnabled?: unknown }).actionEnabled;
+  const source = (raw as { actionMenuRegistered?: unknown }).actionMenuRegistered;
   if (!source || typeof source !== "object") {
     return defaultState;
   }
   const normalized = { ...defaultState };
   for (const action of actions) {
     const value = (source as Record<string, unknown>)[action.key];
-    normalized[action.key] = typeof value === "boolean" ? value : false;
+    if (typeof value === "boolean") {
+      normalized[action.key] = value;
+    }
   }
   return normalized;
 }
 
-export function isAllDocMenuRegistrationEnabled(
-  state: DocMenuRegistrationState
+export function isAllDocActionEnabled(
+  state: DocActionEnabledState,
+  actionKeys?: Iterable<ActionKey>
 ): boolean {
-  return Object.values(state).every(Boolean);
+  const keys = actionKeys ? Array.from(actionKeys) : (Object.keys(state) as ActionKey[]);
+  if (!keys.length) {
+    return false;
+  }
+  return keys.every((key) => state[key] === true);
+}
+
+export function isAllDocMenuRegistrationEnabled(
+  state: DocMenuRegistrationState,
+  actionKeys?: Iterable<ActionKey>
+): boolean {
+  const keys = actionKeys ? Array.from(actionKeys) : (Object.keys(state) as ActionKey[]);
+  if (!keys.length) {
+    return false;
+  }
+  return keys.every((key) => state[key] === true);
+}
+
+export function setAllDocActionEnabled(
+  state: DocActionEnabledState,
+  enabled: boolean,
+  actionKeys?: Iterable<ActionKey>
+): DocActionEnabledState {
+  const next = { ...state };
+  const targetKeys = actionKeys ? Array.from(actionKeys) : (Object.keys(next) as ActionKey[]);
+  for (const key of targetKeys) {
+    next[key] = enabled;
+  }
+  return next;
 }
 
 export function setAllDocMenuRegistration(
   state: DocMenuRegistrationState,
-  enabled: boolean
+  enabled: boolean,
+  actionKeys?: Iterable<ActionKey>
 ): DocMenuRegistrationState {
   const next = { ...state };
-  for (const key of Object.keys(next) as ActionKey[]) {
+  const targetKeys = actionKeys ? Array.from(actionKeys) : (Object.keys(next) as ActionKey[]);
+  for (const key of targetKeys) {
     next[key] = enabled;
   }
   return next;
+}
+
+export function setSingleDocActionEnabled(
+  state: DocActionEnabledState,
+  key: ActionKey,
+  enabled: boolean
+): DocActionEnabledState {
+  return {
+    ...state,
+    [key]: enabled,
+  };
 }
 
 export function setSingleDocMenuRegistration(
@@ -67,11 +154,28 @@ export function setSingleDocMenuRegistration(
   };
 }
 
+export function filterDockVisibleActions<T extends Pick<ActionConfig, "key">>(
+  actions: T[],
+  enabledState: DocActionEnabledState
+): T[] {
+  return actions.filter((action) => enabledState[action.key] === true);
+}
+
 export function filterDocMenuActions<T extends Pick<ActionConfig, "key">>(
   actions: T[],
-  state: DocMenuRegistrationState
+  menuRegistrationState: DocMenuRegistrationState,
+  enabledState?: DocActionEnabledState
 ): T[] {
-  return actions.filter((action) => state[action.key] === true);
+  return actions.filter((action) => {
+    const isMenuRegistered = menuRegistrationState[action.key] === true;
+    if (!isMenuRegistered) {
+      return false;
+    }
+    if (enabledState) {
+      return enabledState[action.key] === true;
+    }
+    return true;
+  });
 }
 
 export function buildDefaultDocActionOrder(

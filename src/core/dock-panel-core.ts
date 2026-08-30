@@ -101,7 +101,7 @@ export function buildDockDocActions<T extends string>(
       : disabledByReadonly
         ? DOC_READONLY_DISABLED_REASON
         : undefined;
-    const menuRegistered = menuRegistrationState[action.key] !== false;
+    const menuRegistered = menuRegistrationState[action.key] === true;
     return {
       key: action.key,
       label: action.commandText,

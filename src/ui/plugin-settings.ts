@@ -1,6 +1,9 @@
 import { Setting } from "siyuan";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
-import { DocMenuRegistrationState } from "@/core/doc-menu-registration-core";
+import {
+  DocActionEnabledState,
+  DocMenuRegistrationState,
+} from "@/core/doc-menu-registration-core";
 import { HiddenPluginSettingKey } from "@/plugin/alpha-feature-config";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
@@ -9,6 +12,7 @@ import { createMenuRegistrationPanel } from "@/ui/plugin-settings-menu";
 
 type CreatePluginSettingsOptions = {
   actions: ActionConfig[];
+  enabledState: DocActionEnabledState;
   registration: DocMenuRegistrationState;
   isMobile: boolean;
   aiSummaryConfig: AiServiceConfig;
@@ -16,8 +20,10 @@ type CreatePluginSettingsOptions = {
   debugLogEnabled: boolean;
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
-  onToggleAll: (enabled: boolean) => Promise<void> | void;
-  onToggleSingle: (key: ActionKey, enabled: boolean) => Promise<void> | void;
+  onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
+  onToggleAllMenu: (enabled: boolean) => Promise<void> | void;
+  onToggleSingleEnabled: (key: ActionKey, enabled: boolean) => Promise<void> | void;
+  onToggleSingleMenu: (key: ActionKey, enabled: boolean) => Promise<void> | void;
   onDebugLogEnabledChange: (enabled: boolean) => Promise<void> | void;
 };
 
@@ -85,15 +91,19 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
 
   const menuRegistrationPanel = createMenuRegistrationPanel({
     actions: options.actions,
+    enabledState: options.enabledState,
     registration: options.registration,
     isMobile: options.isMobile,
-    onToggleAll: options.onToggleAll,
-    onToggleSingle: options.onToggleSingle,
+    onToggleAllEnabled: options.onToggleAllEnabled,
+    onToggleAllMenu: options.onToggleAllMenu,
+    onToggleSingleEnabled: options.onToggleSingleEnabled,
+    onToggleSingleMenu: options.onToggleSingleMenu,
   });
   setting.addItem({
-    title: "注册命令到文档菜单",
+    title: "启用命令",
     direction: "column",
-    description: "默认全部关闭。开启后会把对应命令加入文档标题菜单，可按分组集中管理。",
+    description:
+      "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。",
     actionElement: menuRegistrationPanel,
   });
   hostNormalizedPanels.push(menuRegistrationPanel);

@@ -113,6 +113,7 @@ describe("plugin menu registration", () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
+    await plugin.setAllDocActionEnabled(true);
     await plugin.setAllDocMenuRegistration(true);
     await plugin.setSingleDocMenuRegistration("export-current", false);
 
@@ -143,7 +144,7 @@ describe("plugin menu registration", () => {
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.saveData("doc-menu-registration", {
       version: 1,
-      actionEnabled: {
+      actionMenuRegistered: {
         "export-current": false,
         "insert-backlinks": true,
       },
@@ -164,7 +165,7 @@ describe("plugin menu registration", () => {
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.saveData("doc-menu-registration", {
       version: 1,
-      actionEnabled: {
+      actionMenuRegistered: {
         "insert-backlinks": true,
         "export-current": true,
       },
@@ -179,6 +180,22 @@ describe("plugin menu registration", () => {
     const secondLabel = menu.addItem.mock.calls[1]?.[0]?.label;
     expect(firstLabel).toBe("插入反链文档列表（去重）");
     expect(secondLabel).toBe("仅导出当前文档");
+  });
+
+  test("does not register disabled action in title menu even if menu registered", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+    await plugin.setAllDocMenuRegistration(true);
+    // Disable action 1 (whether in dock)
+    await plugin.setSingleDocActionEnabled("export-current", false);
+
+    const menu = { addSeparator: vi.fn(), addItem: vi.fn() };
+    plugin.emitEvent("click-editortitleicon", { menu, data: { id: "doc-1" } });
+
+    expect(menu.addItem).not.toHaveBeenCalledWith(
+      expect.objectContaining({ label: "仅导出当前文档" })
+    );
   });
 
   test("falls back to default menu state when stored data cannot be loaded", async () => {
@@ -203,7 +220,7 @@ describe("plugin menu registration", () => {
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.saveData("doc-menu-registration", {
       version: 1,
-      actionEnabled: {},
+      actionMenuRegistered: {},
       actionOrder: ["insert-backlinks", "export-current"],
     });
 
@@ -227,7 +244,7 @@ describe("plugin menu registration", () => {
       "doc-menu-registration",
       expect.objectContaining({
         version: 1,
-        actionEnabled: expect.objectContaining({
+        actionMenuRegistered: expect.objectContaining({
           "insert-backlinks": false,
         }),
       })

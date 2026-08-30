@@ -20,6 +20,7 @@
 - `tooltip`: 对外描述文本
 - `group`: 命令分组
 - `desktopOnly`: 是否仅桌面端可用
+
 - `requiresWritableDoc`: 是否要求当前文档可写
 - `runInBackground`: 是否后台执行
 - `icon` / `dockIconText`: UI 展示字段
@@ -44,23 +45,22 @@
 
 - SiYuan 命令面板里的命令，默认来自 `getOrderedActions()`
 - 它们会受到 `actionOrder` 和 `ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys` 的影响
-- 但不会受“文档标题菜单是否启用”开关影响
+- 但不会受设置页“启用命令”（侧面板显示 / 文档标题菜单）开关影响
 
-## 3. 文档标题菜单不是“对外开放命令”
+## 3. 文档标题菜单与侧面板不是“对外开放命令”
 
-文档标题菜单同样复用 `ACTIONS`，但它是另一套入口：
+文档标题菜单与侧面板文档处理同样复用 `ACTIONS`，但它们是内部 UI 入口：
 
-- 菜单填充逻辑在 `populateEditorTitleMenu()`
-- 是否显示由 `docMenuRegistrationState` 决定
-- 默认值是全部 `false`
+- 侧面板“文档处理”显示由 `docActionEnabledState` 决定（除“选中块全部加粗”、“选中块全部高亮”默认关闭外，其余默认开启）
+- 文档标题菜单填充逻辑在 `populateEditorTitleMenu()`，是否显示由 `docMenuRegistrationState` 与 `docActionEnabledState` 共同决定（需同时开启“启用”且勾选“注册到文档菜单”）
+- 默认注册状态为全部 `false`
 - 存储键为 `doc-menu-registration`
 
-所以文档标题菜单更像“插件内部 UI 暴露”，不是对外协议的一部分。
+所以文档标题菜单和侧面板更像“插件内部 UI 暴露”，不是对外协议的一部分。
 
 ## 4. 当前真正对外开放的命令
 
-对外协议由 `src/plugin/power-buttons-provider.ts` 提供，协议对象通过
-`plugin.getPowerButtonsIntegration()` 暴露出去。
+对外协议由 `src/plugin/power-buttons-provider.ts` 提供，协议对象通过 `plugin.getPowerButtonsIntegration()` 暴露出去。
 
 Provider 的关键字段：
 

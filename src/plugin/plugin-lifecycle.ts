@@ -7,7 +7,9 @@ import {
 import pluginInfo from "@/../plugin.json";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
 import {
+  DocActionEnabledState,
   DocMenuRegistrationState,
+  filterDockVisibleActions,
 } from "@/core/doc-menu-registration-core";
 import { buildDefaultKeyInfoFilter, KeyInfoFilter } from "@/core/key-info-core";
 import { ActionRunner, ConfirmDetailItem } from "@/plugin/action-runner";
@@ -37,11 +39,13 @@ import {
   reorderPluginDocFavoriteActions,
   resetPluginDocActionOrder,
   serializePluginDocMenuState,
+  setAllPluginDocActionEnabled,
   setAllPluginDocMenuRegistration,
   setAiSummaryConfig,
   setPluginDocActionFavorite,
   setPluginDocActionOrder,
   setPluginKeyInfoFilter,
+  setSinglePluginDocActionEnabled,
   setSinglePluginDocMenuRegistration,
 } from "@/plugin/plugin-lifecycle-state";
 import { createPluginSettings } from "@/ui/plugin-settings";
@@ -63,6 +67,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private currentProtyle?: ProtyleLike;
   private isMobile = false;
   private readonly docMenuRegistrationStorageName = "doc-menu-registration";
+  private docActionEnabledState: DocActionEnabledState =
+    buildDefaultPluginDocMenuState(ACTIONS).docActionEnabledState;
   private docMenuRegistrationState: DocMenuRegistrationState =
     buildDefaultPluginDocMenuState(ACTIONS).docMenuRegistrationState;
   private docActionOrderState: ActionKey[] =
@@ -102,7 +108,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     runAction: async (action, explicitId, protyle): Promise<void> => {
       await this.actionRunner.runAction(action, explicitId, protyle);
     },
-    actions: () => this.getOrderedActions(),
+    actions: () => this.getDockActions(),
     getDocMenuRegistrationState: () => this.docMenuRegistrationState,
     setAllDocMenuRegistration: (enabled) => this.setAllDocMenuRegistration(enabled),
     setSingleDocMenuRegistration: (key, enabled) =>
@@ -153,6 +159,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       protyle: detail.protyle,
       actions: this.getOrderedActions(),
       docMenuRegistrationState: this.docMenuRegistrationState,
+      docActionEnabledState: this.docActionEnabledState,
       runAction: async (action, explicitId, protyle) => {
         await this.actionRunner.runAction(action, explicitId, protyle);
       },
@@ -255,6 +262,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private buildPluginSettingPage() {
     return createPluginSettings({
       actions: this.getOrderedActions(),
+      enabledState: this.docActionEnabledState,
       registration: this.docMenuRegistrationState,
       isMobile: this.isMobile,
       aiSummaryConfig: this.aiSummaryConfig,
@@ -262,8 +270,11 @@ export default class DocLinkToolkitPlugin extends Plugin {
       debugLogEnabled: this.debugLogEnabled,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
-      onToggleAll: (enabled) => this.setAllDocMenuRegistration(enabled),
-      onToggleSingle: (key, enabled) =>
+      onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
+      onToggleAllMenu: (enabled) => this.setAllDocMenuRegistration(enabled),
+      onToggleSingleEnabled: (key, enabled) =>
+        this.setSingleDocActionEnabled(key, enabled),
+      onToggleSingleMenu: (key, enabled) =>
         this.setSingleDocMenuRegistration(key, enabled),
       onDebugLogEnabledChange: (enabled) => this.setDebugLogEnabled(enabled),
     });
@@ -339,8 +350,16 @@ export default class DocLinkToolkitPlugin extends Plugin {
     );
   }
 
+  private getDockActions() {
+    return filterDockVisibleActions(
+      this.getOrderedActions(),
+      this.docActionEnabledState
+    );
+  }
+
   private snapshotDocMenuState(): PluginDocMenuState {
     return {
+      docActionEnabledState: this.docActionEnabledState,
       docMenuRegistrationState: this.docMenuRegistrationState,
       docActionOrderState: this.docActionOrderState,
       docFavoriteActionKeys: this.docFavoriteActionKeys,
@@ -351,6 +370,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   private applyDocMenuState(state: PluginDocMenuState) {
+    this.docActionEnabledState = state.docActionEnabledState;
     this.docMenuRegistrationState = state.docMenuRegistrationState;
     this.docActionOrderState = state.docActionOrderState;
     this.docFavoriteActionKeys = state.docFavoriteActionKeys;
@@ -359,6 +379,22 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.debugLogEnabled = state.debugLogEnabled ?? false;
     setTransactionDebugLogEnabled(this.debugLogEnabled);
     setDocAssistantDebugEnabled(this.debugLogEnabled);
+  }
+
+  async setAllDocActionEnabled(enabled: boolean) {
+    this.applyDocMenuState(
+      setAllPluginDocActionEnabled(this.snapshotDocMenuState(), enabled)
+    );
+    await this.persistDocMenuRegistrationState();
+    this.keyInfoController.syncDocActions();
+  }
+
+  async setSingleDocActionEnabled(key: ActionKey, enabled: boolean) {
+    this.applyDocMenuState(
+      setSinglePluginDocActionEnabled(this.snapshotDocMenuState(), key, enabled)
+    );
+    await this.persistDocMenuRegistrationState();
+    this.keyInfoController.syncDocActions();
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {

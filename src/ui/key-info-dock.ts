@@ -530,7 +530,10 @@ export function createKeyInfoDock(
       return;
     }
     const registeredCount = state.docActions.filter((action) => action.menuRegistered).length;
-    meta.textContent = `文档命令 ${state.docActions.length} · 收藏 ${state.favoriteActionKeys.length} · 已注册 ${registeredCount}`;
+    const favoriteCount = state.favoriteActionKeys.filter((key) =>
+      state.docActions.some((action) => action.key === key)
+    ).length;
+    meta.textContent = `文档命令 ${state.docActions.length} · 收藏 ${favoriteCount} · 已注册 ${registeredCount}`;
   };
 
   const setState = (next: Partial<KeyInfoDockState>) => {
