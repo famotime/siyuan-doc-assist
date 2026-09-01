@@ -1075,4 +1075,72 @@ describe("key-info-dock scroll interaction", () => {
     dock.destroy();
     host.remove();
   });
+
+  test("renders clean wireframe icons and labels for each action group separator", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onDocActionClick: () => {},
+    });
+
+    dock.setState({
+      activeTab: "doc-process",
+      favoriteActionKeys: ["export-current"],
+      docActions: [
+        {
+          key: "export-current",
+          label: "仅导出当前文档",
+          icon: "iconDownload",
+          group: "export",
+          groupLabel: "导出",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+        {
+          key: "move-backlinks",
+          label: "移动反链文档为子文档",
+          icon: "iconMove",
+          group: "organize",
+          groupLabel: "整理",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+        {
+          key: "insert-backlinks",
+          label: "插入反链文档列表（去重）",
+          icon: "iconList",
+          group: "insert",
+          groupLabel: "插入",
+          disabled: false,
+          menuRegistered: true,
+          menuToggleDisabled: false,
+        },
+      ],
+    });
+
+    const separators = host.querySelectorAll(".doc-assistant-keyinfo__action-separator");
+    expect(separators.length).toBeGreaterThanOrEqual(4); // favorite + export + organize + insert
+
+    separators.forEach((separator) => {
+      const icon = separator.querySelector(".doc-assistant-keyinfo__action-separator-icon");
+      expect(icon).not.toBeNull();
+      expect(icon?.tagName.toLowerCase()).toBe("svg");
+      expect(icon?.getAttribute("viewBox")).toBe("0 0 24 24");
+      expect(icon?.getAttribute("fill")).toBe("none");
+      expect(icon?.getAttribute("stroke")).toBe("currentColor");
+      expect(icon?.getAttribute("style")).toContain("fill: none !important");
+
+      const label = separator.querySelector(".doc-assistant-keyinfo__action-separator-label");
+      expect(label).not.toBeNull();
+      expect(label?.textContent?.trim().length).toBeGreaterThan(0);
+    });
+
+    dock.destroy();
+    host.remove();
+  });
 });
+

@@ -299,9 +299,9 @@
 
 .doc-assistant-keyinfo__action-group-label,
 .doc-assistant-keyinfo__action-separator-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
   color: var(--doc-assistant-accent-strong);
   background: color-mix(in srgb, var(--b3-theme-background) 86%, #d8f3e4 14%);
   padding: 2px 6px;
@@ -310,8 +310,8 @@
 
 .doc-assistant-keyinfo__action-separator {
   position: relative;
-  height: 14px;
-  margin: 4px 0 2px;
+  height: 16px;
+  margin: 6px 0 3px;
 }
 
 .doc-assistant-keyinfo__action-separator::before {
@@ -319,7 +319,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 7px;
+  top: 8px;
   border-top: 1px solid color-mix(in srgb, var(--b3-border-color) 78%, transparent);
 }
 
@@ -336,20 +336,43 @@
   position: relative;
   z-index: 1;
   display: inline-block;
-  padding: 0 6px;
+  padding: 0 4px;
+}
+
+.doc-assistant-keyinfo__action-separator-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--doc-assistant-accent-strong) !important;
+  fill: none !important;
+  stroke: var(--doc-assistant-accent-strong) !important;
+
+  *,
+  path,
+  polygon,
+  rect,
+  circle,
+  line,
+  polyline {
+    fill: none !important;
+    stroke: var(--doc-assistant-accent-strong) !important;
+  }
 }
 
 .doc-assistant-keyinfo__action-separator-toggle {
   appearance: none;
   border: 1px solid color-mix(in srgb, var(--doc-assistant-accent-strong) 26%, var(--b3-border-color));
   background: color-mix(in srgb, var(--b3-theme-surface) 88%, #dbf1e3 12%);
-  padding: 1px 8px 1px 6px;
+  padding: 2px 8px 2px 6px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   cursor: pointer;
-  min-height: 22px;
+  min-height: 24px;
   transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -365,7 +388,7 @@
 
 .doc-assistant-keyinfo__action-separator-toggle-icon {
   color: color-mix(in srgb, var(--doc-assistant-accent-strong) 88%, var(--b3-theme-on-surface));
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
 }

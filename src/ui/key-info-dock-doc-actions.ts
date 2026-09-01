@@ -73,6 +73,45 @@ function getCollapsedDocActionGroups(container: HTMLDivElement): Set<string> {
   return next;
 }
 
+const GROUP_SVG_PATHS: Record<string, string> = {
+  __favorite__:
+    '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />',
+  organize:
+    '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /><path d="M8 10v4" /><path d="M12 10v2" /><path d="M16 10v6" />',
+  insert:
+    '<path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M3 15h6" /><path d="M6 12v6" />',
+  export:
+    '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /><path d="M12 10v6" /><path d="m9 13 3-3 3 3" />',
+  ai:
+    '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /><path d="M20 3v4" /><path d="M22 5h-4" /><path d="M4 17v2" /><path d="M5 18H3" />',
+  edit:
+    '<path d="m18 5-2.414-2.414A2 2 0 0 0 14.172 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9.828a2 2 0 0 0-.586-1.414z" /><path d="M21.378 12.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><path d="M8 18h1" />',
+  image:
+    '<rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />',
+};
+
+function createGroupIconNode(groupKey: string): SVGSVGElement | null {
+  const innerSvg = GROUP_SVG_PATHS[groupKey];
+  if (!innerSvg) {
+    return null;
+  }
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.classList.add("doc-assistant-keyinfo__action-separator-icon");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute(
+    "style",
+    "fill: none !important; stroke: var(--doc-assistant-accent-strong, currentColor) !important; color: var(--doc-assistant-accent-strong, currentColor) !important;"
+  );
+  svg.innerHTML = innerSvg;
+  return svg;
+}
+
 function buildGroupLabel(options: {
   text: string;
   groupKey: string;
@@ -92,10 +131,14 @@ function buildGroupLabel(options: {
   const toggleIcon = document.createElement("span");
   toggleIcon.className = "doc-assistant-keyinfo__action-separator-toggle-icon";
   toggleIcon.textContent = collapsed ? "+" : "-";
+  const iconNode = createGroupIconNode(groupKey);
   const separatorLabel = document.createElement("span");
   separatorLabel.className = "doc-assistant-keyinfo__action-separator-label";
   separatorLabel.textContent = text;
   toggle.appendChild(toggleIcon);
+  if (iconNode) {
+    toggle.appendChild(iconNode);
+  }
   toggle.appendChild(separatorLabel);
   toggle.addEventListener("click", (event) => {
     event.preventDefault();

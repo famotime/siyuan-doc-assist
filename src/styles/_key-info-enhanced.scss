@@ -212,9 +212,33 @@
   color: var(--da-text-2);
 }
 
+.doc-assistant-keyinfo__action-separator-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--doc-assistant-accent-strong) !important;
+  fill: none !important;
+  stroke: var(--doc-assistant-accent-strong) !important;
+
+  *,
+  path,
+  polygon,
+  rect,
+  circle,
+  line,
+  polyline {
+    fill: none !important;
+    stroke: var(--doc-assistant-accent-strong) !important;
+  }
+}
+
 .doc-assistant-keyinfo__action-separator-label {
-  font-size: 11px;
-  letter-spacing: 0.25px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .doc-assistant-keyinfo__action-row {
