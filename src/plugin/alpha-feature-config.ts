@@ -1,6 +1,6 @@
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 
-export type HiddenPluginSettingKey = "ai-service" | "debug-mode";
+export type HiddenPluginSettingKey = "ai-service" | "debug-mode" | "floating-text";
 
 export type AlphaFeatureHideConfig = {
   hiddenActionKeys: ActionKey[];

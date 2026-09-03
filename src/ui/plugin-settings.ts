@@ -9,6 +9,8 @@ import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
 import { installSettingHostNormalizer } from "@/ui/plugin-settings-host";
 import { createMenuRegistrationPanel } from "@/ui/plugin-settings-menu";
+import { createFloatingSettingsPanel } from "@/ui/plugin-settings-floating";
+import { loadFloatingTextConfig, saveFloatingTextConfig } from "@/services/floating-text/floating-text-storage";
 
 type CreatePluginSettingsOptions = {
   actions: ActionConfig[];
@@ -123,6 +125,22 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       description: "开启后，会在控制台打印插件执行操作时的 transaction 明细日志，方便定位撤销/重做失效等问题。",
       actionElement: debugLogToggle,
     });
+  }
+
+  if (!hiddenSettingKeys.has("floating-text")) {
+    const floatingPanel = createFloatingSettingsPanel({
+      floatingConfig: loadFloatingTextConfig(),
+      onFloatingConfigChange: (cfg) => {
+        saveFloatingTextConfig(cfg);
+      },
+    });
+    setting.addItem({
+      title: "悬浮文本",
+      direction: "column",
+      description: "配置桌面置顶悬浮文本窗口的默认不透明度、初始字号、视图模式与记忆行为。",
+      actionElement: floatingPanel,
+    });
+    hostNormalizedPanels.push(floatingPanel);
   }
 
   installSettingHostNormalizer(setting, hostNormalizedPanels);

@@ -59,6 +59,7 @@ import { resolveCanvasPluginFromPlugins } from "@/services/canvas-plugin-resolve
 import { createPowerButtonsProvider } from "@/plugin/power-buttons-provider";
 import type { PowerButtonsCommandProvider } from "@/plugin/power-buttons-provider-types";
 import { askConfirmWithDetail } from "@/ui/confirm-detail-dialog";
+import { floatingTextService } from "@/services/floating-text/floating-text-service";
 
 export default class DocLinkToolkitPlugin extends Plugin {
   declare displayName: string;
@@ -166,6 +167,64 @@ export default class DocLinkToolkitPlugin extends Plugin {
     });
   };
 
+  private readonly onContentMenu = (event: CustomEvent<{
+    menu?: {
+      addItem: (config: { icon: string; label: string; click: () => void }) => void;
+      addSeparator?: () => void;
+    };
+    range?: Range;
+    protyle?: ProtyleLike;
+  }>) => {
+    const detail = event.detail;
+    const menu = detail?.menu;
+    if (!menu) {
+      return;
+    }
+    const selectedText = detail.range
+      ? detail.range.toString()
+      : typeof window !== "undefined"
+      ? window.getSelection()?.toString() || ""
+      : "";
+    if (!selectedText.trim()) {
+      return;
+    }
+
+    menu.addItem({
+      icon: "iconPin",
+      label: "悬浮选中文本",
+      click: () => {
+        void floatingTextService.openFloatingText(selectedText);
+      },
+    });
+  };
+
+  private readonly onDocTreeMenu = (event: CustomEvent<{
+    menu?: {
+      addItem: (config: { icon: string; label: string; click: () => void }) => void;
+    };
+    elements?: NodeListOf<HTMLElement>;
+    type?: string;
+  }>) => {
+    const detail = event.detail;
+    const menu = detail?.menu;
+    if (!menu || detail.type !== "doc" || !detail.elements || !detail.elements.length) {
+      return;
+    }
+    const targetEl = detail.elements[0];
+    const docId = targetEl.getAttribute("data-node-id");
+    if (!docId) {
+      return;
+    }
+
+    menu.addItem({
+      icon: "iconPin",
+      label: "悬浮整篇文档",
+      click: () => {
+        void floatingTextService.openFloatingDoc(docId);
+      },
+    });
+  };
+
   async onload() {
     if (!this.displayName) {
       this.displayName =
@@ -181,6 +240,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
     bindPluginLifecycleEvents(this.eventBus, {
       onSwitchProtyle: this.onSwitchProtyle,
       onEditorTitleMenu: this.onEditorTitleMenu,
+      onContentMenu: this.onContentMenu,
+      onDocTreeMenu: this.onDocTreeMenu,
     });
     this.keyInfoController.registerDock(this);
 
@@ -203,6 +264,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
     unbindPluginLifecycleEvents(this.eventBus, {
       onSwitchProtyle: this.onSwitchProtyle,
       onEditorTitleMenu: this.onEditorTitleMenu,
+      onContentMenu: this.onContentMenu,
+      onDocTreeMenu: this.onDocTreeMenu,
     });
     this.keyInfoController.destroy();
     destroyActionProcessingOverlay();

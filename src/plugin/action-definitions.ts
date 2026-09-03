@@ -50,7 +50,8 @@ export type ActionKey =
   | "export-keymap"
   | "import-keymap"
   | "generate-canvas-from-selected"
-  | "generate-llm-wiki";
+  | "generate-llm-wiki"
+  | "float-selected-text";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -140,6 +141,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "import-keymap": "入",
   "generate-canvas-from-selected": "画",
   "generate-llm-wiki": "智",
+  "float-selected-text": "浮",
 };
 
 export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
@@ -324,6 +326,17 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "organize",
         requiresWritableDoc: true,
         icon: "iconSplitLR",
+      },
+      {
+        key: "float-selected-text",
+        commandText: "悬浮选中文本",
+        menuText: "悬浮选中文本",
+        tooltip: createActionTooltip(
+          "悬浮选中文本",
+          "将选中文本固定悬浮在其他程序之上；未选中文本时自动悬浮整篇文档。"
+        ),
+        group: "organize",
+        icon: "iconPin",
       },
     ],
   },

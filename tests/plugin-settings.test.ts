@@ -144,7 +144,7 @@ describe("plugin settings", () => {
     ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ACTIONS
       .filter((action) => action.group === "ai")
       .map((action) => action.key);
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode", "floating-text"];
   });
 
   afterEach(() => {
@@ -456,7 +456,7 @@ describe("plugin settings", () => {
   test("hides alpha actions and related settings panels when configured", async () => {
     const { ALPHA_FEATURE_HIDE_CONFIG } = await import("@/plugin/alpha-feature-config");
     ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["clean-ai-output"];
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode", "floating-text"];
 
     try {
       const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");

@@ -76,6 +76,10 @@ export default defineConfig(({
             src: "./src/i18n/**",
             dest: "./i18n/",
           },
+          {
+            src: "./src/ui/floating-text/floating.html",
+            dest: "./",
+          },
         ],
       }),
     ],

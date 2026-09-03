@@ -68,6 +68,7 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 | `create-top100-large-documents-report` | 输出Top100大文件清单 |
 | `dedupe` | 识别本层级重复文档 |
 | `split-doc-by-headings` | 按标题拆分文档 |
+| `float-selected-text` | 悬浮选中文本 |
 
 **插入（insert）**
 

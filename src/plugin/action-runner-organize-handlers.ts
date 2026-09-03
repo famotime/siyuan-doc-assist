@@ -9,6 +9,7 @@ import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { openDedupeDialog } from "@/ui/dialogs";
 import { splitDocByHeadings } from "@/services/split-doc-by-headings";
 import { splitDocByHeadingsCore } from "@/core/split-doc-by-headings-core";
+import { floatingTextService } from "@/services/floating-text/floating-text-service";
 
 type CreateOrganizeActionHandlersOptions = {
   askConfirmWithVisibleDialog: (title: string, text: string) => Promise<boolean>;
@@ -187,6 +188,33 @@ export function createOrganizeActionHandlers(
         showMessage(`拆分失败：${msg}`, 9000, "error");
       } finally {
         options.setBusy?.(false);
+      }
+    },
+    "float-selected-text": async (docId, protyle) => {
+      // 1. 优先获取当前选中的文本
+      let selectedText = "";
+      if (typeof window !== "undefined") {
+        selectedText = window.getSelection()?.toString()?.trim() || "";
+      }
+
+      if (!selectedText && protyle?.wysiwyg?.element) {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          selectedText = sel.getRangeAt(0).toString().trim();
+        }
+      }
+
+      // 2. 若存在选区，则悬浮选中文本
+      if (selectedText) {
+        await floatingTextService.openFloatingText(selectedText);
+        return;
+      }
+
+      // 3. 未选中文本时，自动降级为悬浮整篇文档
+      if (docId) {
+        await floatingTextService.openFloatingDoc(docId);
+      } else {
+        showMessage("未选中文本且未找到当前文档", 4000, "info");
       }
     },
   };

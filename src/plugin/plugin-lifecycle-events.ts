@@ -8,6 +8,8 @@ type PluginEventBusLike = {
 type PluginLifecycleHandlers = {
   onSwitchProtyle: PluginEventHandler;
   onEditorTitleMenu: PluginEventHandler;
+  onContentMenu?: PluginEventHandler;
+  onDocTreeMenu?: PluginEventHandler;
 };
 
 export function bindPluginLifecycleEvents(
@@ -16,6 +18,12 @@ export function bindPluginLifecycleEvents(
 ) {
   eventBus.on("switch-protyle", handlers.onSwitchProtyle);
   eventBus.on("click-editortitleicon", handlers.onEditorTitleMenu);
+  if (handlers.onContentMenu) {
+    eventBus.on("open-menu-content", handlers.onContentMenu);
+  }
+  if (handlers.onDocTreeMenu) {
+    eventBus.on("open-menu-doctree", handlers.onDocTreeMenu);
+  }
 }
 
 export function unbindPluginLifecycleEvents(
@@ -24,4 +32,10 @@ export function unbindPluginLifecycleEvents(
 ) {
   eventBus.off("switch-protyle", handlers.onSwitchProtyle);
   eventBus.off("click-editortitleicon", handlers.onEditorTitleMenu);
+  if (handlers.onContentMenu) {
+    eventBus.off("open-menu-content", handlers.onContentMenu);
+  }
+  if (handlers.onDocTreeMenu) {
+    eventBus.off("open-menu-doctree", handlers.onDocTreeMenu);
+  }
 }
