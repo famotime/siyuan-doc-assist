@@ -44,12 +44,18 @@ import {
   setAllPluginDocActionEnabled,
   setAllPluginDocMenuRegistration,
   setAiSummaryConfig,
+  setFloatingConfig,
   setPluginDocActionFavorite,
   setPluginDocActionOrder,
   setPluginKeyInfoFilter,
   setSinglePluginDocActionEnabled,
   setSinglePluginDocMenuRegistration,
 } from "@/plugin/plugin-lifecycle-state";
+import {
+  bindPluginFloatingPersistence,
+  setCachedFloatingTextConfig,
+} from "@/services/floating-text/floating-text-storage";
+import { FloatingTextConfig } from "@/core/floating-text-core";
 import { createPluginSettings } from "@/ui/plugin-settings";
 import {
   destroyActionProcessingOverlay,
@@ -62,6 +68,7 @@ import { createPowerButtonsProvider } from "@/plugin/power-buttons-provider";
 import type { PowerButtonsCommandProvider } from "@/plugin/power-buttons-provider-types";
 import { askConfirmWithDetail } from "@/ui/confirm-detail-dialog";
 import { floatingTextService } from "@/services/floating-text/floating-text-service";
+import { extractFloatingMarkdownFromSelection } from "@/services/floating-text/floating-selection-helper";
 
 export default class DocLinkToolkitPlugin extends Plugin {
   declare displayName: string;
@@ -79,6 +86,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private docFavoriteActionKeys: ActionKey[] = [];
   private keyInfoFilterState: KeyInfoFilter = buildDefaultKeyInfoFilter();
   private aiSummaryConfig = buildDefaultPluginDocMenuState(ACTIONS).aiSummaryConfig;
+  private floatingConfig: FloatingTextConfig =
+    buildDefaultPluginDocMenuState(ACTIONS).floatingConfig;
   private debugLogEnabled = false;
   private managedAiConfig: AiServiceConfig | null = null;
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
@@ -191,11 +200,14 @@ export default class DocLinkToolkitPlugin extends Plugin {
       return;
     }
 
+    const capturedRange = detail.range ? detail.range.cloneRange() : null;
+
     menu.addItem({
       icon: "iconPin",
       label: "悬浮选中文本",
-      click: () => {
-        void floatingTextService.openFloatingText(selectedText);
+      click: async () => {
+        const text = await extractFloatingMarkdownFromSelection(detail.protyle, capturedRange);
+        void floatingTextService.openFloatingText(text || selectedText);
       },
     });
   };
@@ -257,9 +269,15 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
     this.initApiSwitchSync();
     setTransactionDebugLogEnabled(this.debugLogEnabled);
+
+    bindPluginFloatingPersistence((cfg) => {
+      this.floatingConfig = cfg;
+      void this.persistDocMenuRegistrationState();
+    });
   }
 
   onunload() {
+    bindPluginFloatingPersistence(null);
     if (window.siyuanApiSwitch) {
       window.siyuanApiSwitch.unregister(this.name);
     }
@@ -364,8 +382,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
       aiSummaryConfig: this.aiSummaryConfig,
       managedAiConfig: this.managedAiConfig,
       debugLogEnabled: this.debugLogEnabled,
+      floatingConfig: this.floatingConfig,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
+      onFloatingConfigChange: (config) => this.setFloatingConfig(config),
       onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
       onToggleAllMenu: (enabled) => this.setAllDocMenuRegistration(enabled),
       onToggleSingleEnabled: (key, enabled) =>
@@ -462,6 +482,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       keyInfoFilterState: this.keyInfoFilterState,
       aiSummaryConfig: this.aiSummaryConfig,
       debugLogEnabled: this.debugLogEnabled,
+      floatingConfig: this.floatingConfig,
     };
   }
 
@@ -473,6 +494,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.keyInfoFilterState = state.keyInfoFilterState;
     this.aiSummaryConfig = state.aiSummaryConfig;
     this.debugLogEnabled = state.debugLogEnabled ?? false;
+    this.floatingConfig = state.floatingConfig;
+    setCachedFloatingTextConfig(state.floatingConfig);
     setTransactionDebugLogEnabled(this.debugLogEnabled);
     setDocAssistantDebugEnabled(this.debugLogEnabled);
   }
@@ -559,6 +582,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
     const state = this.snapshotDocMenuState();
     state.debugLogEnabled = enabled;
     this.applyDocMenuState(state);
+    await this.persistDocMenuRegistrationState();
+  }
+
+  async setFloatingConfig(config: Partial<FloatingTextConfig>) {
+    this.applyDocMenuState(
+      setFloatingConfig(this.snapshotDocMenuState(), config)
+    );
     await this.persistDocMenuRegistrationState();
   }
 }

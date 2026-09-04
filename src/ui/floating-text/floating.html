@@ -195,45 +195,57 @@
       display: none;
     }
 
-    .ft-markdown-view h1, .ft-h1 { font-size: 1.4em; font-weight: bold; margin: 0.6em 0 0.3em; }
+    .ft-markdown-view h1, .ft-h1 { font-size: 1.4em; font-weight: bold; margin: 0.6em 0 0.3em; border-bottom: 1px solid var(--ft-border-color); padding-bottom: 0.2em; }
     .ft-markdown-view h2, .ft-h2 { font-size: 1.25em; font-weight: bold; margin: 0.5em 0 0.3em; }
     .ft-markdown-view h3, .ft-h3 { font-size: 1.1em; font-weight: bold; margin: 0.4em 0 0.2em; }
+    .ft-markdown-view h4, .ft-h4 { font-size: 1.05em; font-weight: bold; margin: 0.3em 0 0.2em; }
     .ft-markdown-view p, .ft-p { margin-bottom: 0.5em; }
     .ft-markdown-view strong { font-weight: bold; }
     .ft-markdown-view em { font-style: italic; }
+    .ft-markdown-view del { text-decoration: line-through; opacity: 0.75; }
+    .ft-markdown-view hr { border: none; border-top: 1px solid var(--ft-border-color); margin: 0.8em 0; }
+    .ft-markdown-view a { color: #1890ff; text-decoration: underline; word-break: break-all; }
+
     .ft-markdown-view blockquote, .ft-blockquote {
       border-left: 3px solid rgba(128, 128, 128, 0.5);
-      padding-left: 8px;
-      margin: 0.5em 0;
-      opacity: 0.85;
+      padding-left: 10px;
+      margin: 0.6em 0;
+      opacity: 0.88;
     }
-    .ft-markdown-view ul, .ft-markdown-view ol {
-      padding-left: 1.5em;
-      margin-bottom: 0.5em;
+
+    /* 列表与嵌套列表样式 */
+    .ft-markdown-view ul, .ft-ul {
+      list-style-type: disc;
+      padding-left: 1.6em;
+      margin: 0.4em 0 0.6em;
     }
+    .ft-markdown-view ol, .ft-ol {
+      list-style-type: decimal;
+      padding-left: 1.6em;
+      margin: 0.4em 0 0.6em;
+    }
+    .ft-markdown-view ul ul { list-style-type: circle; margin: 0.2em 0; }
+    .ft-markdown-view ul ul ul { list-style-type: square; }
+    .ft-markdown-view ol ol { list-style-type: lower-alpha; margin: 0.2em 0; }
+
     .ft-markdown-view li, .ft-list-item {
-      margin-left: 1.35em;
-      margin-bottom: 0.3em;
+      display: list-item;
+      margin-bottom: 0.25em;
       line-height: 1.6;
     }
     .ft-list-item-ordered {
       list-style-type: decimal;
     }
-    .ft-code-block {
-      background: var(--ft-code-bg);
-      border-radius: 4px;
-      padding: 8px 10px;
-      margin: 0.5em 0;
-      font-family: monospace;
-      font-size: 0.9em;
-      overflow-x: auto;
+
+    /* 待办列表/复选框 */
+    .ft-markdown-view input[type="checkbox"] {
+      margin-right: 6px;
+      vertical-align: middle;
+      cursor: default;
     }
-    .ft-inline-code {
-      background: var(--ft-code-bg);
-      padding: 1px 4px;
-      border-radius: 3px;
-      font-family: monospace;
-      font-size: 0.9em;
+    .ft-markdown-view li:has(input[type="checkbox"]) {
+      list-style-type: none;
+      margin-left: -1em;
     }
     .ft-todo-item {
       display: flex;
@@ -241,6 +253,44 @@
       gap: 6px;
       margin-left: 0.25em;
       margin-bottom: 0.35em;
+    }
+
+    /* 表格样式 */
+    .ft-markdown-view table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 0.6em 0;
+      font-size: 0.95em;
+    }
+    .ft-markdown-view th, .ft-markdown-view td {
+      border: 1px solid var(--ft-border-color);
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .ft-markdown-view th {
+      background: var(--ft-header-bg);
+      font-weight: 600;
+    }
+    .ft-markdown-view tr:nth-child(even) {
+      background: rgba(128, 128, 128, 0.04);
+    }
+
+    .ft-code-block, .ft-markdown-view pre {
+      background: var(--ft-code-bg);
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin: 0.5em 0;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.9em;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .ft-inline-code, .ft-markdown-view code:not(pre code) {
+      background: var(--ft-code-bg);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.9em;
     }
     .ft-blank-line {
       height: 0.8em;
@@ -284,7 +334,7 @@
 
     <div id="ft-drawer" class="ft-drawer">
       <div class="ft-drawer-group">
-        <span>透明度</span>
+        <span>不透明度</span>
         <input type="range" id="ft-opacity-slider" class="ft-slider" min="10" max="100" value="85" />
         <span id="ft-opacity-label">85%</span>
       </div>
@@ -330,19 +380,31 @@
 
       function simpleMarkdownToHtml(md) {
         if (!md) return "";
-        const lines = md.split(/\\r?\\n/);
+        const lines = md.split(/\r?\n/);
         const parts = [];
         let inCode = false;
         let codeLines = [];
+        let currentListMode = "none";
+
+        function closeList() {
+          if (currentListMode === "ul") {
+            parts.push("</ul>");
+            currentListMode = "none";
+          } else if (currentListMode === "ol") {
+            parts.push("</ol>");
+            currentListMode = "none";
+          }
+        }
 
         for (const line of lines) {
           if (line.trim().startsWith("```")) {
+            closeList();
             if (!inCode) {
               inCode = true;
               codeLines = [];
             } else {
               inCode = false;
-              parts.push('<pre class="ft-code-block"><code>' + escapeHtml(codeLines.join("\\n")) + '</code></pre>');
+              parts.push('<pre class="ft-code-block"><code>' + escapeHtml(codeLines.join("\n")) + '</code></pre>');
             }
             continue;
           }
@@ -352,41 +414,63 @@
           }
           const trimmed = line.trim();
           if (!trimmed) {
+            closeList();
             parts.push('<div class="ft-blank-line"></div>');
             continue;
           }
-          const hMatch = trimmed.match(/^(#{1,6})\\s+(.*)$/);
+          const hMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
           if (hMatch) {
+            closeList();
             const level = hMatch[1].length;
             parts.push('<h' + level + ' class="ft-h' + level + '">' + renderInline(hMatch[2]) + '</h' + level + '>');
             continue;
           }
-          const todoMatch = trimmed.match(/^-\\s+\\[([ xX])\\]\\s+(.*)$/);
+          const todoMatch = trimmed.match(/^-\s+\[([ xX])\]\s+(.*)$/);
           if (todoMatch) {
+            closeList();
             const checked = todoMatch[1].toLowerCase() === "x";
             parts.push('<div class="ft-todo-item"><input type="checkbox" disabled ' + (checked ? 'checked' : '') + '/> <span>' + renderInline(todoMatch[2]) + '</span></div>');
             continue;
           }
           const listMatch = trimmed.match(/^[-*+]\s+(.*)$/);
           if (listMatch) {
+            if (currentListMode === "ol") {
+              parts.push("</ol>");
+              currentListMode = "none";
+            }
+            if (currentListMode !== "ul") {
+              parts.push('<ul class="ft-ul">');
+              currentListMode = "ul";
+            }
             parts.push('<li class="ft-list-item">' + renderInline(listMatch[1]) + '</li>');
             continue;
           }
           const oListMatch = trimmed.match(/^\d+\.\s+(.*)$/);
           if (oListMatch) {
+            if (currentListMode === "ul") {
+              parts.push("</ul>");
+              currentListMode = "none";
+            }
+            if (currentListMode !== "ol") {
+              parts.push('<ol class="ft-ol">');
+              currentListMode = "ol";
+            }
             parts.push('<li class="ft-list-item ft-list-item-ordered">' + renderInline(oListMatch[1]) + '</li>');
             continue;
           }
           if (trimmed.startsWith(">")) {
-            parts.push('<blockquote class="ft-blockquote">' + renderInline(trimmed.replace(/^>\\s*/, "")) + '</blockquote>');
+            closeList();
+            parts.push('<blockquote class="ft-blockquote">' + renderInline(trimmed.replace(/^>\s*/, "")) + '</blockquote>');
             continue;
           }
+          closeList();
           parts.push('<p class="ft-p">' + renderInline(line) + '</p>');
         }
+        closeList();
         if (inCode && codeLines.length) {
-          parts.push('<pre class="ft-code-block"><code>' + escapeHtml(codeLines.join("\\n")) + '</code></pre>');
+          parts.push('<pre class="ft-code-block"><code>' + escapeHtml(codeLines.join("\n")) + '</code></pre>');
         }
-        return parts.join("\\n");
+        return parts.join("\n");
       }
 
       function loadConfig() {
@@ -409,6 +493,41 @@
         try {
           localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(next));
         } catch (e) {}
+
+        try {
+          const req =
+            (typeof window !== "undefined" && window.require) ||
+            (typeof require === "function" ? require : null);
+          const electron = req ? req("electron") : null;
+          const remote = (req && req("@electron/remote")) || electron?.remote;
+
+          if (remote && remote.process) {
+            const curShared = remote.process.__siyuan_doc_assist_floating_config || {};
+            remote.process.__siyuan_doc_assist_floating_config = Object.assign({}, curShared, patch);
+          }
+
+          if (req) {
+            const fs = req("fs");
+            const path = req("path");
+            let userData = "";
+            if (remote && remote.app && typeof remote.app.getPath === "function") {
+              userData = remote.app.getPath("userData");
+            }
+            if (!userData && typeof process !== "undefined" && process.env) {
+              userData = process.env.APPDATA || process.env.HOME || "";
+            }
+            if (fs && path && userData) {
+              const cfgPath = path.join(userData, "siyuan-doc-assist-floating-config.json");
+              let diskData = {};
+              if (fs.existsSync(cfgPath)) {
+                try { diskData = JSON.parse(fs.readFileSync(cfgPath, "utf-8")); } catch (err) {}
+              }
+              const merged = Object.assign({}, diskData, patch);
+              fs.writeFileSync(cfgPath, JSON.stringify(merged, null, 2), "utf-8");
+            }
+          }
+        } catch (e) {}
+
         return next;
       }
 

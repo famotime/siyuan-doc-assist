@@ -1,4 +1,5 @@
 /* eslint-disable node/prefer-global/process */
+import fs from "node:fs"
 import { resolve } from "node:path"
 import fg from "fast-glob"
 import minimist from "minimist"
@@ -140,6 +141,27 @@ export default defineConfig(({
                   outDir: "./",
                   outFileName: "package.zip",
                 }),
+                {
+                  name: "sync-to-siyuan-workspace",
+                  closeBundle() {
+                    if (!isWatch && siyuanWorkspacePath && fs.existsSync("./dist")) {
+                      try {
+                        fs.cpSync("./dist", devDistDir, { recursive: true, force: true });
+                        console.log(`\nSuccessfully synced build output to: ${devDistDir}\n`);
+                      } catch (e) {
+                        console.warn("\nFailed to sync dist to workspace:", e);
+                      }
+                      const extraTestWorkspace = "D:/siyuan-plugin-test";
+                      if (extraTestWorkspace !== siyuanWorkspacePath && fs.existsSync(extraTestWorkspace)) {
+                        try {
+                          const extraTarget = `${extraTestWorkspace}/data/plugins/${pluginInfo.name}`;
+                          fs.cpSync("./dist", extraTarget, { recursive: true, force: true });
+                          console.log(`Successfully synced build output to: ${extraTarget}\n`);
+                        } catch (e) {}
+                      }
+                    }
+                  },
+                },
               ]),
         ],
 

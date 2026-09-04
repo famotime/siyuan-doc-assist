@@ -50,7 +50,7 @@ export function createFloatingSettingsPanel(
   opacityWrapper.appendChild(opacityLabel);
 
   const opacityRow = createFieldRow({
-    label: "默认透明度",
+    label: "默认不透明度",
     input: opacityWrapper,
     hint: "设置置顶悬浮窗的背景不透明度（10% ~ 100%），支持毛玻璃拟态。",
   });

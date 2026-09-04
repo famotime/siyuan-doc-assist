@@ -151,7 +151,7 @@ export function escapeHtml(text: string): string {
 
 /**
  * 极简轻量安全的 Markdown 渲染器（无需第三方重依赖）
- * 支持段落、标题、加粗、斜体、删除线、行内代码、代码块、待办列表
+ * 支持段落、标题、加粗、斜体、删除线、行内代码、代码块、待办列表与标准列表容器
  */
 export function simpleMarkdownToHtml(markdown: string): string {
   if (!markdown) {
@@ -163,10 +163,22 @@ export function simpleMarkdownToHtml(markdown: string): string {
   let inCodeBlock = false;
   let codeBlockLang = "";
   let codeBlockLines: string[] = [];
+  let currentListMode: "none" | "ul" | "ol" = "none";
+
+  const closeOpenList = () => {
+    if (currentListMode === "ul") {
+      htmlParts.push("</ul>");
+      currentListMode = "none";
+    } else if (currentListMode === "ol") {
+      htmlParts.push("</ol>");
+      currentListMode = "none";
+    }
+  };
 
   for (const line of lines) {
     // 代码块判定
     if (line.trim().startsWith("```")) {
+      closeOpenList();
       if (!inCodeBlock) {
         inCodeBlock = true;
         codeBlockLang = line.trim().slice(3).trim();
@@ -188,6 +200,7 @@ export function simpleMarkdownToHtml(markdown: string): string {
 
     const trimmed = line.trim();
     if (!trimmed) {
+      closeOpenList();
       htmlParts.push('<div class="ft-blank-line"></div>');
       continue;
     }
@@ -195,15 +208,17 @@ export function simpleMarkdownToHtml(markdown: string): string {
     // 标题解析
     const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
+      closeOpenList();
       const level = headingMatch[1].length;
       const content = renderInlineMarkdown(headingMatch[2]);
       htmlParts.push(`<h${level} class="ft-h${level}">${content}</h${level}>`);
       continue;
     }
 
-    // 待办事项或列表
+    // 待办事项
     const todoMatch = trimmed.match(/^-\s+\[([ xX])\]\s+(.*)$/);
     if (todoMatch) {
+      closeOpenList();
       const checked = todoMatch[1].toLowerCase() === "x";
       const content = renderInlineMarkdown(todoMatch[2]);
       htmlParts.push(
@@ -212,8 +227,17 @@ export function simpleMarkdownToHtml(markdown: string): string {
       continue;
     }
 
+    // 无序列表
     const listMatch = trimmed.match(/^[-*+]\s+(.*)$/);
     if (listMatch) {
+      if (currentListMode === "ol") {
+        htmlParts.push("</ol>");
+        currentListMode = "none";
+      }
+      if (currentListMode !== "ul") {
+        htmlParts.push('<ul class="ft-ul">');
+        currentListMode = "ul";
+      }
       const content = renderInlineMarkdown(listMatch[1]);
       htmlParts.push(`<li class="ft-list-item">${content}</li>`);
       continue;
@@ -222,6 +246,14 @@ export function simpleMarkdownToHtml(markdown: string): string {
     // 有序列表
     const orderedListMatch = trimmed.match(/^\d+\.\s+(.*)$/);
     if (orderedListMatch) {
+      if (currentListMode === "ul") {
+        htmlParts.push("</ul>");
+        currentListMode = "none";
+      }
+      if (currentListMode !== "ol") {
+        htmlParts.push('<ol class="ft-ol">');
+        currentListMode = "ol";
+      }
       const content = renderInlineMarkdown(orderedListMatch[1]);
       htmlParts.push(`<li class="ft-list-item ft-list-item-ordered">${content}</li>`);
       continue;
@@ -229,14 +261,18 @@ export function simpleMarkdownToHtml(markdown: string): string {
 
     // 引用块
     if (trimmed.startsWith(">")) {
+      closeOpenList();
       const quoteText = renderInlineMarkdown(trimmed.replace(/^>\s*/, ""));
       htmlParts.push(`<blockquote class="ft-blockquote">${quoteText}</blockquote>`);
       continue;
     }
 
     // 普通段落
+    closeOpenList();
     htmlParts.push(`<p class="ft-p">${renderInlineMarkdown(line)}</p>`);
   }
+
+  closeOpenList();
 
   if (inCodeBlock && codeBlockLines.length) {
     const codeText = escapeHtml(codeBlockLines.join("\n"));
@@ -353,4 +389,27 @@ export function resolveFloatingCopyText(
     isSelected: false,
   };
 }
+
+/**
+ * 根据列表项类型为纯文本补充标准 Markdown 列表前缀
+ */
+export function formatListItemMarkdown(
+  text: string,
+  subtype?: "u" | "o" | "t" | string,
+  index = 1,
+  isCompleted = false
+): string {
+  const content = (text || "").trim();
+  if (!content) {
+    return "";
+  }
+  if (subtype === "t") {
+    return `- [${isCompleted ? "x" : " "}] ${content}`;
+  }
+  if (subtype === "o") {
+    return `${index}. ${content}`;
+  }
+  return `- ${content}`;
+}
+
 

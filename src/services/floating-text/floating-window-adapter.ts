@@ -2,8 +2,8 @@ import {
   calculateSteppedFontSize,
   FloatingTextConfig,
   resolveFloatingCopyText,
-  simpleMarkdownToHtml,
 } from "@/core/floating-text-core";
+import { renderMarkdownToHtml } from "@/core/markdown-render-core";
 import {
   buildFloatingWindowHtml,
 } from "@/ui/floating-text/floating-window-template";
@@ -55,6 +55,12 @@ function isSiYuanDarkTheme(): boolean {
   return document.body?.classList.contains("body--dark") || false;
 }
 
+if (typeof window !== "undefined") {
+  (window as any).__saveDocAssistantFloatingConfig = (patch: Partial<FloatingTextConfig>) => {
+    return saveFloatingTextConfig(patch);
+  };
+}
+
 /**
  * 启动桌面置顶悬浮文本窗口
  */
@@ -65,12 +71,14 @@ export async function openFloatingTextWindow(options: {
   const { title, text } = options;
   const config = loadFloatingTextConfig();
   const isDark = isSiYuanDarkTheme();
+  const initialHtml = renderMarkdownToHtml(text);
 
   const html = buildFloatingWindowHtml({
     title,
     text,
     config,
     isDark,
+    initialHtml,
   });
 
   // 1. 方案一：在思源桌面端（Electron 环境），使用 @electron/remote.BrowserWindow
@@ -102,6 +110,44 @@ export async function openFloatingTextWindow(options: {
       if (typeof remote.enable === "function") {
         remote.enable(win.webContents);
       }
+
+      // 挂载宿主代理对象供子窗口直接同步调用
+      (win as any).__docAssistantHost = {
+        saveConfig: (patch: Partial<FloatingTextConfig>) => {
+          return saveFloatingTextConfig(patch);
+        },
+        getConfig: () => {
+          return loadFloatingTextConfig();
+        },
+        renderMarkdown: (md: string) => {
+          return renderMarkdownToHtml(md);
+        },
+      };
+
+      // 监听原生窗口 resize 与 close 事件，自动持久化尺寸（若开启记忆尺寸）
+      let resizeTimer: any = null;
+      win.on("resize", () => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (!win.isDestroyed()) {
+            const [w, h] = win.getSize();
+            const cur = loadFloatingTextConfig();
+            if (cur.rememberSize) {
+              saveFloatingTextConfig({ width: w, height: h });
+            }
+          }
+        }, 300);
+      });
+
+      win.on("close", () => {
+        if (!win.isDestroyed()) {
+          const [w, h] = win.getSize();
+          const cur = loadFloatingTextConfig();
+          if (cur.rememberSize) {
+            saveFloatingTextConfig({ width: w, height: h });
+          }
+        }
+      });
 
       currentElectronWindow = win;
 
@@ -346,7 +392,7 @@ function bindPipWindowEvents(
     }
     if (currentViewMode === "markdown") {
       if (mdViewEl) {
-        mdViewEl.innerHTML = simpleMarkdownToHtml(getCurrentText());
+        mdViewEl.innerHTML = renderMarkdownToHtml(getCurrentText());
       }
       if (textViewEl) {
         textViewEl.style.display = "none";
@@ -372,7 +418,7 @@ function bindPipWindowEvents(
     settingsBtn.classList.toggle("ft-btn-active");
   });
 
-  // 6. 透明度滑块
+  // 6. 不透明度滑块
   slider?.addEventListener("input", () => {
     const val = parseInt(slider.value, 10);
     const op = val / 100;
@@ -405,10 +451,13 @@ function bindPipWindowEvents(
       pipWindow.clearTimeout(resizeTimer);
     }
     resizeTimer = pipWindow.setTimeout(() => {
-      saveFloatingTextConfig({
-        width: pipWindow.innerWidth,
-        height: pipWindow.innerHeight,
-      });
+      const cur = loadFloatingTextConfig();
+      if (cur.rememberSize) {
+        saveFloatingTextConfig({
+          width: pipWindow.innerWidth,
+          height: pipWindow.innerHeight,
+        });
+      }
     }, 400);
   });
 }
@@ -419,11 +468,13 @@ function openInAppFloatingFallback(
   config: FloatingTextConfig,
   isDark: boolean
 ) {
+  const initialHtml = renderMarkdownToHtml(text);
   const dialogHtml = buildFloatingWindowHtml({
     title,
     text,
     config,
     isDark,
+    initialHtml,
   });
 
   new Dialog({

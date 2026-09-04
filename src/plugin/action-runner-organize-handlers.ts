@@ -1,6 +1,6 @@
 import { showMessage } from "siyuan";
 import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
-import { appendBlock, getBlockKramdowns, getChildBlocksByParentId } from "@/services/kernel";
+import { appendBlock, getChildBlocksByParentId } from "@/services/kernel";
 import { getBacklinkDocs, getForwardLinkedDocIds } from "@/services/link-resolver";
 import { createTop100LargeDocumentsReport } from "@/services/large-documents-report";
 import { moveDocsAsChildren } from "@/services/mover";
@@ -10,8 +10,7 @@ import { openDedupeDialog } from "@/ui/dialogs";
 import { splitDocByHeadings } from "@/services/split-doc-by-headings";
 import { splitDocByHeadingsCore } from "@/core/split-doc-by-headings-core";
 import { floatingTextService } from "@/services/floating-text/floating-text-service";
-import { getSelectedBlockIds } from "@/plugin/action-runner-context";
-import { stripKramdownBlockAttributes } from "@/core/floating-text-core";
+import { extractFloatingMarkdownFromSelection } from "@/services/floating-text/floating-selection-helper";
 
 type CreateOrganizeActionHandlersOptions = {
   askConfirmWithVisibleDialog: (title: string, text: string) => Promise<boolean>;
@@ -193,68 +192,16 @@ export function createOrganizeActionHandlers(
       }
     },
     "float-selected-text": async (docId, protyle) => {
-      // 1. 优先获取行内选中文本（优先读取浮动工具栏绑定的 range）
-      let selectedText = "";
-      const toolbarRange =
-        (protyle as any)?.toolbar?.range ||
-        (protyle as any)?.protyle?.toolbar?.range;
-      if (toolbarRange && typeof toolbarRange.toString === "function") {
-        selectedText = toolbarRange.toString().trim();
-      }
+      // 1. 智能提取选中的 Markdown 文本（支持行内选区、多块选中、列表项语法完整保留）
+      const selectedText = await extractFloatingMarkdownFromSelection(protyle);
 
-      if (!selectedText && typeof window !== "undefined") {
-        selectedText = window.getSelection()?.toString()?.trim() || "";
-      }
-
-      if (!selectedText && protyle?.wysiwyg?.element) {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0) {
-          selectedText = sel.getRangeAt(0).toString().trim();
-        }
-      }
-
-      // 2. 若无行内选中文本，检查是否存在块级多选（选区覆盖完整块）
-      if (!selectedText) {
-        const selectedBlockIds = getSelectedBlockIds(protyle);
-        if (selectedBlockIds.length > 0) {
-          try {
-            const kramdowns = await getBlockKramdowns(selectedBlockIds);
-            const rawContent = kramdowns
-              .map((item) => (item?.kramdown || "").trim())
-              .filter(Boolean)
-              .join("\n\n");
-            const content = stripKramdownBlockAttributes(rawContent);
-            if (content) {
-              selectedText = content;
-            }
-          } catch (e) {
-            console.warn("[DocAssistant][FloatingText] getBlockKramdowns failed:", e);
-          }
-
-          // 降级策略：若 API 获取失败，从 DOM 提取文本
-          if (!selectedText && protyle?.wysiwyg?.element) {
-            const domText = Array.from(
-              protyle.wysiwyg.element.querySelectorAll<HTMLElement>(
-                ".protyle-wysiwyg--select"
-              )
-            )
-              .map((el) => (el.innerText || el.textContent || "").trim())
-              .filter(Boolean)
-              .join("\n\n");
-            if (domText) {
-              selectedText = domText;
-            }
-          }
-        }
-      }
-
-      // 3. 若存在选区或选中块，则悬浮选中文本
+      // 2. 若存在选区或选中块，则悬浮选中文本
       if (selectedText) {
         await floatingTextService.openFloatingText(selectedText);
         return;
       }
 
-      // 4. 未选中文本且未选中任何块时，自动降级为悬浮整篇文档
+      // 3. 未选中文本且未选中任何块时，自动降级为悬浮整篇文档
       if (docId) {
         await floatingTextService.openFloatingDoc(docId);
       } else {

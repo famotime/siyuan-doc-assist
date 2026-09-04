@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateSteppedFontSize,
   escapeHtml,
+  formatListItemMarkdown,
   hexToRgba,
   normalizeFloatingConfig,
   simpleMarkdownToHtml,
@@ -125,10 +126,21 @@ describe("floating-text-core", () => {
     it("renders unordered and ordered lists", () => {
       const md = "- 列表项 1\n* 列表项 2\n1. 有序项 1\n2. 有序项 2";
       const html = simpleMarkdownToHtml(md);
+      expect(html).toContain('<ul class="ft-ul">');
       expect(html).toContain('<li class="ft-list-item">列表项 1</li>');
       expect(html).toContain('<li class="ft-list-item">列表项 2</li>');
+      expect(html).toContain('</ul>');
+      expect(html).toContain('<ol class="ft-ol">');
       expect(html).toContain('<li class="ft-list-item ft-list-item-ordered">有序项 1</li>');
       expect(html).toContain('<li class="ft-list-item ft-list-item-ordered">有序项 2</li>');
+      expect(html).toContain('</ol>');
+    });
+
+    it("formats list item prefix correctly", () => {
+      expect(formatListItemMarkdown("任务", "t")).toBe("- [ ] 任务");
+      expect(formatListItemMarkdown("第一步", "o", 1)).toBe("1. 第一步");
+      expect(formatListItemMarkdown("普通项", "u")).toBe("- 普通项");
+      expect(formatListItemMarkdown("", "u")).toBe("");
     });
   });
 
@@ -237,6 +249,26 @@ describe("floating-text-core", () => {
       expect(html).toContain("simpleMarkdownToHtml(getCurrentText())");
     });
 
+    it("generates html with opacity labeled as 不透明度 and supports persistent config sync", async () => {
+      const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
+      const html = buildFloatingWindowHtml({
+        title: "不透明度设置测试",
+        text: "测试内容",
+        config: { ...DEFAULT_FLOATING_TEXT_CONFIG, opacity: 0.75 },
+      });
+
+      // 验证抽屉文案为“不透明度”
+      expect(html).toContain("<span>不透明度</span>");
+      expect(html).not.toContain("<span>透明度</span>");
+
+      // 验证持久化通信桥梁逻辑
+      expect(html).toContain("__siyuan_doc_assist_floating_config");
+      expect(html).toContain("siyuan-doc-assist-floating-config.json");
+      expect(html).toContain("__saveDocAssistantFloatingConfig");
+      expect(html).toContain("opacityDebounceTimer");
+      expect(html).toContain("shouldRememberSize");
+    });
+
     it("script content has valid javascript syntax", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const complexText = '# 标题\n\n这是 "引号" 和 `代码` 以及换行\n```ts\nconst a = "hello\\nworld";\n```\n- [ ] 待办\n> 引用';
@@ -253,4 +285,5 @@ describe("floating-text-core", () => {
     });
   });
 });
+
 

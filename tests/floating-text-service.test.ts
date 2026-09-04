@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   loadFloatingTextConfig,
   saveFloatingTextConfig,
+  resetFloatingTextConfigCache,
 } from "@/services/floating-text/floating-text-storage";
 import { FloatingTextService } from "@/services/floating-text/floating-text-service";
 import * as kernel from "@/services/kernel";
@@ -32,6 +33,7 @@ vi.mock("@/services/floating-text/floating-window-adapter", () => ({
 describe("floating-text-storage & floating-text-service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetFloatingTextConfigCache();
   });
 
   describe("storage", () => {
@@ -71,6 +73,21 @@ describe("floating-text-storage & floating-text-service", () => {
       };
       const loaded = loadFloatingTextConfig(storageAdapter);
       expect(loaded.opacity).toBe(0.85);
+    });
+
+    it("triggers plugin persistence handler on save", async () => {
+      const { bindPluginFloatingPersistence } = await import(
+        "@/services/floating-text/floating-text-storage"
+      );
+      const mockHandler = vi.fn();
+      bindPluginFloatingPersistence(mockHandler);
+
+      saveFloatingTextConfig({ opacity: 0.5, fontSize: 18 });
+      expect(mockHandler).toHaveBeenCalledWith(
+        expect.objectContaining({ opacity: 0.5, fontSize: 18 })
+      );
+
+      bindPluginFloatingPersistence(null);
     });
   });
 

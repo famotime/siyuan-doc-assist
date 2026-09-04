@@ -28,6 +28,11 @@ import {
   normalizeKeyInfoFilter,
 } from "@/core/key-info-core";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
+import {
+  DEFAULT_FLOATING_TEXT_CONFIG,
+  FloatingTextConfig,
+  normalizeFloatingConfig,
+} from "@/core/floating-text-core";
 
 export type PluginDocMenuState = {
   docActionEnabledState: DocActionEnabledState;
@@ -37,12 +42,14 @@ export type PluginDocMenuState = {
   keyInfoFilterState: KeyInfoFilter;
   aiSummaryConfig: AiServiceConfig;
   debugLogEnabled: boolean;
+  floatingConfig: FloatingTextConfig;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   keyInfoFilter?: unknown;
   aiSummaryConfig?: unknown;
   debugLogEnabled?: unknown;
+  floatingConfig?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -56,6 +63,7 @@ export function buildDefaultPluginDocMenuState(
     keyInfoFilterState: buildDefaultKeyInfoFilter(),
     aiSummaryConfig: buildDefaultAiServiceConfig(),
     debugLogEnabled: false,
+    floatingConfig: { ...DEFAULT_FLOATING_TEXT_CONFIG },
   };
 }
 
@@ -71,6 +79,7 @@ export function normalizePluginDocMenuState(
     keyInfoFilterState: normalizeStoredKeyInfoFilter(raw),
     aiSummaryConfig: normalizeStoredAiSummaryConfig(raw),
     debugLogEnabled: normalizeStoredDebugLogEnabled(raw),
+    floatingConfig: normalizeStoredFloatingConfig(raw),
   };
 }
 
@@ -102,6 +111,14 @@ function normalizeStoredDebugLogEnabled(raw: unknown): boolean {
   return typeof value === "boolean" ? value : false;
 }
 
+function normalizeStoredFloatingConfig(raw: unknown): FloatingTextConfig {
+  if (!raw || typeof raw !== "object") {
+    return { ...DEFAULT_FLOATING_TEXT_CONFIG };
+  }
+  const value = (raw as PluginDocMenuStorageV1).floatingConfig;
+  return normalizeFloatingConfig(value as any);
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -114,6 +131,7 @@ export function serializePluginDocMenuState(
     keyInfoFilter: state.keyInfoFilterState,
     aiSummaryConfig: state.aiSummaryConfig,
     debugLogEnabled: state.debugLogEnabled,
+    floatingConfig: state.floatingConfig,
   };
 }
 
@@ -252,3 +270,17 @@ export function setAiSummaryConfig(
     aiSummaryConfig: normalizeAiServiceConfig(config),
   };
 }
+
+export function setFloatingConfig(
+  state: PluginDocMenuState,
+  config: Partial<FloatingTextConfig>
+): PluginDocMenuState {
+  return {
+    ...state,
+    floatingConfig: normalizeFloatingConfig({
+      ...state.floatingConfig,
+      ...config,
+    }),
+  };
+}
+

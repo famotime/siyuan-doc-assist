@@ -197,45 +197,58 @@ export function getFloatingWindowStyles(): string {
       display: none;
     }
 
-    .ft-markdown-view h1, .ft-h1 { font-size: 1.4em; font-weight: bold; margin: 0.6em 0 0.3em; }
+    .ft-markdown-view h1, .ft-h1 { font-size: 1.4em; font-weight: bold; margin: 0.6em 0 0.3em; border-bottom: 1px solid var(--ft-border-color); padding-bottom: 0.2em; }
     .ft-markdown-view h2, .ft-h2 { font-size: 1.25em; font-weight: bold; margin: 0.5em 0 0.3em; }
     .ft-markdown-view h3, .ft-h3 { font-size: 1.1em; font-weight: bold; margin: 0.4em 0 0.2em; }
+    .ft-markdown-view h4, .ft-h4 { font-size: 1.05em; font-weight: bold; margin: 0.3em 0 0.2em; }
     .ft-markdown-view p, .ft-p { margin-bottom: 0.5em; }
     .ft-markdown-view strong { font-weight: bold; }
     .ft-markdown-view em { font-style: italic; }
+    .ft-markdown-view del { text-decoration: line-through; opacity: 0.75; }
+    .ft-markdown-view hr { border: none; border-top: 1px solid var(--ft-border-color); margin: 0.8em 0; }
+    .ft-markdown-view a { color: #1890ff; text-decoration: underline; word-break: break-all; }
+
     .ft-markdown-view blockquote, .ft-blockquote {
       border-left: 3px solid rgba(128, 128, 128, 0.5);
-      padding-left: 8px;
-      margin: 0.5em 0;
-      opacity: 0.85;
+      padding-left: 10px;
+      margin: 0.6em 0;
+      opacity: 0.88;
     }
-    .ft-markdown-view ul, .ft-markdown-view ol {
-      padding-left: 1.5em;
-      margin-bottom: 0.5em;
+
+    /* 列表与嵌套列表样式 */
+    .ft-markdown-view ul, .ft-ul {
+      list-style-type: disc;
+      padding-left: 1.6em;
+      margin: 0.4em 0 0.6em;
     }
+    .ft-markdown-view ol, .ft-ol {
+      list-style-type: decimal;
+      padding-left: 1.6em;
+      margin: 0.4em 0 0.6em;
+    }
+    .ft-markdown-view ul ul { list-style-type: circle; margin: 0.2em 0; }
+    .ft-markdown-view ul ul ul { list-style-type: square; }
+    .ft-markdown-view ol ol { list-style-type: lower-alpha; margin: 0.2em 0; }
+
     .ft-markdown-view li, .ft-list-item {
-      margin-left: 1.35em;
-      margin-bottom: 0.3em;
+      display: list-item;
+      margin-bottom: 0.25em;
       line-height: 1.6;
     }
     .ft-list-item-ordered {
       list-style-type: decimal;
     }
-    .ft-code-block {
-      background: var(--ft-code-bg);
-      border-radius: 4px;
-      padding: 8px 10px;
-      margin: 0.5em 0;
-      font-family: monospace;
-      font-size: 0.9em;
-      overflow-x: auto;
+
+    /* 待办列表/复选框 */
+    .ft-markdown-view input[type="checkbox"] {
+      margin-right: 6px;
+      vertical-align: middle;
+      cursor: default;
     }
-    .ft-inline-code {
-      background: var(--ft-code-bg);
-      padding: 1px 4px;
-      border-radius: 3px;
-      font-family: monospace;
-      font-size: 0.9em;
+    .ft-markdown-view li:has(input[type="checkbox"]),
+    .ft-markdown-view li.protyle-task--done {
+      list-style-type: none;
+      margin-left: -1em;
     }
     .ft-todo-item {
       display: flex;
@@ -243,6 +256,44 @@ export function getFloatingWindowStyles(): string {
       gap: 6px;
       margin-left: 0.25em;
       margin-bottom: 0.35em;
+    }
+
+    /* 表格样式 */
+    .ft-markdown-view table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 0.6em 0;
+      font-size: 0.95em;
+    }
+    .ft-markdown-view th, .ft-markdown-view td {
+      border: 1px solid var(--ft-border-color);
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .ft-markdown-view th {
+      background: var(--ft-header-bg);
+      font-weight: 600;
+    }
+    .ft-markdown-view tr:nth-child(even) {
+      background: rgba(128, 128, 128, 0.04);
+    }
+
+    .ft-code-block, .ft-markdown-view pre {
+      background: var(--ft-code-bg);
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin: 0.5em 0;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.9em;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .ft-inline-code, .ft-markdown-view code:not(pre code) {
+      background: var(--ft-code-bg);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.9em;
     }
     .ft-blank-line {
       height: 0.8em;
@@ -275,10 +326,14 @@ export function buildFloatingWindowHtml(options: {
   text: string;
   config: FloatingTextConfig;
   isDark: boolean;
+  initialHtml?: string;
 }): string {
-  const { title, text, config, isDark } = options;
+  const { title, text, config, isDark, initialHtml } = options;
   const safeTitle = escapeHtml(title || "悬浮文本");
-  const markdownHtml = simpleMarkdownToHtml(text);
+  const markdownHtml =
+    typeof initialHtml === "string" && initialHtml.trim()
+      ? initialHtml
+      : simpleMarkdownToHtml(text);
   const themeAttr =
     config.themeMode === "dark"
       ? 'data-theme="dark"'
@@ -318,7 +373,7 @@ export function buildFloatingWindowHtml(options: {
 
         <div id="ft-drawer" class="ft-drawer">
           <div class="ft-drawer-group">
-            <span>透明度</span>
+            <span>不透明度</span>
             <input type="range" id="ft-opacity-slider" class="ft-slider" min="10" max="100" value="${Math.round(config.opacity * 100)}" />
             <span id="ft-opacity-label">${Math.round(config.opacity * 100)}%</span>
           </div>
@@ -360,11 +415,18 @@ export function buildFloatingWindowHtml(options: {
           const fontDecBtn = document.getElementById("ft-font-dec");
           const toast = document.getElementById("ft-toast");
 
+          let electron = null;
+          let remote = null;
           let electronWin = null;
           let electronClipboard = null;
           try {
-            const electron = window.require ? window.require("electron") : null;
-            const remote = (window.require && window.require("@electron/remote")) || (electron && electron.remote);
+            const req =
+              (typeof window !== "undefined" && window.require) ||
+              (typeof require === "function" ? require : null);
+            if (req) {
+              electron = req("electron");
+              remote = req("@electron/remote") || (electron && electron.remote) || null;
+            }
             if (remote && remote.getCurrentWindow) {
               electronWin = remote.getCurrentWindow();
             }
@@ -373,7 +435,9 @@ export function buildFloatingWindowHtml(options: {
             } else if (remote && remote.clipboard) {
               electronClipboard = remote.clipboard;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn("[DocAssistant][FloatingText] electron init warning:", e);
+          }
 
           function fallbackExecCopy(str) {
             try {
@@ -415,12 +479,73 @@ export function buildFloatingWindowHtml(options: {
           }
 
           function saveConfig(patch) {
+            // 1. 本地存储尝试写入（带异常保护）
             try {
-              const raw = localStorage.getItem("doc-assistant.floating-text.config");
-              const cur = raw ? JSON.parse(raw) : {};
-              const next = Object.assign({}, cur, patch);
-              localStorage.setItem("doc-assistant.floating-text.config", JSON.stringify(next));
+              if (typeof localStorage !== "undefined" && localStorage && typeof localStorage.getItem === "function") {
+                const raw = localStorage.getItem("doc-assistant.floating-text.config");
+                const cur = raw ? JSON.parse(raw) : {};
+                const next = Object.assign({}, cur, patch);
+                localStorage.setItem("doc-assistant.floating-text.config", JSON.stringify(next));
+              }
             } catch (e) {}
+
+            // 2. Electron 环境多重可靠持久化
+            try {
+              const req =
+                (typeof window !== "undefined" && window.require) ||
+                (typeof require === "function" ? require : null);
+
+              // 2.1 主进程跨窗口内存共享
+              if (remote && remote.process) {
+                const curShared = remote.process.__siyuan_doc_assist_floating_config || {};
+                remote.process.__siyuan_doc_assist_floating_config = Object.assign({}, curShared, patch);
+              }
+
+              // 2.2 本地磁盘独立 JSON 文件落盘 (跨思源重启保留)
+              try {
+                if (req) {
+                  const fs = req("fs");
+                  const path = req("path");
+                  let userData = "";
+                  if (remote && remote.app && typeof remote.app.getPath === "function") {
+                    userData = remote.app.getPath("userData");
+                  }
+                  if (!userData && typeof process !== "undefined" && process.env) {
+                    userData = process.env.APPDATA || process.env.HOME || "";
+                  }
+                  if (fs && path && userData) {
+                    const cfgPath = path.join(userData, "siyuan-doc-assist-floating-config.json");
+                    let diskData = {};
+                    if (fs.existsSync(cfgPath)) {
+                      try {
+                        diskData = JSON.parse(fs.readFileSync(cfgPath, "utf-8"));
+                      } catch (err) {}
+                    }
+                    const merged = Object.assign({}, diskData, patch);
+                    fs.writeFileSync(cfgPath, JSON.stringify(merged, null, 2), "utf-8");
+                  }
+                }
+              } catch (fsErr) {
+                console.warn("[DocAssistant][FloatingText] disk write failed:", fsErr);
+              }
+
+              // 2.3 通知思源宿主主窗口持久化到思源插件存储 (saveData)
+              if (remote && remote.BrowserWindow) {
+                const allWins = remote.BrowserWindow.getAllWindows();
+                for (const w of allWins) {
+                  if (electronWin && w.id === electronWin.id) continue;
+                  if (!w.isDestroyed()) {
+                    w.webContents.executeJavaScript(
+                      "try { if (window.__saveDocAssistantFloatingConfig) { window.__saveDocAssistantFloatingConfig(" +
+                        JSON.stringify(patch) +
+                        "); } } catch(e){}"
+                    );
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn("[DocAssistant][FloatingText] saveConfig failed:", e);
+            }
           }
 
           function showToast(msg) {
@@ -509,6 +634,17 @@ export function buildFloatingWindowHtml(options: {
             let inCode = false;
             let codeLines = [];
             let codeLang = "";
+            let currentListMode = "none";
+
+            function closeList() {
+              if (currentListMode === "ul") {
+                parts.push("</ul>");
+                currentListMode = "none";
+              } else if (currentListMode === "ol") {
+                parts.push("</ol>");
+                currentListMode = "none";
+              }
+            }
 
             for (let i = 0; i < lines.length; i++) {
               let line = lines[i];
@@ -516,6 +652,7 @@ export function buildFloatingWindowHtml(options: {
               const trimmed = line.trim();
 
               if (trimmed.startsWith("\x60\x60\x60")) {
+                closeList();
                 if (!inCode) {
                   inCode = true;
                   codeLang = trimmed.slice(3).trim();
@@ -534,12 +671,14 @@ export function buildFloatingWindowHtml(options: {
               }
 
               if (!trimmed) {
+                closeList();
                 parts.push('<div class="ft-blank-line"></div>');
                 continue;
               }
 
               // 标题
               if (trimmed.startsWith("#")) {
+                closeList();
                 let level = 0;
                 while (level < 6 && trimmed.charAt(level) === "#") level++;
                 if (level > 0 && (trimmed.charAt(level) === " " || trimmed.charAt(level) === "\t")) {
@@ -550,6 +689,7 @@ export function buildFloatingWindowHtml(options: {
 
               // 待办项
               if (trimmed.startsWith("- [ ] ") || trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ")) {
+                closeList();
                 const isChecked = trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ");
                 parts.push('<div class="ft-todo-item"><input type="checkbox" disabled ' + (isChecked ? "checked" : "") + '/> <span>' + renderInline(trimmed.slice(6)) + '</span></div>');
                 continue;
@@ -557,6 +697,14 @@ export function buildFloatingWindowHtml(options: {
 
               // 无序列表
               if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("+ ")) {
+                if (currentListMode === "ol") {
+                  parts.push("</ol>");
+                  currentListMode = "none";
+                }
+                if (currentListMode !== "ul") {
+                  parts.push('<ul class="ft-ul">');
+                  currentListMode = "ul";
+                }
                 parts.push('<li class="ft-list-item">' + renderInline(trimmed.slice(2)) + '</li>');
                 continue;
               }
@@ -564,18 +712,30 @@ export function buildFloatingWindowHtml(options: {
               // 有序列表
               const dotIdx = trimmed.indexOf(". ");
               if (dotIdx > 0 && !isNaN(Number(trimmed.slice(0, dotIdx)))) {
+                if (currentListMode === "ul") {
+                  parts.push("</ul>");
+                  currentListMode = "none";
+                }
+                if (currentListMode !== "ol") {
+                  parts.push('<ol class="ft-ol">');
+                  currentListMode = "ol";
+                }
                 parts.push('<li class="ft-list-item ft-list-item-ordered">' + renderInline(trimmed.slice(dotIdx + 2)) + '</li>');
                 continue;
               }
 
               // 引用块
               if (trimmed.startsWith(">")) {
+                closeList();
                 parts.push('<blockquote class="ft-blockquote">' + renderInline(trimmed.slice(1).trim()) + '</blockquote>');
                 continue;
               }
 
+              closeList();
               parts.push('<p class="ft-p">' + renderInline(line) + '</p>');
             }
+
+            closeList();
 
             if (inCode && codeLines.length) {
               const codeEsc = codeLines.join(LF).split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
@@ -637,7 +797,38 @@ export function buildFloatingWindowHtml(options: {
               viewBtn.textContent = isMarkdown ? "MD" : "纯文本";
               if (isMarkdown) {
                 if (mdView) {
-                  mdView.innerHTML = simpleMarkdownToHtml(getCurrentText());
+                  var curText = getCurrentText();
+                  // 若文本未经修改且 mdView 已有内容，直接复用首屏由思源宿主 Lute 原生渲染的 initialHtml，确保 100% 渲染精度
+                  if (curText !== originalText || !mdView.innerHTML.trim()) {
+                    var renderedHtml = "";
+
+                    // 1. 优先尝试跨窗口调用主窗口挂载的 Lute / marked 渲染服务
+                    try {
+                      if (electronWin && electronWin.__docAssistantHost && typeof electronWin.__docAssistantHost.renderMarkdown === "function") {
+                        renderedHtml = electronWin.__docAssistantHost.renderMarkdown(curText);
+                      }
+                    } catch (e) {}
+
+                    if (!renderedHtml && remote && remote.BrowserWindow) {
+                      try {
+                        var allWins = remote.BrowserWindow.getAllWindows();
+                        for (var i = 0; i < allWins.length; i++) {
+                          var w = allWins[i];
+                          if (electronWin && w.id === electronWin.id) continue;
+                          if (!w.isDestroyed() && w.__docAssistantHost && typeof w.__docAssistantHost.renderMarkdown === "function") {
+                            renderedHtml = w.__docAssistantHost.renderMarkdown(curText);
+                            if (renderedHtml) break;
+                          }
+                        }
+                      } catch (e) {}
+                    }
+
+                    // 2. 降级：使用内置增强的 simpleMarkdownToHtml
+                    if (!renderedHtml) {
+                      renderedHtml = simpleMarkdownToHtml(getCurrentText());
+                    }
+                    mdView.innerHTML = renderedHtml;
+                  }
                 }
                 if (textView) textView.style.display = "none";
                 if (mdView) mdView.style.display = "block";
@@ -659,14 +850,20 @@ export function buildFloatingWindowHtml(options: {
             });
           }
 
+          let opacityDebounceTimer = null;
           if (slider) {
             slider.addEventListener("input", function() {
               const val = parseInt(slider.value, 10);
               const op = val / 100;
               if (appEl) appEl.style.setProperty("--ft-opacity", String(op));
               if (opacityLabel) opacityLabel.textContent = val + "%";
+              if (opacityDebounceTimer) clearTimeout(opacityDebounceTimer);
+              opacityDebounceTimer = setTimeout(function() {
+                saveConfig({ opacity: op });
+              }, 200);
             });
             slider.addEventListener("change", function() {
+              if (opacityDebounceTimer) clearTimeout(opacityDebounceTimer);
               const val = parseInt(slider.value, 10);
               updateOpacity(val / 100);
             });
@@ -683,15 +880,17 @@ export function buildFloatingWindowHtml(options: {
             });
           }
 
+          const shouldRememberSize = ${Boolean(config.rememberSize)};
           let resizeTimer = null;
           window.addEventListener("resize", function() {
+            if (!shouldRememberSize) return;
             if (resizeTimer) clearTimeout(resizeTimer);
             resizeTimer = setTimeout(function() {
               saveConfig({
                 width: window.innerWidth,
                 height: window.innerHeight,
               });
-            }, 400);
+            }, 300);
           });
         })();
       </script>

@@ -20,8 +20,10 @@ type CreatePluginSettingsOptions = {
   aiSummaryConfig: AiServiceConfig;
   managedAiConfig: AiServiceConfig | null; // 添加被管家接管的配置
   debugLogEnabled: boolean;
+  floatingConfig?: import("@/core/floating-text-core").FloatingTextConfig;
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
+  onFloatingConfigChange?: (config: import("@/core/floating-text-core").FloatingTextConfig) => Promise<void> | void;
   onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
   onToggleAllMenu: (enabled: boolean) => Promise<void> | void;
   onToggleSingleEnabled: (key: ActionKey, enabled: boolean) => Promise<void> | void;
@@ -128,10 +130,12 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
   }
 
   if (!hiddenSettingKeys.has("floating-text")) {
+    const currentFloatingConfig = options.floatingConfig || loadFloatingTextConfig();
     const floatingPanel = createFloatingSettingsPanel({
-      floatingConfig: loadFloatingTextConfig(),
-      onFloatingConfigChange: (cfg) => {
+      floatingConfig: currentFloatingConfig,
+      onFloatingConfigChange: async (cfg) => {
         saveFloatingTextConfig(cfg);
+        await options.onFloatingConfigChange?.(cfg);
       },
     });
     setting.addItem({
