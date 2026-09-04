@@ -176,11 +176,20 @@ export function getFloatingWindowStyles(): string {
       background: rgba(128, 128, 128, 0.6);
     }
 
-    /* 纯文本视图 */
+    /* 纯文本编辑视图 */
     .ft-text-view {
       white-space: pre-wrap;
       word-break: break-word;
       outline: none;
+      min-height: 100%;
+      cursor: text;
+      caret-color: var(--ft-text-color);
+    }
+
+    .ft-text-view:empty::before {
+      content: attr(data-placeholder);
+      color: rgba(128, 128, 128, 0.55);
+      pointer-events: none;
     }
 
     /* Markdown 视图 */
@@ -322,7 +331,7 @@ export function buildFloatingWindowHtml(options: {
         </div>
 
         <main class="ft-body" id="ft-scroll-body">
-          <div id="ft-text-view" class="ft-text-view" style="${config.viewMode === 'markdown' ? 'display:none;' : 'display:block;'}">${escapeHtml(text)}</div>
+          <div id="ft-text-view" class="ft-text-view" contenteditable="plaintext-only" spellcheck="false" data-placeholder="在此处编辑文本..." style="${config.viewMode === 'markdown' ? 'display:none;' : 'display:block;'}">${escapeHtml(text)}</div>
           <div id="ft-markdown-view" class="ft-markdown-view" style="${config.viewMode === 'markdown' ? 'display:block;' : 'display:none;'}">${markdownHtml}</div>
         </main>
 
@@ -438,10 +447,34 @@ export function buildFloatingWindowHtml(options: {
             saveConfig({ opacity: op });
           }
 
+          function getSelectedText() {
+            try {
+              const sel = window.getSelection ? window.getSelection() : null;
+              if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+                return "";
+              }
+              return sel.toString();
+            } catch (e) {
+              return "";
+            }
+          }
+
           document.addEventListener("keydown", function(e) {
             if (e.key === "Escape") {
               if (electronWin) electronWin.close();
               else window.close();
+              return;
+            }
+            if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
+              const selected = getSelectedText();
+              if (selected && selected.trim().length > 0) {
+                e.preventDefault();
+                copyText(selected).then(function(ok) {
+                  if (ok) {
+                    showToast("已复制选中内容");
+                  }
+                });
+              }
             }
           });
 
@@ -453,6 +486,123 @@ export function buildFloatingWindowHtml(options: {
             }
           }, { passive: false });
 
+          function getCurrentText() {
+            if (!textView) return "";
+            return textView.innerText || textView.textContent || "";
+          }
+
+          function renderInline(str) {
+            let res = str.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+            res = res.replace(/\x60([^\x60]+)\x60/g, '<code class="ft-inline-code">$1</code>');
+            res = res.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+            res = res.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+            res = res.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+            return res;
+          }
+
+          function simpleMarkdownToHtml(md) {
+            if (!md) return "";
+            const LF = String.fromCharCode(10);
+            const CR = String.fromCharCode(13);
+            const lines = md.split(LF);
+            const parts = [];
+            let inCode = false;
+            let codeLines = [];
+            let codeLang = "";
+
+            for (let i = 0; i < lines.length; i++) {
+              let line = lines[i];
+              if (line.endsWith(CR)) line = line.slice(0, -1);
+              const trimmed = line.trim();
+
+              if (trimmed.startsWith("\x60\x60\x60")) {
+                if (!inCode) {
+                  inCode = true;
+                  codeLang = trimmed.slice(3).trim();
+                  codeLines = [];
+                } else {
+                  inCode = false;
+                  const codeEsc = codeLines.join(LF).split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+                  parts.push('<pre class="ft-code-block"><code class="language-' + codeLang + '">' + codeEsc + '</code></pre>');
+                }
+                continue;
+              }
+
+              if (inCode) {
+                codeLines.push(line);
+                continue;
+              }
+
+              if (!trimmed) {
+                parts.push('<div class="ft-blank-line"></div>');
+                continue;
+              }
+
+              // 标题
+              if (trimmed.startsWith("#")) {
+                let level = 0;
+                while (level < 6 && trimmed.charAt(level) === "#") level++;
+                if (level > 0 && (trimmed.charAt(level) === " " || trimmed.charAt(level) === "\t")) {
+                  parts.push('<h' + level + ' class="ft-h' + level + '">' + renderInline(trimmed.slice(level).trim()) + '</h' + level + '>');
+                  continue;
+                }
+              }
+
+              // 待办项
+              if (trimmed.startsWith("- [ ] ") || trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ")) {
+                const isChecked = trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ");
+                parts.push('<div class="ft-todo-item"><input type="checkbox" disabled ' + (isChecked ? "checked" : "") + '/> <span>' + renderInline(trimmed.slice(6)) + '</span></div>');
+                continue;
+              }
+
+              // 无序列表
+              if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("+ ")) {
+                parts.push('<li class="ft-list-item">' + renderInline(trimmed.slice(2)) + '</li>');
+                continue;
+              }
+
+              // 有序列表
+              const dotIdx = trimmed.indexOf(". ");
+              if (dotIdx > 0 && !isNaN(Number(trimmed.slice(0, dotIdx)))) {
+                parts.push('<li class="ft-list-item ft-list-item-ordered">' + renderInline(trimmed.slice(dotIdx + 2)) + '</li>');
+                continue;
+              }
+
+              // 引用块
+              if (trimmed.startsWith(">")) {
+                parts.push('<blockquote class="ft-blockquote">' + renderInline(trimmed.slice(1).trim()) + '</blockquote>');
+                continue;
+              }
+
+              parts.push('<p class="ft-p">' + renderInline(line) + '</p>');
+            }
+
+            if (inCode && codeLines.length) {
+              const codeEsc = codeLines.join(LF).split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+              parts.push('<pre class="ft-code-block"><code>' + codeEsc + '</code></pre>');
+            }
+
+            return parts.join(LF);
+          }
+
+          if (textView) {
+            textView.addEventListener("paste", function(e) {
+              e.preventDefault();
+              const clipText = (e.clipboardData || window.clipboardData)?.getData("text/plain") || "";
+              if (document.queryCommandSupported && document.queryCommandSupported("insertText")) {
+                document.execCommand("insertText", false, clipText);
+              } else {
+                const sel = window.getSelection ? window.getSelection() : null;
+                if (sel && sel.rangeCount > 0) {
+                  const range = sel.getRangeAt(0);
+                  range.deleteContents();
+                  range.insertNode(document.createTextNode(clipText));
+                  range.collapse(false);
+                }
+              }
+            });
+          }
+
           if (closeBtn) {
             closeBtn.addEventListener("click", function() {
               if (electronWin) electronWin.close();
@@ -461,10 +611,19 @@ export function buildFloatingWindowHtml(options: {
           }
 
           if (copyBtn) {
+            // 阻止 mousedown 导致内容选区失焦被清空
+            copyBtn.addEventListener("mousedown", function(e) {
+              e.preventDefault();
+            });
+
             copyBtn.addEventListener("click", function() {
-              copyText(originalText).then(function(ok) {
+              const selected = getSelectedText();
+              const hasSelection = Boolean(selected && selected.trim().length > 0);
+              const target = hasSelection ? selected : getCurrentText();
+
+              copyText(target).then(function(ok) {
                 if (ok) {
-                  showToast("已复制");
+                  showToast(hasSelection ? "已复制选中内容" : "已复制全部内容");
                 } else {
                   showToast("复制失败");
                 }
@@ -476,8 +635,19 @@ export function buildFloatingWindowHtml(options: {
             viewBtn.addEventListener("click", function() {
               isMarkdown = !isMarkdown;
               viewBtn.textContent = isMarkdown ? "MD" : "纯文本";
-              if (textView) textView.style.display = isMarkdown ? "none" : "block";
-              if (mdView) mdView.style.display = isMarkdown ? "block" : "none";
+              if (isMarkdown) {
+                if (mdView) {
+                  mdView.innerHTML = simpleMarkdownToHtml(getCurrentText());
+                }
+                if (textView) textView.style.display = "none";
+                if (mdView) mdView.style.display = "block";
+              } else {
+                if (textView) {
+                  textView.style.display = "block";
+                  textView.focus();
+                }
+                if (mdView) mdView.style.display = "none";
+              }
               saveConfig({ viewMode: isMarkdown ? "markdown" : "text" });
             });
           }

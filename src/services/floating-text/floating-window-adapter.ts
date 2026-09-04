@@ -1,6 +1,8 @@
 import {
   calculateSteppedFontSize,
   FloatingTextConfig,
+  resolveFloatingCopyText,
+  simpleMarkdownToHtml,
 } from "@/core/floating-text-core";
 import {
   buildFloatingWindowHtml,
@@ -216,10 +218,92 @@ function bindPipWindowEvents(
     saveFloatingTextConfig({ opacity: newOpacity });
   };
 
-  // 1. Esc 快捷键关闭 & Ctrl + 滚轮缩放字号
-  doc.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (textViewEl) {
+    try {
+      textViewEl.setAttribute("contenteditable", "plaintext-only");
+    } catch {
+      textViewEl.setAttribute("contenteditable", "true");
+    }
+    textViewEl.setAttribute("spellcheck", "false");
+    textViewEl.setAttribute("data-placeholder", "在此处编辑文本...");
+  }
+
+  const getCurrentText = (): string => {
+    return textViewEl?.innerText || textViewEl?.textContent || text;
+  };
+
+  function getSelectedText(): string {
+    try {
+      const sel = pipWindow.getSelection ? pipWindow.getSelection() : null;
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        return "";
+      }
+      return sel.toString();
+    } catch {
+      return "";
+    }
+  }
+
+  const performCopy = async (targetText: string, isPartial: boolean) => {
+    let copied = false;
+    try {
+      if (pipWindow.navigator?.clipboard?.writeText) {
+        await pipWindow.navigator.clipboard.writeText(targetText);
+        copied = true;
+      }
+    } catch {
+      // 画中画窗口可能没有剪贴板焦点或权限，尝试降级
+    }
+
+    if (!copied) {
+      try {
+        if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(targetText);
+          copied = true;
+        }
+      } catch {
+        // 尝试 execCommand 降级
+      }
+    }
+
+    if (!copied) {
+      try {
+        const ta = pipWindow.document.createElement("textarea");
+        ta.value = targetText;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "0";
+        ta.style.opacity = "0";
+        pipWindow.document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        copied = Boolean(pipWindow.document.execCommand("copy"));
+        pipWindow.document.body.removeChild(ta);
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (copied) {
+      showToast(isPartial ? "已复制选中内容" : "已复制全部内容");
+    } else {
+      showToast("复制失败");
+    }
+  };
+
+  // 1. Esc 快捷键关闭 & Ctrl + C 复制 & Ctrl + 滚轮缩放字号
+  doc.addEventListener("keydown", async (e: KeyboardEvent) => {
     if (e.key === "Escape") {
       pipWindow.close();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
+      const selected = getSelectedText();
+      if (selected && selected.trim().length > 0) {
+        e.preventDefault();
+        await performCopy(selected, true);
+      }
     }
   });
 
@@ -242,52 +326,16 @@ function bindPipWindowEvents(
   });
 
   // 3. 复制按钮
+  copyBtn?.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+  });
+
   copyBtn?.addEventListener("click", async () => {
-    let copied = false;
-    try {
-      if (pipWindow.navigator?.clipboard?.writeText) {
-        await pipWindow.navigator.clipboard.writeText(text);
-        copied = true;
-      }
-    } catch {
-      // 画中画窗口可能没有剪贴板焦点或权限，尝试降级
-    }
-
-    if (!copied) {
-      try {
-        if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
-          await navigator.clipboard.writeText(text);
-          copied = true;
-        }
-      } catch {
-        // 尝试 execCommand 降级
-      }
-    }
-
-    if (!copied) {
-      try {
-        const ta = pipWindow.document.createElement("textarea");
-        ta.value = text;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        ta.style.top = "0";
-        ta.style.opacity = "0";
-        pipWindow.document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        copied = Boolean(pipWindow.document.execCommand("copy"));
-        pipWindow.document.body.removeChild(ta);
-      } catch {
-        copied = false;
-      }
-    }
-
-    if (copied) {
-      showToast("已复制");
-    } else {
-      showToast("复制失败");
-    }
+    const { text: targetText, isSelected } = resolveFloatingCopyText(
+      getSelectedText(),
+      getCurrentText()
+    );
+    await performCopy(targetText, isSelected);
   });
 
   // 4. 视图切换（纯文本 / Markdown）
@@ -296,11 +344,24 @@ function bindPipWindowEvents(
     if (viewBtn) {
       viewBtn.textContent = currentViewMode === "markdown" ? "MD" : "纯文本";
     }
-    if (textViewEl) {
-      textViewEl.style.display = currentViewMode === "markdown" ? "none" : "block";
-    }
-    if (mdViewEl) {
-      mdViewEl.style.display = currentViewMode === "markdown" ? "block" : "none";
+    if (currentViewMode === "markdown") {
+      if (mdViewEl) {
+        mdViewEl.innerHTML = simpleMarkdownToHtml(getCurrentText());
+      }
+      if (textViewEl) {
+        textViewEl.style.display = "none";
+      }
+      if (mdViewEl) {
+        mdViewEl.style.display = "block";
+      }
+    } else {
+      if (textViewEl) {
+        textViewEl.style.display = "block";
+        textViewEl.focus();
+      }
+      if (mdViewEl) {
+        mdViewEl.style.display = "none";
+      }
     }
     saveFloatingTextConfig({ viewMode: currentViewMode });
   });

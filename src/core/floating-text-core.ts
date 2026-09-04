@@ -334,3 +334,23 @@ export function stripKramdownBlockAttributes(raw: string): string {
     .trim();
 }
 
+/**
+ * 决策弹窗复制时应复制的内容
+ * 如果用户在弹窗中选定了有效文本，则仅复制选中文本；否则复制完整原始文本
+ */
+export function resolveFloatingCopyText(
+  selectedText: string | null | undefined,
+  fullText: string
+): { text: string; isSelected: boolean } {
+  if (selectedText && selectedText.trim().length > 0) {
+    return {
+      text: selectedText,
+      isSelected: true,
+    };
+  }
+  return {
+    text: fullText,
+    isSelected: false,
+  };
+}
+

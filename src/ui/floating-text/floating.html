@@ -174,11 +174,20 @@
       background: rgba(128, 128, 128, 0.6);
     }
 
-    /* 纯文本视图 */
+    /* 纯文本编辑视图 */
     .ft-text-view {
       white-space: pre-wrap;
       word-break: break-word;
       outline: none;
+      min-height: 100%;
+      cursor: text;
+      caret-color: var(--ft-text-color);
+    }
+
+    .ft-text-view:empty::before {
+      content: attr(data-placeholder);
+      color: rgba(128, 128, 128, 0.55);
+      pointer-events: none;
     }
 
     /* Markdown 视图 */
@@ -288,7 +297,7 @@
     </div>
 
     <main class="ft-body" id="ft-scroll-body">
-      <div id="ft-text-view" class="ft-text-view"></div>
+      <div id="ft-text-view" class="ft-text-view" contenteditable="plaintext-only" spellcheck="false" data-placeholder="在此处编辑文本..."></div>
       <div id="ft-markdown-view" class="ft-markdown-view"></div>
     </main>
 
@@ -493,10 +502,34 @@
         saveConfig({ opacity: op });
       }
 
+      function getSelectedText() {
+        try {
+          var sel = window.getSelection ? window.getSelection() : null;
+          if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+            return "";
+          }
+          return sel.toString();
+        } catch (e) {
+          return "";
+        }
+      }
+
       // 绑定事件
       document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {
           window.close();
+          return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
+          var selected = getSelectedText();
+          if (selected && selected.trim().length > 0) {
+            e.preventDefault();
+            copyText(selected).then(function (ok) {
+              if (ok) {
+                showToast("已复制选中内容");
+              }
+            });
+          }
         }
       });
 
@@ -562,10 +595,39 @@
         return Promise.resolve(fallbackExecCopy(str));
       }
 
+      function getCurrentText() {
+        if (!textView) return "";
+        return textView.innerText || textView.textContent || "";
+      }
+
+      textView.addEventListener("paste", function (e) {
+        e.preventDefault();
+        var clipText = (e.clipboardData || window.clipboardData)?.getData("text/plain") || "";
+        if (document.queryCommandSupported && document.queryCommandSupported("insertText")) {
+          document.execCommand("insertText", false, clipText);
+        } else {
+          var sel = window.getSelection ? window.getSelection() : null;
+          if (sel && sel.rangeCount > 0) {
+            var range = sel.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(clipText));
+            range.collapse(false);
+          }
+        }
+      });
+
+      copyBtn.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+      });
+
       copyBtn.addEventListener("click", function () {
-        copyText(payload.text || "").then(function (ok) {
+        var selected = getSelectedText();
+        var hasSelection = Boolean(selected && selected.trim().length > 0);
+        var target = hasSelection ? selected : getCurrentText();
+
+        copyText(target).then(function (ok) {
           if (ok) {
-            showToast("已复制");
+            showToast(hasSelection ? "已复制选中内容" : "已复制全部内容");
           } else {
             showToast("复制失败");
           }
@@ -576,6 +638,11 @@
         config.viewMode = config.viewMode === "text" ? "markdown" : "text";
         saveConfig({ viewMode: config.viewMode });
         applyConfig();
+        if (config.viewMode === "markdown") {
+          mdView.innerHTML = simpleMarkdownToHtml(getCurrentText());
+        } else {
+          textView.focus();
+        }
       });
 
       settingsBtn.addEventListener("click", function () {

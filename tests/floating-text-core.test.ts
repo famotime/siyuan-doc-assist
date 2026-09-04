@@ -175,8 +175,37 @@ describe("floating-text-core", () => {
     });
   });
 
+  describe("resolveFloatingCopyText", () => {
+    it("returns selected text when valid selection exists", async () => {
+      const { resolveFloatingCopyText } = await import("@/core/floating-text-core");
+      const res = resolveFloatingCopyText("选中的局部片段", "这是完整的全文内容");
+      expect(res.isSelected).toBe(true);
+      expect(res.text).toBe("选中的局部片段");
+    });
+
+    it("falls back to full text when selection is empty or whitespace", async () => {
+      const { resolveFloatingCopyText } = await import("@/core/floating-text-core");
+      expect(resolveFloatingCopyText("", "完整内容")).toEqual({
+        text: "完整内容",
+        isSelected: false,
+      });
+      expect(resolveFloatingCopyText("   \n\t  ", "完整内容")).toEqual({
+        text: "完整内容",
+        isSelected: false,
+      });
+      expect(resolveFloatingCopyText(null, "完整内容")).toEqual({
+        text: "完整内容",
+        isSelected: false,
+      });
+      expect(resolveFloatingCopyText(undefined, "完整内容")).toEqual({
+        text: "完整内容",
+        isSelected: false,
+      });
+    });
+  });
+
   describe("buildFloatingWindowHtml clipboard support", () => {
-    it("generates html containing electron clipboard and fallback execCommand logic", async () => {
+    it("generates html containing electron clipboard, getSelectedText and selection copy logic", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const html = buildFloatingWindowHtml({
         title: "测试标题",
@@ -187,7 +216,40 @@ describe("floating-text-core", () => {
       expect(html).toContain("electronClipboard");
       expect(html).toContain("fallbackExecCopy");
       expect(html).toContain("copyText");
+      expect(html).toContain("getSelectedText");
+      expect(html).toContain("hasSelection");
+      expect(html).toContain("已复制选中内容");
+      expect(html).toContain("已复制全部内容");
       expect(html).not.toContain("剪贴板不可用");
+    });
+
+    it("generates html with editable text view and dynamic markdown preview support", async () => {
+      const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
+      const html = buildFloatingWindowHtml({
+        title: "可编辑测试",
+        text: "# 可编辑初始文本",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+      });
+
+      expect(html).toContain('contenteditable="plaintext-only"');
+      expect(html).toContain('data-placeholder="在此处编辑文本..."');
+      expect(html).toContain("getCurrentText");
+      expect(html).toContain("simpleMarkdownToHtml(getCurrentText())");
+    });
+
+    it("script content has valid javascript syntax", async () => {
+      const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
+      const complexText = '# 标题\n\n这是 "引号" 和 `代码` 以及换行\n```ts\nconst a = "hello\\nworld";\n```\n- [ ] 待办\n> 引用';
+      const html = buildFloatingWindowHtml({
+        title: "复杂语法检查 \"'<>",
+        text: complexText,
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+      });
+      const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
+      expect(scriptMatch).toBeTruthy();
+      const code = scriptMatch![1];
+      const vm = await import("node:vm");
+      expect(() => new vm.Script(code, { filename: "floating-script.js" })).not.toThrow();
     });
   });
 });
