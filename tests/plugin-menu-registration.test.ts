@@ -382,4 +382,128 @@ describe("plugin menu registration", () => {
       ]),
     );
   });
+
+  describe("updateProtyleToolbar", () => {
+    test("appends float-selected-text toolbar button to protyle toolbar", async () => {
+      const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+      const plugin = new DocLinkToolkitPlugin() as any;
+      await plugin.onload();
+
+      const toolbar: any[] = ["bold", "italic"];
+      const updated = plugin.updateProtyleToolbar(toolbar);
+
+      expect(updated).toBe(toolbar);
+      expect(toolbar).toHaveLength(4);
+      expect(toolbar[2]).toBe("|");
+      expect(toolbar[3]).toMatchObject({
+        name: "float-selected-text",
+        icon: "iconPin",
+        tipPosition: "n",
+        tip: "悬浮选中文本",
+      });
+      expect(typeof toolbar[3].click).toBe("function");
+    });
+
+    test("does not add duplicate separator if toolbar already ends with separator", async () => {
+      const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+      const plugin = new DocLinkToolkitPlugin() as any;
+      await plugin.onload();
+
+      const toolbar: any[] = ["bold", "|"];
+      plugin.updateProtyleToolbar(toolbar);
+
+      expect(toolbar).toHaveLength(3);
+      expect(toolbar[0]).toBe("bold");
+      expect(toolbar[1]).toBe("|");
+      expect(toolbar[2]).toMatchObject({
+        name: "float-selected-text",
+      });
+    });
+
+    test("does not add duplicate item if float-selected-text is already present", async () => {
+      const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+      const plugin = new DocLinkToolkitPlugin() as any;
+      await plugin.onload();
+
+      const toolbar: any[] = ["bold"];
+      plugin.updateProtyleToolbar(toolbar);
+      const lengthAfterFirst = toolbar.length;
+      plugin.updateProtyleToolbar(toolbar);
+
+      expect(toolbar.length).toBe(lengthAfterFirst);
+    });
+
+    test("invokes actionRunner with float-selected-text when toolbar button is clicked", async () => {
+      const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+      const plugin = new DocLinkToolkitPlugin() as any;
+      await plugin.onload();
+
+      const runActionSpy = vi.spyOn(plugin.actionRunner, "runAction").mockResolvedValue(undefined as any);
+
+      const toolbar: any[] = [];
+      plugin.updateProtyleToolbar(toolbar);
+      const button = toolbar.find((item: any) => item?.name === "float-selected-text");
+      expect(button).toBeDefined();
+
+      const fakeProtyle = {
+        block: { id: "doc-123" },
+        toolbar: {
+          range: {
+            toString: () => "选中的文本片段",
+          },
+        },
+      };
+
+      button.click(fakeProtyle);
+
+      expect(runActionSpy).toHaveBeenCalledWith("float-selected-text", "doc-123", fakeProtyle);
+    });
+
+    test("does not append button when float-selected-text is in hiddenActionKeys", async () => {
+      const { ALPHA_FEATURE_HIDE_CONFIG } = await import("@/plugin/alpha-feature-config");
+      ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["float-selected-text"];
+
+      try {
+        const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+        const plugin = new DocLinkToolkitPlugin() as any;
+        await plugin.onload();
+
+        const toolbar: any[] = ["bold"];
+        plugin.updateProtyleToolbar(toolbar);
+
+        expect(toolbar).toEqual(["bold"]);
+      } finally {
+        ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = [];
+      }
+    });
+
+    test("does not append button when float-selected-text is disabled in settings", async () => {
+      const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+      const plugin = new DocLinkToolkitPlugin() as any;
+      await plugin.onload();
+
+      plugin.setSingleDocActionEnabled("float-selected-text", false);
+
+      const toolbar: any[] = ["bold"];
+      plugin.updateProtyleToolbar(toolbar);
+
+      expect(toolbar).toEqual(["bold"]);
+    });
+
+    test("handles call during super constructor when fields are not yet initialized", async () => {
+      const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+      const uninitializedContext = {} as any;
+      const toolbar: any[] = ["bold"];
+      const result = DocLinkToolkitPlugin.prototype.updateProtyleToolbar.call(
+        uninitializedContext,
+        toolbar
+      );
+
+      expect(result).toBe(toolbar);
+      expect(toolbar).toContainEqual(
+        expect.objectContaining({ name: "float-selected-text" })
+      );
+    });
+  });
 });
+

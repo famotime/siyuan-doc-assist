@@ -191,9 +191,16 @@ export function createOrganizeActionHandlers(
       }
     },
     "float-selected-text": async (docId, protyle) => {
-      // 1. 优先获取当前选中的文本
+      // 1. 优先获取当前选中的文本（优先读取浮动工具栏绑定的 range）
       let selectedText = "";
-      if (typeof window !== "undefined") {
+      const toolbarRange =
+        (protyle as any)?.toolbar?.range ||
+        (protyle as any)?.protyle?.toolbar?.range;
+      if (toolbarRange && typeof toolbarRange.toString === "function") {
+        selectedText = toolbarRange.toString().trim();
+      }
+
+      if (!selectedText && typeof window !== "undefined") {
         selectedText = window.getSelection()?.toString()?.trim() || "";
       }
 

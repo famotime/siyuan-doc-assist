@@ -50,8 +50,19 @@ declare module "siyuan" {
       loadData: (storageName: string) => Promise<any>;
       saveData: (storageName: string, content: any) => Promise<void>;
       removeData: (storageName: string) => Promise<any>;
+      updateProtyleToolbar(toolbar: Array<string | IMenuItem>): Array<string | IMenuItem>;
     };
   };
+
+  export interface IMenuItem {
+    name: string;
+    tip?: string;
+    lang?: string;
+    icon?: string;
+    hotkey?: string;
+    tipPosition?: string;
+    click?(protyle: any): void;
+  }
 
   export const Dialog: {
     new (options: any): {

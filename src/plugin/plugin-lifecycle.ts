@@ -1,6 +1,7 @@
 import {
   getActiveEditor,
   getFrontend,
+  IMenuItem,
   Plugin,
   showMessage,
 } from "siyuan";
@@ -17,6 +18,7 @@ import { ACTIONS, ActionKey } from "@/plugin/actions";
 import {
   ALPHA_FEATURE_HIDE_CONFIG,
   filterVisibleActions,
+  getHiddenActionKeys,
   getHiddenPluginSettingKeys,
 } from "@/plugin/alpha-feature-config";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
@@ -274,6 +276,37 @@ export default class DocLinkToolkitPlugin extends Plugin {
   openSetting() {
     this.setting = this.buildPluginSettingPage();
     this.setting.open(this.name);
+  }
+
+  public updateProtyleToolbar(toolbar: Array<string | IMenuItem>): Array<string | IMenuItem> {
+    if (!toolbar) {
+      return toolbar;
+    }
+    if (
+      getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG).has("float-selected-text") ||
+      this.docActionEnabledState?.["float-selected-text"] === false
+    ) {
+      return toolbar;
+    }
+    const hasItem = toolbar.some(
+      (item) => typeof item === "object" && item?.name === "float-selected-text"
+    );
+    if (!hasItem) {
+      if (toolbar.length > 0 && toolbar[toolbar.length - 1] !== "|") {
+        toolbar.push("|");
+      }
+      toolbar.push({
+        name: "float-selected-text",
+        icon: "iconPin",
+        tipPosition: "n",
+        tip: "悬浮选中文本",
+        click: (protyle: any) => {
+          const docId = getProtyleDocId(protyle as ProtyleLike);
+          void this.actionRunner.runAction("float-selected-text", docId, protyle as ProtyleLike);
+        },
+      });
+    }
+    return toolbar;
   }
 
   public getPowerButtonsIntegration(): PowerButtonsCommandProvider {
