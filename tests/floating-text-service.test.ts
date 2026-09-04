@@ -1,3 +1,5 @@
+/** @vitest-environment jsdom */
+
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   loadFloatingTextConfig,
@@ -7,15 +9,20 @@ import { FloatingTextService } from "@/services/floating-text/floating-text-serv
 import * as kernel from "@/services/kernel";
 import * as windowAdapter from "@/services/floating-text/floating-window-adapter";
 import { showMessage } from "siyuan";
+import { createOrganizeActionHandlers } from "@/plugin/action-runner-organize-handlers";
 
 vi.mock("siyuan", () => ({
   showMessage: vi.fn(),
   Dialog: vi.fn(),
+  getActiveEditor: vi.fn(),
 }));
 
 vi.mock("@/services/kernel", () => ({
   exportMdContent: vi.fn(),
   getDocMetaByID: vi.fn(),
+  getBlockKramdowns: vi.fn(),
+  appendBlock: vi.fn(),
+  getChildBlocksByParentId: vi.fn(),
 }));
 
 vi.mock("@/services/floating-text/floating-window-adapter", () => ({
@@ -106,6 +113,66 @@ describe("floating-text-storage & floating-text-service", () => {
         text: "# 测试内容\n\n正文段落",
       });
       expect(showMessage).toHaveBeenCalledWith("已将文档《测试页面》置顶悬浮", 3000, "info");
+    });
+  });
+
+  describe("organize handler float-selected-text", () => {
+    it("floats selected blocks when multiple blocks are selected", async () => {
+      vi.mocked(kernel.getBlockKramdowns).mockResolvedValue([
+        { id: "b1", kramdown: "第一段块内容" },
+        { id: "b2", kramdown: "第二段块内容" },
+      ]);
+      const domRoot = document.createElement("div");
+      const block1 = document.createElement("div");
+      block1.setAttribute("data-node-id", "b1");
+      block1.className = "protyle-wysiwyg--select";
+      const block2 = document.createElement("div");
+      block2.setAttribute("data-node-id", "b2");
+      block2.className = "protyle-wysiwyg--select";
+      domRoot.appendChild(block1);
+      domRoot.appendChild(block2);
+
+      const fakeProtyle = {
+        wysiwyg: { element: domRoot },
+      };
+
+      const handlers = createOrganizeActionHandlers({
+        askConfirmWithVisibleDialog: vi.fn(),
+        ensureDocWritable: vi.fn(),
+      });
+
+      await handlers["float-selected-text"]("doc-1", fakeProtyle as any);
+
+      expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
+        title: "悬浮选中文本",
+        text: "第一段块内容\n\n第二段块内容",
+      });
+    });
+
+    it("falls back to full doc when neither text nor blocks are selected", async () => {
+      vi.mocked(kernel.exportMdContent).mockResolvedValue({
+        hPath: "/我的文档/测试页面",
+        content: "# 全文内容",
+      });
+      vi.mocked(kernel.getDocMetaByID).mockResolvedValue({
+        id: "doc-1",
+        title: "测试页面",
+        icon: "",
+        box: "notebook-1",
+      });
+
+      const handlers = createOrganizeActionHandlers({
+        askConfirmWithVisibleDialog: vi.fn(),
+        ensureDocWritable: vi.fn(),
+      });
+
+      await handlers["float-selected-text"]("doc-1", undefined);
+
+      expect(kernel.exportMdContent).toHaveBeenCalledWith("doc-1", { addTitle: true });
+      expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
+        title: "测试页面",
+        text: "# 全文内容",
+      });
     });
   });
 });

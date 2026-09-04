@@ -1,13 +1,14 @@
 import { exportMdContent, getDocMetaByID } from "@/services/kernel";
 import { openFloatingTextWindow } from "@/services/floating-text/floating-window-adapter";
 import { showMessage } from "siyuan";
+import { stripKramdownBlockAttributes } from "@/core/floating-text-core";
 
 export class FloatingTextService {
   /**
    * 悬浮指定的文本片段
    */
   async openFloatingText(text: string, title?: string): Promise<void> {
-    const cleanText = (text || "").trim();
+    const cleanText = stripKramdownBlockAttributes(text || "");
     if (!cleanText) {
       showMessage("没有可悬浮的文本内容", 4000, "info");
       return;
@@ -36,7 +37,7 @@ export class FloatingTextService {
       ]);
 
       const title = meta?.title || mdRes?.hPath?.split("/").pop() || "悬浮文档";
-      const content = mdRes?.content?.trim() || "";
+      const content = stripKramdownBlockAttributes(mdRes?.content || "");
 
       if (!content) {
         showMessage("文档内容为空，无法悬浮", 4000, "info");

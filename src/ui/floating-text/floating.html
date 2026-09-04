@@ -199,10 +199,17 @@
       opacity: 0.85;
     }
     .ft-markdown-view ul, .ft-markdown-view ol {
-      padding-left: 20px;
+      padding-left: 1.5em;
       margin-bottom: 0.5em;
     }
-    .ft-markdown-view li, .ft-list-item { margin-bottom: 0.25em; }
+    .ft-markdown-view li, .ft-list-item {
+      margin-left: 1.35em;
+      margin-bottom: 0.3em;
+      line-height: 1.6;
+    }
+    .ft-list-item-ordered {
+      list-style-type: decimal;
+    }
     .ft-code-block {
       background: var(--ft-code-bg);
       border-radius: 4px;
@@ -223,7 +230,8 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 0.3em;
+      margin-left: 0.25em;
+      margin-bottom: 0.35em;
     }
     .ft-blank-line {
       height: 0.8em;
@@ -350,9 +358,14 @@
             parts.push('<div class="ft-todo-item"><input type="checkbox" disabled ' + (checked ? 'checked' : '') + '/> <span>' + renderInline(todoMatch[2]) + '</span></div>');
             continue;
           }
-          const listMatch = trimmed.match(/^[-*+]\\s+(.*)$/);
+          const listMatch = trimmed.match(/^[-*+]\s+(.*)$/);
           if (listMatch) {
             parts.push('<li class="ft-list-item">' + renderInline(listMatch[1]) + '</li>');
+            continue;
+          }
+          const oListMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+          if (oListMatch) {
+            parts.push('<li class="ft-list-item ft-list-item-ordered">' + renderInline(oListMatch[1]) + '</li>');
             continue;
           }
           if (trimmed.startsWith(">")) {
@@ -499,16 +512,64 @@
         window.close();
       });
 
-      copyBtn.addEventListener("click", function () {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(payload.text || "").then(function () {
-            showToast("已复制");
-          }).catch(function () {
-            showToast("复制失败");
-          });
-        } else {
-          showToast("无法访问剪贴板");
+      function fallbackExecCopy(str) {
+        try {
+          var ta = document.createElement("textarea");
+          ta.value = str;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          ta.style.top = "0";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          var ok = document.execCommand("copy");
+          document.body.removeChild(ta);
+          return Boolean(ok);
+        } catch (err) {
+          return false;
         }
+      }
+
+      function copyText(str) {
+        var electronClipboard = null;
+        try {
+          var electron = window.require ? window.require("electron") : null;
+          var remote = (window.require && window.require("@electron/remote")) || (electron && electron.remote);
+          if (electron && electron.clipboard) {
+            electronClipboard = electron.clipboard;
+          } else if (remote && remote.clipboard) {
+            electronClipboard = remote.clipboard;
+          }
+        } catch (e) {}
+
+        if (electronClipboard && typeof electronClipboard.writeText === "function") {
+          try {
+            electronClipboard.writeText(str);
+            return Promise.resolve(true);
+          } catch (e) {}
+        }
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+          return navigator.clipboard.writeText(str).then(function () {
+            return true;
+          }).catch(function () {
+            return fallbackExecCopy(str);
+          });
+        }
+
+        return Promise.resolve(fallbackExecCopy(str));
+      }
+
+      copyBtn.addEventListener("click", function () {
+        copyText(payload.text || "").then(function (ok) {
+          if (ok) {
+            showToast("已复制");
+          } else {
+            showToast("复制失败");
+          }
+        });
       });
 
       viewBtn.addEventListener("click", function () {

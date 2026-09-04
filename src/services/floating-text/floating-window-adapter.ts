@@ -243,10 +243,49 @@ function bindPipWindowEvents(
 
   // 3. 复制按钮
   copyBtn?.addEventListener("click", async () => {
+    let copied = false;
     try {
-      await pipWindow.navigator.clipboard.writeText(text);
-      showToast("已复制");
+      if (pipWindow.navigator?.clipboard?.writeText) {
+        await pipWindow.navigator.clipboard.writeText(text);
+        copied = true;
+      }
     } catch {
+      // 画中画窗口可能没有剪贴板焦点或权限，尝试降级
+    }
+
+    if (!copied) {
+      try {
+        if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        }
+      } catch {
+        // 尝试 execCommand 降级
+      }
+    }
+
+    if (!copied) {
+      try {
+        const ta = pipWindow.document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "0";
+        ta.style.opacity = "0";
+        pipWindow.document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        copied = Boolean(pipWindow.document.execCommand("copy"));
+        pipWindow.document.body.removeChild(ta);
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (copied) {
+      showToast("已复制");
+    } else {
       showToast("复制失败");
     }
   });

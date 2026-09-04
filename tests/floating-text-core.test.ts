@@ -5,6 +5,7 @@ import {
   hexToRgba,
   normalizeFloatingConfig,
   simpleMarkdownToHtml,
+  stripKramdownBlockAttributes,
   DEFAULT_FLOATING_TEXT_CONFIG,
   MAX_FONT_SIZE,
   MIN_FONT_SIZE,
@@ -120,5 +121,74 @@ describe("floating-text-core", () => {
       expect(html).toContain('<div class="ft-todo-item"><input type="checkbox" disabled /> <span>待办项 1</span></div>');
       expect(html).toContain('<div class="ft-todo-item"><input type="checkbox" disabled checked/> <span>已完成项 2</span></div>');
     });
+
+    it("renders unordered and ordered lists", () => {
+      const md = "- 列表项 1\n* 列表项 2\n1. 有序项 1\n2. 有序项 2";
+      const html = simpleMarkdownToHtml(md);
+      expect(html).toContain('<li class="ft-list-item">列表项 1</li>');
+      expect(html).toContain('<li class="ft-list-item">列表项 2</li>');
+      expect(html).toContain('<li class="ft-list-item ft-list-item-ordered">有序项 1</li>');
+      expect(html).toContain('<li class="ft-list-item ft-list-item-ordered">有序项 2</li>');
+    });
+  });
+
+  describe("stripKramdownBlockAttributes", () => {
+    it("returns empty string on empty input", () => {
+      expect(stripKramdownBlockAttributes("")).toBe("");
+      expect(stripKramdownBlockAttributes("   ")).toBe("");
+    });
+
+    it("strips IAL from unordered list item (user example)", () => {
+      const raw = '- {: id="20260903224427-3tm5cbq" updated="20260903224427"}项目地址：https://github.com/cloudflare/moltworker';
+      const cleaned = stripKramdownBlockAttributes(raw);
+      expect(cleaned).toBe("- 项目地址：https://github.com/cloudflare/moltworker");
+    });
+
+    it("strips standalone IAL lines", () => {
+      const raw = '第一段文本\n{: id="20260903224427-p1" updated="20260903224427"}\n\n第二段文本';
+      const cleaned = stripKramdownBlockAttributes(raw);
+      expect(cleaned).toBe("第一段文本\n\n第二段文本");
+    });
+
+    it("strips IAL from headings", () => {
+      const raw = '# 核心标题 {: id="20260903224427-h1"}\n## 次级标题\n{: id="20260903224427-h2"}';
+      const cleaned = stripKramdownBlockAttributes(raw);
+      expect(cleaned).toBe("# 核心标题\n## 次级标题");
+    });
+
+    it("strips IAL from ordered and task lists", () => {
+      const raw = '1. {: id="20260903224427-o1"}第一步\n- [ ] {: id="20260903224427-t1"}待办事项';
+      const cleaned = stripKramdownBlockAttributes(raw);
+      expect(cleaned).toBe("1. 第一步\n- [ ] 待办事项");
+    });
+
+    it("strips IAL from blockquotes", () => {
+      const raw = '> {: id="20260903224427-q1"}引用文字内容';
+      const cleaned = stripKramdownBlockAttributes(raw);
+      expect(cleaned).toBe("> 引用文字内容");
+    });
+
+    it("preserves code block content without stripping fake IAL inside", () => {
+      const raw = '```markdown\n- {: id="code-example"}示例代码\n```';
+      const cleaned = stripKramdownBlockAttributes(raw);
+      expect(cleaned).toBe('```markdown\n- {: id="code-example"}示例代码\n```');
+    });
+  });
+
+  describe("buildFloatingWindowHtml clipboard support", () => {
+    it("generates html containing electron clipboard and fallback execCommand logic", async () => {
+      const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
+      const html = buildFloatingWindowHtml({
+        title: "测试标题",
+        text: "测试复制文本内容",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+      });
+
+      expect(html).toContain("electronClipboard");
+      expect(html).toContain("fallbackExecCopy");
+      expect(html).toContain("copyText");
+      expect(html).not.toContain("剪贴板不可用");
+    });
   });
 });
+

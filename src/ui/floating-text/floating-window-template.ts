@@ -201,10 +201,17 @@ export function getFloatingWindowStyles(): string {
       opacity: 0.85;
     }
     .ft-markdown-view ul, .ft-markdown-view ol {
-      padding-left: 20px;
+      padding-left: 1.5em;
       margin-bottom: 0.5em;
     }
-    .ft-markdown-view li, .ft-list-item { margin-bottom: 0.25em; }
+    .ft-markdown-view li, .ft-list-item {
+      margin-left: 1.35em;
+      margin-bottom: 0.3em;
+      line-height: 1.6;
+    }
+    .ft-list-item-ordered {
+      list-style-type: decimal;
+    }
     .ft-code-block {
       background: var(--ft-code-bg);
       border-radius: 4px;
@@ -225,7 +232,8 @@ export function getFloatingWindowStyles(): string {
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 0.3em;
+      margin-left: 0.25em;
+      margin-bottom: 0.35em;
     }
     .ft-blank-line {
       height: 0.8em;
@@ -344,13 +352,58 @@ export function buildFloatingWindowHtml(options: {
           const toast = document.getElementById("ft-toast");
 
           let electronWin = null;
+          let electronClipboard = null;
           try {
             const electron = window.require ? window.require("electron") : null;
             const remote = (window.require && window.require("@electron/remote")) || (electron && electron.remote);
             if (remote && remote.getCurrentWindow) {
               electronWin = remote.getCurrentWindow();
             }
+            if (electron && electron.clipboard) {
+              electronClipboard = electron.clipboard;
+            } else if (remote && remote.clipboard) {
+              electronClipboard = remote.clipboard;
+            }
           } catch (e) {}
+
+          function fallbackExecCopy(str) {
+            try {
+              const ta = document.createElement("textarea");
+              ta.value = str;
+              ta.setAttribute("readonly", "");
+              ta.style.position = "fixed";
+              ta.style.left = "-9999px";
+              ta.style.top = "0";
+              ta.style.opacity = "0";
+              document.body.appendChild(ta);
+              ta.focus();
+              ta.select();
+              const ok = document.execCommand("copy");
+              document.body.removeChild(ta);
+              return Boolean(ok);
+            } catch (err) {
+              return false;
+            }
+          }
+
+          function copyText(str) {
+            if (electronClipboard && typeof electronClipboard.writeText === "function") {
+              try {
+                electronClipboard.writeText(str);
+                return Promise.resolve(true);
+              } catch (e) {}
+            }
+
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+              return navigator.clipboard.writeText(str).then(function() {
+                return true;
+              }).catch(function() {
+                return fallbackExecCopy(str);
+              });
+            }
+
+            return Promise.resolve(fallbackExecCopy(str));
+          }
 
           function saveConfig(patch) {
             try {
@@ -409,15 +462,13 @@ export function buildFloatingWindowHtml(options: {
 
           if (copyBtn) {
             copyBtn.addEventListener("click", function() {
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(originalText).then(function() {
+              copyText(originalText).then(function(ok) {
+                if (ok) {
                   showToast("已复制");
-                }).catch(function() {
+                } else {
                   showToast("复制失败");
-                });
-              } else {
-                showToast("剪贴板不可用");
-              }
+                }
+              });
             });
           }
 

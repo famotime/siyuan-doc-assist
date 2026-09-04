@@ -219,6 +219,14 @@ export function simpleMarkdownToHtml(markdown: string): string {
       continue;
     }
 
+    // 有序列表
+    const orderedListMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+    if (orderedListMatch) {
+      const content = renderInlineMarkdown(orderedListMatch[1]);
+      htmlParts.push(`<li class="ft-list-item ft-list-item-ordered">${content}</li>`);
+      continue;
+    }
+
     // 引用块
     if (trimmed.startsWith(">")) {
       const quoteText = renderInlineMarkdown(trimmed.replace(/^>\s*/, ""));
@@ -257,3 +265,72 @@ function renderInlineMarkdown(text: string): string {
   );
   return escaped;
 }
+
+/**
+ * 剥离 Kramdown 文本中的块属性与行内属性列表（IAL，如 {: id="..." updated="..."}）
+ * 仅保留干净的正文 Markdown 文本
+ */
+export function stripKramdownBlockAttributes(raw: string): string {
+  if (!raw) {
+    return "";
+  }
+
+  const lines = raw.split(/\r?\n/);
+  const cleanedLines: string[] = [];
+  let inCodeBlock = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // 代码块围栏判定：代码块内部的内容不进行 IAL 清洗
+    if (line.trim().startsWith("```")) {
+      inCodeBlock = !inCodeBlock;
+      cleanedLines.push(line);
+      continue;
+    }
+
+    if (inCodeBlock) {
+      cleanedLines.push(line);
+      continue;
+    }
+
+    // 1. 如果整行纯粹是 IAL 块属性定义（例如 {: id="..." updated="..."}），直接剔除
+    if (/^\s*\{:[^}]*\}\s*$/.test(line)) {
+      continue;
+    }
+
+    // 2. 剥离无序列表项或任务列表项头部的 IAL
+    // 如：- {: id="xxx" updated="yyy"}项目地址... -> - 项目地址...
+    // 如：- [ ] {: id="xxx"}待办事项... -> - [ ] 待办事项...
+    line = line.replace(/^(\s*[-*+]\s+(?:\[[ xX]\]\s+)?)\{:[^}]*\}\s*/, "$1");
+
+    // 3. 剥离有序列表项头部的 IAL
+    // 如：1. {: id="xxx"}第一项 -> 1. 第一项
+    line = line.replace(/^(\s*\d+[.)]\s+)\{:[^}]*\}\s*/, "$1");
+
+    // 4. 剥离标题末尾或标题中的 IAL
+    // 如：# 标题 {: id="xxx"} -> # 标题
+    line = line.replace(/^(#{1,6}\s+.*?)\s*\{:[^}]*\}\s*$/, "$1");
+
+    // 5. 剥离引用块开头的 IAL
+    // 如：> {: id="xxx"}引用文字 -> > 引用文字
+    line = line.replace(/^(\s*>\s*)\{:[^}]*\}\s*/, "$1");
+
+    // 6. 剥离剩余行中可能出现的任何 IAL 块/行内标记（如末尾附带的 {: id="..." ...} 等）
+    line = line.replace(/\s*\{:[^}]*\}\s*/g, (match, offset, str) => {
+      if (offset === 0 || offset + match.length === str.length) {
+        return "";
+      }
+      return " ";
+    });
+
+    cleanedLines.push(line);
+  }
+
+  // 7. 清理因删除属性行可能导致的连续多余空行（最多连续保留 1 个空行）
+  return cleanedLines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
