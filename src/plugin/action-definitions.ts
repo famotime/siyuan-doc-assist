@@ -51,7 +51,8 @@ export type ActionKey =
   | "import-keymap"
   | "generate-canvas-from-selected"
   | "generate-llm-wiki"
-  | "float-selected-text";
+  | "float-selected-text"
+  | "generate-better-titles";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -142,6 +143,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "generate-canvas-from-selected": "画",
   "generate-llm-wiki": "智",
   "float-selected-text": "浮",
+  "generate-better-titles": "优",
 };
 
 export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
@@ -545,6 +547,19 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         requiresWritableDoc: true,
         runInBackground: true,
         icon: "iconLanguage",
+      },
+      {
+        key: "generate-better-titles",
+        commandText: "更好的标题",
+        menuText: "更好的标题",
+        tooltip: createActionTooltip(
+          "更好的标题",
+          "根据选中内容（未选中则用全文）由 AI 生成 6 个候选标题（3个吸引眼球、3个平实概括），并支持一键替换当前文档标题。"
+        ),
+        group: "ai",
+        requiresWritableDoc: true,
+        runInBackground: true,
+        icon: "iconEdit",
       },
     ],
   },

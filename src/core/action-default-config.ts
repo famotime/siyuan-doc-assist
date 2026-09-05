@@ -79,6 +79,7 @@ export const ACTION_DEFAULT_CONFIGS: Record<ActionKey, ActionDefaultState> = {
   "clean-ai-output": { defaultEnabled: true, defaultMenuRegistered: false },
   "add-related-links-and-tags": { defaultEnabled: true, defaultMenuRegistered: false },
   "generate-llm-wiki": { defaultEnabled: true, defaultMenuRegistered: false },
+  "generate-better-titles": { defaultEnabled: true, defaultMenuRegistered: false },
 
   // 编辑
   "toggle-heading-bold": { defaultEnabled: true, defaultMenuRegistered: false },

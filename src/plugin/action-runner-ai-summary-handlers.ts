@@ -19,6 +19,7 @@ import {
   getRootDocRawMarkdown,
   insertBlockBefore,
   getBlockKramdowns,
+  renameDocByID,
 } from "@/services/kernel";
 import {
   getBacklinkDocs,
@@ -35,6 +36,13 @@ import {
   parseMarkdownToKeyInfoItems,
   preprocessItemsForCanvas,
 } from "@/services/canvas-generator";
+import {
+  BetterTitlesResult,
+  prepareBetterTitlesInputText,
+} from "@/core/ai-better-titles-core";
+import { generateBetterTitles } from "@/services/ai-better-titles";
+import { openBetterTitlesDialog } from "@/ui/better-titles-dialog";
+import { extractFloatingMarkdownFromSelection } from "@/services/floating-text/floating-selection-helper";
 
 export function createAiSummaryActionHandlers(
   options: CreateAiActionHandlersOptions = {}
@@ -205,6 +213,74 @@ export function createAiSummaryActionHandlers(
       } finally {
         options.setBusy?.(false);
       }
+    },
+    "generate-better-titles": async (docId, protyle) => {
+      let docMeta: Awaited<ReturnType<typeof getDocMetaByID>> = null;
+      try {
+        docMeta = await getDocMetaByID(docId);
+      } catch {
+        docMeta = null;
+      }
+      const docTitle = docMeta?.title || "";
+
+      let selectedText = "";
+      try {
+        selectedText = await extractFloatingMarkdownFromSelection(protyle);
+      } catch {
+        selectedText = "";
+      }
+
+      let contentToUse = selectedText.trim();
+      const isFullDoc = !contentToUse;
+      if (isFullDoc) {
+        contentToUse = (await getRootDocRawMarkdown(docId)).trim();
+      }
+
+      if (!contentToUse) {
+        showMessage("当前文档没有可供提炼标题的内容", 5000, "info");
+        return;
+      }
+
+      const preparedContent = prepareBetterTitlesInputText(contentToUse, isFullDoc);
+
+      showMessage("正在生成候选标题...", 3000, "info");
+      options.setBusy?.(true);
+
+      let initialResult: BetterTitlesResult;
+      try {
+        initialResult = await generateBetterTitles({
+          config: options.getAiSummaryConfig?.(),
+          documentTitle: docTitle,
+          content: preparedContent,
+        });
+      } catch (err: any) {
+        showMessage(err?.message || "生成候选标题失败", 5000, "error");
+        return;
+      } finally {
+        options.setBusy?.(false);
+      }
+
+      openBetterTitlesDialog({
+        originalTitle: docTitle,
+        initialResult,
+        onReplace: async (newTitle) => {
+          await renameDocByID(docId, newTitle);
+          showMessage(`已将文档标题更新为：${newTitle}`, 5000, "info");
+        },
+        onRegenerate: async (dialogController) => {
+          dialogController.setLoading(true, "正在重新生成候选标题...");
+          try {
+            const nextResult = await generateBetterTitles({
+              config: options.getAiSummaryConfig?.(),
+              documentTitle: docTitle,
+              content: preparedContent,
+            });
+            dialogController.updateCandidates(nextResult);
+          } finally {
+            dialogController.setLoading(false);
+          }
+        },
+      });
     },
   };
 }
