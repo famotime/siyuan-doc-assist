@@ -3,6 +3,7 @@ import {
   calculateSteppedFontSize,
   escapeHtml,
   formatListItemMarkdown,
+  hasImageMarkdown,
   hexToRgba,
   normalizeFloatingConfig,
   simpleMarkdownToHtml,
@@ -297,6 +298,40 @@ describe("floating-text-core", () => {
       const code = scriptMatch![1];
       const vm = await import("node:vm");
       expect(() => new vm.Script(code, { filename: "floating-script.js" })).not.toThrow();
+    });
+
+    it("injects base tag when baseUrl is provided in buildFloatingWindowHtml", async () => {
+      const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
+      const html = buildFloatingWindowHtml({
+        title: "BaseUrl测试",
+        text: "![示例图片](assets/2026-test.png)",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        baseUrl: "http://127.0.0.1:6806",
+      });
+
+      expect(html).toContain('<base href="http://127.0.0.1:6806/">');
+      expect(html).toContain('alt="示例图片"');
+      expect(html).toContain('src="assets/2026-test.png"');
+      expect(html).toContain(".ft-markdown-view img");
+    });
+  });
+
+  describe("hasImageMarkdown", () => {
+    it("identifies markdown image and html img tags", () => {
+      expect(hasImageMarkdown("![配图](assets/foo.png)")).toBe(true);
+      expect(hasImageMarkdown('这是文字 <img src="assets/foo.png" /> 结束')).toBe(true);
+      expect(hasImageMarkdown("普通纯文本")).toBe(false);
+      expect(hasImageMarkdown("[网页链接](https://example.com)")).toBe(false);
+      expect(hasImageMarkdown("")).toBe(false);
+    });
+  });
+
+  describe("simpleMarkdownToHtml image support", () => {
+    it("renders image syntax to img tag with loading lazy", () => {
+      const md = "这是段落内容\n![测试图](assets/example.png)\n结尾";
+      const html = simpleMarkdownToHtml(md);
+      expect(html).toContain('<img src="assets/example.png" alt="测试图" class="ft-image" loading="lazy" />');
+      expect(html).not.toContain('<a href="assets/example.png">');
     });
   });
 });

@@ -299,6 +299,24 @@ export function getFloatingWindowStyles(): string {
       height: 0.8em;
     }
 
+    /* 图片自适应展示与缩放 */
+    .ft-markdown-view img, .ft-image {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 8px auto;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      object-fit: contain;
+      cursor: zoom-in;
+      transition: transform 0.2s ease, max-width 0.2s ease;
+    }
+
+    .ft-markdown-view img.ft-img-expanded {
+      max-width: none;
+      cursor: zoom-out;
+    }
+
     /* 快捷提示浮条 */
     .ft-toast {
       position: fixed;
@@ -328,8 +346,9 @@ export function buildFloatingWindowHtml(options: {
   isDark: boolean;
   initialHtml?: string;
   hostWebContentsId?: number | null;
+  baseUrl?: string;
 }): string {
-  const { title, text, config, isDark, initialHtml, hostWebContentsId } = options;
+  const { title, text, config, isDark, initialHtml, hostWebContentsId, baseUrl } = options;
   const safeTitle = escapeHtml(title || "悬浮文本");
   const markdownHtml =
     typeof initialHtml === "string" && initialHtml.trim()
@@ -346,12 +365,24 @@ export function buildFloatingWindowHtml(options: {
 
   const fontFamStyle = config.fontFamily ? `font-family: ${escapeHtml(config.fontFamily)};` : "";
 
+  const rawBaseUrl =
+    baseUrl ||
+    (typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "");
+  const safeBaseUrl = rawBaseUrl
+    ? rawBaseUrl.endsWith("/")
+      ? rawBaseUrl
+      : `${rawBaseUrl}/`
+    : "";
+
   return `
     <!DOCTYPE html>
     <html lang="zh-CN" ${themeAttr}>
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      ${safeBaseUrl ? `<base href="${escapeHtml(safeBaseUrl)}">` : ""}
       <title>${safeTitle}</title>
       <style>${getFloatingWindowStyles()}</style>
     </head>
@@ -421,6 +452,30 @@ export function buildFloatingWindowHtml(options: {
           let remote = null;
           let electronWin = null;
           let electronClipboard = null;
+
+          function ensureImageSources(container) {
+            if (!container) return;
+            try {
+              var imgs = container.querySelectorAll("img");
+              for (var i = 0; i < imgs.length; i++) {
+                var img = imgs[i];
+                if (!img.getAttribute("src") && img.getAttribute("data-src")) {
+                  img.setAttribute("src", img.getAttribute("data-src"));
+                }
+              }
+            } catch (e) {}
+          }
+
+          ensureImageSources(mdView);
+
+          if (mdView) {
+            mdView.addEventListener("click", function(e) {
+              var target = e.target;
+              if (target && target.tagName === "IMG") {
+                target.classList.toggle("ft-img-expanded");
+              }
+            });
+          }
           try {
             const req =
               (typeof window !== "undefined" && window.require) ||
@@ -644,6 +699,8 @@ export function buildFloatingWindowHtml(options: {
             res = res.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
             res = res.replace(/\*([^*]+)\*/g, "<em>$1</em>");
             res = res.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+            res = res.replace(/!\\[([^\\]]*)\\]\\(([^)]+)\\)/g, '<img src="$2" alt="$1" class="ft-image" loading="lazy" />');
+            res = res.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
             return res;
           }
 
@@ -850,6 +907,7 @@ export function buildFloatingWindowHtml(options: {
                       renderedHtml = simpleMarkdownToHtml(getCurrentText());
                     }
                     mdView.innerHTML = renderedHtml;
+                    ensureImageSources(mdView);
                   }
                 }
                 if (textView) textView.style.display = "none";

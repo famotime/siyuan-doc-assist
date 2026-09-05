@@ -296,6 +296,24 @@
       height: 0.8em;
     }
 
+    /* 图片自适应展示与缩放 */
+    .ft-markdown-view img, .ft-image {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 8px auto;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      object-fit: contain;
+      cursor: zoom-in;
+      transition: transform 0.2s ease, max-width 0.2s ease;
+    }
+
+    .ft-markdown-view img.ft-img-expanded {
+      max-width: none;
+      cursor: zoom-out;
+    }
+
     /* 快捷提示浮条 */
     .ft-toast {
       position: fixed;

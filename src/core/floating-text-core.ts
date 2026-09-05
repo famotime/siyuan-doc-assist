@@ -294,12 +294,27 @@ function renderInlineMarkdown(text: string): string {
   escaped = escaped.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   // 删除线 ~~del~~
   escaped = escaped.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+  // 图片 ![alt](url)
+  escaped = escaped.replace(
+    /!\[([^\]]*)\]\(([^)]+)\)/g,
+    '<img src="$2" alt="$1" class="ft-image" loading="lazy" />'
+  );
   // 链接 [text](url)
   escaped = escaped.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
   );
   return escaped;
+}
+
+/**
+ * 检查 Markdown 文本中是否包含图片标记
+ */
+export function hasImageMarkdown(text: string): boolean {
+  if (!text) {
+    return false;
+  }
+  return /!\[.*?\]\(.*?\)/.test(text) || /<img\b[^>]*>/i.test(text);
 }
 
 /**

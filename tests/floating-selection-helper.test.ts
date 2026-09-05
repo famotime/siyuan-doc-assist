@@ -162,4 +162,43 @@ describe("floating-selection-helper", () => {
     document.body.removeChild(listEl);
     vi.restoreAllMocks();
   });
+
+  it("extracts markdown image when range contains an image span", async () => {
+    vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
+    vi.spyOn(actionRunnerContext, "getSelectedImageAssetPaths").mockReturnValue([]);
+
+    const container = document.createElement("div");
+    container.innerHTML =
+      '前置文本 <span data-type="img"><img src="assets/test-image.png" alt="测试配图" /></span> 后置文本';
+    document.body.appendChild(container);
+
+    const range = document.createRange();
+    range.selectNodeContents(container);
+
+    const mockProtyle = {
+      toolbar: {
+        range,
+      },
+    } as any;
+
+    const result = await extractFloatingMarkdownFromSelection(mockProtyle);
+    expect(result).toContain("![测试配图](assets/test-image.png)");
+    expect(result).toContain("前置文本");
+    expect(result).toContain("后置文本");
+
+    document.body.removeChild(container);
+    vi.restoreAllMocks();
+  });
+
+  it("extracts image markdown when an image is individually selected without text range", async () => {
+    vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
+    vi.spyOn(actionRunnerContext, "getSelectedImageAssetPaths").mockReturnValue([
+      "assets/solo-image.png",
+    ]);
+
+    const result = await extractFloatingMarkdownFromSelection(undefined);
+    expect(result).toBe("![](assets/solo-image.png)");
+    vi.restoreAllMocks();
+  });
 });
+

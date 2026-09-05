@@ -1,5 +1,8 @@
 import { ProtyleLike } from "@/plugin/doc-context";
-import { getSelectedBlockIds } from "@/plugin/action-runner-context";
+import {
+  getSelectedBlockIds,
+  getSelectedImageAssetPaths,
+} from "@/plugin/action-runner-context";
 import { getBlockKramdowns } from "@/services/kernel";
 import {
   formatListItemMarkdown,
@@ -21,7 +24,82 @@ function resolveRangeBlockElement(container: Node | null): HTMLElement | null {
 }
 
 /**
- * 智能从当前选区中提取完整的 Markdown 文本（尤其保留列表项等语法标记）
+ * 从选区 Range 中提取文本并保留图片 Markdown 标记
+ */
+export function extractTextFromRange(range: Range): string {
+  if (!range) {
+    return "";
+  }
+
+  // 1. 检查选区片段中是否存在图片元素 (如 span[data-type="img"] 或 <img>)
+  try {
+    if (typeof range.cloneContents === "function") {
+      const fragment = range.cloneContents();
+      const hasImg = fragment.querySelector("img, [data-type='img']");
+      if (hasImg) {
+        const container = document.createElement("div");
+        container.appendChild(fragment);
+
+        // 替换所有包装为 [data-type="img"] 的图片节点
+        const imgWrappers = Array.from(
+          container.querySelectorAll<HTMLElement>('[data-type="img"]')
+        );
+        imgWrappers.forEach((wrapper) => {
+          const img =
+            wrapper.querySelector("img") ||
+            (wrapper.tagName === "IMG" ? (wrapper as HTMLImageElement) : null);
+          const src =
+            img?.getAttribute("data-src") || img?.getAttribute("src") || "";
+          const alt =
+            img?.getAttribute("alt") || img?.getAttribute("title") || "";
+          if (src) {
+            wrapper.replaceWith(document.createTextNode(` ![${alt}](${src}) `));
+          }
+        });
+
+        // 替换其余独立 <img>
+        const standaloneImgs = Array.from(
+          container.querySelectorAll<HTMLImageElement>("img")
+        );
+        standaloneImgs.forEach((img) => {
+          const src =
+            img.getAttribute("data-src") || img.getAttribute("src") || "";
+          const alt =
+            img.getAttribute("alt") || img.getAttribute("title") || "";
+          if (src) {
+            img.replaceWith(document.createTextNode(` ![${alt}](${src}) `));
+          }
+        });
+
+        container.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+        container
+          .querySelectorAll("p, div, li, h1, h2, h3, h4, h5, h6")
+          .forEach((block) => {
+            block.after(document.createTextNode("\n"));
+          });
+
+        const withImgText = (container.textContent || "")
+          .replace(/\r\n/g, "\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+
+        if (withImgText) {
+          return withImgText;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(
+      "[DocAssistant][FloatingSelection] range clone image extract failed:",
+      err
+    );
+  }
+
+  return (range.toString ? range.toString() : "").trim();
+}
+
+/**
+ * 智能从当前选区中提取完整的 Markdown 文本（尤其保留列表项等语法标记与图片）
  */
 export async function extractFloatingMarkdownFromSelection(
   protyle?: ProtyleLike,
@@ -45,7 +123,17 @@ export async function extractFloatingMarkdownFromSelection(
     }
   }
 
-  // 2. 检查行内选区 (Range Selection)，优先使用传入的显式选区
+  // 2. 检查是否有单独点击选中的图片节点
+  const selectedImagePaths = getSelectedImageAssetPaths(protyle);
+  if (
+    selectedImagePaths &&
+    selectedImagePaths.length > 0 &&
+    (!explicitRange || explicitRange.collapsed)
+  ) {
+    return selectedImagePaths.map((p) => `![](${p})`).join("\n\n");
+  }
+
+  // 3. 检查行内选区 (Range Selection)，优先使用传入的显式选区
   let range: Range | null = explicitRange || null;
   if (!range) {
     const toolbarRange =
@@ -67,7 +155,7 @@ export async function extractFloatingMarkdownFromSelection(
     return "";
   }
 
-  const selectedText = range.toString().trim();
+  const selectedText = extractTextFromRange(range);
   if (!selectedText) {
     return "";
   }

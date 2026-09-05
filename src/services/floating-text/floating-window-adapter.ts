@@ -1,6 +1,7 @@
 import {
   calculateSteppedFontSize,
   FloatingTextConfig,
+  hasImageMarkdown,
   resolveFloatingCopyText,
 } from "@/core/floating-text-core";
 import { renderMarkdownToHtml } from "@/core/markdown-render-core";
@@ -81,7 +82,16 @@ export async function openFloatingTextWindow(options: {
   const { title, text } = options;
   const config = loadFloatingTextConfig();
   const isDark = isSiYuanDarkTheme();
+  const hasImage = hasImageMarkdown(text);
+  // 若包含图片内容，自动以 Markdown 模式展示，让用户首屏即可直观看到图片
+  const effectiveConfig: FloatingTextConfig = hasImage
+    ? { ...config, viewMode: "markdown" }
+    : config;
   const initialHtml = renderMarkdownToHtml(text);
+  const baseUrl =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "";
 
   const remote = getElectronRemote();
   let hostWebContentsId: number | null = null;
@@ -97,10 +107,11 @@ export async function openFloatingTextWindow(options: {
   const html = buildFloatingWindowHtml({
     title,
     text,
-    config,
+    config: effectiveConfig,
     isDark,
     initialHtml,
     hostWebContentsId,
+    baseUrl,
   });
 
   // 1. 方案一：在思源桌面端（Electron 环境），使用 @electron/remote.BrowserWindow
@@ -224,7 +235,7 @@ export async function openFloatingTextWindow(options: {
       pipWindow.document.close();
 
       // 挂载交互事件
-      bindPipWindowEvents(pipWindow, text, config);
+      bindPipWindowEvents(pipWindow, text, effectiveConfig);
       return;
     } catch (error) {
       console.warn("[DocAssistant][FloatingText] PiP request failed, falling back:", error);
@@ -237,14 +248,14 @@ export async function openFloatingTextWindow(options: {
       const popup = window.open(
         "",
         "siyuan-doc-assist-floating",
-        `width=${config.width || 420},height=${config.height || 320},menubar=no,toolbar=no,location=no,status=no`
+        `width=${effectiveConfig.width || 420},height=${effectiveConfig.height || 320},menubar=no,toolbar=no,location=no,status=no`
       );
       if (popup) {
         popup.document.open();
         popup.document.write(html);
         popup.document.close();
         popup.focus();
-        bindPipWindowEvents(popup, text, config);
+        bindPipWindowEvents(popup, text, effectiveConfig);
         return;
       }
     } catch (openErr) {
@@ -319,6 +330,27 @@ function bindPipWindowEvents(
     textViewEl.setAttribute("spellcheck", "false");
     textViewEl.setAttribute("data-placeholder", "在此处编辑文本...");
   }
+
+  const ensureImageSources = (container: HTMLElement | null) => {
+    if (!container) return;
+    try {
+      const imgs = container.querySelectorAll("img");
+      imgs.forEach((img) => {
+        if (!img.getAttribute("src") && img.getAttribute("data-src")) {
+          img.setAttribute("src", img.getAttribute("data-src") || "");
+        }
+      });
+    } catch {}
+  };
+
+  ensureImageSources(mdViewEl);
+
+  mdViewEl?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement | null;
+    if (target && target.tagName === "IMG") {
+      target.classList.toggle("ft-img-expanded");
+    }
+  });
 
   const getCurrentText = (): string => {
     return textViewEl?.innerText || textViewEl?.textContent || text;
@@ -439,6 +471,7 @@ function bindPipWindowEvents(
     if (currentViewMode === "markdown") {
       if (mdViewEl) {
         mdViewEl.innerHTML = renderMarkdownToHtml(getCurrentText());
+        ensureImageSources(mdViewEl);
       }
       if (textViewEl) {
         textViewEl.style.display = "none";
@@ -514,20 +547,29 @@ function openInAppFloatingFallback(
   config: FloatingTextConfig,
   isDark: boolean
 ) {
+  const hasImage = hasImageMarkdown(text);
+  const effectiveConfig: FloatingTextConfig = hasImage
+    ? { ...config, viewMode: "markdown" }
+    : config;
   const initialHtml = renderMarkdownToHtml(text);
+  const baseUrl =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "";
   const dialogHtml = buildFloatingWindowHtml({
     title,
     text,
-    config,
+    config: effectiveConfig,
     isDark,
     initialHtml,
+    baseUrl,
   });
 
   new Dialog({
     title: `📌 ${title}`,
     content: `<div style="height: 100%; min-height: 260px;">${dialogHtml}</div>`,
-    width: `${config.width}px`,
-    height: `${config.height}px`,
+    width: `${effectiveConfig.width}px`,
+    height: `${effectiveConfig.height}px`,
     transparent: true,
   });
 
