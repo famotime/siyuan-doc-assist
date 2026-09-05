@@ -274,7 +274,7 @@ function bindPipWindowEvents(
 ) {
   const doc = pipWindow.document;
   const appEl = doc.getElementById("ft-app");
-  const drawerEl = doc.getElementById("ft-drawer");
+  const popoverEl = doc.getElementById("ft-popover");
   const textViewEl = doc.getElementById("ft-text-view");
   const mdViewEl = doc.getElementById("ft-markdown-view");
   const viewBtn = doc.getElementById("ft-btn-view");
@@ -286,6 +286,7 @@ function bindPipWindowEvents(
   const fontLabel = doc.getElementById("ft-font-label");
   const fontIncBtn = doc.getElementById("ft-font-inc");
   const fontDecBtn = doc.getElementById("ft-font-dec");
+  const wordCountEl = doc.getElementById("ft-word-count");
   const toast = doc.getElementById("ft-toast");
 
   let currentFontSize = initialConfig.fontSize;
@@ -297,6 +298,39 @@ function bindPipWindowEvents(
     toast.classList.add("ft-toast-show");
     pipWindow.setTimeout(() => {
       toast.classList.remove("ft-toast-show");
+    }, 1500);
+  };
+
+  const updateWordCount = () => {
+    if (!wordCountEl) return;
+    const cur = getCurrentText();
+    const len = cur ? cur.trim().replace(/\s+/g, "").length : 0;
+    if (len > 0) {
+      wordCountEl.textContent = `${len} 字`;
+      wordCountEl.style.display = "inline-block";
+    } else {
+      wordCountEl.textContent = "";
+      wordCountEl.style.display = "none";
+    }
+  };
+
+  let copyFeedbackTimer: any = null;
+  const triggerCopyFeedback = (isPartial: boolean) => {
+    if (!copyBtn) return;
+    copyBtn.classList.add("ft-btn-success");
+    const copyIconUse = copyBtn.querySelector("use");
+    if (copyIconUse) copyIconUse.setAttribute("href", "#ft-icon-check");
+    const copyTooltip = doc.getElementById("ft-copy-tooltip");
+    if (copyTooltip) {
+      copyTooltip.innerHTML = `${isPartial ? "已复制选中内容" : "已复制全部内容"} ✓`;
+    }
+    if (copyFeedbackTimer) pipWindow.clearTimeout(copyFeedbackTimer);
+    copyFeedbackTimer = pipWindow.setTimeout(() => {
+      copyBtn.classList.remove("ft-btn-success");
+      if (copyIconUse) copyIconUse.setAttribute("href", "#ft-icon-copy");
+      if (copyTooltip) {
+        copyTooltip.innerHTML = '复制全部内容 <kbd>Ctrl+C</kbd>';
+      }
     }, 1500);
   };
 
@@ -329,6 +363,7 @@ function bindPipWindowEvents(
     }
     textViewEl.setAttribute("spellcheck", "false");
     textViewEl.setAttribute("data-placeholder", "在此处编辑文本...");
+    textViewEl.addEventListener("input", updateWordCount);
   }
 
   const ensureImageSources = (container: HTMLElement | null) => {
@@ -344,6 +379,7 @@ function bindPipWindowEvents(
   };
 
   ensureImageSources(mdViewEl);
+  updateWordCount();
 
   mdViewEl?.addEventListener("click", (e) => {
     const target = e.target as HTMLElement | null;
@@ -410,16 +446,76 @@ function bindPipWindowEvents(
     }
 
     if (copied) {
-      showToast(isPartial ? "已复制选中内容" : "已复制全部内容");
+      triggerCopyFeedback(isPartial);
     } else {
       showToast("复制失败");
     }
   };
 
-  // 1. Esc 快捷键关闭 & Ctrl + C 复制 & Ctrl + 滚轮缩放字号
+  const toggleViewMode = () => {
+    currentViewMode = currentViewMode === "text" ? "markdown" : "text";
+    const viewIconUse = viewBtn?.querySelector("use");
+    const viewTooltip = doc.getElementById("ft-view-tooltip");
+    if (viewIconUse) {
+      viewIconUse.setAttribute(
+        "href",
+        currentViewMode === "markdown" ? "#ft-icon-text" : "#ft-icon-preview"
+      );
+    }
+    if (viewTooltip) {
+      viewTooltip.innerHTML = `${
+        currentViewMode === "markdown" ? "切换源码编辑" : "切换 Markdown 预览"
+      } <kbd>Ctrl+M</kbd>`;
+    }
+    if (currentViewMode === "markdown") {
+      if (mdViewEl) {
+        mdViewEl.innerHTML = renderMarkdownToHtml(getCurrentText());
+        ensureImageSources(mdViewEl);
+      }
+      if (textViewEl) {
+        textViewEl.style.display = "none";
+      }
+      if (mdViewEl) {
+        mdViewEl.style.display = "block";
+      }
+    } else {
+      if (textViewEl) {
+        textViewEl.style.display = "block";
+        textViewEl.focus();
+      }
+      if (mdViewEl) {
+        mdViewEl.style.display = "none";
+      }
+    }
+    saveFloatingTextConfig({ viewMode: currentViewMode });
+  };
+
+  const closePopover = () => {
+    popoverEl?.classList.remove("ft-popover-open");
+    settingsBtn?.classList.remove("ft-btn-active");
+  };
+
+  doc.addEventListener("click", (e) => {
+    if (!popoverEl || !popoverEl.classList.contains("ft-popover-open")) return;
+    const target = e.target as Node;
+    if (!popoverEl.contains(target) && (!settingsBtn || !settingsBtn.contains(target))) {
+      closePopover();
+    }
+  });
+
+  // 1. Esc 快捷键关闭 & Ctrl + C 复制 & Ctrl + M 切换视图 & Ctrl + 滚轮缩放字号
   doc.addEventListener("keydown", async (e: KeyboardEvent) => {
     if (e.key === "Escape") {
+      if (popoverEl && popoverEl.classList.contains("ft-popover-open")) {
+        closePopover();
+        return;
+      }
       pipWindow.close();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === "m" || e.key === "M")) {
+      e.preventDefault();
+      toggleViewMode();
       return;
     }
     if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
@@ -464,36 +560,13 @@ function bindPipWindowEvents(
 
   // 4. 视图切换（纯文本 / Markdown）
   viewBtn?.addEventListener("click", () => {
-    currentViewMode = currentViewMode === "text" ? "markdown" : "text";
-    if (viewBtn) {
-      viewBtn.textContent = currentViewMode === "markdown" ? "MD" : "纯文本";
-    }
-    if (currentViewMode === "markdown") {
-      if (mdViewEl) {
-        mdViewEl.innerHTML = renderMarkdownToHtml(getCurrentText());
-        ensureImageSources(mdViewEl);
-      }
-      if (textViewEl) {
-        textViewEl.style.display = "none";
-      }
-      if (mdViewEl) {
-        mdViewEl.style.display = "block";
-      }
-    } else {
-      if (textViewEl) {
-        textViewEl.style.display = "block";
-        textViewEl.focus();
-      }
-      if (mdViewEl) {
-        mdViewEl.style.display = "none";
-      }
-    }
-    saveFloatingTextConfig({ viewMode: currentViewMode });
+    toggleViewMode();
   });
 
-  // 5. 设置抽屉折叠
-  settingsBtn?.addEventListener("click", () => {
-    drawerEl?.classList.toggle("ft-drawer-open");
+  // 5. 外观 Popover 折叠
+  settingsBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    popoverEl?.classList.toggle("ft-popover-open");
     settingsBtn.classList.toggle("ft-btn-active");
   });
 

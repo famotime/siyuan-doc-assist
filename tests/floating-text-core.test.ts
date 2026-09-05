@@ -314,6 +314,45 @@ describe("floating-text-core", () => {
       expect(html).toContain('src="assets/2026-test.png"');
       expect(html).toContain(".ft-markdown-view img");
     });
+
+    it("generates html with explicit outline SVG symbols, tooltips with kbd hints and popover panel", async () => {
+      const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
+      const html = buildFloatingWindowHtml({
+        title: "设计规范测试",
+        text: "这是测试文本内容",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+      });
+
+      // 验证包含统一显式线框 SVG 符号库
+      expect(html).toContain('id="ft-icon-pin"');
+      expect(html).toContain('id="ft-icon-text"');
+      expect(html).toContain('id="ft-icon-preview"');
+      expect(html).toContain('id="ft-icon-copy"');
+      expect(html).toContain('id="ft-icon-check"');
+      expect(html).toContain('id="ft-icon-sliders"');
+      expect(html).toContain('id="ft-icon-close"');
+      expect(html).toContain('id="ft-icon-minus"');
+      expect(html).toContain('id="ft-icon-plus"');
+      expect(html).toContain('id="ft-icon-grip"');
+
+      // 验证包含 Tooltip 与 kbd 胶囊快捷键
+      expect(html).toContain('class="ft-tooltip"');
+      expect(html).toContain("<kbd>Ctrl+C</kbd>");
+      expect(html).toContain("<kbd>Ctrl+M</kbd>");
+      expect(html).toContain("<kbd>Esc</kbd>");
+
+      // 验证浮动 Popover 面板而非旧抽屉
+      expect(html).toContain('id="ft-popover"');
+      expect(html).toContain('class="ft-popover"');
+      expect(html).toContain('id="ft-font-dec"');
+      expect(html).toContain('id="ft-font-inc"');
+      expect(html).not.toContain('class="ft-drawer"');
+
+      // 验证字数统计徽标与交互反馈
+      expect(html).toContain('id="ft-word-count"');
+      expect(html).toContain("updateWordCount");
+      expect(html).toContain("triggerCopyFeedback");
+    });
   });
 
   describe("hasImageMarkdown", () => {

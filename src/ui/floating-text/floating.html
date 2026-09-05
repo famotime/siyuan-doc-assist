@@ -7,23 +7,37 @@
   <style>
     :root {
       --ft-font-size: 15px;
-      --ft-opacity: 0.85;
-      --ft-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --ft-opacity: 0.88;
+      --ft-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", sans-serif;
       --ft-bg-color: 255, 255, 255;
-      --ft-text-color: #222222;
-      --ft-border-color: rgba(0, 0, 0, 0.12);
-      --ft-header-bg: rgba(0, 0, 0, 0.05);
-      --ft-button-hover: rgba(0, 0, 0, 0.08);
-      --ft-code-bg: rgba(0, 0, 0, 0.06);
+      --ft-text-color: #1f2328;
+      --ft-text-secondary: rgba(0, 0, 0, 0.45);
+      --ft-border-color: rgba(0, 0, 0, 0.1);
+      --ft-inner-border: rgba(255, 255, 255, 0.6);
+      --ft-header-bg: rgba(255, 255, 255, 0.65);
+      --ft-button-hover: rgba(0, 0, 0, 0.06);
+      --ft-button-active: rgba(0, 0, 0, 0.1);
+      --ft-code-bg: rgba(0, 0, 0, 0.05);
+      --ft-popover-bg: rgba(255, 255, 255, 0.95);
+      --ft-tooltip-bg: rgba(20, 22, 25, 0.95);
+      --ft-tooltip-color: #ffffff;
+      --ft-accent: #2ea043;
     }
 
     [data-theme="dark"] {
-      --ft-bg-color: 30, 32, 36;
-      --ft-text-color: #e0e0e0;
-      --ft-border-color: rgba(255, 255, 255, 0.14);
-      --ft-header-bg: rgba(255, 255, 255, 0.06);
-      --ft-button-hover: rgba(255, 255, 255, 0.12);
-      --ft-code-bg: rgba(255, 255, 255, 0.08);
+      --ft-bg-color: 24, 26, 30;
+      --ft-text-color: #e6edf3;
+      --ft-text-secondary: rgba(255, 255, 255, 0.45);
+      --ft-border-color: rgba(255, 255, 255, 0.12);
+      --ft-inner-border: rgba(255, 255, 255, 0.06);
+      --ft-header-bg: rgba(24, 26, 30, 0.65);
+      --ft-button-hover: rgba(255, 255, 255, 0.08);
+      --ft-button-active: rgba(255, 255, 255, 0.14);
+      --ft-code-bg: rgba(255, 255, 255, 0.07);
+      --ft-popover-bg: rgba(30, 33, 38, 0.96);
+      --ft-tooltip-bg: rgba(10, 12, 16, 0.96);
+      --ft-tooltip-color: #f0f6fc;
+      --ft-accent: #3fb950;
     }
 
     * {
@@ -40,19 +54,23 @@
       font-family: var(--ft-font-family);
       color: var(--ft-text-color);
       user-select: text;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     #ft-app {
+      position: relative;
       display: flex;
       flex-direction: column;
       width: 100%;
       height: 100%;
       background: rgba(var(--ft-bg-color), var(--ft-opacity));
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--ft-border-color);
+      border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 var(--ft-inner-border);
       transition: background 0.15s ease;
     }
 
@@ -61,8 +79,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 36px;
-      padding: 0 10px;
+      height: 38px;
+      padding: 0 8px 0 10px;
       background: var(--ft-header-bg);
       border-bottom: 1px solid var(--ft-border-color);
       user-select: none;
@@ -82,73 +100,280 @@
       opacity: 0.9;
     }
 
-    .ft-pin-icon {
-      font-size: 13px;
-      opacity: 0.85;
+    .ft-drag-handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.55;
+      cursor: grab;
+    }
+
+    .ft-title-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 160px;
+    }
+
+    .ft-word-count {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ft-text-secondary);
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(128, 128, 128, 0.1);
+      margin-left: 2px;
     }
 
     .ft-actions {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       flex-shrink: 0;
       -webkit-app-region: no-drag;
     }
 
+    /* 操作按钮 */
     .ft-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      height: 24px;
-      padding: 0 6px;
+      width: 28px;
+      height: 28px;
+      padding: 0;
       border: none;
       background: transparent;
       color: var(--ft-text-color);
-      font-size: 12px;
-      border-radius: 4px;
+      border-radius: 5px;
       cursor: pointer;
-      opacity: 0.75;
-      transition: opacity 0.15s, background 0.15s;
+      opacity: 0.8;
+      transition: opacity 0.15s, background 0.15s, transform 0.1s, color 0.15s;
     }
 
     .ft-btn:hover {
       opacity: 1;
       background: var(--ft-button-hover);
+      transform: translateY(-0.5px);
+    }
+
+    .ft-btn:active {
+      opacity: 0.9;
+      background: var(--ft-button-active);
+      transform: scale(0.93);
     }
 
     .ft-btn.ft-btn-active {
       opacity: 1;
-      font-weight: bold;
       background: var(--ft-button-hover);
     }
 
-    /* 快捷抽屉设置条 */
-    .ft-drawer {
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      padding: 6px 12px;
-      background: var(--ft-header-bg);
-      border-bottom: 1px solid var(--ft-border-color);
-      font-size: 12px;
+    .ft-btn.ft-btn-success {
+      opacity: 1;
+      color: var(--ft-accent) !important;
+    }
+
+    .ft-btn.ft-btn-close:hover {
+      color: #f85149;
+      background: rgba(248, 81, 73, 0.12);
+      opacity: 1;
+    }
+
+    /* 显式线框图标 */
+    .ft-icon {
+      width: 15px;
+      height: 15px;
+      stroke-width: 1.8;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
       flex-shrink: 0;
+    }
+
+    .ft-pin-icon {
+      opacity: 0.85;
+    }
+
+    .ft-grip-icon {
+      width: 13px;
+      height: 13px;
+      stroke-width: 1.5;
+    }
+
+    /* 语义分隔条 */
+    .ft-divider {
+      width: 1px;
+      height: 14px;
+      background: var(--ft-border-color);
+      margin: 0 3px;
+      flex-shrink: 0;
+    }
+
+    /* 自研轻量瞬时 Tooltip */
+    .ft-tooltip-wrapper {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .ft-tooltip {
+      position: absolute;
+      top: calc(100% + 5px);
+      left: 50%;
+      transform: translate(-50%, -2px);
+      padding: 4px 8px;
+      background: var(--ft-tooltip-bg);
+      color: var(--ft-tooltip-color);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+      border-radius: 4px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.12s ease 0.15s, transform 0.12s ease 0.15s;
+      z-index: 999;
+    }
+
+    .ft-tooltip.ft-tooltip-right {
+      left: auto;
+      right: 0;
+      transform: translate(0, -2px);
+    }
+
+    .ft-tooltip kbd {
+      display: inline-block;
+      padding: 1px 4px;
+      margin-left: 5px;
+      font-size: 10px;
+      font-family: inherit;
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 3px;
+      font-weight: normal;
+    }
+
+    .ft-tooltip-wrapper:hover .ft-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translate(-50%, 0);
+    }
+
+    .ft-tooltip-wrapper:hover .ft-tooltip.ft-tooltip-right {
+      transform: translate(0, 0);
+    }
+
+    /* 浮动 Popover 外观调节面板 */
+    .ft-popover {
+      position: absolute;
+      top: 44px;
+      right: 8px;
+      width: 220px;
+      padding: 12px 14px;
+      background: var(--ft-popover-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--ft-border-color);
+      border-radius: 8px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 var(--ft-inner-border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px) scale(0.96);
+      transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 200;
+      user-select: none;
       -webkit-app-region: no-drag;
     }
 
-    .ft-drawer.ft-drawer-open {
-      display: flex;
+    .ft-popover.ft-popover-open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
     }
 
-    .ft-drawer-group {
+    .ft-popover-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .ft-popover-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.85;
+    }
+
+    .ft-badge {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(128, 128, 128, 0.15);
+      font-weight: 600;
+      font-family: monospace;
+    }
+
+    .ft-slider-row {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
     .ft-slider {
-      width: 80px;
+      flex: 1;
+      height: 4px;
       cursor: pointer;
-      accent-color: #1890ff;
+      accent-color: #217346;
+    }
+
+    .ft-popover-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.9;
+    }
+
+    .ft-stepper {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .ft-step-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border: 1px solid var(--ft-border-color);
+      border-radius: 4px;
+      background: var(--ft-button-hover);
+      color: var(--ft-text-color);
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .ft-step-btn .ft-icon {
+      width: 11px;
+      height: 11px;
+      stroke-width: 2;
+    }
+
+    .ft-step-btn:hover {
+      background: var(--ft-button-active);
+    }
+
+    .ft-step-btn:active {
+      transform: scale(0.92);
     }
 
     /* 主内容展示区 */
@@ -195,8 +420,8 @@
       display: none;
     }
 
-    .ft-markdown-view h1, .ft-h1 { font-size: 1.4em; font-weight: bold; margin: 0.6em 0 0.3em; border-bottom: 1px solid var(--ft-border-color); padding-bottom: 0.2em; }
-    .ft-markdown-view h2, .ft-h2 { font-size: 1.25em; font-weight: bold; margin: 0.5em 0 0.3em; }
+    .ft-markdown-view h1, .ft-h1 { font-size: 1.35em; font-weight: bold; margin: 0.6em 0 0.3em; border-bottom: 1px solid var(--ft-border-color); padding-bottom: 0.2em; }
+    .ft-markdown-view h2, .ft-h2 { font-size: 1.2em; font-weight: bold; margin: 0.5em 0 0.3em; }
     .ft-markdown-view h3, .ft-h3 { font-size: 1.1em; font-weight: bold; margin: 0.4em 0 0.2em; }
     .ft-markdown-view h4, .ft-h4 { font-size: 1.05em; font-weight: bold; margin: 0.3em 0 0.2em; }
     .ft-markdown-view p, .ft-p { margin-bottom: 0.5em; }
@@ -336,31 +561,133 @@
   </style>
 </head>
 <body>
+  <!-- 统一显式线框 SVG 符号库 -->
+  <svg style="display:none;" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="ft-icon-grip" viewBox="0 0 24 24">
+      <circle cx="9" cy="6" r="1.5" fill="currentColor"></circle>
+      <circle cx="15" cy="6" r="1.5" fill="currentColor"></circle>
+      <circle cx="9" cy="12" r="1.5" fill="currentColor"></circle>
+      <circle cx="15" cy="12" r="1.5" fill="currentColor"></circle>
+      <circle cx="9" cy="18" r="1.5" fill="currentColor"></circle>
+      <circle cx="15" cy="18" r="1.5" fill="currentColor"></circle>
+    </symbol>
+    <symbol id="ft-icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="17" x2="12" y2="22"></line>
+      <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+    </symbol>
+    <symbol id="ft-icon-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <line x1="16" y1="13" x2="8" y2="13"></line>
+      <line x1="16" y1="17" x2="8" y2="17"></line>
+      <polyline points="10 9 9 9 8 9"></polyline>
+    </symbol>
+    <symbol id="ft-icon-preview" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+    </symbol>
+    <symbol id="ft-icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="13" height="13" x="9" y="9" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </symbol>
+    <symbol id="ft-icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </symbol>
+    <symbol id="ft-icon-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="21" x2="4" y2="14"></line>
+      <line x1="4" y1="10" x2="4" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12" y2="3"></line>
+      <line x1="20" y1="21" x2="20" y2="16"></line>
+      <line x1="20" y1="12" x2="20" y2="3"></line>
+      <line x1="1" y1="14" x2="7" y2="14"></line>
+      <line x1="9" y1="8" x2="15" y2="8"></line>
+      <line x1="17" y1="16" x2="23" y2="16"></line>
+    </symbol>
+    <symbol id="ft-icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </symbol>
+    <symbol id="ft-icon-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </symbol>
+    <symbol id="ft-icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </symbol>
+  </svg>
+
   <div id="ft-app">
     <header class="ft-header">
-      <div class="ft-title-area" id="ft-title-area" title="悬浮文本">
-        <span class="ft-pin-icon">📌</span>
-        <span id="ft-title-text">悬浮文本</span>
+      <div class="ft-title-area" id="ft-title-area" title="按住可拖动窗口">
+        <span class="ft-drag-handle" aria-hidden="true">
+          <svg class="ft-icon ft-grip-icon"><use href="#ft-icon-grip"></use></svg>
+        </span>
+        <svg class="ft-icon ft-pin-icon" aria-hidden="true"><use href="#ft-icon-pin"></use></svg>
+        <span id="ft-title-text" class="ft-title-text">悬浮文本</span>
+        <span id="ft-word-count" class="ft-word-count"></span>
       </div>
+
       <div class="ft-actions">
-        <button id="ft-btn-view" class="ft-btn" title="切换纯文本 / Markdown 预览">纯文本</button>
-        <button id="ft-btn-copy" class="ft-btn" title="复制文本">复制</button>
-        <button id="ft-btn-settings" class="ft-btn" title="悬浮设置">⚙️</button>
-        <button id="ft-btn-close" class="ft-btn" title="关闭 (Esc)">✕</button>
+        <!-- 视图切换 -->
+        <div class="ft-tooltip-wrapper">
+          <button id="ft-btn-view" class="ft-btn" aria-label="切换预览模式">
+            <svg class="ft-icon" id="ft-view-icon"><use href="#ft-icon-preview"></use></svg>
+          </button>
+          <div class="ft-tooltip" id="ft-view-tooltip">切换 Markdown 预览 <kbd>Ctrl+M</kbd></div>
+        </div>
+
+        <!-- 复制操作 -->
+        <div class="ft-tooltip-wrapper">
+          <button id="ft-btn-copy" class="ft-btn" aria-label="复制全部内容">
+            <svg class="ft-icon" id="ft-copy-icon"><use href="#ft-icon-copy"></use></svg>
+          </button>
+          <div class="ft-tooltip" id="ft-copy-tooltip">复制全部内容 <kbd>Ctrl+C</kbd></div>
+        </div>
+
+        <span class="ft-divider"></span>
+
+        <!-- 外观调节触发器 -->
+        <div class="ft-tooltip-wrapper">
+          <button id="ft-btn-settings" class="ft-btn" aria-label="外观设置">
+            <svg class="ft-icon"><use href="#ft-icon-sliders"></use></svg>
+          </button>
+          <div class="ft-tooltip">外观与透明度</div>
+        </div>
+
+        <!-- 关闭按钮 -->
+        <div class="ft-tooltip-wrapper">
+          <button id="ft-btn-close" class="ft-btn ft-btn-close" aria-label="关闭窗口">
+            <svg class="ft-icon"><use href="#ft-icon-close"></use></svg>
+          </button>
+          <div class="ft-tooltip ft-tooltip-right">关闭窗口 <kbd>Esc</kbd></div>
+        </div>
       </div>
     </header>
 
-    <div id="ft-drawer" class="ft-drawer">
-      <div class="ft-drawer-group">
-        <span>不透明度</span>
-        <input type="range" id="ft-opacity-slider" class="ft-slider" min="10" max="100" value="85" />
-        <span id="ft-opacity-label">85%</span>
+    <!-- 悬浮 Popover 调节面板 -->
+    <div id="ft-popover" class="ft-popover" role="dialog" aria-label="外观设置">
+      <div class="ft-popover-item">
+        <div class="ft-popover-header">
+          <span>不透明度</span>
+          <span id="ft-opacity-label" class="ft-badge">85%</span>
+        </div>
+        <div class="ft-slider-row">
+          <input type="range" id="ft-opacity-slider" class="ft-slider" min="15" max="100" value="85" />
+        </div>
       </div>
-      <div class="ft-drawer-group">
+
+      <div class="ft-popover-row">
         <span>字号</span>
-        <button id="ft-font-dec" class="ft-btn" title="缩小字号 (Ctrl+滚轮下)">A-</button>
-        <span id="ft-font-label">15px</span>
-        <button id="ft-font-inc" class="ft-btn" title="放大字号 (Ctrl+滚轮上)">A+</button>
+        <div class="ft-stepper">
+          <button id="ft-font-dec" class="ft-step-btn" title="缩小字号 (Ctrl+滚轮下)">
+            <svg class="ft-icon"><use href="#ft-icon-minus"></use></svg>
+          </button>
+          <span id="ft-font-label" class="ft-badge">15px</span>
+          <button id="ft-font-inc" class="ft-step-btn" title="放大字号 (Ctrl+滚轮上)">
+            <svg class="ft-icon"><use href="#ft-icon-plus"></use></svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -560,13 +887,18 @@
       const appEl = document.getElementById("ft-app");
       const titleArea = document.getElementById("ft-title-area");
       const titleText = document.getElementById("ft-title-text");
+      const wordCountEl = document.getElementById("ft-word-count");
       const textView = document.getElementById("ft-text-view");
       const mdView = document.getElementById("ft-markdown-view");
       const viewBtn = document.getElementById("ft-btn-view");
+      const viewIconUse = document.querySelector("#ft-view-icon use");
+      const viewTooltip = document.getElementById("ft-view-tooltip");
       const copyBtn = document.getElementById("ft-btn-copy");
+      const copyIconUse = document.querySelector("#ft-copy-icon use");
+      const copyTooltip = document.getElementById("ft-copy-tooltip");
       const settingsBtn = document.getElementById("ft-btn-settings");
       const closeBtn = document.getElementById("ft-btn-close");
-      const drawer = document.getElementById("ft-drawer");
+      const popoverEl = document.getElementById("ft-popover");
       const slider = document.getElementById("ft-opacity-slider");
       const opacityLabel = document.getElementById("ft-opacity-label");
       const fontLabel = document.getElementById("ft-font-label");
@@ -577,13 +909,25 @@
       let config = loadConfig();
       let payload = loadPayload();
 
+      function updateWordCount() {
+        if (!wordCountEl) return;
+        const text = getCurrentText();
+        const len = text ? text.trim().replace(/\s+/g, "").length : 0;
+        if (len > 0) {
+          wordCountEl.textContent = len + " 字";
+          wordCountEl.style.display = "inline-block";
+        } else {
+          wordCountEl.textContent = "";
+          wordCountEl.style.display = "none";
+        }
+      }
+
       function applyTheme() {
         if (config.themeMode === "dark") {
           document.documentElement.setAttribute("data-theme", "dark");
         } else if (config.themeMode === "light") {
           document.documentElement.setAttribute("data-theme", "light");
         } else {
-          // auto: detect system or opener
           const isSysDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
           document.documentElement.setAttribute("data-theme", isSysDark ? "dark" : "light");
         }
@@ -597,12 +941,18 @@
         opacityLabel.textContent = Math.round(config.opacity * 100) + "%";
         fontLabel.textContent = config.fontSize + "px";
 
-        if (config.viewMode === "markdown") {
-          viewBtn.textContent = "MD";
+        const isMd = config.viewMode === "markdown";
+        if (viewIconUse) {
+          viewIconUse.setAttribute("href", isMd ? "#ft-icon-text" : "#ft-icon-preview");
+        }
+        if (viewTooltip) {
+          viewTooltip.innerHTML = (isMd ? "切换源码编辑" : "切换 Markdown 预览") + " <kbd>Ctrl+M</kbd>";
+        }
+
+        if (isMd) {
           textView.style.display = "none";
           mdView.style.display = "block";
         } else {
-          viewBtn.textContent = "纯文本";
           textView.style.display = "block";
           mdView.style.display = "none";
         }
@@ -610,10 +960,11 @@
 
       function applyPayload() {
         document.title = payload.title || "悬浮文本";
-        titleArea.title = payload.title || "悬浮文本";
+        titleArea.title = "按住可拖动窗口";
         titleText.textContent = payload.title || "悬浮文本";
         textView.textContent = payload.text || "";
         mdView.innerHTML = simpleMarkdownToHtml(payload.text || "");
+        updateWordCount();
       }
 
       function showToast(msg) {
@@ -621,6 +972,28 @@
         toast.classList.add("ft-toast-show");
         setTimeout(function () {
           toast.classList.remove("ft-toast-show");
+        }, 1500);
+      }
+
+      let copyFeedbackTimer = null;
+      function triggerCopyFeedback(isPartial) {
+        if (!copyBtn) return;
+        copyBtn.classList.add("ft-btn-success");
+        if (copyIconUse) {
+          copyIconUse.setAttribute("href", "#ft-icon-check");
+        }
+        if (copyTooltip) {
+          copyTooltip.innerHTML = (isPartial ? "已复制选中内容" : "已复制全部内容") + " ✓";
+        }
+        if (copyFeedbackTimer) clearTimeout(copyFeedbackTimer);
+        copyFeedbackTimer = setTimeout(function () {
+          copyBtn.classList.remove("ft-btn-success");
+          if (copyIconUse) {
+            copyIconUse.setAttribute("href", "#ft-icon-copy");
+          }
+          if (copyTooltip) {
+            copyTooltip.innerHTML = "复制全部内容 <kbd>Ctrl+C</kbd>";
+          }
         }, 1500);
       }
 
@@ -651,10 +1024,43 @@
         }
       }
 
-      // 绑定事件
+      function toggleViewMode() {
+        config.viewMode = config.viewMode === "text" ? "markdown" : "text";
+        saveConfig({ viewMode: config.viewMode });
+        applyConfig();
+        if (config.viewMode === "markdown") {
+          mdView.innerHTML = simpleMarkdownToHtml(getCurrentText());
+        } else {
+          textView.focus();
+        }
+      }
+
+      function closePopover() {
+        if (popoverEl) popoverEl.classList.remove("ft-popover-open");
+        if (settingsBtn) settingsBtn.classList.remove("ft-btn-active");
+      }
+
+      document.addEventListener("click", function (e) {
+        if (!popoverEl || !popoverEl.classList.contains("ft-popover-open")) return;
+        var target = e.target;
+        if (!popoverEl.contains(target) && (!settingsBtn || !settingsBtn.contains(target))) {
+          closePopover();
+        }
+      });
+
+      // 绑定快捷键事件
       document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {
+          if (popoverEl && popoverEl.classList.contains("ft-popover-open")) {
+            closePopover();
+            return;
+          }
           window.close();
+          return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === "m" || e.key === "M")) {
+          e.preventDefault();
+          toggleViewMode();
           return;
         }
         if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
@@ -663,7 +1069,7 @@
             e.preventDefault();
             copyText(selected).then(function (ok) {
               if (ok) {
-                showToast("已复制选中内容");
+                triggerCopyFeedback(true);
               }
             });
           }
@@ -737,6 +1143,10 @@
         return textView.innerText || textView.textContent || "";
       }
 
+      textView.addEventListener("input", function () {
+        updateWordCount();
+      });
+
       textView.addEventListener("paste", function (e) {
         e.preventDefault();
         var clipText = (e.clipboardData || window.clipboardData)?.getData("text/plain") || "";
@@ -751,6 +1161,7 @@
             range.collapse(false);
           }
         }
+        updateWordCount();
       });
 
       copyBtn.addEventListener("mousedown", function (e) {
@@ -764,7 +1175,7 @@
 
         copyText(target).then(function (ok) {
           if (ok) {
-            showToast(hasSelection ? "已复制选中内容" : "已复制全部内容");
+            triggerCopyFeedback(hasSelection);
           } else {
             showToast("复制失败");
           }
@@ -772,18 +1183,12 @@
       });
 
       viewBtn.addEventListener("click", function () {
-        config.viewMode = config.viewMode === "text" ? "markdown" : "text";
-        saveConfig({ viewMode: config.viewMode });
-        applyConfig();
-        if (config.viewMode === "markdown") {
-          mdView.innerHTML = simpleMarkdownToHtml(getCurrentText());
-        } else {
-          textView.focus();
-        }
+        toggleViewMode();
       });
 
-      settingsBtn.addEventListener("click", function () {
-        drawer.classList.toggle("ft-drawer-open");
+      settingsBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        popoverEl.classList.toggle("ft-popover-open");
         settingsBtn.classList.toggle("ft-btn-active");
       });
 
