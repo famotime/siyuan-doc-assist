@@ -439,3 +439,62 @@
   }
 }
 
+// 确保设置对话框内的 switch 开关保持标准尺寸，防止被 fn__size200 / fn__block 或响应式样式过度拉长
+.b3-dialog__content,
+.config-item {
+  .b3-switch {
+    width: 26px !important;
+    height: 16px !important;
+    max-width: 26px !important;
+    flex: none !important;
+    box-sizing: border-box;
+  }
+}
+
+// 单行设置项（如调试模式）宿主行容器布局：标题与说明在左，开关右对齐
+.doc-assistant-settings__host-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  column-gap: 16px !important;
+  row-gap: 6px !important;
+  padding: 14px 4px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  border-bottom: 1px solid var(--b3-border-color);
+
+  .doc-assistant-settings__host-title {
+    min-width: 0;
+    overflow: visible !important;
+  }
+
+  .b3-label__text {
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+    color: var(--b3-theme-on-surface-light) !important;
+    margin-top: 4px !important;
+    overflow: visible !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+}
+
+.doc-assistant-settings__debug-control {
+  grid-column: 2 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+
+  .b3-switch {
+    width: 26px !important;
+    height: 16px !important;
+    max-width: 26px !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+}
+
+

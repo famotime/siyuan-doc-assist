@@ -9,6 +9,8 @@ import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
 import { installSettingHostNormalizer } from "@/ui/plugin-settings-host";
 import { createMenuRegistrationPanel } from "@/ui/plugin-settings-menu";
+import { createElement } from "@/ui/plugin-settings-shared";
+
 
 type CreatePluginSettingsOptions = {
   actions: ActionConfig[];
@@ -67,6 +69,10 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
   const setting = new Setting({ width: "640px" });
   const hiddenSettingKeys = new Set(options.hiddenSettingKeys || []);
   const hostNormalizedPanels: HTMLElement[] = [];
+  const hostNormalizedRows: Array<{
+    element: HTMLElement | null;
+    fallbackDescription?: string;
+  }> = [];
 
   const menuRegistrationPanel = createMenuRegistrationPanel({
     actions: options.actions,
@@ -116,16 +122,27 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     debugLogToggle.addEventListener("change", () => {
       options.onDebugLogEnabledChange?.(debugLogToggle.checked);
     });
-    
+
+    const debugControlWrap = createElement(
+      "div",
+      "doc-assistant-settings__debug-control"
+    );
+    debugControlWrap.append(debugLogToggle);
+    const description =
+      "开启后，会在控制台打印插件执行操作时的 transaction 明细日志，方便定位撤销/重做失效等问题。";
+
     setting.addItem({
       title: "调试模式",
-      direction: "row",
-      description: "开启后，会在控制台打印插件执行操作时的 transaction 明细日志，方便定位撤销/重做失效等问题。",
-      actionElement: debugLogToggle,
+      description,
+      actionElement: debugControlWrap,
+    });
+    hostNormalizedRows.push({
+      element: debugControlWrap,
+      fallbackDescription: description,
     });
   }
 
-  installSettingHostNormalizer(setting, hostNormalizedPanels);
+  installSettingHostNormalizer(setting, hostNormalizedPanels, hostNormalizedRows);
 
   // 注入 updateManagedConfig 方法供外部实时同步
   (setting as any).updateManagedConfig = (managed: any | null) => {

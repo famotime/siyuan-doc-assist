@@ -502,7 +502,30 @@ describe("plugin settings", () => {
     expect(aiPanel.querySelector('[data-setting-key="ai-debug"]')).toBeNull();
 
     const debugModeItem = setting.items.find((item) => item.title === "调试模式");
-    const debugToggle = debugModeItem?.actionElement as HTMLInputElement;
+    expect(debugModeItem?.description).toContain("开启后，会在控制台打印插件执行操作时的 transaction 明细日志");
+    expect(debugModeItem?.direction).toBeUndefined();
+
+    const debugControl = debugModeItem?.actionElement as HTMLElement;
+    expect(debugControl.classList.contains("doc-assistant-settings__debug-control")).toBe(true);
+    const debugToggle = debugControl.querySelector("input[type='checkbox']") as HTMLInputElement;
+
+    // 模拟思源宿主结构与思源内核在 open 时无脑添加的 sizing 类名
+    const hostItem = document.createElement("div");
+    hostItem.className = "fn__flex b3-label config-item";
+    const hostTitle = document.createElement("div");
+    hostTitle.className = "fn__flex-1";
+    hostItem.append(hostTitle, debugControl);
+
+    debugControl.classList.add("fn__size200", "fn__block");
+    debugToggle.classList.add("fn__size200", "fn__block");
+    setting.open("siyuan-doc-assist");
+
+    expect(debugControl.classList.contains("fn__size200")).toBe(false);
+    expect(debugControl.classList.contains("fn__block")).toBe(false);
+    expect(debugToggle.classList.contains("fn__size200")).toBe(false);
+    expect(debugToggle.classList.contains("fn__block")).toBe(false);
+    expect(hostItem.classList.contains("doc-assistant-settings__host-row")).toBe(true);
+    expect(hostTitle.querySelector(".b3-label__text")?.textContent).toContain("transaction 明细日志");
 
     expect(isDocAssistantDebugEnabled()).toBe(false);
     expect(debugToggle.checked).toBe(false);
