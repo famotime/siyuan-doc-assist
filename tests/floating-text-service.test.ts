@@ -109,6 +109,15 @@ describe("floating-text-storage & floating-text-service", () => {
       expect(showMessage).toHaveBeenCalledWith("已开启桌面置顶悬浮窗", 3000, "info");
     });
 
+    it("uses default title '悬浮窗' when title is omitted", async () => {
+      const service = new FloatingTextService();
+      await service.openFloatingText("hello world");
+      expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
+        title: "悬浮窗",
+        text: "hello world",
+      });
+    });
+
     it("exports doc content and opens floating doc", async () => {
       vi.mocked(kernel.exportMdContent).mockResolvedValue({
         hPath: "/我的文档/测试页面",
@@ -161,7 +170,7 @@ describe("floating-text-storage & floating-text-service", () => {
       await handlers["float-selected-text"]("doc-1", fakeProtyle as any);
 
       expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
-        title: "悬浮选中文本",
+        title: "悬浮窗",
         text: "第一段块内容\n\n第二段块内容",
       });
     });

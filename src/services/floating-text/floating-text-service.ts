@@ -13,7 +13,7 @@ export class FloatingTextService {
       showMessage("没有可悬浮的文本内容", 4000, "info");
       return;
     }
-    const windowTitle = title || "悬浮选中文本";
+    const windowTitle = title || "悬浮窗";
     await openFloatingTextWindow({
       title: windowTitle,
       text: cleanText,
