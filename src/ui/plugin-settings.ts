@@ -9,8 +9,6 @@ import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
 import { installSettingHostNormalizer } from "@/ui/plugin-settings-host";
 import { createMenuRegistrationPanel } from "@/ui/plugin-settings-menu";
-import { createFloatingSettingsPanel } from "@/ui/plugin-settings-floating";
-import { loadFloatingTextConfig, saveFloatingTextConfig } from "@/services/floating-text/floating-text-storage";
 
 type CreatePluginSettingsOptions = {
   actions: ActionConfig[];
@@ -20,10 +18,8 @@ type CreatePluginSettingsOptions = {
   aiSummaryConfig: AiServiceConfig;
   managedAiConfig: AiServiceConfig | null; // 添加被管家接管的配置
   debugLogEnabled: boolean;
-  floatingConfig?: import("@/core/floating-text-core").FloatingTextConfig;
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
-  onFloatingConfigChange?: (config: import("@/core/floating-text-core").FloatingTextConfig) => Promise<void> | void;
   onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
   onToggleAllMenu: (enabled: boolean) => Promise<void> | void;
   onToggleSingleEnabled: (key: ActionKey, enabled: boolean) => Promise<void> | void;
@@ -72,6 +68,25 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
   const hiddenSettingKeys = new Set(options.hiddenSettingKeys || []);
   const hostNormalizedPanels: HTMLElement[] = [];
 
+  const menuRegistrationPanel = createMenuRegistrationPanel({
+    actions: options.actions,
+    enabledState: options.enabledState,
+    registration: options.registration,
+    isMobile: options.isMobile,
+    onToggleAllEnabled: options.onToggleAllEnabled,
+    onToggleAllMenu: options.onToggleAllMenu,
+    onToggleSingleEnabled: options.onToggleSingleEnabled,
+    onToggleSingleMenu: options.onToggleSingleMenu,
+  });
+  setting.addItem({
+    title: "启用命令",
+    direction: "column",
+    description:
+      "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。",
+    actionElement: menuRegistrationPanel,
+  });
+  hostNormalizedPanels.push(menuRegistrationPanel);
+
   if (!hiddenSettingKeys.has("ai-service")) {
     // 渲染时，如果有接管配置，用接管配置来展示
     const effectiveConfig = options.managedAiConfig || options.aiSummaryConfig;
@@ -93,25 +108,6 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     hostNormalizedPanels.push(aiPanel);
   }
 
-  const menuRegistrationPanel = createMenuRegistrationPanel({
-    actions: options.actions,
-    enabledState: options.enabledState,
-    registration: options.registration,
-    isMobile: options.isMobile,
-    onToggleAllEnabled: options.onToggleAllEnabled,
-    onToggleAllMenu: options.onToggleAllMenu,
-    onToggleSingleEnabled: options.onToggleSingleEnabled,
-    onToggleSingleMenu: options.onToggleSingleMenu,
-  });
-  setting.addItem({
-    title: "启用命令",
-    direction: "column",
-    description:
-      "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。",
-    actionElement: menuRegistrationPanel,
-  });
-  hostNormalizedPanels.push(menuRegistrationPanel);
-
   if (options.onDebugLogEnabledChange && !hiddenSettingKeys.has("debug-mode")) {
     const debugLogToggle = document.createElement("input");
     debugLogToggle.className = "b3-switch fn__flex-center";
@@ -127,24 +123,6 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       description: "开启后，会在控制台打印插件执行操作时的 transaction 明细日志，方便定位撤销/重做失效等问题。",
       actionElement: debugLogToggle,
     });
-  }
-
-  if (!hiddenSettingKeys.has("floating-text")) {
-    const currentFloatingConfig = options.floatingConfig || loadFloatingTextConfig();
-    const floatingPanel = createFloatingSettingsPanel({
-      floatingConfig: currentFloatingConfig,
-      onFloatingConfigChange: async (cfg) => {
-        saveFloatingTextConfig(cfg);
-        await options.onFloatingConfigChange?.(cfg);
-      },
-    });
-    setting.addItem({
-      title: "悬浮文本",
-      direction: "column",
-      description: "配置桌面置顶悬浮文本窗口的默认不透明度、初始字号、视图模式与记忆行为。",
-      actionElement: floatingPanel,
-    });
-    hostNormalizedPanels.push(floatingPanel);
   }
 
   installSettingHostNormalizer(setting, hostNormalizedPanels);

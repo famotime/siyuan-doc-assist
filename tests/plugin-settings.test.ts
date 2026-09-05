@@ -339,7 +339,7 @@ describe("plugin settings", () => {
     });
 
     const setting = settingInstances[0];
-    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
     const groupTitles = Array.from(
       menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-group-title")
     ).map((element) => element.textContent?.trim());
@@ -379,7 +379,7 @@ describe("plugin settings", () => {
     });
 
     const setting = settingInstances[0];
-    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
     const moveBacklinksRow = menuRegistrationPanel.querySelector(
       "[data-action-key='move-backlinks']"
     ) as HTMLElement;
@@ -418,8 +418,8 @@ describe("plugin settings", () => {
       onToggleSingleMenu: vi.fn(),
     });
 
-    const aiPanel = setting.items[0]?.actionElement as HTMLElement;
-    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
+    const aiPanel = setting.items[1]?.actionElement as HTMLElement;
     const aiHostItem = document.createElement("div");
     aiHostItem.className = "fn__flex b3-label config__item";
     const aiTitle = document.createElement("div");
@@ -456,7 +456,7 @@ describe("plugin settings", () => {
   test("hides alpha actions and related settings panels when configured", async () => {
     const { ALPHA_FEATURE_HIDE_CONFIG } = await import("@/plugin/alpha-feature-config");
     ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["clean-ai-output"];
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode", "floating-text"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode"];
 
     try {
       const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");

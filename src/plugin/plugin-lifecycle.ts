@@ -382,10 +382,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       aiSummaryConfig: this.aiSummaryConfig,
       managedAiConfig: this.managedAiConfig,
       debugLogEnabled: this.debugLogEnabled,
-      floatingConfig: this.floatingConfig,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
-      onFloatingConfigChange: (config) => this.setFloatingConfig(config),
       onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
       onToggleAllMenu: (enabled) => this.setAllDocMenuRegistration(enabled),
       onToggleSingleEnabled: (key, enabled) =>
