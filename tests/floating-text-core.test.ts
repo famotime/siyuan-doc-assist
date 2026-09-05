@@ -265,8 +265,23 @@ describe("floating-text-core", () => {
       expect(html).toContain("__siyuan_doc_assist_floating_config");
       expect(html).toContain("siyuan-doc-assist-floating-config.json");
       expect(html).toContain("__saveDocAssistantFloatingConfig");
+      expect(html).toContain("siyuan-doc-assist-save-floating-config");
+      expect(html).toContain("siyuan-doc-assist-floating-channel");
       expect(html).toContain("opacityDebounceTimer");
       expect(html).toContain("shouldRememberSize");
+    });
+
+    it("injects targetHostWebContentsId into script when provided", async () => {
+      const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
+      const html = buildFloatingWindowHtml({
+        title: "IPC目标测试",
+        text: "测试内容",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        hostWebContentsId: 88,
+      });
+
+      expect(html).toContain("const targetHostWebContentsId = 88;");
+      expect(html).toContain("siyuan-doc-assist-save-floating-config");
     });
 
     it("script content has valid javascript syntax", async () => {

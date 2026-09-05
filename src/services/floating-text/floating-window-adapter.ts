@@ -59,6 +59,16 @@ if (typeof window !== "undefined") {
   (window as any).__saveDocAssistantFloatingConfig = (patch: Partial<FloatingTextConfig>) => {
     return saveFloatingTextConfig(patch);
   };
+  if (typeof BroadcastChannel !== "undefined") {
+    try {
+      const bc = new BroadcastChannel("siyuan-doc-assist-floating-channel");
+      bc.onmessage = (event) => {
+        if (event.data?.type === "save-config" && event.data.patch) {
+          saveFloatingTextConfig(event.data.patch);
+        }
+      };
+    } catch {}
+  }
 }
 
 /**
@@ -73,18 +83,29 @@ export async function openFloatingTextWindow(options: {
   const isDark = isSiYuanDarkTheme();
   const initialHtml = renderMarkdownToHtml(text);
 
+  const remote = getElectronRemote();
+  let hostWebContentsId: number | null = null;
+  if (remote) {
+    try {
+      hostWebContentsId =
+        remote.getCurrentWebContents?.()?.id ??
+        remote.getCurrentWindow?.()?.webContents?.id ??
+        null;
+    } catch {}
+  }
+
   const html = buildFloatingWindowHtml({
     title,
     text,
     config,
     isDark,
     initialHtml,
+    hostWebContentsId,
   });
 
   // 1. 方案一：在思源桌面端（Electron 环境），使用 @electron/remote.BrowserWindow
   //    创建无边框（frame: false）、真实透明（transparent: true）、全局置顶（alwaysOnTop: true）的原生顶层窗口
   //    彻底避免 siyuan-open-window 内部 windowNavigate 拦截导致的空白白屏
-  const remote = getElectronRemote();
   if (remote?.BrowserWindow) {
     try {
       if (currentElectronWindow && !currentElectronWindow.isDestroyed()) {
@@ -123,6 +144,30 @@ export async function openFloatingTextWindow(options: {
           return renderMarkdownToHtml(md);
         },
       };
+
+      // 监听来自置顶子窗口的 IPC 配置持久化通知 (双通道监听保障可靠送达)
+      const IPC_CHANNEL = "siyuan-doc-assist-save-floating-config";
+      try {
+        const electron = (window as any).require?.("electron");
+        if (electron?.ipcRenderer) {
+          electron.ipcRenderer.removeAllListeners(IPC_CHANNEL);
+          electron.ipcRenderer.on(IPC_CHANNEL, (_event: any, patch: Partial<FloatingTextConfig>) => {
+            if (patch && typeof patch === "object") {
+              saveFloatingTextConfig(patch);
+            }
+          });
+        }
+      } catch (ipcBindErr) {
+        console.warn("[DocAssistant][FloatingText] ipcRenderer bind warning:", ipcBindErr);
+      }
+
+      if (win.webContents?.on) {
+        win.webContents.on("ipc-message", (_event: any, channel: string, patch: any) => {
+          if (channel === IPC_CHANNEL && patch && typeof patch === "object") {
+            saveFloatingTextConfig(patch);
+          }
+        });
+      }
 
       // 监听原生窗口 resize 与 close 事件，自动持久化尺寸（若开启记忆尺寸）
       let resizeTimer: any = null;
@@ -199,6 +244,7 @@ export async function openFloatingTextWindow(options: {
         popup.document.write(html);
         popup.document.close();
         popup.focus();
+        bindPipWindowEvents(popup, text, config);
         return;
       }
     } catch (openErr) {

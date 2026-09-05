@@ -327,8 +327,9 @@ export function buildFloatingWindowHtml(options: {
   config: FloatingTextConfig;
   isDark: boolean;
   initialHtml?: string;
+  hostWebContentsId?: number | null;
 }): string {
-  const { title, text, config, isDark, initialHtml } = options;
+  const { title, text, config, isDark, initialHtml, hostWebContentsId } = options;
   const safeTitle = escapeHtml(title || "悬浮文本");
   const markdownHtml =
     typeof initialHtml === "string" && initialHtml.trim()
@@ -396,6 +397,7 @@ export function buildFloatingWindowHtml(options: {
       <script>
         (function() {
           const originalText = ${JSON.stringify(text)};
+          const targetHostWebContentsId = ${typeof hostWebContentsId === "number" ? hostWebContentsId : "null"};
           let currentFontSize = ${config.fontSize};
           let currentOpacity = ${config.opacity};
           let isMarkdown = ${config.viewMode === "markdown"};
@@ -479,7 +481,46 @@ export function buildFloatingWindowHtml(options: {
           }
 
           function saveConfig(patch) {
-            // 1. 本地存储尝试写入（带异常保护）
+            if (!patch || typeof patch !== "object") return;
+
+            // 1. Electron 原生环境：优先通过内置核心模块 electron.ipcRenderer 极速通知宿主主窗口
+            try {
+              const req =
+                (typeof window !== "undefined" && window.require) ||
+                (typeof require === "function" ? require : null);
+              if (req) {
+                const electronModule = req("electron");
+                const ipc = electronModule && electronModule.ipcRenderer;
+                if (ipc && typeof ipc.send === "function") {
+                  ipc.send("siyuan-doc-assist-save-floating-config", patch);
+                  if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
+                    try {
+                      ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-save-floating-config", patch);
+                    } catch (e) {}
+                  }
+                }
+              }
+            } catch (ipcErr) {
+              console.warn("[DocAssistant][FloatingText] IPC notification failed:", ipcErr);
+            }
+
+            // 2. 尝试调用 opener (如果是普通 window.open 弹出)
+            try {
+              if (window.opener && typeof window.opener.__saveDocAssistantFloatingConfig === "function") {
+                window.opener.__saveDocAssistantFloatingConfig(patch);
+              }
+            } catch (openerErr) {}
+
+            // 3. 尝试 BroadcastChannel (Web 同源环境)
+            try {
+              if (typeof BroadcastChannel !== "undefined") {
+                const bc = new BroadcastChannel("siyuan-doc-assist-floating-channel");
+                bc.postMessage({ type: "save-config", patch: patch });
+                bc.close();
+              }
+            } catch (bcErr) {}
+
+            // 4. 本地存储尝试写入（带异常保护）
             try {
               if (typeof localStorage !== "undefined" && localStorage && typeof localStorage.getItem === "function") {
                 const raw = localStorage.getItem("doc-assistant.floating-text.config");
@@ -489,62 +530,43 @@ export function buildFloatingWindowHtml(options: {
               }
             } catch (e) {}
 
-            // 2. Electron 环境多重可靠持久化
+            // 5. 主进程跨窗口内存共享（若环境可用）
             try {
-              const req =
-                (typeof window !== "undefined" && window.require) ||
-                (typeof require === "function" ? require : null);
-
-              // 2.1 主进程跨窗口内存共享
               if (remote && remote.process) {
                 const curShared = remote.process.__siyuan_doc_assist_floating_config || {};
                 remote.process.__siyuan_doc_assist_floating_config = Object.assign({}, curShared, patch);
               }
+            } catch (e) {}
 
-              // 2.2 本地磁盘独立 JSON 文件落盘 (跨思源重启保留)
-              try {
-                if (req) {
-                  const fs = req("fs");
-                  const path = req("path");
-                  let userData = "";
-                  if (remote && remote.app && typeof remote.app.getPath === "function") {
-                    userData = remote.app.getPath("userData");
-                  }
-                  if (!userData && typeof process !== "undefined" && process.env) {
-                    userData = process.env.APPDATA || process.env.HOME || "";
-                  }
-                  if (fs && path && userData) {
-                    const cfgPath = path.join(userData, "siyuan-doc-assist-floating-config.json");
-                    let diskData = {};
-                    if (fs.existsSync(cfgPath)) {
-                      try {
-                        diskData = JSON.parse(fs.readFileSync(cfgPath, "utf-8"));
-                      } catch (err) {}
-                    }
-                    const merged = Object.assign({}, diskData, patch);
-                    fs.writeFileSync(cfgPath, JSON.stringify(merged, null, 2), "utf-8");
-                  }
+            // 6. Electron 磁盘 JSON 备份（防思源极端异常崩溃冷重启）
+            try {
+              const req =
+                (typeof window !== "undefined" && window.require) ||
+                (typeof require === "function" ? require : null);
+              if (req) {
+                const fs = req("fs");
+                const path = req("path");
+                let userData = "";
+                if (remote && remote.app && typeof remote.app.getPath === "function") {
+                  try { userData = remote.app.getPath("userData"); } catch (e) {}
                 }
-              } catch (fsErr) {
-                console.warn("[DocAssistant][FloatingText] disk write failed:", fsErr);
-              }
-
-              // 2.3 通知思源宿主主窗口持久化到思源插件存储 (saveData)
-              if (remote && remote.BrowserWindow) {
-                const allWins = remote.BrowserWindow.getAllWindows();
-                for (const w of allWins) {
-                  if (electronWin && w.id === electronWin.id) continue;
-                  if (!w.isDestroyed()) {
-                    w.webContents.executeJavaScript(
-                      "try { if (window.__saveDocAssistantFloatingConfig) { window.__saveDocAssistantFloatingConfig(" +
-                        JSON.stringify(patch) +
-                        "); } } catch(e){}"
-                    );
+                if (!userData && typeof process !== "undefined" && process.env) {
+                  userData = process.env.APPDATA || process.env.HOME || "";
+                }
+                if (fs && path && userData) {
+                  const cfgPath = path.join(userData, "siyuan-doc-assist-floating-config.json");
+                  let diskData = {};
+                  if (fs.existsSync(cfgPath)) {
+                    try {
+                      diskData = JSON.parse(fs.readFileSync(cfgPath, "utf-8"));
+                    } catch (err) {}
                   }
+                  const merged = Object.assign({}, diskData, patch);
+                  fs.writeFileSync(cfgPath, JSON.stringify(merged, null, 2), "utf-8");
                 }
               }
-            } catch (e) {
-              console.warn("[DocAssistant][FloatingText] saveConfig failed:", e);
+            } catch (fsErr) {
+              console.warn("[DocAssistant][FloatingText] disk write failed:", fsErr);
             }
           }
 
