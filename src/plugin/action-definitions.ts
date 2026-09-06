@@ -52,7 +52,8 @@ export type ActionKey =
   | "generate-canvas-from-selected"
   | "generate-llm-wiki"
   | "float-selected-text"
-  | "generate-better-titles";
+  | "generate-better-titles"
+  | "convert-text-to-link";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -144,6 +145,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "generate-llm-wiki": "智",
   "float-selected-text": "浮",
   "generate-better-titles": "优",
+  "convert-text-to-link": "链",
 };
 
 export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
@@ -404,6 +406,18 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "insert",
         requiresWritableDoc: true,
         icon: "iconList",
+      },
+      {
+        key: "convert-text-to-link",
+        commandText: "文本转链接",
+        menuText: "文本转链接",
+        tooltip: createActionTooltip(
+          "文本转链接",
+          "查找并将正文或选中区域中的纯文本 URL 转换为域名超链接 [domain](URL)。"
+        ),
+        group: "insert",
+        requiresWritableDoc: true,
+        icon: "iconLink",
       },
       {
         key: "set-selection-as-title",

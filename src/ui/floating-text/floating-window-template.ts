@@ -3,6 +3,7 @@ import {
   FloatingTextConfig,
   simpleMarkdownToHtml,
 } from "@/core/floating-text-core";
+import { MARKED_UMD_SOURCE } from "./marked-source";
 
 export function getFloatingWindowStyles(): string {
   return `
@@ -749,9 +750,29 @@ export function buildFloatingWindowHtml(options: {
         <div id="ft-toast" class="ft-toast">已复制</div>
       </div>
 
+      <!-- 内置轻量安全沙箱 Marked 解析器 -->
+      <script>
+        (function() {
+          var globalObj = typeof window !== "undefined" ? window : this;
+          var dummyExports = {};
+          var dummyModule = { exports: dummyExports };
+          try {
+            var initMarked = new Function("exports", "module", "globalThis", ${JSON.stringify(MARKED_UMD_SOURCE)});
+            initMarked(dummyExports, dummyModule, globalObj);
+            var m = dummyModule.exports.marked || dummyModule.exports || dummyExports.marked || dummyExports;
+            if (m && typeof m.parse === "function") {
+              globalObj.marked = m;
+            }
+          } catch (e) {
+            console.warn("[DocAssistant][FloatingText] marked init error:", e);
+          }
+        })();
+      </script>
+
       <script>
         (function() {
           const originalText = ${JSON.stringify(text)};
+          let lastRenderedText = ${JSON.stringify(text)};
           const targetHostWebContentsId = ${typeof hostWebContentsId === "number" ? hostWebContentsId : "null"};
           let currentFontSize = ${config.fontSize};
           let currentOpacity = ${config.opacity};
@@ -1033,6 +1054,27 @@ export function buildFloatingWindowHtml(options: {
             }
           }
 
+          function stripKramdown(str) {
+            if (!str) return "";
+            var LF = String.fromCharCode(10);
+            var CR = String.fromCharCode(13);
+            var clean = str.split(CR + LF).join(LF).split(CR).join(LF);
+            var lines = clean.split(LF);
+            var res = [];
+            for (var i = 0; i < lines.length; i++) {
+              var l = lines[i];
+              if (l.indexOf("{:") === -1) {
+                res.push(l);
+              } else {
+                var cleaned = l.replace(new RegExp(String.fromCharCode(123) + ":[^}]*" + String.fromCharCode(125), "g"), "");
+                if (cleaned.trim() || !l.trim()) {
+                  res.push(cleaned);
+                }
+              }
+            }
+            return res.join(LF);
+          }
+
           function toggleViewMode() {
             isMarkdown = !isMarkdown;
             if (viewIconUse) {
@@ -1045,15 +1087,25 @@ export function buildFloatingWindowHtml(options: {
             if (isMarkdown) {
               if (mdView) {
                 var curText = getCurrentText();
-                if (curText !== originalText || !mdView.innerHTML.trim()) {
+                var LF = String.fromCharCode(10);
+                var CR = String.fromCharCode(13);
+                var normCur = (curText || "").split(CR + LF).join(LF).split(CR).join(LF);
+                var normLast = (lastRenderedText || "").split(CR + LF).join(LF).split(CR).join(LF);
+                if (normCur !== normLast || !mdView.innerHTML.trim()) {
                   var renderedHtml = "";
 
-                  // 1. 优先尝试跨窗口调用主窗口挂载的渲染服务
+                  // 1. 优先尝试跨窗口调用主窗口挂载的渲染服务（享受思源 Lute WASM 完整渲染）
                   try {
                     if (electronWin && electronWin.__docAssistantHost && typeof electronWin.__docAssistantHost.renderMarkdown === "function") {
                       renderedHtml = electronWin.__docAssistantHost.renderMarkdown(curText);
                     }
                   } catch (e) {}
+
+                  if (!renderedHtml && remote && remote.process && typeof remote.process.__docAssistantRenderMarkdown === "function") {
+                    try {
+                      renderedHtml = remote.process.__docAssistantRenderMarkdown(curText);
+                    } catch (e) {}
+                  }
 
                   if (!renderedHtml && remote && remote.BrowserWindow) {
                     try {
@@ -1069,11 +1121,23 @@ export function buildFloatingWindowHtml(options: {
                     } catch (e) {}
                   }
 
-                  // 2. 降级：使用内置增强的 simpleMarkdownToHtml
-                  if (!renderedHtml) {
-                    renderedHtml = simpleMarkdownToHtml(getCurrentText());
+                  // 2. 核心保障：使用子窗口内置 marked 引擎解析（完整支持表格、多级列表、代码块、水平线等）
+                  if (!renderedHtml && typeof window !== "undefined" && window.marked && typeof window.marked.parse === "function") {
+                    try {
+                      var cleanForParse = stripKramdown(curText);
+                      renderedHtml = window.marked.parse(cleanForParse, { gfm: true, breaks: true, async: false });
+                    } catch (markedErr) {
+                      console.warn("[DocAssistant][FloatingText] marked parse failed:", markedErr);
+                    }
                   }
+
+                  // 3. 终极降级：内置增强的 simpleMarkdownToHtml
+                  if (!renderedHtml) {
+                    renderedHtml = simpleMarkdownToHtml(curText);
+                  }
+
                   mdView.innerHTML = renderedHtml;
+                  lastRenderedText = curText;
                   ensureImageSources(mdView);
                 }
               }
@@ -1142,7 +1206,9 @@ export function buildFloatingWindowHtml(options: {
 
           function getCurrentText() {
             if (!textView) return "";
-            return textView.innerText || textView.textContent || "";
+            var val = textView.innerText;
+            if (typeof val === "string") return val;
+            return textView.textContent || "";
           }
 
           function renderInline(str) {
@@ -1151,6 +1217,7 @@ export function buildFloatingWindowHtml(options: {
             res = res.replace(/\\*\\*([^*]+)\\*\\*/g, "<strong>$1</strong>");
             res = res.replace(/\\*([^*]+)\\*/g, "<em>$1</em>");
             res = res.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+            res = res.replace(/==([^=]+)==/g, "<mark>$1</mark>");
             res = res.replace(/!\\[([^\\]]*)\\]\\(([^)]+)\\)/g, '<img src="$2" alt="$1" class="ft-image" loading="lazy" />');
             res = res.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
             return res;
@@ -1204,6 +1271,13 @@ export function buildFloatingWindowHtml(options: {
               if (!trimmed) {
                 closeList();
                 parts.push('<div class="ft-blank-line"></div>');
+                continue;
+              }
+
+              // 水平分割线
+              if (new RegExp("^(?:---+|\\*\\*\\*+|___+)\\s*$").test(trimmed)) {
+                closeList();
+                parts.push('<hr class="ft-hr" />');
                 continue;
               }
 

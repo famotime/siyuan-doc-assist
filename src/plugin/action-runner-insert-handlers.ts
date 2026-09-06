@@ -1,5 +1,11 @@
 import { showMessage } from "siyuan";
-import { appendBlock, renameDocByID } from "@/services/kernel";
+import {
+  appendBlock,
+  getBlockKramdowns,
+  getChildBlocksByParentId,
+  renameDocByID,
+  updateBlockMarkdown,
+} from "@/services/kernel";
 import {
   filterDocRefsByExistingLinks,
   getBacklinkDocs,
@@ -7,9 +13,16 @@ import {
   toBacklinkMarkdown,
   toChildDocMarkdown,
 } from "@/services/link-resolver";
-import { resolveCurrentBlockId } from "@/plugin/action-runner-context";
+import { getSelectedBlockIds, resolveCurrentBlockId } from "@/plugin/action-runner-context";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { ProtyleLike } from "@/plugin/doc-context";
+import {
+  convertTextToLinkInMarkdown,
+  findCandidatesInMarkdown,
+  TextToLinkCandidate,
+} from "@/core/text-to-link-core";
+import { openTextToLinkDialog } from "@/ui/text-to-link-dialog";
+import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
 
 function findCurrentLineInElement(editable: HTMLElement, cursorOffset: number): string | null {
   const nodes: Array<{ text: string; offset: number }> = [];
@@ -140,5 +153,57 @@ export function createInsertActionHandlers(): PartialActionHandlerMap {
       const skipSuffix = filtered.skipped.length ? `，跳过已存在 ${filtered.skipped.length} 个` : "";
       showMessage(`已插入 ${filtered.items.length} 个子文档链接${skipSuffix}`, 5000, "info");
     },
+    "convert-text-to-link": async (docId, protyle) => {
+      const selectedBlockIds = getSelectedBlockIds(protyle);
+      let targetBlocks: Array<{ id: string; markdown: string }> = [];
+
+      if (selectedBlockIds.length > 0) {
+        const kramdowns = await getBlockKramdowns(selectedBlockIds);
+        targetBlocks = kramdowns.map((k) => ({ id: k.id, markdown: k.kramdown }));
+      } else {
+        const childBlocks = await getChildBlocksByParentId(docId);
+        if (!childBlocks.length) {
+          showMessage("当前文档没有可处理的段落", 4000, "info");
+          return;
+        }
+        const ids = childBlocks.map((b) => b.id);
+        const kramdowns = await getBlockKramdowns(ids);
+        targetBlocks = kramdowns.map((k) => ({ id: k.id, markdown: k.kramdown }));
+      }
+
+      const allCandidates: TextToLinkCandidate[] = [];
+      for (const block of targetBlocks) {
+        const cands = findCandidatesInMarkdown(block.markdown, block.id);
+        allCandidates.push(...cands);
+      }
+
+      if (allCandidates.length === 0) {
+        showMessage("未检测到需要转换的纯文本 URL", 4000, "info");
+        return;
+      }
+
+      openTextToLinkDialog({
+        candidates: allCandidates,
+        onConfirm: async (selectedOriginalUrls) => {
+          const report = await applyMarkdownTransformToBlocks({
+            blocks: targetBlocks,
+            isHighRisk: () => false,
+            transform: (source) => {
+              const res = convertTextToLinkInMarkdown(source, selectedOriginalUrls);
+              return { markdown: res.markdown, changedCount: res.replacedCount };
+            },
+            updateBlockMarkdown,
+            protyle,
+          });
+
+          if (report.changedCount > 0) {
+            showMessage(`已成功将 ${report.changedCount} 个 URL 转换为超链接`, 5000, "info");
+          } else {
+            showMessage("未进行任何转换", 4000, "info");
+          }
+        },
+      });
+    },
   };
 }
+

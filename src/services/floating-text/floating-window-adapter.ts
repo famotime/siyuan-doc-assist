@@ -156,6 +156,15 @@ export async function openFloatingTextWindow(options: {
         },
       };
 
+      // 跨进程主进程内存共享通道挂载渲染服务（享受思源原生 Lute WASM 解析）
+      if (remote?.process) {
+        try {
+          remote.process.__docAssistantRenderMarkdown = (md: string) => {
+            return renderMarkdownToHtml(md);
+          };
+        } catch {}
+      }
+
       // 监听来自置顶子窗口的 IPC 配置持久化通知 (双通道监听保障可靠送达)
       const IPC_CHANNEL = "siyuan-doc-assist-save-floating-config";
       try {
@@ -203,6 +212,14 @@ export async function openFloatingTextWindow(options: {
             saveFloatingTextConfig({ width: w, height: h });
           }
         }
+      });
+
+      win.on("closed", () => {
+        try {
+          if (remote?.process && remote.process.__docAssistantRenderMarkdown) {
+            delete remote.process.__docAssistantRenderMarkdown;
+          }
+        } catch {}
       });
 
       currentElectronWindow = win;
@@ -389,7 +406,10 @@ function bindPipWindowEvents(
   });
 
   const getCurrentText = (): string => {
-    return textViewEl?.innerText || textViewEl?.textContent || text;
+    if (!textViewEl) return text;
+    const val = textViewEl.innerText;
+    if (typeof val === "string") return val;
+    return textViewEl.textContent ?? "";
   };
 
   function getSelectedText(): string {

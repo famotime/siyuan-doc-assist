@@ -205,6 +205,13 @@ export function simpleMarkdownToHtml(markdown: string): string {
       continue;
     }
 
+    // 水平分割线
+    if (/^(?:---+|\*\*\*+|___+)\s*$/.test(trimmed)) {
+      closeOpenList();
+      htmlParts.push('<hr class="ft-hr" />');
+      continue;
+    }
+
     // 标题解析
     const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
@@ -294,6 +301,8 @@ function renderInlineMarkdown(text: string): string {
   escaped = escaped.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   // 删除线 ~~del~~
   escaped = escaped.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+  // 高亮 ==mark==
+  escaped = escaped.replace(/==([^=]+)==/g, "<mark>$1</mark>");
   // 图片 ![alt](url)
   escaped = escaped.replace(
     /!\[([^\]]*)\]\(([^)]+)\)/g,

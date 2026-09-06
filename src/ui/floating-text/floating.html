@@ -1024,12 +1024,29 @@
         }
       }
 
+      function stripKramdown(str) {
+        if (!str) return "";
+        return str
+          .replace(/\{:[^}]*\}\s*/g, "")
+          .replace(/^[ \t]*\{:[^}]*\}[ \t]*(?:\r?\n|$)/gm, "");
+      }
+
       function toggleViewMode() {
         config.viewMode = config.viewMode === "text" ? "markdown" : "text";
         saveConfig({ viewMode: config.viewMode });
         applyConfig();
         if (config.viewMode === "markdown") {
-          mdView.innerHTML = simpleMarkdownToHtml(getCurrentText());
+          var cur = getCurrentText();
+          var clean = stripKramdown(cur);
+          if (typeof window !== "undefined" && window.marked && typeof window.marked.parse === "function") {
+            try {
+              mdView.innerHTML = window.marked.parse(clean, { gfm: true, breaks: true, async: false });
+            } catch (err) {
+              mdView.innerHTML = simpleMarkdownToHtml(clean);
+            }
+          } else {
+            mdView.innerHTML = simpleMarkdownToHtml(clean);
+          }
         } else {
           textView.focus();
         }
@@ -1140,7 +1157,9 @@
 
       function getCurrentText() {
         if (!textView) return "";
-        return textView.innerText || textView.textContent || "";
+        var val = textView.innerText;
+        if (typeof val === "string") return val;
+        return textView.textContent || "";
       }
 
       textView.addEventListener("input", function () {

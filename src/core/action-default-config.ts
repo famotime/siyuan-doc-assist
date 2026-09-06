@@ -67,6 +67,7 @@ export const ACTION_DEFAULT_CONFIGS: Record<ActionKey, ActionDefaultState> = {
   "mark-invalid-links-refs": { defaultEnabled: true, defaultMenuRegistered: false },
   "insert-blank-before-headings": { defaultEnabled: true, defaultMenuRegistered: false },
   "set-selection-as-title": { defaultEnabled: true, defaultMenuRegistered: false },
+  "convert-text-to-link": { defaultEnabled: true, defaultMenuRegistered: false },
 
   // AI
   "generate-canvas-from-selected": { defaultEnabled: true, defaultMenuRegistered: false },
