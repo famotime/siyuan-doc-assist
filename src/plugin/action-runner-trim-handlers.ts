@@ -222,7 +222,7 @@ export async function handleTrimTrailingWhitespace(
             if (item.dataType === "dom") {
               newHtml = currentData;
             } else {
-              newHtml = (await renderKramdownToBlockDOM(currentData)) || "";
+              newHtml = (await renderKramdownToBlockDOM(currentData, protyle)) || "";
             }
             if (newHtml) {
               const doOperations: IOperation[] = [{ action: "update", id: item.id, data: newHtml }];

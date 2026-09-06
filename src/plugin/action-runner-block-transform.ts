@@ -63,7 +63,7 @@ export async function applyMarkdownTransformToBlocks<T extends BlockTransformBas
     if (protyle) {
       const liveDom = resolveSubmitBlockElement(protyle, block.id);
       if (liveDom) {
-        const newHtml = await renderKramdownToBlockDOM(transformed.markdown);
+        const newHtml = await renderKramdownToBlockDOM(transformed.markdown, protyle);
         if (newHtml) {
           const doOperations: IOperation[] = [{ action: "update", id: block.id, data: newHtml }];
           const undoOperations: IOperation[] = [{ action: "update", id: block.id, data: liveDom.outerHTML }];

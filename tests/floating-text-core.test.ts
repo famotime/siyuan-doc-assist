@@ -247,7 +247,7 @@ describe("floating-text-core", () => {
       expect(html).toContain('contenteditable="plaintext-only"');
       expect(html).toContain('data-placeholder="在此处编辑文本..."');
       expect(html).toContain("getCurrentText");
-      expect(html).toContain("simpleMarkdownToHtml(curText)");
+      expect(html).toContain("simpleMarkdownToHtml");
     });
 
     it("generates html with opacity labeled as 不透明度 and supports persistent config sync", async () => {

@@ -381,19 +381,26 @@ export async function getChildBlockRefsByParentId(
   return toOrderedChildBlockRefs(childList);
 }
 
-export async function renderKramdownToBlockDOM(kramdown: string): Promise<string | null> {
+export async function renderKramdownToBlockDOM(
+  kramdown: string,
+  protyle?: any
+): Promise<string | null> {
+  if (!kramdown) return "";
   try {
-    const res = await requestApi<any>("/api/lute/md2BlockDOM", { kramdown });
-    if (res && typeof res === "string") {
-      return res;
+    const lute =
+      protyle?.lute ||
+      (typeof window !== "undefined" && (window as any).Lute?.New
+        ? (window as any).Lute.New()
+        : null);
+    if (lute && typeof lute.Md2BlockDOM === "function") {
+      const dom = lute.Md2BlockDOM(kramdown);
+      if (typeof dom === "string" && dom.trim()) {
+        return dom;
+      }
     }
-    if (res && res.dom) {
-      return res.dom;
-    }
-    return null;
   } catch (err) {
-    console.warn("[doc-assist] renderKramdownToBlockDOM fallback required", err);
-    return null;
+    console.warn("[doc-assist] Lute Md2BlockDOM failed:", err);
   }
+  return null;
 }
 

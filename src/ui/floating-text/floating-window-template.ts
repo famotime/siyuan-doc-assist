@@ -1075,6 +1075,28 @@ export function buildFloatingWindowHtml(options: {
             return res.join(LF);
           }
 
+          function renderMarkdown(md) {
+            if (!md) return "";
+            var clean = stripKramdown(md);
+            // 1. 优先使用内置 marked 引擎解析（完整支持表格、多级列表、代码块、水平线等）
+            try {
+              var m = (typeof window !== "undefined" && window.marked) || (typeof marked !== "undefined" ? marked : null);
+              if (m) {
+                if (typeof m.parse === "function") {
+                  return m.parse(clean, { gfm: true, breaks: true, async: false });
+                }
+                if (typeof m === "function") {
+                  return m(clean, { gfm: true, breaks: true, async: false });
+                }
+              }
+            } catch (markedErr) {
+              console.warn("[DocAssistant][FloatingText] marked parse failed:", markedErr);
+            }
+
+            // 2. 终极降级：内置增强的 simpleMarkdownToHtml
+            return simpleMarkdownToHtml(clean);
+          }
+
           function toggleViewMode() {
             isMarkdown = !isMarkdown;
             if (viewIconUse) {
@@ -1092,50 +1114,7 @@ export function buildFloatingWindowHtml(options: {
                 var normCur = (curText || "").split(CR + LF).join(LF).split(CR).join(LF);
                 var normLast = (lastRenderedText || "").split(CR + LF).join(LF).split(CR).join(LF);
                 if (normCur !== normLast || !mdView.innerHTML.trim()) {
-                  var renderedHtml = "";
-
-                  // 1. 优先尝试跨窗口调用主窗口挂载的渲染服务（享受思源 Lute WASM 完整渲染）
-                  try {
-                    if (electronWin && electronWin.__docAssistantHost && typeof electronWin.__docAssistantHost.renderMarkdown === "function") {
-                      renderedHtml = electronWin.__docAssistantHost.renderMarkdown(curText);
-                    }
-                  } catch (e) {}
-
-                  if (!renderedHtml && remote && remote.process && typeof remote.process.__docAssistantRenderMarkdown === "function") {
-                    try {
-                      renderedHtml = remote.process.__docAssistantRenderMarkdown(curText);
-                    } catch (e) {}
-                  }
-
-                  if (!renderedHtml && remote && remote.BrowserWindow) {
-                    try {
-                      var allWins = remote.BrowserWindow.getAllWindows();
-                      for (var i = 0; i < allWins.length; i++) {
-                        var w = allWins[i];
-                        if (electronWin && w.id === electronWin.id) continue;
-                        if (!w.isDestroyed() && w.__docAssistantHost && typeof w.__docAssistantHost.renderMarkdown === "function") {
-                          renderedHtml = w.__docAssistantHost.renderMarkdown(curText);
-                          if (renderedHtml) break;
-                        }
-                      }
-                    } catch (e) {}
-                  }
-
-                  // 2. 核心保障：使用子窗口内置 marked 引擎解析（完整支持表格、多级列表、代码块、水平线等）
-                  if (!renderedHtml && typeof window !== "undefined" && window.marked && typeof window.marked.parse === "function") {
-                    try {
-                      var cleanForParse = stripKramdown(curText);
-                      renderedHtml = window.marked.parse(cleanForParse, { gfm: true, breaks: true, async: false });
-                    } catch (markedErr) {
-                      console.warn("[DocAssistant][FloatingText] marked parse failed:", markedErr);
-                    }
-                  }
-
-                  // 3. 终极降级：内置增强的 simpleMarkdownToHtml
-                  if (!renderedHtml) {
-                    renderedHtml = simpleMarkdownToHtml(curText);
-                  }
-
+                  var renderedHtml = renderMarkdown(curText);
                   mdView.innerHTML = renderedHtml;
                   lastRenderedText = curText;
                   ensureImageSources(mdView);
@@ -1207,7 +1186,9 @@ export function buildFloatingWindowHtml(options: {
           function getCurrentText() {
             if (!textView) return "";
             var val = textView.innerText;
-            if (typeof val === "string") return val;
+            if (typeof val === "string" && (val.length > 0 || textView.style.display !== "none")) {
+              return val;
+            }
             return textView.textContent || "";
           }
 
