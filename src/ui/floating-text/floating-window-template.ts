@@ -170,6 +170,11 @@ export function getFloatingWindowStyles(): string {
       background: var(--ft-button-hover);
     }
 
+    .ft-btn.ft-btn-pinned {
+      opacity: 1;
+      color: var(--ft-accent);
+    }
+
     .ft-btn.ft-btn-success {
       opacity: 1;
       color: var(--ft-accent) !important;
@@ -626,6 +631,12 @@ export function buildFloatingWindowHtml(options: {
           <line x1="12" y1="17" x2="12" y2="22"></line>
           <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
         </symbol>
+        <symbol id="ft-icon-pin-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="2" y1="2" x2="22" y2="22"></line>
+          <line x1="12" y1="17" x2="12" y2="22"></line>
+          <path d="M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h12"></path>
+          <path d="M15 9.34V6h1a1 1 0 0 0 0-2H7.89"></path>
+        </symbol>
         <symbol id="ft-icon-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
@@ -674,12 +685,19 @@ export function buildFloatingWindowHtml(options: {
             <span class="ft-drag-handle" aria-hidden="true">
               <svg class="ft-icon ft-grip-icon"><use href="#ft-icon-grip"></use></svg>
             </span>
-            <svg class="ft-icon ft-pin-icon" aria-hidden="true"><use href="#ft-icon-pin"></use></svg>
             <span id="ft-title-text" class="ft-title-text">${safeTitle}</span>
             <span id="ft-word-count" class="ft-word-count"></span>
           </div>
 
           <div class="ft-actions">
+            <!-- 置顶状态切换 -->
+            <div class="ft-tooltip-wrapper">
+              <button id="ft-btn-pin" class="ft-btn ft-btn-active ft-btn-pinned" aria-label="取消置顶">
+                <svg class="ft-icon" id="ft-pin-icon"><use href="#ft-icon-pin"></use></svg>
+              </button>
+              <div class="ft-tooltip" id="ft-pin-tooltip">取消置顶 <kbd>Alt+P</kbd></div>
+            </div>
+
             <!-- 视图切换 -->
             <div class="ft-tooltip-wrapper">
               <button id="ft-btn-view" class="ft-btn" aria-label="切换预览模式">
@@ -782,6 +800,10 @@ export function buildFloatingWindowHtml(options: {
           const popoverEl = document.getElementById("ft-popover");
           const textView = document.getElementById("ft-text-view");
           const mdView = document.getElementById("ft-markdown-view");
+          const pinBtn = document.getElementById("ft-btn-pin");
+          const pinIconUse = document.querySelector("#ft-pin-icon use");
+          const pinTooltip = document.getElementById("ft-pin-tooltip");
+          let isPinned = true;
           const viewBtn = document.getElementById("ft-btn-view");
           const viewIconUse = document.querySelector("#ft-view-icon use");
           const viewTooltip = document.getElementById("ft-view-tooltip");
@@ -1027,6 +1049,78 @@ export function buildFloatingWindowHtml(options: {
             }, 1500);
           }
 
+          function updatePinUI() {
+            if (pinBtn) {
+              if (isPinned) {
+                pinBtn.classList.add("ft-btn-active", "ft-btn-pinned");
+                pinBtn.setAttribute("aria-label", "取消置顶");
+              } else {
+                pinBtn.classList.remove("ft-btn-active", "ft-btn-pinned");
+                pinBtn.setAttribute("aria-label", "恢复置顶");
+              }
+            }
+            if (pinIconUse) {
+              pinIconUse.setAttribute("href", isPinned ? "#ft-icon-pin" : "#ft-icon-pin-off");
+            }
+            if (pinTooltip) {
+              pinTooltip.innerHTML = (isPinned ? "取消置顶" : "恢复置顶") + " <kbd>Alt+P</kbd>";
+            }
+          }
+
+          function setPinState(nextPinned) {
+            isPinned = Boolean(nextPinned);
+            updatePinUI();
+
+            // 1. Electron 原生窗口置顶控制
+            try {
+              if (electronWin && typeof electronWin.setAlwaysOnTop === "function") {
+                electronWin.setAlwaysOnTop(isPinned);
+                if (isPinned) {
+                  if (typeof electronWin.moveTop === "function") {
+                    electronWin.moveTop();
+                  }
+                  if (typeof electronWin.focus === "function") {
+                    electronWin.focus();
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn("[DocAssistant][FloatingText] electron setAlwaysOnTop failed:", err);
+            }
+
+            // 2. 宿主对象代理设置（双重保障）
+            try {
+              if (window.__docAssistantHost && typeof window.__docAssistantHost.setAlwaysOnTop === "function") {
+                window.__docAssistantHost.setAlwaysOnTop(isPinned);
+              }
+            } catch (err) {}
+
+            // 3. IPC 广播消息通知
+            try {
+              const req =
+                (typeof window !== "undefined" && window.require) ||
+                (typeof require === "function" ? require : null);
+              if (req) {
+                const electronModule = req("electron");
+                const ipc = electronModule && electronModule.ipcRenderer;
+                if (ipc && typeof ipc.send === "function") {
+                  ipc.send("siyuan-doc-assist-set-always-on-top", isPinned);
+                  if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
+                    try {
+                      ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-set-always-on-top", isPinned);
+                    } catch (e) {}
+                  }
+                }
+              }
+            } catch (ipcErr) {}
+
+            showToast(isPinned ? "已恢复置顶" : "已取消置顶");
+          }
+
+          function togglePinState() {
+            setPinState(!isPinned);
+          }
+
           function updateFontSize(size) {
             size = Math.max(11, Math.min(42, size));
             currentFontSize = size;
@@ -1159,6 +1253,12 @@ export function buildFloatingWindowHtml(options: {
             if ((e.ctrlKey || e.metaKey) && (e.key === "m" || e.key === "M")) {
               e.preventDefault();
               toggleViewMode();
+              return;
+            }
+
+            if ((e.altKey && (e.key === "p" || e.key === "P")) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "p" || e.key === "P"))) {
+              e.preventDefault();
+              togglePinState();
               return;
             }
 
@@ -1378,6 +1478,12 @@ export function buildFloatingWindowHtml(options: {
                   showToast("复制失败");
                 }
               });
+            });
+          }
+
+          if (pinBtn) {
+            pinBtn.addEventListener("click", function() {
+              togglePinState();
             });
           }
 

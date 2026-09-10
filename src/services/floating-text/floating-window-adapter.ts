@@ -154,11 +154,23 @@ export async function openFloatingTextWindow(options: {
         renderMarkdown: (md: string) => {
           return renderMarkdownToHtml(md);
         },
+        setAlwaysOnTop: (pinned: boolean) => {
+          if (!win.isDestroyed()) {
+            win.setAlwaysOnTop(pinned);
+            if (pinned) {
+              win.moveTop?.();
+              win.focus?.();
+            }
+          }
+        },
+        isAlwaysOnTop: () => {
+          return !win.isDestroyed() && win.isAlwaysOnTop();
+        },
       };
 
-
-      // 监听来自置顶子窗口的 IPC 配置持久化通知 (双通道监听保障可靠送达)
+      // 监听来自置顶子窗口的 IPC 配置持久化与置顶切换通知 (双通道监听保障可靠送达)
       const IPC_CHANNEL = "siyuan-doc-assist-save-floating-config";
+      const IPC_PIN_CHANNEL = "siyuan-doc-assist-set-always-on-top";
       try {
         const electron = (window as any).require?.("electron");
         if (electron?.ipcRenderer) {
@@ -166,6 +178,16 @@ export async function openFloatingTextWindow(options: {
           electron.ipcRenderer.on(IPC_CHANNEL, (_event: any, patch: Partial<FloatingTextConfig>) => {
             if (patch && typeof patch === "object") {
               saveFloatingTextConfig(patch);
+            }
+          });
+          electron.ipcRenderer.removeAllListeners(IPC_PIN_CHANNEL);
+          electron.ipcRenderer.on(IPC_PIN_CHANNEL, (_event: any, pinned: any) => {
+            if (currentElectronWindow && !currentElectronWindow.isDestroyed()) {
+              currentElectronWindow.setAlwaysOnTop(Boolean(pinned));
+              if (pinned) {
+                currentElectronWindow.moveTop?.();
+                currentElectronWindow.focus?.();
+              }
             }
           });
         }
@@ -177,6 +199,14 @@ export async function openFloatingTextWindow(options: {
         win.webContents.on("ipc-message", (_event: any, channel: string, patch: any) => {
           if (channel === IPC_CHANNEL && patch && typeof patch === "object") {
             saveFloatingTextConfig(patch);
+          } else if (channel === IPC_PIN_CHANNEL) {
+            if (!win.isDestroyed()) {
+              win.setAlwaysOnTop(Boolean(patch));
+              if (patch) {
+                win.moveTop?.();
+                win.focus?.();
+              }
+            }
           }
         });
       }
@@ -280,6 +310,9 @@ function bindPipWindowEvents(
   const textViewEl = doc.getElementById("ft-text-view");
   const mdViewEl = doc.getElementById("ft-markdown-view");
   const viewBtn = doc.getElementById("ft-btn-view");
+  const pinBtn = doc.getElementById("ft-btn-pin");
+  const pinIconUse = pinBtn?.querySelector("use");
+  const pinTooltip = doc.getElementById("ft-pin-tooltip");
   const copyBtn = doc.getElementById("ft-btn-copy");
   const settingsBtn = doc.getElementById("ft-btn-settings");
   const closeBtn = doc.getElementById("ft-btn-close");
@@ -293,6 +326,31 @@ function bindPipWindowEvents(
 
   let currentFontSize = initialConfig.fontSize;
   let currentViewMode = initialConfig.viewMode;
+  let isPinned = true;
+
+  const updatePinUI = () => {
+    if (pinBtn) {
+      if (isPinned) {
+        pinBtn.classList.add("ft-btn-active", "ft-btn-pinned");
+        pinBtn.setAttribute("aria-label", "取消置顶");
+      } else {
+        pinBtn.classList.remove("ft-btn-active", "ft-btn-pinned");
+        pinBtn.setAttribute("aria-label", "恢复置顶");
+      }
+    }
+    if (pinIconUse) {
+      pinIconUse.setAttribute("href", isPinned ? "#ft-icon-pin" : "#ft-icon-pin-off");
+    }
+    if (pinTooltip) {
+      pinTooltip.innerHTML = `${isPinned ? "取消置顶" : "恢复置顶"} <kbd>Alt+P</kbd>`;
+    }
+  };
+
+  const togglePin = () => {
+    isPinned = !isPinned;
+    updatePinUI();
+    showToast(isPinned ? "已恢复置顶" : "已取消置顶");
+  };
 
   const showToast = (msg: string) => {
     if (!toast) return;
@@ -523,6 +581,11 @@ function bindPipWindowEvents(
       toggleViewMode();
       return;
     }
+    if ((e.altKey && (e.key === "p" || e.key === "P")) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "p" || e.key === "P"))) {
+      e.preventDefault();
+      togglePin();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
       const selected = getSelectedText();
       if (selected && selected.trim().length > 0) {
@@ -563,7 +626,12 @@ function bindPipWindowEvents(
     await performCopy(targetText, isSelected);
   });
 
-  // 4. 视图切换（纯文本 / Markdown）
+  // 4. 置顶切换
+  pinBtn?.addEventListener("click", () => {
+    togglePin();
+  });
+
+  // 5. 视图切换（纯文本 / Markdown）
   viewBtn?.addEventListener("click", () => {
     toggleViewMode();
   });

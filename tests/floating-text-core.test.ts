@@ -325,6 +325,7 @@ describe("floating-text-core", () => {
 
       // 验证包含统一显式线框 SVG 符号库
       expect(html).toContain('id="ft-icon-pin"');
+      expect(html).toContain('id="ft-icon-pin-off"');
       expect(html).toContain('id="ft-icon-text"');
       expect(html).toContain('id="ft-icon-preview"');
       expect(html).toContain('id="ft-icon-copy"');
@@ -337,9 +338,15 @@ describe("floating-text-core", () => {
 
       // 验证包含 Tooltip 与 kbd 胶囊快捷键
       expect(html).toContain('class="ft-tooltip"');
+      expect(html).toContain("<kbd>Alt+P</kbd>");
       expect(html).toContain("<kbd>Ctrl+C</kbd>");
       expect(html).toContain("<kbd>Ctrl+M</kbd>");
       expect(html).toContain("<kbd>Esc</kbd>");
+
+      // 验证包含置顶状态切换按钮
+      expect(html).toContain('id="ft-btn-pin"');
+      expect(html).toContain('class="ft-btn ft-btn-active ft-btn-pinned"');
+      expect(html).toContain("取消置顶");
 
       // 验证浮动 Popover 面板而非旧抽屉
       expect(html).toContain('id="ft-popover"');
@@ -352,6 +359,26 @@ describe("floating-text-core", () => {
       expect(html).toContain('id="ft-word-count"');
       expect(html).toContain("updateWordCount");
       expect(html).toContain("triggerCopyFeedback");
+    });
+
+    it("generates html with pin/unpin toggle button, state handlers and IPC broadcast", async () => {
+      const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
+      const html = buildFloatingWindowHtml({
+        title: "置顶切换测试",
+        text: "这是测试文本",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+      });
+
+      expect(html).toContain('id="ft-btn-pin"');
+      expect(html).toContain('id="ft-icon-pin-off"');
+      expect(html).toContain("updatePinUI");
+      expect(html).toContain("setPinState");
+      expect(html).toContain("togglePinState");
+      expect(html).toContain("electronWin.setAlwaysOnTop");
+      expect(html).toContain("siyuan-doc-assist-set-always-on-top");
+      expect(html).toContain("已取消置顶");
+      expect(html).toContain("已恢复置顶");
+      expect(html).toContain("Alt+P");
     });
   });
 
