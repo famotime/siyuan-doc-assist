@@ -5,6 +5,7 @@ export type AiOutputCleanupResult = {
   removedInternetLinkCount: number;
   removedHiddenSpanCount: number;
   removedRefCount: number;
+  removedDividerCount: number;
   removedCount: number;
 };
 
@@ -24,11 +25,19 @@ function createEmptyAiOutputCleanupMetrics(): AiOutputCleanupMetrics {
     removedInternetLinkCount: 0,
     removedHiddenSpanCount: 0,
     removedRefCount: 0,
+    removedDividerCount: 0,
   };
 }
 
 function sumAiOutputCleanupMetrics(metrics: AiOutputCleanupMetrics): number {
-  return metrics.removedSupCount + metrics.removedCaretCount + metrics.removedInternetLinkCount + metrics.removedHiddenSpanCount + metrics.removedRefCount;
+  return (
+    metrics.removedSupCount +
+    metrics.removedCaretCount +
+    metrics.removedInternetLinkCount +
+    metrics.removedHiddenSpanCount +
+    metrics.removedRefCount +
+    metrics.removedDividerCount
+  );
 }
 
 function mergeAiOutputCleanupMetrics(
@@ -41,6 +50,7 @@ function mergeAiOutputCleanupMetrics(
     removedInternetLinkCount: base.removedInternetLinkCount + add.removedInternetLinkCount,
     removedHiddenSpanCount: base.removedHiddenSpanCount + add.removedHiddenSpanCount,
     removedRefCount: base.removedRefCount + add.removedRefCount,
+    removedDividerCount: base.removedDividerCount + add.removedDividerCount,
   };
 }
 
@@ -191,12 +201,30 @@ function applyRefMarkerRule(line: string): AiOutputLineRuleResult {
   };
 }
 
+function applyDividerRule(line: string): AiOutputLineRuleResult {
+  const dividerPattern = /^[ \t]*(?:(?:\-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/;
+  if (dividerPattern.test(line)) {
+    return {
+      line: "",
+      metrics: {
+        ...createEmptyAiOutputCleanupMetrics(),
+        removedDividerCount: 1,
+      },
+    };
+  }
+  return {
+    line,
+    metrics: createEmptyAiOutputCleanupMetrics(),
+  };
+}
+
 const AI_OUTPUT_LINE_RULES: AiOutputLineRule[] = [
   applyHiddenSpanRule,
   applySupRule,
   applyCaretRule,
   applyTrailingInternetLinkRule,
   applyRefMarkerRule,
+  applyDividerRule,
 ];
 
 function cleanupAiOutputLine(line: string): AiOutputCleanupResult {
@@ -227,6 +255,7 @@ export function cleanupAiOutputArtifactsInMarkdown(markdown: string): AiOutputCl
       removedInternetLinkCount: 0,
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
+      removedDividerCount: 0,
       removedCount: 0,
     };
   }
@@ -237,7 +266,9 @@ export function cleanupAiOutputArtifactsInMarkdown(markdown: string): AiOutputCl
 
   for (const line of lines) {
     const cleaned = cleanupAiOutputLine(line);
-    output.push(cleaned.markdown);
+    if (!(cleaned.removedDividerCount > 0 && cleaned.markdown === "")) {
+      output.push(cleaned.markdown);
+    }
     metrics = mergeAiOutputCleanupMetrics(metrics, cleaned);
   }
 

@@ -1747,7 +1747,7 @@ describe("action-runner loading guard", () => {
     expect(askConfirm).toHaveBeenCalledTimes(1);
     expect(askConfirm).toHaveBeenCalledWith(
       "确认清理AI输出内容",
-      expect.stringContaining("上标 1 处，^^ 1 处，互联网链接 2 处，隐藏引用 0 处，引用标记 0 处")
+      expect.stringContaining("上标 1 处，^^ 1 处，互联网链接 2 处，隐藏引用 0 处，引用标记 0 处，分隔线 0 处")
     );
     expect(askConfirm).toHaveBeenCalledWith(
       "确认清理AI输出内容",
@@ -1757,7 +1757,46 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(1, "a", "正文");
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(2, "b", "| col1 | |");
     expect(showMessageMock).toHaveBeenCalledWith(
-      "已清理 AI 输出残留：上标 1 处，^^ 1 处，互联网链接 2 处，隐藏引用 0 处，引用标记 0 处，共更新 2 个块",
+      "已清理 AI 输出残留：上标 1 处，^^ 1 处，互联网链接 2 处，隐藏引用 0 处，引用标记 0 处，分隔线 0 处，共更新 2 个块",
+      5000,
+      "info"
+    );
+  });
+
+  test("cleans divider blocks and deletes empty block in clean-ai-output", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "a",
+        type: "p",
+        markdown: "正文\n---",
+        resolved: true,
+      } as any,
+      {
+        id: "b",
+        type: "b",
+        markdown: "---",
+        resolved: true,
+      } as any,
+    ]);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    deleteBlocksByIdsMock.mockResolvedValue({ deletedCount: 1, failedIds: [] });
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-ai-output" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(askConfirm).toHaveBeenCalledWith(
+      "确认清理AI输出内容",
+      expect.stringContaining("分隔线 2 处")
+    );
+    expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["b"], { concurrency: 6 });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已清理 AI 输出残留：上标 0 处，^^ 0 处，互联网链接 0 处，隐藏引用 0 处，引用标记 0 处，分隔线 2 处，共更新 2 个块，删除 1 个空段落",
       5000,
       "info"
     );

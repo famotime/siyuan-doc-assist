@@ -41,6 +41,7 @@ type AiOutputCleanupPreview = {
   removedInternetLinkCount: number;
   removedHiddenSpanCount: number;
   removedRefCount: number;
+  removedDividerCount: number;
 };
 
 type StrikethroughCleanupPreview = {
@@ -64,13 +65,22 @@ function isHighRiskForMarkdownWrite(value: string): boolean {
   );
 }
 
+function isThematicBreakBlock(block: { type?: string; markdown?: string }): boolean {
+  const type = (block.type || "").trim().toLowerCase();
+  if (type === "b" || type === "tb" || type === "thematicbreak" || type === "nodethematicbreak") {
+    return true;
+  }
+  const source = (block.markdown || "").trim();
+  return /^(?:(?:\-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(source);
+}
+
 function isSafeBilingualSplitBlockType(type: string): boolean {
   const normalized = (type || "").trim().toLowerCase();
   return normalized === "p" || normalized === "paragraph" || normalized === "nodeparagraph";
 }
 
 function previewAiOutputCleanup(
-  blocks: Array<{ id: string; markdown?: string }>
+  blocks: Array<{ id: string; type?: string; markdown?: string }>
 ): AiOutputCleanupPreview {
   const preview: AiOutputCleanupPreview = {
     cleanableBlockCount: 0,
@@ -80,15 +90,22 @@ function previewAiOutputCleanup(
     removedInternetLinkCount: 0,
     removedHiddenSpanCount: 0,
     removedRefCount: 0,
+    removedDividerCount: 0,
   };
 
   for (const block of blocks) {
     const source = block.markdown || "";
-    if (!source) {
+    const isDivider = isThematicBreakBlock(block);
+    if (!source && !isDivider) {
       continue;
     }
     const cleaned = cleanupAiOutputArtifactsInMarkdown(source);
-    const hasChanges = cleaned.removedCount > 0 && cleaned.markdown !== source;
+    if (isDivider && cleaned.removedDividerCount === 0) {
+      cleaned.removedDividerCount = 1;
+      cleaned.removedCount += 1;
+      cleaned.markdown = "";
+    }
+    const hasChanges = cleaned.removedCount > 0 && (cleaned.markdown !== source || isDivider);
     if (!hasChanges) {
       continue;
     }
@@ -102,6 +119,7 @@ function previewAiOutputCleanup(
     preview.removedInternetLinkCount += cleaned.removedInternetLinkCount;
     preview.removedHiddenSpanCount += cleaned.removedHiddenSpanCount;
     preview.removedRefCount += cleaned.removedRefCount;
+    preview.removedDividerCount += cleaned.removedDividerCount;
   }
 
   return preview;
@@ -203,13 +221,16 @@ export function createCleanupActionHandlers(
     const deleteResult = await deleteBlocksByIds(result.deleteIds, {
       concurrency: DELETE_BLOCK_CONCURRENCY,
     });
-    const failed = deleteResult.failedIds.length;
-
-    if (failed > 0) {
-      showMessage(`已去除 ${deleteResult.deletedCount} 个空段落，失败 ${failed} 个`, 6000, "error");
+    if (deleteResult.failedIds.length > 0) {
+      showMessage(
+        `去除空行部分完成：成功 ${deleteResult.deletedCount} 个，失败 ${deleteResult.failedIds.length} 个`,
+        7000,
+        "error"
+      );
       return;
     }
-    showMessage(`已去除 ${result.removedCount} 个空段落`, 5000, "info");
+
+    showMessage(`已成功去除 ${deleteResult.deletedCount} 个空段落`, 4000, "info");
   };
 
   const handleInsertBlankBeforeHeadings = async (docId: string) => {
@@ -401,7 +422,7 @@ export function createCleanupActionHandlers(
     }
 
     const confirmLines = [
-      `已找到待清理内容：上标 ${preview.removedSupCount} 处，^^ ${preview.removedCaretCount} 处，互联网链接 ${preview.removedInternetLinkCount} 处，隐藏引用 ${preview.removedHiddenSpanCount} 处，引用标记 ${preview.removedRefCount} 处。`,
+      `已找到待清理内容：上标 ${preview.removedSupCount} 处，^^ ${preview.removedCaretCount} 处，互联网链接 ${preview.removedInternetLinkCount} 处，隐藏引用 ${preview.removedHiddenSpanCount} 处，引用标记 ${preview.removedRefCount} 处，分隔线 ${preview.removedDividerCount} 处。`,
       `预计将更新 ${preview.cleanableBlockCount} 个块，是否继续？`,
     ];
     if (preview.riskyPendingBlockCount > 0) {
@@ -418,14 +439,20 @@ export function createCleanupActionHandlers(
     let removedInternetLinkCount = 0;
     let removedHiddenSpanCount = 0;
     let removedRefCount = 0;
+    let removedDividerCount = 0;
     const emptyBlockIds: string[] = [];
     const report = await applyMarkdownTransformToBlocks({
       blocks,
       isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
       updateBlockMarkdown,
       protyle,
-      transform: (source) => {
+      transform: (source, block) => {
         const cleaned = cleanupAiOutputArtifactsInMarkdown(source);
+        if (isThematicBreakBlock(block) && cleaned.removedDividerCount === 0) {
+          cleaned.removedDividerCount = 1;
+          cleaned.removedCount += 1;
+          cleaned.markdown = "";
+        }
         return {
           ...cleaned,
           changedCount: cleaned.removedCount,
@@ -437,6 +464,7 @@ export function createCleanupActionHandlers(
         removedInternetLinkCount += cleaned.removedInternetLinkCount;
         removedHiddenSpanCount += cleaned.removedHiddenSpanCount;
         removedRefCount += cleaned.removedRefCount;
+        removedDividerCount += cleaned.removedDividerCount;
         if (/^\s*$/.test(cleaned.markdown)) {
           emptyBlockIds.push(block.id);
         }
@@ -464,7 +492,7 @@ export function createCleanupActionHandlers(
       failedBlockCount += deleteResult.failedIds.length;
     }
 
-    const summary = `已清理 AI 输出残留：上标 ${removedSupCount} 处，^^ ${removedCaretCount} 处，互联网链接 ${removedInternetLinkCount} 处，隐藏引用 ${removedHiddenSpanCount} 处，引用标记 ${removedRefCount} 处，共更新 ${updatedBlockCount} 个块${deletedEmptyBlockCount > 0 ? `，删除 ${deletedEmptyBlockCount} 个空段落` : ""}`;
+    const summary = `已清理 AI 输出残留：上标 ${removedSupCount} 处，^^ ${removedCaretCount} 处，互联网链接 ${removedInternetLinkCount} 处，隐藏引用 ${removedHiddenSpanCount} 处，引用标记 ${removedRefCount} 处，分隔线 ${removedDividerCount} 处，共更新 ${updatedBlockCount} 个块${deletedEmptyBlockCount > 0 ? `，删除 ${deletedEmptyBlockCount} 个空段落` : ""}`;
     if (failedBlockCount > 0) {
       showMessage(`${summary}，失败 ${failedBlockCount} 个块`, 7000, "error");
       return;

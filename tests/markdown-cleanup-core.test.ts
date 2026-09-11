@@ -176,6 +176,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 2,
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
+      removedDividerCount: 0,
       removedCount: 4,
     });
   });
@@ -200,6 +201,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 2,
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
+      removedDividerCount: 0,
       removedCount: 2,
     });
   });
@@ -219,6 +221,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 0,
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
+      removedDividerCount: 0,
       removedCount: 0,
     });
   });
@@ -234,6 +237,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 2,
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
+      removedDividerCount: 0,
       removedCount: 4,
     });
 
@@ -245,6 +249,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 0,
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
+      removedDividerCount: 0,
       removedCount: 0,
     });
   });
@@ -271,6 +276,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 0,
       removedHiddenSpanCount: 0,
       removedRefCount: 5,
+      removedDividerCount: 0,
       removedCount: 5,
     });
   });
@@ -293,6 +299,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 0,
       removedHiddenSpanCount: 0,
       removedRefCount: 2,
+      removedDividerCount: 0,
       removedCount: 2,
     });
   });
@@ -315,6 +322,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 0,
       removedHiddenSpanCount: 1,
       removedRefCount: 0,
+      removedDividerCount: 0,
       removedCount: 1,
     });
   });
@@ -335,7 +343,35 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 0,
       removedHiddenSpanCount: 3,
       removedRefCount: 0,
+      removedDividerCount: 0,
       removedCount: 3,
+    });
+  });
+
+  test("removes divider lines (---, ***, ___) from markdown", () => {
+    const input = [
+      "第一段内容",
+      "---",
+      "第二段内容",
+      "***",
+      "___",
+      "  ---  ",
+    ].join("\n");
+
+    const result = cleanupAiOutputArtifactsInMarkdown(input);
+
+    expect(result).toEqual({
+      markdown: [
+        "第一段内容",
+        "第二段内容",
+      ].join("\n"),
+      removedSupCount: 0,
+      removedCaretCount: 0,
+      removedInternetLinkCount: 0,
+      removedHiddenSpanCount: 0,
+      removedRefCount: 0,
+      removedDividerCount: 4,
+      removedCount: 4,
     });
   });
 
@@ -371,6 +407,7 @@ describe("markdown-cleanup-core", () => {
       removedInternetLinkCount: 0,
       removedHiddenSpanCount: 1,
       removedRefCount: 5,
+      removedDividerCount: 0,
       removedCount: 6,
     });
   });

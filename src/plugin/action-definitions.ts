@@ -530,7 +530,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         menuText: "清理AI输出内容",
         tooltip: createActionTooltip(
           "清理AI输出内容（支持 Ctrl + Z 回退）",
-          "清理常见 AI 报告残留，如脚注上标、^^ 标记、隐藏引用 span、引用标记和”互联网”来源链接；目前主要适配 Deep Research 类输出。"
+          "清理常见 AI 报告残留，如脚注上标、^^ 标记、隐藏引用 span、引用标记、”互联网”来源链接及分隔线（---）；目前主要适配 Deep Research 类输出。"
         ),
         group: "ai",
         requiresWritableDoc: true,
