@@ -682,7 +682,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         menuText: "清理剪藏内容",
         tooltip: createActionTooltip(
           "清理剪藏内容（支持 Ctrl + Z 回退）",
-          "清理网页剪藏后的列表噪音：合并断开的列表项、去掉重复前缀，并按需要拆分中英双语段落。"
+          "清理网页剪藏噪音：合并断开的列表项、合并连续引用、删除无内容代码块、去掉重复列表前缀，并按需要拆分中英双语段落。"
         ),
         group: "edit",
         requiresWritableDoc: true,

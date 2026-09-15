@@ -1,10 +1,13 @@
 import { describe, expect, test } from "vitest";
 import {
   findClippedListContinuationMerges,
+  findConsecutiveBlockquoteMerges,
+  findEmptyCodeBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
   findDeleteFromCurrentBlockIds,
   findDeleteFromStartToCurrentBlockIds,
+  isEmptyCodeBlock,
 } from "@/core/markdown-cleanup-core";
 
 describe("markdown-cleanup-core (blocks)", () => {
@@ -285,3 +288,103 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
     expect(result.deleteCount).toBe(1);
   });
 });
+
+describe("findConsecutiveBlockquoteMerges", () => {
+  test("merges consecutive blockquote blocks separated by blank lines into a single blockquote", () => {
+    const blocks = [
+      { id: "q1", type: "b", markdown: "> 引用的第一段" },
+      { id: "blank1", type: "p", markdown: "" },
+      { id: "q2", type: "b", markdown: "> 引用的第二段" },
+      { id: "blank2", type: "p", markdown: "   " },
+      { id: "q3", type: "b", markdown: "> 引用的第三段" },
+    ];
+
+    const result = findConsecutiveBlockquoteMerges(blocks);
+
+    expect(result.mergeCount).toBe(1);
+    expect(result.deleteBlockIds).toEqual(["blank1", "blank2", "q2", "q3"]);
+    expect(result.merges).toEqual([
+      {
+        targetBlockId: "q1",
+        mergedMarkdown: "> 引用的第一段\n>\n> 引用的第二段\n>\n> 引用的第三段",
+        deleteBlockIds: ["blank1", "blank2", "q2", "q3"],
+      },
+    ]);
+  });
+
+  test("merges directly consecutive blockquote blocks without empty paragraphs", () => {
+    const blocks = [
+      { id: "q1", type: "b", markdown: "> Quote line 1" },
+      { id: "q2", type: "b", markdown: "> Quote line 2" },
+    ];
+
+    const result = findConsecutiveBlockquoteMerges(blocks);
+
+    expect(result.mergeCount).toBe(1);
+    expect(result.deleteBlockIds).toEqual(["q2"]);
+    expect(result.merges[0]).toEqual({
+      targetBlockId: "q1",
+      mergedMarkdown: "> Quote line 1\n>\n> Quote line 2",
+      deleteBlockIds: ["q2"],
+    });
+  });
+
+  test("does not merge blockquotes separated by non-empty text paragraphs", () => {
+    const blocks = [
+      { id: "q1", type: "b", markdown: "> 引用段落 1" },
+      { id: "p1", type: "p", markdown: "普通正文" },
+      { id: "q2", type: "b", markdown: "> 引用段落 2" },
+    ];
+
+    const result = findConsecutiveBlockquoteMerges(blocks);
+
+    expect(result.mergeCount).toBe(0);
+    expect(result.deleteBlockIds).toEqual([]);
+    expect(result.merges).toEqual([]);
+  });
+
+  test("does not merge single blockquote block", () => {
+    const blocks = [
+      { id: "q1", type: "b", markdown: "> 单个引用块" },
+      { id: "p1", type: "p", markdown: "正文" },
+    ];
+
+    const result = findConsecutiveBlockquoteMerges(blocks);
+
+    expect(result.mergeCount).toBe(0);
+  });
+});
+
+describe("findEmptyCodeBlockIds and isEmptyCodeBlock", () => {
+  test("identifies empty code blocks", () => {
+    expect(isEmptyCodeBlock({ type: "c", markdown: "```js\n```", content: "" })).toBe(true);
+    expect(isEmptyCodeBlock({ type: "c", markdown: "```\n  \n```", content: "  " })).toBe(true);
+    expect(isEmptyCodeBlock({ type: "code", markdown: "```python\n\n```", content: "" })).toBe(true);
+    expect(isEmptyCodeBlock({ type: "p", markdown: "```\n```", content: "" })).toBe(true);
+  });
+
+  test("does not mark code blocks with content as empty", () => {
+    expect(
+      isEmptyCodeBlock({
+        type: "c",
+        markdown: "```javascript\nconsole.log('hello');\n```",
+        content: "console.log('hello');",
+      })
+    ).toBe(false);
+  });
+
+  test("finds empty code block IDs in document blocks", () => {
+    const blocks = [
+      { id: "c1", type: "c", markdown: "```js\n```", content: "" },
+      { id: "p1", type: "p", markdown: "正文", content: "正文" },
+      { id: "c2", type: "c", markdown: "```py\nprint('hello')\n```", content: "print('hello')" },
+      { id: "c3", type: "c", markdown: "```\n   \n```", content: "" },
+    ];
+
+    const result = findEmptyCodeBlockIds(blocks);
+
+    expect(result.removedCount).toBe(2);
+    expect(result.deleteIds).toEqual(["c1", "c3"]);
+  });
+});
+

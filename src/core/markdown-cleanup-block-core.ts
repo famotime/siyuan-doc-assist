@@ -332,3 +332,203 @@ export function findClippedListContinuationMerges(
     mergeCount: merges.length,
   };
 }
+
+export type ClippedBlockquoteMerge = {
+  targetBlockId: string;
+  mergedMarkdown: string;
+  deleteBlockIds: string[];
+};
+
+export type ClippedBlockquoteMergeResult = {
+  merges: ClippedBlockquoteMerge[];
+  mergeCount: number;
+  deleteBlockIds: string[];
+};
+
+export type EmptyCodeBlockCleanupResult = {
+  deleteIds: string[];
+  removedCount: number;
+};
+
+export function isBlockquoteBlockType(type: string): boolean {
+  const normalized = (type || "").trim().toLowerCase();
+  return (
+    normalized === "b" ||
+    normalized === "blockquote" ||
+    normalized === "nodeblockquote"
+  );
+}
+
+export function isBlockquoteBlock(block: ParagraphBlockMeta): boolean {
+  if (block.resolved === false) {
+    return false;
+  }
+  if (isBlockquoteBlockType(block.type)) {
+    return true;
+  }
+  const markdown = (block.markdown || "").trimStart();
+  return /^\s*>/.test(markdown);
+}
+
+function extractQuoteLines(markdown: string): string[] {
+  const lines = (markdown || "").replace(/\r\n/g, "\n").split("\n");
+  const result: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      result.push(">");
+    } else if (trimmed.startsWith(">")) {
+      result.push(trimmed);
+    } else {
+      result.push(`> ${trimmed}`);
+    }
+  }
+  while (result.length > 0 && result[0] === ">") {
+    result.shift();
+  }
+  while (result.length > 0 && result[result.length - 1] === ">") {
+    result.pop();
+  }
+  return result;
+}
+
+export function findConsecutiveBlockquoteMerges(
+  blocks: ParagraphBlockMeta[]
+): ClippedBlockquoteMergeResult {
+  const merges: ClippedBlockquoteMerge[] = [];
+  const allDeleteBlockIds: string[] = [];
+
+  let i = 0;
+  while (i < blocks.length) {
+    const current = blocks[i];
+    if (!isBlockquoteBlock(current)) {
+      i += 1;
+      continue;
+    }
+
+    const groupQuoteBlocks: ParagraphBlockMeta[] = [current];
+    const groupBlankBlocksBeforeLastQuote: ParagraphBlockMeta[] = [];
+    let pendingBlanks: ParagraphBlockMeta[] = [];
+
+    let j = i + 1;
+    while (j < blocks.length) {
+      const next = blocks[j];
+      if (next.resolved === false) {
+        break;
+      }
+      if (isBlockquoteBlock(next)) {
+        groupBlankBlocksBeforeLastQuote.push(...pendingBlanks);
+        pendingBlanks = [];
+        groupQuoteBlocks.push(next);
+        j += 1;
+      } else if (isBlankParagraph(next) || (/^\s*$/.test(next.markdown || "") && !isBlockquoteBlockType(next.type))) {
+        pendingBlanks.push(next);
+        j += 1;
+      } else {
+        break;
+      }
+    }
+
+    if (groupQuoteBlocks.length >= 2) {
+      const targetBlock = groupQuoteBlocks[0];
+      const deleteQuoteIds = groupQuoteBlocks.slice(1).map((b) => b.id);
+      const deleteBlankIds = groupBlankBlocksBeforeLastQuote.map((b) => b.id);
+      const deleteIds = [...deleteBlankIds, ...deleteQuoteIds];
+
+      const mergedLines: string[] = [];
+      for (let k = 0; k < groupQuoteBlocks.length; k += 1) {
+        const qLines = extractQuoteLines(groupQuoteBlocks[k].markdown || groupQuoteBlocks[k].content || "");
+        if (qLines.length > 0) {
+          if (mergedLines.length > 0) {
+            mergedLines.push(">");
+          }
+          mergedLines.push(...qLines);
+        }
+      }
+
+      const mergedMarkdown = mergedLines.join("\n");
+      merges.push({
+        targetBlockId: targetBlock.id,
+        mergedMarkdown,
+        deleteBlockIds: deleteIds,
+      });
+      allDeleteBlockIds.push(...deleteIds);
+    }
+
+    i = j;
+  }
+
+  clippedListLogger.debug("blockquote merges", {
+    totalBlocks: blocks.length,
+    mergeCount: merges.length,
+    deleteCount: allDeleteBlockIds.length,
+    sample: merges.slice(0, 8),
+  });
+
+  return {
+    merges,
+    mergeCount: merges.length,
+    deleteBlockIds: allDeleteBlockIds,
+  };
+}
+
+export function isCodeBlockType(type: string): boolean {
+  const normalized = (type || "").trim().toLowerCase();
+  return (
+    normalized === "c" ||
+    normalized === "code" ||
+    normalized === "codeblock" ||
+    normalized === "nodecodeblock"
+  );
+}
+
+export function isEmptyCodeBlock(block: ParagraphBlockMeta): boolean {
+  if (block.resolved === false) {
+    return false;
+  }
+  const type = (block.type || "").trim().toLowerCase();
+  const markdown = (block.markdown || "").trim();
+  const content = (block.content || "").trim();
+
+  const isCodeType = isCodeBlockType(type);
+
+  if (isCodeType) {
+    if (!content && (!markdown || markdown === "```" || /^```\w*\s*\n?\s*```$/.test(markdown))) {
+      return true;
+    }
+    const fencedMatch = markdown.match(/^```[^\n]*\n?([\s\S]*?)\n?```$/);
+    if (fencedMatch) {
+      const codeInside = fencedMatch[1];
+      if (!codeInside.trim()) {
+        return true;
+      }
+    } else if (!markdown && !content) {
+      return true;
+    }
+    return false;
+  }
+
+  if (/^```[^\n]*\n?\s*```$/.test(markdown)) {
+    return true;
+  }
+
+  return false;
+}
+
+export function findEmptyCodeBlockIds(
+  blocks: ParagraphBlockMeta[]
+): EmptyCodeBlockCleanupResult {
+  const deleteIds: string[] = [];
+
+  for (const block of blocks) {
+    if (isEmptyCodeBlock(block)) {
+      deleteIds.push(block.id);
+    }
+  }
+
+  return {
+    deleteIds,
+    removedCount: deleteIds.length,
+  };
+}
+

@@ -22,19 +22,29 @@ export type {
 
 export {
   findClippedListContinuationMerges,
+  findConsecutiveBlockquoteMerges,
   findDeleteFromCurrentBlockIds,
   findDeleteFromStartToCurrentBlockIds,
+  findEmptyCodeBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
   findSelectFromStartToCurrentBlockIds,
   findSelectFromCurrentToEndBlockIds,
+  isBlockquoteBlock,
+  isBlockquoteBlockType,
+  isCodeBlockType,
+  isEmptyCodeBlock,
 } from "@/core/markdown-cleanup-block-core";
 export type {
   BlankParagraphCleanupResult,
+  ClippedBlockquoteMerge,
+  ClippedBlockquoteMergeResult,
   ClippedListContinuationMerge,
   ClippedListContinuationMergeResult,
   DeleteFromCurrentBlockResult,
+  EmptyCodeBlockCleanupResult,
   HeadingBlankParagraphInsertResult,
   ParagraphBlockMeta,
   SelectBlockRangeResult,
 } from "@/core/markdown-cleanup-block-core";
+

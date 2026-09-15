@@ -91,7 +91,8 @@ export class ActionRunner {
         setBusy: this.deps.setBusy,
       }),
       ...createCleanupActionHandlers({
-        askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
+        askConfirmWithVisibleDialog: (title, text, detailItems) =>
+          this.askConfirmWithVisibleDialog(title, text, detailItems),
         setBusy: this.deps.setBusy,
       }),
       "trim-trailing-whitespace": async (docId, protyle) => handleTrimTrailingWhitespace({

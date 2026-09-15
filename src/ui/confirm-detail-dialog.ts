@@ -43,11 +43,15 @@ export function askConfirmWithDetail(
       })
       .join("");
 
+    const hasSelectable = detailItems.some((item) => item.selectable);
+    const openAttr = hasSelectable ? " open" : "";
+    const summaryLabel = hasSelectable ? "清理选项与详情" : "打开详情";
+
     const content = `
       <div class="doc-assistant-confirm-detail">
         <div class="doc-assistant-confirm-detail__text">${escapeHtml(text)}</div>
-        <details class="doc-assistant-confirm-detail__toggle">
-          <summary class="doc-assistant-confirm-detail__summary">打开详情（${detailItems.length} 项）</summary>
+        <details class="doc-assistant-confirm-detail__toggle"${openAttr}>
+          <summary class="doc-assistant-confirm-detail__summary">${summaryLabel}（${detailItems.length} 项）</summary>
           <div class="doc-assistant-confirm-detail__list">${listHtml}</div>
         </details>
       </div>`;

@@ -8,6 +8,8 @@ import {
 import {
   cleanupAiOutputArtifactsInMarkdown,
   findClippedListContinuationMerges,
+  findConsecutiveBlockquoteMerges,
+  findEmptyCodeBlockIds,
   findExtraBlankParagraphIds,
   findHeadingMissingBlankParagraphBeforeIds,
   removeClippedListPrefixesFromMarkdown,
@@ -28,8 +30,14 @@ import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { IOperation, runProtyleTransaction } from "@/plugin/transaction-runner";
 import { ProtyleLike } from "@/plugin/doc-context";
 
+import type { ConfirmDetailItem } from "@/plugin/action-runner";
+
 type CreateCleanupActionHandlersDeps = {
-  askConfirmWithVisibleDialog: (title: string, text: string) => Promise<boolean>;
+  askConfirmWithVisibleDialog: (
+    title: string,
+    text: string,
+    detailItems?: ConfirmDetailItem[]
+  ) => Promise<boolean>;
   setBusy?: (busy: boolean) => void;
 };
 
@@ -515,19 +523,37 @@ export function createCleanupActionHandlers(
       continuationMergeResult.merges.map((item) => item.contentBlockId)
     );
     const continuationMergeCount = continuationMergeResult.mergeCount;
+
+    const blockquoteMergeResult = findConsecutiveBlockquoteMerges(blocks);
+    const blockquoteMergeByTargetId = new Map(
+      blockquoteMergeResult.merges.map((item) => [item.targetBlockId, item])
+    );
+    const blockquoteDeleteIdSet = new Set(blockquoteMergeResult.deleteBlockIds);
+    const quoteMergeCount = blockquoteMergeResult.mergeCount;
+
+    const emptyCodeBlockResult = findEmptyCodeBlockIds(blocks);
+    const emptyCodeIdSet = new Set(emptyCodeBlockResult.deleteIds);
+    const emptyCodeBlockCount = emptyCodeBlockResult.removedCount;
+
     let listCleanupBlockCount = 0;
     let bilingualSplitBlockCount = 0;
     for (const block of blocks) {
-      if (continuationContentIdSet.has(block.id)) {
+      if (
+        continuationContentIdSet.has(block.id) ||
+        blockquoteDeleteIdSet.has(block.id) ||
+        emptyCodeIdSet.has(block.id)
+      ) {
         continue;
       }
-      const source = block.markdown || "";
-      const continuationMerge = continuationMergeByMarkerId.get(block.id);
-      const targetMarkdown = continuationMerge?.mergedMarkdown || source;
-      if (!targetMarkdown) {
+      const source =
+        blockquoteMergeByTargetId.get(block.id)?.mergedMarkdown ||
+        continuationMergeByMarkerId.get(block.id)?.mergedMarkdown ||
+        block.markdown ||
+        "";
+      if (!source) {
         continue;
       }
-      const listCleanup = removeClippedListPrefixesFromMarkdown(targetMarkdown);
+      const listCleanup = removeClippedListPrefixesFromMarkdown(source);
       if (listCleanup.removedCount > 0) {
         listCleanupBlockCount += 1;
       }
@@ -539,47 +565,134 @@ export function createCleanupActionHandlers(
       }
     }
 
-    const cleanableCount = continuationMergeCount + listCleanupBlockCount + bilingualSplitBlockCount;
+    const cleanableCount =
+      continuationMergeCount +
+      quoteMergeCount +
+      emptyCodeBlockCount +
+      listCleanupBlockCount +
+      bilingualSplitBlockCount;
     if (!cleanableCount) {
       showMessage("未发现可清理的剪藏内容", 4000, "info");
       return;
     }
 
-    const confirmLines: string[] = [];
+    const detailItems: ConfirmDetailItem[] = [];
     if (continuationMergeCount > 0) {
-      confirmLines.push(`合并断开的列表项 ${continuationMergeCount} 处`);
+      detailItems.push({
+        id: "list-continuation",
+        label: `合并断开的列表项 ${continuationMergeCount} 处`,
+        selectable: true,
+        selected: true,
+      });
+    }
+    if (quoteMergeCount > 0) {
+      detailItems.push({
+        id: "quote-merge",
+        label: `合并连续引用 ${quoteMergeCount} 处`,
+        selectable: true,
+        selected: true,
+      });
+    }
+    if (emptyCodeBlockCount > 0) {
+      detailItems.push({
+        id: "empty-code",
+        label: `删除无内容代码块 ${emptyCodeBlockCount} 个`,
+        selectable: true,
+        selected: true,
+      });
     }
     if (listCleanupBlockCount > 0) {
-      confirmLines.push(`清理重复列表前缀 ${listCleanupBlockCount} 个块`);
+      detailItems.push({
+        id: "list-prefix",
+        label: `清理重复列表前缀 ${listCleanupBlockCount} 个块`,
+        selectable: true,
+        selected: true,
+      });
     }
     if (bilingualSplitBlockCount > 0) {
-      confirmLines.push(`拆分中英双语段落 ${bilingualSplitBlockCount} 个`);
+      detailItems.push({
+        id: "bilingual-split",
+        label: `拆分中英双语段落 ${bilingualSplitBlockCount} 个`,
+        selectable: true,
+        selected: true,
+      });
     }
-    confirmLines.push("是否继续？");
-    const ok = await deps.askConfirmWithVisibleDialog("确认清理剪藏内容", confirmLines.join("\n"));
+
+    const confirmText = detailItems.map((item) => item.label).join(" ") + " 是否继续？";
+    const ok = await deps.askConfirmWithVisibleDialog("确认清理剪藏内容", confirmText, detailItems);
     if (!ok) {
       return;
     }
+
+    const isSelected = (id: string) => {
+      const item = detailItems.find((d) => d.id === id);
+      return item ? item.selected !== false : false;
+    };
+
+    const enableListContinuation = isSelected("list-continuation");
+    const enableQuoteMerge = isSelected("quote-merge");
+    const enableEmptyCode = isSelected("empty-code");
+    const enableListPrefix = isSelected("list-prefix");
+    const enableBilingualSplit = isSelected("bilingual-split");
+
+    if (
+      !enableListContinuation &&
+      !enableQuoteMerge &&
+      !enableEmptyCode &&
+      !enableListPrefix &&
+      !enableBilingualSplit
+    ) {
+      showMessage("未勾选任何清理项，已取消操作", 4000, "info");
+      return;
+    }
+
     deps.setBusy?.(true);
 
     let updatedBlockCount = 0;
     let splitParagraphCount = 0;
     let failedBlockCount = 0;
-    const deleteIds: string[] = [];
+
+    const activeContinuationSet = enableListContinuation ? continuationContentIdSet : new Set<string>();
+    const activeQuoteDeleteSet = enableQuoteMerge ? blockquoteDeleteIdSet : new Set<string>();
+    const activeEmptyCodeSet = enableEmptyCode ? emptyCodeIdSet : new Set<string>();
+
+    const deleteIds: string[] = [
+      ...(enableListContinuation ? continuationMergeResult.merges.map((item) => item.contentBlockId) : []),
+      ...(enableQuoteMerge ? blockquoteMergeResult.deleteBlockIds : []),
+      ...(enableEmptyCode ? emptyCodeBlockResult.deleteIds : []),
+    ];
+
     for (const [index, block] of blocks.entries()) {
-      if (continuationContentIdSet.has(block.id)) {
+      if (
+        activeContinuationSet.has(block.id) ||
+        activeQuoteDeleteSet.has(block.id) ||
+        activeEmptyCodeSet.has(block.id)
+      ) {
         continue;
       }
-      const continuationMerge = continuationMergeByMarkerId.get(block.id);
-      const source = continuationMerge?.mergedMarkdown || block.markdown || "";
+      const blockquoteMerge = enableQuoteMerge ? blockquoteMergeByTargetId.get(block.id) : undefined;
+      const continuationMerge = enableListContinuation ? continuationMergeByMarkerId.get(block.id) : undefined;
+      const source =
+        blockquoteMerge?.mergedMarkdown ||
+        continuationMerge?.mergedMarkdown ||
+        block.markdown ||
+        "";
       if (!source) {
         continue;
       }
-      const listCleanup = removeClippedListPrefixesFromMarkdown(source);
-      const splitResult = isSafeBilingualSplitBlockType(block.type)
+      const listCleanup = enableListPrefix
+        ? removeClippedListPrefixesFromMarkdown(source)
+        : { markdown: source, removedCount: 0 };
+      const splitResult = (enableBilingualSplit && isSafeBilingualSplitBlockType(block.type))
         ? splitBilingualParagraphMarkdown(listCleanup.markdown)
         : { parts: [listCleanup.markdown], changed: false };
-      if (!continuationMerge && listCleanup.removedCount === 0 && !splitResult.changed) {
+
+      if (
+        !blockquoteMerge &&
+        !continuationMerge &&
+        listCleanup.removedCount === 0 &&
+        !splitResult.changed
+      ) {
         continue;
       }
 
@@ -593,38 +706,45 @@ export function createCleanupActionHandlers(
             await appendBlock(trailingBlock, docId);
           }
           await updateBlockMarkdown(block.id, splitResult.parts[0] || listCleanup.markdown);
-          if (continuationMerge) {
-            deleteIds.push(continuationMerge.contentBlockId);
-          }
           splitParagraphCount += 1;
           updatedBlockCount += 1;
           continue;
         }
 
         await updateBlockMarkdown(block.id, listCleanup.markdown);
-        if (continuationMerge) {
-          deleteIds.push(continuationMerge.contentBlockId);
-        }
         updatedBlockCount += 1;
       } catch {
         failedBlockCount += 1;
       }
     }
 
+    let deletedCount = 0;
     if (deleteIds.length > 0) {
       const deleteResult = await deleteBlocksByIds(deleteIds, {
         concurrency: DELETE_BLOCK_CONCURRENCY,
       });
+      deletedCount = deleteResult.deletedCount;
       failedBlockCount += deleteResult.failedIds.length;
     }
 
-    if (!updatedBlockCount && !splitParagraphCount) {
+    if (!updatedBlockCount && !splitParagraphCount && !deletedCount) {
       showMessage("清理完成，未更新任何块", 4000, "info");
       return;
     }
 
-    const summary = splitParagraphCount > 0
-      ? `已清理剪藏内容：更新 ${updatedBlockCount} 个块，拆分 ${splitParagraphCount} 个双语段落`
+    const details: string[] = [];
+    if (enableQuoteMerge && quoteMergeCount > 0) {
+      details.push(`合并 ${quoteMergeCount} 处连续引用`);
+    }
+    if (enableEmptyCode && emptyCodeBlockCount > 0) {
+      details.push(`删除 ${emptyCodeBlockCount} 个空代码块`);
+    }
+    if (enableBilingualSplit && splitParagraphCount > 0) {
+      details.push(`拆分 ${splitParagraphCount} 个双语段落`);
+    }
+
+    const summary = details.length > 0
+      ? `已清理剪藏内容：更新 ${updatedBlockCount} 个块，${details.join("，")}`
       : `已清理剪藏内容，共更新 ${updatedBlockCount} 个块`;
     if (failedBlockCount > 0) {
       showMessage(`${summary}，失败 ${failedBlockCount} 个块`, 7000, "error");

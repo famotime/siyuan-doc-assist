@@ -527,7 +527,7 @@ describe("action-runner loading guard", () => {
 
     expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["a", "c"], { concurrency: 6 });
     expect(deleteBlockByIdMock).not.toHaveBeenCalled();
-    expect(showMessageMock).toHaveBeenCalledWith("已去除 2 个空段落", 5000, "info");
+    expect(showMessageMock).toHaveBeenCalledWith("已成功去除 2 个空段落", 4000, "info");
   });
 
   test("inserts blank paragraphs before headings that are missing one", async () => {
@@ -3367,6 +3367,128 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
       "a",
       "Thank you for the donation you have made recently! We are truly grateful for your support."
+    );
+  });
+
+  test("merges consecutive blockquote blocks and deletes empty code blocks in clean-clipped-list-prefixes", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "q1",
+        type: "b",
+        markdown: "> 引用的第一段",
+        resolved: true,
+      } as any,
+      {
+        id: "blank1",
+        type: "p",
+        markdown: "",
+        resolved: true,
+      } as any,
+      {
+        id: "q2",
+        type: "b",
+        markdown: "> 引用的第二段",
+        resolved: true,
+      } as any,
+      {
+        id: "code1",
+        type: "c",
+        markdown: "```js\n```",
+        resolved: true,
+      } as any,
+    ]);
+    deleteBlocksByIdsMock.mockResolvedValue({
+      deletedCount: 3,
+      failedIds: [],
+    });
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-clipped-list-prefixes" as any);
+
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+    expect(askConfirm).toHaveBeenCalledWith(
+      "确认清理剪藏内容",
+      expect.stringContaining("合并连续引用 1 处 删除无内容代码块 1 个 是否继续？"),
+      expect.arrayContaining([
+        expect.objectContaining({ id: "quote-merge", label: "合并连续引用 1 处", selectable: true, selected: true }),
+        expect.objectContaining({ id: "empty-code", label: "删除无内容代码块 1 个", selectable: true, selected: true }),
+      ])
+    );
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
+      "q1",
+      "> 引用的第一段\n>\n> 引用的第二段"
+    );
+    expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["blank1", "q2", "code1"], { concurrency: 6 });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已清理剪藏内容：更新 1 个块，合并 1 处连续引用，删除 1 个空代码块",
+      5000,
+      "info"
+    );
+  });
+
+  test("allows selective processing of cleanup options in clean-clipped-list-prefixes", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      {
+        id: "q1",
+        type: "b",
+        markdown: "> 引用的第一段",
+        resolved: true,
+      } as any,
+      {
+        id: "blank1",
+        type: "p",
+        markdown: "",
+        resolved: true,
+      } as any,
+      {
+        id: "q2",
+        type: "b",
+        markdown: "> 引用的第二段",
+        resolved: true,
+      } as any,
+      {
+        id: "code1",
+        type: "c",
+        markdown: "```js\n```",
+        resolved: true,
+      } as any,
+    ]);
+    deleteBlocksByIdsMock.mockResolvedValue({
+      deletedCount: 1,
+      failedIds: [],
+    });
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    // User unchecks quote-merge and only keeps empty-code checked
+    const askConfirm = vi.fn(async (_title, _text, detailItems?: ConfirmDetailItem[]) => {
+      if (detailItems) {
+        for (const item of detailItems) {
+          if (item.id === "quote-merge") {
+            item.selected = false;
+          }
+        }
+      }
+      return true;
+    });
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    await runner.runAction("clean-clipped-list-prefixes" as any);
+
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["code1"], { concurrency: 6 });
+    expect(showMessageMock).toHaveBeenCalledWith(
+      "已清理剪藏内容：更新 0 个块，删除 1 个空代码块",
+      5000,
+      "info"
     );
   });
 
