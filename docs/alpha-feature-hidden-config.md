@@ -69,6 +69,7 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 | `dedupe` | 识别本层级重复文档 |
 | `split-doc-by-headings` | 按标题拆分文档 |
 | `float-selected-text` | 悬浮选中文本 |
+| `link-to-doc` | 链接转文档 |
 
 **插入（insert）**
 

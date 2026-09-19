@@ -53,7 +53,8 @@ export type ActionKey =
   | "generate-llm-wiki"
   | "float-selected-text"
   | "generate-better-titles"
-  | "convert-text-to-link";
+  | "convert-text-to-link"
+  | "link-to-doc";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -146,6 +147,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "float-selected-text": "浮",
   "generate-better-titles": "优",
   "convert-text-to-link": "链",
+  "link-to-doc": "剪",
 };
 
 export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
@@ -341,6 +343,17 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "organize",
         icon: "iconPin",
+      },
+      {
+        key: "link-to-doc",
+        commandText: "链接转文档",
+        menuText: "链接转文档",
+        tooltip: createActionTooltip(
+          "链接转文档",
+          "读取当前文档中的外部链接，将对应网页内容剪藏为同级笔记文档；单链接直接执行，多链接获取标题后弹窗勾选确认。"
+        ),
+        group: "organize",
+        icon: "iconLink",
       },
     ],
   },

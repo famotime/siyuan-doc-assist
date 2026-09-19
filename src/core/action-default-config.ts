@@ -59,6 +59,7 @@ export const ACTION_DEFAULT_CONFIGS: Record<ActionKey, ActionDefaultState> = {
   dedupe: { defaultEnabled: true, defaultMenuRegistered: false },
   "split-doc-by-headings": { defaultEnabled: true, defaultMenuRegistered: false },
   "float-selected-text": { defaultEnabled: true, defaultMenuRegistered: false },
+  "link-to-doc": { defaultEnabled: true, defaultMenuRegistered: false },
 
   // 插入
   "insert-backlinks": { defaultEnabled: true, defaultMenuRegistered: false },
