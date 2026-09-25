@@ -4,6 +4,7 @@ export type TextToLinkCandidate = {
   originalUrl: string;
   targetUrl: string;
   domain: string;
+  linkText: string;
   linkMarkdown: string;
   contextSnippet: string;
 };
@@ -45,6 +46,87 @@ export function extractDomainFromUrl(rawUrl: string): string {
     const match = normalized.match(/^https?:\/\/([^/:\s?#]+)/i);
     return match ? match[1] : rawUrl;
   }
+}
+
+/**
+ * 常见代码托管与模型社区平台域名（不含 www.，全小写）
+ */
+const CODE_HOSTING_DOMAINS = new Set([
+  "github.com",
+  "gitee.com",
+  "gitlab.com",
+  "codeberg.org",
+  "gitcode.com",
+  "bitbucket.org",
+  "huggingface.co",
+  "hf.co",
+]);
+
+/**
+ * 从 URL 中提取适合作为链接文本的名称（例如从 GitHub 仓库链接提取仓库名）
+ * 规则：
+ * 1. 代码托管平台（如 github.com, gitee.com 等）或 .git 仓库链接：
+ *    - 形如 https://github.com/browser-use/jev-ultrafast -> 提取仓库名 "jev-ultrafast"
+ *    - 无论是否带 .git、末尾斜杠、锚点或深度路径（如 /issues, /tree/main），均提取仓库名
+ * 2. 其它网址退化为域名 (extractDomainFromUrl)
+ */
+export function extractLinkTextFromUrl(rawUrl: string): string {
+  if (!rawUrl) return "";
+  const urlStr = rawUrl.trim();
+
+  // 处理 mailto:
+  if (/^mailto:/i.test(urlStr)) {
+    return extractDomainFromUrl(urlStr);
+  }
+
+  let normalized = urlStr;
+  if (!/^(?:[a-z0-9+.-]+:\/\/)/i.test(normalized)) {
+    normalized = `http://${normalized}`;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    const host = (parsed.hostname || "").toLowerCase().replace(/^www\./i, "");
+    const pathname = parsed.pathname || "";
+    const segments = pathname
+      .split("/")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const isCodeHosting =
+      CODE_HOSTING_DOMAINS.has(host) ||
+      /^(?:git|github|gitlab|gitee|codeberg)\./i.test(host);
+
+    const isGitEnding = /\.git$/i.test(pathname);
+
+    if (isGitEnding) {
+      const gitSeg = segments.find((s) => /\.git$/i.test(s)) || segments[segments.length - 1];
+      if (gitSeg) {
+        let repo = gitSeg.replace(/\.git$/i, "");
+        try {
+          repo = decodeURIComponent(repo);
+        } catch {
+          // ignore
+        }
+        if (repo) return repo;
+      }
+    }
+
+    if (isCodeHosting && segments.length >= 2) {
+      // 提取代码平台仓库名 (形如 https://github.com/browser-use/jev-ultrafast -> jev-ultrafast)
+      let repo = segments[1].replace(/\.git$/i, "");
+      try {
+        repo = decodeURIComponent(repo);
+      } catch {
+        // ignore
+      }
+      if (repo) return repo;
+    }
+  } catch {
+    // 忽略异常，降级到 extractDomainFromUrl
+  }
+
+  return extractDomainFromUrl(rawUrl);
 }
 
 /**
@@ -237,7 +319,8 @@ export function findCandidatesInMarkdown(
 
     const targetUrl = normalizeTargetUrl(originalUrl);
     const domain = extractDomainFromUrl(originalUrl);
-    const linkMarkdown = `[${domain}](${targetUrl})`;
+    const linkText = extractLinkTextFromUrl(originalUrl);
+    const linkMarkdown = `[${linkText}](${targetUrl})`;
 
     // 计算真实的上下文（排除占位符与 IAL 属性污染）
     const rawContextText = unmaskProtectedRegions(maskedText, masks);
@@ -249,6 +332,7 @@ export function findCandidatesInMarkdown(
       originalUrl,
       targetUrl,
       domain,
+      linkText,
       linkMarkdown,
       contextSnippet: snippet,
     });
@@ -258,7 +342,7 @@ export function findCandidatesInMarkdown(
 }
 
 /**
- * 在 Markdown 中替换指定的纯文本 URL 为 [domain](targetUrl)
+ * 在 Markdown 中替换指定的纯文本 URL 为 [linkText](targetUrl)
  */
 export function convertTextToLinkInMarkdown(
   markdown: string,
@@ -277,8 +361,8 @@ export function convertTextToLinkInMarkdown(
       if (targetOriginalUrls.has(originalUrl)) {
         replacedCount++;
         const targetUrl = normalizeTargetUrl(originalUrl);
-        const domain = extractDomainFromUrl(originalUrl);
-        return `[${domain}](${targetUrl})${trimmedSuffix}`;
+        const linkText = extractLinkTextFromUrl(originalUrl);
+        return `[${linkText}](${targetUrl})${trimmedSuffix}`;
       }
       return rawMatch;
     });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   convertTextToLinkInMarkdown,
   extractDomainFromUrl,
+  extractLinkTextFromUrl,
   findCandidatesInMarkdown,
   sanitizeUrlMatch,
 } from "@/core/text-to-link-core";
@@ -16,6 +17,37 @@ describe("text-to-link-core", () => {
 
     it("从无协议头的域名中提取域名", () => {
       expect(extractDomainFromUrl("www.example.com/page")).toBe("www.example.com");
+    });
+  });
+
+  describe("extractLinkTextFromUrl", () => {
+    it("从 GitHub 仓库 URL 提取仓库名（例如形如 https://github.com/browser-use/jev-ultrafast）", () => {
+      expect(extractLinkTextFromUrl("https://github.com/browser-use/jev-ultrafast")).toBe("jev-ultrafast");
+      expect(extractLinkTextFromUrl("https://github.com/browser-use/jev-ultrafast/")).toBe("jev-ultrafast");
+      expect(extractLinkTextFromUrl("https://github.com/browser-use/jev-ultrafast.git")).toBe("jev-ultrafast");
+      expect(extractLinkTextFromUrl("https://github.com/browser-use/jev-ultrafast#readme")).toBe("jev-ultrafast");
+      expect(extractLinkTextFromUrl("https://github.com/browser-use/jev-ultrafast?tab=readme")).toBe("jev-ultrafast");
+      expect(extractLinkTextFromUrl("https://github.com/browser-use/jev-ultrafast/tree/main/src")).toBe("jev-ultrafast");
+      expect(extractLinkTextFromUrl("http://github.com/browser-use/jev-ultrafast")).toBe("jev-ultrafast");
+      expect(extractLinkTextFromUrl("github.com/browser-use/jev-ultrafast")).toBe("jev-ultrafast");
+      expect(extractLinkTextFromUrl("https://www.github.com/browser-use/jev-ultrafast")).toBe("jev-ultrafast");
+    });
+
+    it("从其他常见代码托管平台与模型社区提取仓库名", () => {
+      expect(extractLinkTextFromUrl("https://gitee.com/dromara/sa-token")).toBe("sa-token");
+      expect(extractLinkTextFromUrl("https://gitlab.com/gitlab-org/gitlab-runner")).toBe("gitlab-runner");
+      expect(extractLinkTextFromUrl("https://huggingface.co/THUDM/chatglm3-6b")).toBe("chatglm3-6b");
+      expect(extractLinkTextFromUrl("https://codeberg.org/forgejo/forgejo")).toBe("forgejo");
+      expect(extractLinkTextFromUrl("https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git")).toBe("linux");
+    });
+
+    it("普通网页回退为域名", () => {
+      expect(extractLinkTextFromUrl("https://www.baidu.com")).toBe("www.baidu.com");
+      expect(extractLinkTextFromUrl("http://www.google.com/search?q=test")).toBe("www.google.com");
+      expect(extractLinkTextFromUrl("https://github.com/foo")).toBe("github.com");
+      expect(extractLinkTextFromUrl("https://github.com")).toBe("github.com");
+      expect(extractLinkTextFromUrl("192.168.1.1")).toBe("192.168.1.1");
+      expect(extractLinkTextFromUrl("mailto:user@example.com")).toBe("example.com");
     });
   });
 
@@ -100,6 +132,15 @@ HTML 链接：<a href="https://html-link.com">点击</a>
       expect(candidates[0].contextSnippet).not.toContain("{:");
       expect(candidates[0].contextSnippet).toContain("段落内容 请访问 https://github.com/foo");
     });
+    it("识别 GitHub 仓库 URL 并生成 [repo](url) 形式的候选链接", () => {
+      const text = "项目地址：https://github.com/browser-use/jev-ultrafast ，欢迎 star！";
+      const candidates = findCandidatesInMarkdown(text, "b_repo");
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].originalUrl).toBe("https://github.com/browser-use/jev-ultrafast");
+      expect(candidates[0].linkText).toBe("jev-ultrafast");
+      expect(candidates[0].domain).toBe("github.com");
+      expect(candidates[0].linkMarkdown).toBe("[jev-ultrafast](https://github.com/browser-use/jev-ultrafast)");
+    });
   });
 
   describe("convertTextToLinkInMarkdown", () => {
@@ -110,6 +151,24 @@ HTML 链接：<a href="https://html-link.com">点击</a>
       const { markdown: result, replacedCount } = convertTextToLinkInMarkdown(markdown, selectedUrls);
       expect(replacedCount).toBe(1);
       expect(result).toBe("访问 [site1.com](https://site1.com) 和 https://site2.com 了解更多。");
+    });
+
+    it("将形如 https://github.com/browser-use/jev-ultrafast 的网址转为 [jev-ultrafast](https://github.com/browser-use/jev-ultrafast)", () => {
+      const markdown = "项目推荐：https://github.com/browser-use/jev-ultrafast 非常强大！";
+      const selectedUrls = new Set(["https://github.com/browser-use/jev-ultrafast"]);
+
+      const { markdown: result, replacedCount } = convertTextToLinkInMarkdown(markdown, selectedUrls);
+      expect(replacedCount).toBe(1);
+      expect(result).toBe("项目推荐：[jev-ultrafast](https://github.com/browser-use/jev-ultrafast) 非常强大！");
+    });
+
+    it("正确处理末尾带标点符号的 GitHub 仓库网址转换", () => {
+      const markdown = "参考文档见 https://github.com/browser-use/jev-ultrafast。";
+      const selectedUrls = new Set(["https://github.com/browser-use/jev-ultrafast"]);
+
+      const { markdown: result, replacedCount } = convertTextToLinkInMarkdown(markdown, selectedUrls);
+      expect(replacedCount).toBe(1);
+      expect(result).toBe("参考文档见 [jev-ultrafast](https://github.com/browser-use/jev-ultrafast)。");
     });
   });
 });
