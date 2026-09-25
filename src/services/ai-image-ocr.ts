@@ -6,6 +6,7 @@ import {
 } from "@/core/ai-image-ocr-core";
 import {
   AiServiceConfig,
+  buildAiForwardProxyHeaders,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
   normalizeAiServiceConfig,
@@ -384,10 +385,7 @@ async function requestVisionOcr(
     endpoint,
     "POST",
     body,
-    [
-      { Authorization: `Bearer ${config.apiKey}` },
-      { Accept: "application/json" },
-    ],
+    buildAiForwardProxyHeaders(config),
     timeoutMs,
     "application/json",
   );

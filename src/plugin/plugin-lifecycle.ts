@@ -405,6 +405,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
           requestTimeoutSeconds: shared.requestTimeoutSeconds ?? 60,
           temperature: shared.temperature ?? 0.7,
           maxTokens: shared.maxTokens ?? 4096,
+          headers: shared.headers,
+          protocol: shared.protocol,
         };
       } else {
         this.managedAiConfig = null;

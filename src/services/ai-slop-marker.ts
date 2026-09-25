@@ -1,5 +1,6 @@
 import {
   AiServiceConfig,
+  buildAiForwardProxyHeaders,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
   normalizeAiServiceConfig,
@@ -73,10 +74,7 @@ async function requestChatCompletion(params: {
     endpoint,
     "POST",
     params.body,
-    [
-      { Authorization: `Bearer ${params.config.apiKey}` },
-      { Accept: "application/json" },
-    ],
+    buildAiForwardProxyHeaders(params.config),
     resolveRequestTimeoutMs(params.config),
     "application/json"
   );

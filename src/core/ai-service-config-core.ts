@@ -6,6 +6,8 @@ export type AiServiceConfig = {
   requestTimeoutSeconds: number;
   temperature: number;
   maxTokens: number;
+  headers?: Record<string, string>;
+  protocol?: string;
 };
 
 export const DEFAULT_AI_REQUEST_TIMEOUT_SECONDS = 60;
@@ -46,6 +48,8 @@ export function normalizeAiServiceConfig(raw: unknown): AiServiceConfig {
     ),
     temperature: normalizeTemperature(value.temperature, defaults.temperature),
     maxTokens: normalizePositiveInteger(value.maxTokens, defaults.maxTokens),
+    headers: value.headers && typeof value.headers === "object" ? (value.headers as Record<string, string>) : undefined,
+    protocol: typeof value.protocol === "string" ? sanitizeVisibleString(value.protocol) : undefined,
   };
 }
 
@@ -75,4 +79,19 @@ function normalizeTemperature(value: unknown, fallback: number): number {
       ? value
       : Number.NaN;
   return Number.isFinite(parsed) && parsed >= 0 && parsed <= 2 ? parsed : fallback;
+}
+
+export function buildAiForwardProxyHeaders(config: { apiKey: string; headers?: Record<string, string> }): Array<Record<string, string>> {
+  const headers: Array<Record<string, string>> = [
+    { Authorization: `Bearer ${config.apiKey}` },
+    { Accept: "application/json" },
+  ];
+  if (config.headers && typeof config.headers === "object") {
+    for (const [key, value] of Object.entries(config.headers)) {
+      if (key && value !== undefined && value !== null) {
+        headers.push({ [key]: String(value) });
+      }
+    }
+  }
+  return headers;
 }

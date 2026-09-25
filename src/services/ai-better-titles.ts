@@ -1,4 +1,5 @@
 import {
+  buildAiForwardProxyHeaders,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
   normalizeAiServiceConfig,
@@ -105,10 +106,7 @@ export async function generateBetterTitles(
     endpoint,
     "POST",
     body,
-    [
-      { Authorization: `Bearer ${config.apiKey}` },
-      { Accept: "application/json" },
-    ],
+    buildAiForwardProxyHeaders(config),
     Math.max(1, config.requestTimeoutSeconds || DEFAULT_AI_REQUEST_TIMEOUT_SECONDS) * 1000,
     "application/json"
   );
