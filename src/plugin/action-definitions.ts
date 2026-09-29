@@ -689,7 +689,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconSmile",
+        icon: "iconTrashcan",
       },
       {
         key: "trim-trailing-whitespace",
