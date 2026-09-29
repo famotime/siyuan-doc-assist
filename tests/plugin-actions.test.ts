@@ -36,6 +36,7 @@ describe("plugin actions", () => {
     expect(isActionKey("remove-strikethrough-marked-content")).toBe(true);
     expect(isActionKey("toggle-linebreaks-paragraphs")).toBe(true);
     expect(isActionKey("remove-selected-spacing")).toBe(true);
+    expect(isActionKey("clean-emoji")).toBe(true);
     expect(isActionKey("toggle-selected-punctuation")).toBe(true);
     expect(isActionKey("export-child-docs-zip")).toBe(true);
     expect(isActionKey("export-related-docs-zip")).toBe(true);

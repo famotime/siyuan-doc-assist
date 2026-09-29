@@ -54,7 +54,8 @@ export type ActionKey =
   | "float-selected-text"
   | "generate-better-titles"
   | "convert-text-to-link"
-  | "link-to-doc";
+  | "link-to-doc"
+  | "clean-emoji";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -148,6 +149,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "generate-better-titles": "优",
   "convert-text-to-link": "链",
   "link-to-doc": "剪",
+  "clean-emoji": "脸",
 };
 
 export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
@@ -676,6 +678,18 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "edit",
         requiresWritableDoc: true,
         icon: "iconTrashcan",
+      },
+      {
+        key: "clean-emoji",
+        commandText: "清理Emoji表情",
+        menuText: "清理Emoji表情",
+        tooltip: createActionTooltip(
+          "清理Emoji表情",
+          "清除选区或全文中的标准 Emoji 表情与图形符号，并自动整理多余空格。"
+        ),
+        group: "edit",
+        requiresWritableDoc: true,
+        icon: "iconSmile",
       },
       {
         key: "trim-trailing-whitespace",

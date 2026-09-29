@@ -2882,6 +2882,78 @@ describe("action-runner loading guard", () => {
     expect(showMessageMock).toHaveBeenCalledWith("未发现可清理字符", 4000, "info");
   });
 
+  test("cleans emoji only inside partial text selection within a single block", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `<div data-node-id="a">前缀Hello 🚀 world!后缀</div>`;
+    document.body.appendChild(root);
+    const textNode = root.querySelector("[data-node-id='a']")?.firstChild as Text | null;
+    expect(textNode).toBeTruthy();
+
+    const source = textNode?.nodeValue || "";
+    const start = source.indexOf("Hello");
+    const end = source.indexOf("!") + 1;
+    const range = document.createRange();
+    range.setStart(textNode as Text, start);
+    range.setEnd(textNode as Text, end);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    const runner = createRunner();
+
+    await runner.runAction("clean-emoji" as any, undefined, protyle);
+
+    const blockText = root.querySelector("[data-node-id='a']")?.textContent || "";
+    expect(blockText).toBe("前缀Hello world!后缀");
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(getBlockKramdownsMock).not.toHaveBeenCalled();
+
+    selection?.removeAllRanges();
+    root.remove();
+  });
+
+  test("cleans emoji from whole selected blocks", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <div data-node-id="a" class="protyle-wysiwyg--select">项目 😀 进度 🔥</div>
+      <div data-node-id="b" class="protyle-wysiwyg--select">团队 🇨🇳 合作 👍</div>
+    `;
+    const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
+    const runner = createRunner();
+
+    await runner.runAction("clean-emoji" as any, undefined, protyle);
+
+    expect(root.querySelector("[data-node-id='a']")?.textContent?.trim()).toBe("项目 进度");
+    expect(root.querySelector("[data-node-id='b']")?.textContent?.trim()).toBe("团队 合作");
+    expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
+    expect(getBlockKramdownsMock).not.toHaveBeenCalled();
+  });
+
+  test("cleans emoji across whole document with confirmation when nothing is selected", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "b1", markdown: "标题 🚀", type: "p" } as any,
+      { id: "b2", markdown: "普通段落", type: "p" } as any,
+      { id: "b3", markdown: "完成 ✅", type: "p" } as any,
+    ]);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+
+    const runner = createRunner(undefined, { askConfirm });
+    await runner.runAction("clean-emoji" as any, "doc-1");
+
+    expect(askConfirm).toHaveBeenCalledWith(
+      "确认清理整篇文档 Emoji 表情",
+      expect.stringContaining("待处理块数：2 个")
+    );
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("b1", "标题");
+    expect(updateBlockMarkdownMock).toHaveBeenCalledWith("b3", "完成");
+    expect(showMessageMock).toHaveBeenCalledWith(
+      expect.stringContaining("已清理整篇文档：成功更新 2 个块，移除 2 个 Emoji 表情"),
+      5000,
+      "info"
+    );
+  });
+
   test("toggles punctuation only inside partial text selection within a single block", async () => {
     const root = document.createElement("div");
     root.innerHTML = `<div data-node-id="a">前缀Hello, world!后缀</div>`;

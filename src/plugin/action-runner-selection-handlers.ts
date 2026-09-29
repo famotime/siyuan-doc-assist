@@ -1,4 +1,5 @@
 import { showMessage } from "siyuan";
+import { removeEmojiFromText } from "@/core/emoji-cleanup-core";
 import { buildMergeSelectedListBlocksPreview } from "@/core/list-block-merge-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { BlockStyle } from "@/core/markdown-style-core";
@@ -74,6 +75,23 @@ function removeSpaceLikeCharsInTextNodes(root: HTMLElement): number {
     const textNode = current as Text;
     const source = textNode.nodeValue || "";
     const cleaned = removeSpaceLikeChars(source);
+    if (cleaned.removedCount > 0) {
+      textNode.nodeValue = cleaned.next;
+      removedCount += cleaned.removedCount;
+    }
+    current = walker.nextNode();
+  }
+  return removedCount;
+}
+
+function removeEmojiInTextNodes(root: HTMLElement): number {
+  let removedCount = 0;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let current = walker.nextNode();
+  while (current) {
+    const textNode = current as Text;
+    const source = textNode.nodeValue || "";
+    const cleaned = removeEmojiFromText(source);
     if (cleaned.removedCount > 0) {
       textNode.nodeValue = cleaned.next;
       removedCount += cleaned.removedCount;
@@ -191,6 +209,83 @@ function applyPartialSelectionSpacingCleanup(
 
   const selectedText = range.toString();
   const cleaned = removeSpaceLikeChars(selectedText);
+  const removedCount = cleaned.removedCount;
+
+  if (removedCount > 0) {
+    range.deleteContents();
+    range.insertNode(document.createTextNode(cleaned.next));
+    const editable =
+      (blockElement.querySelector('[contenteditable="true"]') as HTMLElement | null) ||
+      blockElement;
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  selection.removeAllRanges();
+  return { handled: true, removedCount };
+}
+
+function applySelectedBlocksEmojiCleanupFromDom(
+  protyle: ProtyleLike | undefined,
+  selectedIds: string[]
+): { cleanedBlockCount: number; removedCount: number } | null {
+  const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+  if (!root || !selectedIds.length) {
+    return null;
+  }
+
+  const blockElements: HTMLElement[] = [];
+  for (const id of selectedIds) {
+    const block = findBlockElementById(root, id);
+    if (!block) {
+      return null;
+    }
+    blockElements.push(block);
+  }
+
+  let cleanedBlockCount = 0;
+  let removedCount = 0;
+  for (const block of blockElements) {
+    const editable =
+      (block.querySelector('[contenteditable="true"]') as HTMLElement | null) || block;
+    const removedInBlock = removeEmojiInTextNodes(editable);
+    if (removedInBlock > 0) {
+      cleanedBlockCount += 1;
+      removedCount += removedInBlock;
+      editable.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+  return { cleanedBlockCount, removedCount };
+}
+
+function applyPartialSelectionEmojiCleanup(
+  protyle?: ProtyleLike
+): { handled: boolean; removedCount: number } {
+  if (typeof window === "undefined") {
+    return { handled: false, removedCount: 0 };
+  }
+
+  const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+  if (!root) {
+    return { handled: false, removedCount: 0 };
+  }
+  const selection = window.getSelection?.();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    return { handled: false, removedCount: 0 };
+  }
+
+  const range = selection.getRangeAt(0);
+  const startBlockId = resolveRangeBoundaryBlockId(root, range.startContainer);
+  const endBlockId = resolveRangeBoundaryBlockId(root, range.endContainer);
+  if (!startBlockId || !endBlockId || startBlockId !== endBlockId) {
+    return { handled: false, removedCount: 0 };
+  }
+
+  const blockElement = findBlockElementById(root, startBlockId);
+  if (!blockElement) {
+    return { handled: false, removedCount: 0 };
+  }
+
+  const selectedText = range.toString();
+  const cleaned = removeEmojiFromText(selectedText);
   const removedCount = cleaned.removedCount;
 
   if (removedCount > 0) {
@@ -490,6 +585,155 @@ export function createSelectionActionHandlers(
     showMessage(`已清理 ${success} 个块，移除 ${removedCount} 个字符`, 5000, "info");
   };
 
+  const handleCleanEmoji = async (docId: string, protyle?: ProtyleLike) => {
+    const explicitSelectedIds = getExplicitlySelectedBlockIds(protyle);
+    if (!explicitSelectedIds.length) {
+      const partialResult = applyPartialSelectionEmojiCleanup(protyle);
+      if (partialResult.handled) {
+        if (partialResult.removedCount > 0) {
+          showMessage(`已清理选中内容，移除 ${partialResult.removedCount} 个 Emoji 表情`, 5000, "info");
+        } else {
+          showMessage("选中内容未发现 Emoji 表情", 4000, "info");
+        }
+        return;
+      }
+    }
+
+    if (explicitSelectedIds.length > 0) {
+      const selectedBlockResult = applySelectedBlocksEmojiCleanupFromDom(protyle, explicitSelectedIds);
+      if (selectedBlockResult) {
+        if (selectedBlockResult.removedCount > 0) {
+          showMessage(
+            `已清理 ${selectedBlockResult.cleanedBlockCount} 个块，移除 ${selectedBlockResult.removedCount} 个 Emoji 表情`,
+            5000,
+            "info"
+          );
+        } else {
+          showMessage("选中块未发现 Emoji 表情", 4000, "info");
+        }
+        return;
+      }
+    }
+
+    const selectedIds = explicitSelectedIds.length
+      ? explicitSelectedIds
+      : getSelectedBlockIds(protyle);
+
+    if (selectedIds.length > 0) {
+      const rows = await getBlockKramdowns(selectedIds);
+      const sourceMap = new Map(rows.map((item) => [item.id, item.kramdown || ""]));
+      const updates: Array<{ id: string; next: string; removedCount: number }> = [];
+      let missingSourceCount = 0;
+      for (const id of selectedIds) {
+        const source = sourceMap.get(id);
+        if (source === undefined) {
+          missingSourceCount += 1;
+          continue;
+        }
+        const cleaned = removeEmojiFromText(source);
+        if (cleaned.removedCount <= 0 || cleaned.next === source) {
+          continue;
+        }
+        updates.push({
+          id,
+          next: cleaned.next,
+          removedCount: cleaned.removedCount,
+        });
+      }
+
+      if (!updates.length) {
+        if (missingSourceCount > 0) {
+          showMessage(`读取块源码失败，已跳过 ${missingSourceCount} 个块`, 6000, "error");
+          return;
+        }
+        showMessage("选中块未发现 Emoji 表情", 4000, "info");
+        return;
+      }
+
+      let success = 0;
+      let failed = 0;
+      let removedCount = 0;
+      for (const item of updates) {
+        try {
+          await updateBlockMarkdown(item.id, item.next);
+          success += 1;
+          removedCount += item.removedCount;
+        } catch {
+          failed += 1;
+        }
+      }
+
+      if (failed > 0 || missingSourceCount > 0) {
+        showMessage(
+          `处理完成：成功 ${success} 个块，失败 ${failed} 个块，跳过 ${missingSourceCount} 个块`,
+          7000,
+          "error"
+        );
+        return;
+      }
+      showMessage(`已清理 ${success} 个块，移除 ${removedCount} 个 Emoji 表情`, 5000, "info");
+      return;
+    }
+
+    const blocks = await getChildBlocksByParentId(docId);
+    if (!blocks.length) {
+      showMessage("当前文档没有可处理的内容", 4000, "info");
+      return;
+    }
+
+    const updates: Array<{ id: string; next: string; removedCount: number }> = [];
+    let totalEmojiCount = 0;
+    for (const block of blocks) {
+      const source = block.markdown || "";
+      if (!source) {
+        continue;
+      }
+      const cleaned = removeEmojiFromText(source);
+      if (cleaned.removedCount > 0 && cleaned.next !== source) {
+        updates.push({
+          id: block.id,
+          next: cleaned.next,
+          removedCount: cleaned.removedCount,
+        });
+        totalEmojiCount += cleaned.removedCount;
+      }
+    }
+
+    if (!updates.length) {
+      showMessage("当前文档未发现 Emoji 表情", 4000, "info");
+      return;
+    }
+
+    const confirmLines = [
+      "范围：本文档所有内容（未选中内容）",
+      `待处理块数：${updates.length} 个（文档共 ${blocks.length} 个块）`,
+      `预计清理 Emoji：${totalEmojiCount} 个`,
+      "是否继续？",
+    ];
+    const ok = await deps.askConfirmWithVisibleDialog("确认清理整篇文档 Emoji 表情", confirmLines.join("\n"));
+    if (!ok) {
+      return;
+    }
+
+    deps.setBusy?.(true);
+    let success = 0;
+    let failed = 0;
+    for (const item of updates) {
+      try {
+        await updateBlockMarkdown(item.id, item.next);
+        success += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    if (failed > 0) {
+      showMessage(`清理完成：成功 ${success} 个块，失败 ${failed} 个块`, 7000, "error");
+      return;
+    }
+    showMessage(`已清理整篇文档：成功更新 ${success} 个块，移除 ${totalEmojiCount} 个 Emoji 表情`, 5000, "info");
+  };
+
   const handleToggleSelectedPunctuation = async (_docId: string, protyle?: ProtyleLike) => {
     const explicitSelectedIds = getExplicitlySelectedBlockIds(protyle);
     if (!explicitSelectedIds.length) {
@@ -763,6 +1007,7 @@ export function createSelectionActionHandlers(
     "highlight-selected-blocks": async (docId, protyle) =>
       handleStyleSelectedBlocks(docId, protyle, "highlight"),
     "remove-selected-spacing": handleRemoveSelectedSpacing,
+    "clean-emoji": handleCleanEmoji,
     "toggle-selected-punctuation": handleToggleSelectedPunctuation,
     "toggle-linebreaks-paragraphs": handleToggleLinebreaksParagraphs,
     "merge-selected-list-blocks": handleMergeSelectedListBlocks,

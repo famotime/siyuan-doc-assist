@@ -91,6 +91,7 @@ export const ACTION_DEFAULT_CONFIGS: Record<ActionKey, ActionDefaultState> = {
   "toggle-linebreaks-paragraphs": { defaultEnabled: true, defaultMenuRegistered: false },
   "toggle-selected-punctuation": { defaultEnabled: true, defaultMenuRegistered: false },
   "remove-selected-spacing": { defaultEnabled: true, defaultMenuRegistered: false },
+  "clean-emoji": { defaultEnabled: true, defaultMenuRegistered: false },
   "trim-trailing-whitespace": { defaultEnabled: true, defaultMenuRegistered: false },
   "clean-clipped-list-prefixes": { defaultEnabled: true, defaultMenuRegistered: false },
   "remove-extra-blank-lines": { defaultEnabled: true, defaultMenuRegistered: false },

@@ -83,6 +83,7 @@ const MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS = new Set<string>([
   "bold-selected-blocks",
   "highlight-selected-blocks",
   "remove-selected-spacing",
+  "clean-emoji",
   "toggle-selected-punctuation",
   "delete-from-current-to-end",
   "delete-from-start-to-current",
