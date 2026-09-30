@@ -7,9 +7,12 @@ export function normalizeSettingPanelHost(panel: HTMLElement | null): void {
     return;
   }
 
-  const itemWrap = panel.parentElement;
-  const titleWrap = itemWrap?.querySelector(":scope > .fn__flex-1");
-  const spacer = itemWrap?.querySelector(":scope > .fn__space");
+  const parent = panel.parentElement;
+  const itemWrap = panel.closest(".config-item, .config__item, .b3-label") || parent;
+  const titleWrap =
+    itemWrap?.querySelector(":scope > .fn__flex-1, :scope > .fn__block, :scope .config-name, :scope .fn__flex-1") ||
+    itemWrap?.querySelector(".config-name, .fn__flex-1");
+  const spacer = itemWrap?.querySelector(".fn__space");
 
   panel.classList.remove("fn__flex-center", "fn__size200");
   panel.style.width = "100%";
@@ -22,7 +25,14 @@ export function normalizeSettingPanelHost(panel: HTMLElement | null): void {
     itemWrap.classList.add("doc-assistant-settings__host-item");
     itemWrap.style.height = "auto";
     itemWrap.style.minHeight = "0";
-    itemWrap.style.alignItems = "start";
+    itemWrap.style.alignItems = "stretch";
+  }
+
+  if (parent instanceof HTMLElement && parent !== itemWrap) {
+    parent.classList.add("doc-assistant-settings__host-block");
+    parent.style.width = "100%";
+    parent.style.height = "auto";
+    parent.style.minHeight = "0";
   }
 
   if (titleWrap instanceof HTMLElement) {

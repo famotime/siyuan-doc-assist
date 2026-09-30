@@ -86,7 +86,7 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
   });
   setting.addItem({
     title: "启用命令",
-    direction: "column",
+    direction: "row",
     description:
       "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。",
     actionElement: menuRegistrationPanel,
@@ -107,7 +107,7 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
 
     setting.addItem({
       title: "AI 服务",
-      direction: "column",
+      direction: "row",
       description: "配置兼容 OpenAI API 的服务，用于生成文档摘要和标记口水内容。",
       actionElement: aiPanel,
     });

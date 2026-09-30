@@ -170,7 +170,7 @@ describe("plugin settings", () => {
     const setting = settingInstances[1];
     expect(plugin.setting).toBe(setting);
     expect(setting.items[0]?.title).toBe("启用命令");
-    expect(setting.items[0]?.direction).toBe("column");
+    expect(setting.items[0]?.direction).toBe("row");
     expect(setting.items).toHaveLength(1);
 
     const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
@@ -498,6 +498,7 @@ describe("plugin settings", () => {
     expect(itemTitles).toContain("调试模式");
 
     const aiPanelItem = setting.items.find((item) => item.title === "AI 服务");
+    expect(aiPanelItem?.direction).toBe("row");
     const aiPanel = aiPanelItem?.actionElement as HTMLElement;
     expect(aiPanel.querySelector('[data-setting-key="ai-debug"]')).toBeNull();
 

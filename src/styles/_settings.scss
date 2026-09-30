@@ -9,17 +9,58 @@
 }
 
 .doc-assistant-settings__host-item {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start !important;
-  column-gap: 8px;
-  row-gap: 8px;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  gap: 8px;
+
+  > .fn__block,
+  > .doc-assistant-settings__host-block {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .config-name {
+    display: block !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: var(--b3-theme-on-surface) !important;
+    line-height: 1.4 !important;
+  }
+
+  .b3-label__text {
+    display: block !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+    color: var(--b3-theme-on-surface-light) !important;
+    margin-top: 4px !important;
+    overflow: visible !important;
+    visibility: visible !important;
+  }
+
+  .fn__hr {
+    display: block !important;
+    height: 8px !important;
+  }
+}
+
+.doc-assistant-settings__host-block {
+  display: block !important;
+  width: 100% !important;
   min-height: 0 !important;
   height: auto !important;
 }
 
 .doc-assistant-settings__host-title {
+  display: block !important;
+  width: 100% !important;
   min-width: 0;
+  flex: none !important;
   overflow: visible !important;
 }
 
@@ -27,12 +68,12 @@
   display: none !important;
 }
 
-.doc-assistant-settings__host-item > .doc-assistant-settings__ai-panel,
-.doc-assistant-settings__host-item > .doc-assistant-settings__menu-registration {
-  grid-column: 1 / -1;
+.doc-assistant-settings__host-item .doc-assistant-settings__ai-panel,
+.doc-assistant-settings__host-item .doc-assistant-settings__menu-registration {
   margin-top: 0 !important;
   width: 100% !important;
-  align-self: start !important;
+  flex: none !important;
+  align-self: stretch !important;
 }
 
 .doc-assistant-settings__ai-panel {
