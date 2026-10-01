@@ -141,6 +141,38 @@ HTML 链接：<a href="https://html-link.com">点击</a>
       expect(candidates[0].domain).toBe("github.com");
       expect(candidates[0].linkMarkdown).toBe("[jev-ultrafast](https://github.com/browser-use/jev-ultrafast)");
     });
+
+    it("支持识别不含 http/https 前缀的 GitHub 仓库等网址（如 github.com/geeklee/srt-whiteboard-animation）", () => {
+      const text = "推荐项目：github.com/geeklee/srt-whiteboard-animation （不含http前缀），欢迎使用！";
+      const candidates = findCandidatesInMarkdown(text, "b_bare");
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].originalUrl).toBe("github.com/geeklee/srt-whiteboard-animation");
+      expect(candidates[0].targetUrl).toBe("https://github.com/geeklee/srt-whiteboard-animation");
+      expect(candidates[0].linkText).toBe("srt-whiteboard-animation");
+      expect(candidates[0].domain).toBe("github.com");
+      expect(candidates[0].linkMarkdown).toBe("[srt-whiteboard-animation](https://github.com/geeklee/srt-whiteboard-animation)");
+    });
+
+    it("支持常见无协议头裸域名网址，且不误伤文件名和代码标识符", () => {
+      const text = `
+请访问 github.com/owner/repo 查阅代码。
+还有 gitee.com/team/proj 和 v2ex.com/t/123456 以及纯域名 baidu.com。
+以下内容不应被误识别为网址：
+在 app.py 中编写逻辑，main.js 处理前端，run.sh 启动，
+配置文件 config.json、样式 style.css，版本 v1.0.0，代词 e.g.，邮箱 user@github.com。
+      `;
+      const candidates = findCandidatesInMarkdown(text, "b_filter");
+      expect(candidates.map((c) => c.originalUrl)).toEqual([
+        "github.com/owner/repo",
+        "gitee.com/team/proj",
+        "v2ex.com/t/123456",
+        "baidu.com",
+      ]);
+      expect(candidates[0].linkText).toBe("repo");
+      expect(candidates[1].linkText).toBe("proj");
+      expect(candidates[2].linkText).toBe("v2ex.com");
+      expect(candidates[3].linkText).toBe("baidu.com");
+    });
   });
 
   describe("convertTextToLinkInMarkdown", () => {
@@ -169,6 +201,15 @@ HTML 链接：<a href="https://html-link.com">点击</a>
       const { markdown: result, replacedCount } = convertTextToLinkInMarkdown(markdown, selectedUrls);
       expect(replacedCount).toBe(1);
       expect(result).toBe("参考文档见 [jev-ultrafast](https://github.com/browser-use/jev-ultrafast)。");
+    });
+
+    it("正确转换不带 http/https 前缀的 GitHub 仓库网址（如 github.com/geeklee/srt-whiteboard-animation）", () => {
+      const markdown = "相关仓库：github.com/geeklee/srt-whiteboard-animation，欢迎 Star！";
+      const selectedUrls = new Set(["github.com/geeklee/srt-whiteboard-animation"]);
+
+      const { markdown: result, replacedCount } = convertTextToLinkInMarkdown(markdown, selectedUrls);
+      expect(replacedCount).toBe(1);
+      expect(result).toBe("相关仓库：[srt-whiteboard-animation](https://github.com/geeklee/srt-whiteboard-animation)，欢迎 Star！");
     });
   });
 });

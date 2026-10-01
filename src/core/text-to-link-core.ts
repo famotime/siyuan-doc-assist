@@ -136,10 +136,15 @@ export function normalizeTargetUrl(originalUrl: string): string {
   if (/^(?:[a-z0-9+.-]+:\/\/|mailto:)/i.test(originalUrl)) {
     return originalUrl;
   }
-  if (/^www\./i.test(originalUrl)) {
-    return `https://${originalUrl}`;
+  // IPv4 地址，默认使用 http://
+  if (
+    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?::\d+)?/i.test(
+      originalUrl
+    )
+  ) {
+    return `http://${originalUrl}`;
   }
-  return `http://${originalUrl}`;
+  return `https://${originalUrl}`;
 }
 
 /**
@@ -269,27 +274,42 @@ function extractContextSnippet(fullText: string, targetUrl: string, matchIndexIn
   return `${prefix}${rawSnippet}${suffix}`;
 }
 
-// 识别 URL / Scheme / IPv4 的正则表达式
+// 识别 URL / Scheme / IPv4 / 裸域名 URL 的正则表达式
 const SCHEME_OR_WWW_URL_REGEX = /(?:(?:[a-z0-9+.-]+:\/\/|mailto:)|www\.)[^\s<>)\]>"',;]+/gi;
 const IPV4_REGEX = /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?::\d+)?(?:\/[^\s<>)\]>"',;\u4e00-\u9fa5]*)?/gi;
+const BARE_DOMAIN_URL_REGEX =
+  /(?<![\w@/:.-])(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com\.cn|org\.cn|net\.cn|edu\.cn|gov\.cn|co\.uk|org\.uk|ac\.cn|com|org|net|edu|gov|cn|io|ai|dev|app|co|me|cc|tv|info|biz|pro|top|xyz|club|site|online|tech|space|store|vip|link|wiki|moe|hk|tw|jp|kr|uk|us|de|fr|ru|ca|au|sg)\b(?::\d{1,5})?(?:\/[^\s<>)\]>"',;\u4e00-\u9fa5]*)?/gi;
 
 function findAllMatchesInMaskedText(maskedText: string): Array<{ rawMatch: string; index: number }> {
+  const occupiedIntervals: Array<{ start: number; end: number }> = [];
   const results: Array<{ rawMatch: string; index: number }> = [];
 
-  // 1. 扫描带有协议头 (http/https/mailto等) 或 www. 的 URL
-  let match: RegExpExecArray | null;
-  const regex1 = new RegExp(SCHEME_OR_WWW_URL_REGEX.source, SCHEME_OR_WWW_URL_REGEX.flags);
-  while ((match = regex1.exec(maskedText)) !== null) {
-    results.push({ rawMatch: match[0], index: match.index });
+  function addMatches(regex: RegExp) {
+    const r = new RegExp(regex.source, regex.flags);
+    let match: RegExpExecArray | null;
+    while ((match = r.exec(maskedText)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+      const isOverlapping = occupiedIntervals.some(
+        (interval) => Math.max(start, interval.start) < Math.min(end, interval.end)
+      );
+      if (!isOverlapping) {
+        occupiedIntervals.push({ start, end });
+        results.push({ rawMatch: match[0], index: start });
+      }
+    }
   }
+
+  // 1. 优先扫描带有协议头 (http/https/mailto等) 或 www. 的 URL
+  addMatches(SCHEME_OR_WWW_URL_REGEX);
 
   // 2. 扫描 IPv4 地址
-  const regex2 = new RegExp(IPV4_REGEX.source, IPV4_REGEX.flags);
-  while ((match = regex2.exec(maskedText)) !== null) {
-    results.push({ rawMatch: match[0], index: match.index });
-  }
+  addMatches(IPV4_REGEX);
 
-  // 按位置排序
+  // 3. 扫描无协议头的纯域名或常见网址 (如 github.com/owner/repo)
+  addMatches(BARE_DOMAIN_URL_REGEX);
+
+  // 按位置升序排序
   return results.sort((a, b) => a.index - b.index);
 }
 
@@ -353,23 +373,24 @@ export function convertTextToLinkInMarkdown(
   }
 
   const { maskedText, masks } = maskProtectedRegions(markdown);
+  const matches = findAllMatchesInMaskedText(maskedText);
+
+  let resultMasked = maskedText;
   let replacedCount = 0;
 
-  const replacePattern = (text: string, pattern: RegExp) => {
-    return text.replace(new RegExp(pattern.source, pattern.flags), (rawMatch) => {
-      const { url: originalUrl, trimmedSuffix } = sanitizeUrlMatch(rawMatch);
-      if (targetOriginalUrls.has(originalUrl)) {
-        replacedCount++;
-        const targetUrl = normalizeTargetUrl(originalUrl);
-        const linkText = extractLinkTextFromUrl(originalUrl);
-        return `[${linkText}](${targetUrl})${trimmedSuffix}`;
-      }
-      return rawMatch;
-    });
-  };
-
-  let resultMasked = replacePattern(maskedText, SCHEME_OR_WWW_URL_REGEX);
-  resultMasked = replacePattern(resultMasked, IPV4_REGEX);
+  // 从后往前替换，保证前面匹配项的 index 偏移不受影响
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const { rawMatch, index } = matches[i];
+    const { url: originalUrl, trimmedSuffix } = sanitizeUrlMatch(rawMatch);
+    if (targetOriginalUrls.has(originalUrl)) {
+      replacedCount++;
+      const targetUrl = normalizeTargetUrl(originalUrl);
+      const linkText = extractLinkTextFromUrl(originalUrl);
+      const replacement = `[${linkText}](${targetUrl})${trimmedSuffix}`;
+      resultMasked =
+        resultMasked.slice(0, index) + replacement + resultMasked.slice(index + rawMatch.length);
+    }
+  }
 
   const finalMarkdown = unmaskProtectedRegions(resultMasked, masks);
   return { markdown: finalMarkdown, replacedCount };
