@@ -17,7 +17,14 @@ import {
   normalizeLineEndings,
   removeSpaceLikeChars,
 } from "@/core/selection-text-transform-core";
-import { deleteBlocksByIds, getBlockKramdowns, getChildBlocksByParentId, updateBlockMarkdown } from "@/services/kernel";
+import {
+  deleteBlocksByIds,
+  getBlocksByIds,
+  getBlockKramdowns,
+  getChildBlocksByParentId,
+  updateBlockMarkdown,
+} from "@/services/kernel";
+import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
 import {
   getExplicitlySelectedBlockIds,
   getSelectedBlockIds,
@@ -50,6 +57,86 @@ function findBlockElementById(root: HTMLElement, blockId: string): HTMLElement |
     }
   }
   return null;
+}
+
+function isComplexStructuralBlock(block: HTMLElement): boolean {
+  const type = (block.getAttribute("data-type") || "").trim().toLowerCase();
+  return (
+    type === "nodetable" ||
+    type === "table" ||
+    type === "nodelist" ||
+    type === "list" ||
+    type === "nodelistitem" ||
+    type === "nodeblockquote" ||
+    type === "nodesuperblock" ||
+    block.querySelector("table") !== null
+  );
+}
+
+function resolveEditableForRange(range: Range, blockElement: HTMLElement): HTMLElement | null {
+  let current: Node | null = range.startContainer;
+  while (current && current !== blockElement) {
+    if (current.nodeType === Node.ELEMENT_NODE) {
+      const el = current as HTMLElement;
+      if (el.tagName === "TH" || el.tagName === "TD") {
+        return el;
+      }
+      if (el.getAttribute("contenteditable") === "true" && el.tagName !== "TABLE") {
+        return el;
+      }
+    }
+    current = current.parentElement;
+  }
+  const editable = blockElement.querySelector('[contenteditable="true"]') as HTMLElement | null;
+  if (editable && editable.tagName === "TABLE") {
+    return null;
+  }
+  return editable || blockElement;
+}
+
+function filterOutNestedSelectedBlockIds(
+  root: HTMLElement | undefined,
+  selectedIds: string[]
+): string[] {
+  if (!root || selectedIds.length <= 1) {
+    return selectedIds;
+  }
+  const idSet = new Set(selectedIds);
+  const topIds: string[] = [];
+  for (const id of selectedIds) {
+    const el = findBlockElementById(root, id);
+    if (!el) {
+      topIds.push(id);
+      continue;
+    }
+    let ancestor = el.parentElement;
+    let hasAncestorInSet = false;
+    while (ancestor && ancestor !== root) {
+      const ancestorId = ancestor.getAttribute("data-node-id");
+      if (ancestorId && idSet.has(ancestorId)) {
+        hasAncestorInSet = true;
+        break;
+      }
+      ancestor = ancestor.parentElement;
+    }
+    if (!hasAncestorInSet) {
+      topIds.push(id);
+    }
+  }
+  return topIds;
+}
+
+function isHighRiskForMarkdownWrite(value: string): boolean {
+  if (!value) {
+    return false;
+  }
+  return (
+    /inline-memo/i.test(value) ||
+    /data-inline-memo-content/i.test(value) ||
+    /data-memo-content/i.test(value) ||
+    /data-memo=/i.test(value) ||
+    /\(\([^)]+\)\)\{:/.test(value)
+  );
 }
 
 function resolveRangeBoundaryBlockId(root: HTMLElement, container: Node): string {
@@ -158,7 +245,7 @@ function applySelectedBlocksSpacingCleanupFromDom(
   const blockElements: HTMLElement[] = [];
   for (const id of selectedIds) {
     const block = findBlockElementById(root, id);
-    if (!block) {
+    if (!block || isComplexStructuralBlock(block)) {
       return null;
     }
     blockElements.push(block);
@@ -207,6 +294,11 @@ function applyPartialSelectionSpacingCleanup(
     return { handled: false, removedCount: 0 };
   }
 
+  const editable = resolveEditableForRange(range, blockElement);
+  if (!editable) {
+    return { handled: false, removedCount: 0 };
+  }
+
   const selectedText = range.toString();
   const cleaned = removeSpaceLikeChars(selectedText);
   const removedCount = cleaned.removedCount;
@@ -214,9 +306,6 @@ function applyPartialSelectionSpacingCleanup(
   if (removedCount > 0) {
     range.deleteContents();
     range.insertNode(document.createTextNode(cleaned.next));
-    const editable =
-      (blockElement.querySelector('[contenteditable="true"]') as HTMLElement | null) ||
-      blockElement;
     editable.dispatchEvent(new Event("input", { bubbles: true }));
   }
   selection.removeAllRanges();
@@ -235,7 +324,7 @@ function applySelectedBlocksEmojiCleanupFromDom(
   const blockElements: HTMLElement[] = [];
   for (const id of selectedIds) {
     const block = findBlockElementById(root, id);
-    if (!block) {
+    if (!block || isComplexStructuralBlock(block)) {
       return null;
     }
     blockElements.push(block);
@@ -284,6 +373,11 @@ function applyPartialSelectionEmojiCleanup(
     return { handled: false, removedCount: 0 };
   }
 
+  const editable = resolveEditableForRange(range, blockElement);
+  if (!editable) {
+    return { handled: false, removedCount: 0 };
+  }
+
   const selectedText = range.toString();
   const cleaned = removeEmojiFromText(selectedText);
   const removedCount = cleaned.removedCount;
@@ -291,9 +385,6 @@ function applyPartialSelectionEmojiCleanup(
   if (removedCount > 0) {
     range.deleteContents();
     range.insertNode(document.createTextNode(cleaned.next));
-    const editable =
-      (blockElement.querySelector('[contenteditable="true"]') as HTMLElement | null) ||
-      blockElement;
     editable.dispatchEvent(new Event("input", { bubbles: true }));
   }
   selection.removeAllRanges();
@@ -312,7 +403,7 @@ function applySelectedBlocksPunctuationToggleFromDom(
   const blockElements: HTMLElement[] = [];
   for (const id of selectedIds) {
     const block = findBlockElementById(root, id);
-    if (!block) {
+    if (!block || isComplexStructuralBlock(block)) {
       return null;
     }
     blockElements.push(block);
@@ -366,6 +457,11 @@ function applyPartialSelectionPunctuationToggle(
     return { handled: false, changedCount: 0 };
   }
 
+  const editable = resolveEditableForRange(range, blockElement);
+  if (!editable) {
+    return { handled: false, changedCount: 0 };
+  }
+
   const selectedText = range.toString();
   const mode = detectPunctuationToggleMode(selectedText);
   const converted = convertChineseEnglishPunctuation(selectedText, mode);
@@ -374,9 +470,6 @@ function applyPartialSelectionPunctuationToggle(
   if (changedCount > 0) {
     range.deleteContents();
     range.insertNode(document.createTextNode(converted.next));
-    const editable =
-      (blockElement.querySelector('[contenteditable="true"]') as HTMLElement | null) ||
-      blockElement;
     editable.dispatchEvent(new Event("input", { bubbles: true }));
   }
   selection.removeAllRanges();
@@ -615,63 +708,56 @@ export function createSelectionActionHandlers(
       }
     }
 
-    const selectedIds = explicitSelectedIds.length
+    const rawSelectedIds = explicitSelectedIds.length
       ? explicitSelectedIds
       : getSelectedBlockIds(protyle);
 
+    const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+    const selectedIds = filterOutNestedSelectedBlockIds(root, rawSelectedIds);
+
     if (selectedIds.length > 0) {
-      const rows = await getBlockKramdowns(selectedIds);
-      const sourceMap = new Map(rows.map((item) => [item.id, item.kramdown || ""]));
-      const updates: Array<{ id: string; next: string; removedCount: number }> = [];
-      let missingSourceCount = 0;
-      for (const id of selectedIds) {
-        const source = sourceMap.get(id);
-        if (source === undefined) {
-          missingSourceCount += 1;
-          continue;
-        }
-        const cleaned = removeEmojiFromText(source);
-        if (cleaned.removedCount <= 0 || cleaned.next === source) {
-          continue;
-        }
-        updates.push({
-          id,
-          next: cleaned.next,
-          removedCount: cleaned.removedCount,
-        });
+      const blocks = await getBlocksByIds(selectedIds);
+      if (!blocks.length) {
+        showMessage("读取选中块失败，请调整选区后重试", 5000, "error");
+        return;
       }
 
-      if (!updates.length) {
-        if (missingSourceCount > 0) {
-          showMessage(`读取块源码失败，已跳过 ${missingSourceCount} 个块`, 6000, "error");
+      let removedEmojiCount = 0;
+      const report = await applyMarkdownTransformToBlocks({
+        blocks,
+        isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
+        updateBlockMarkdown,
+        protyle,
+        transform: (source) => {
+          const cleaned = removeEmojiFromText(source);
+          return {
+            markdown: cleaned.next,
+            changedCount: cleaned.removedCount,
+          };
+        },
+        onUpdated: (cleaned) => {
+          removedEmojiCount += cleaned.changedCount;
+        },
+      });
+
+      if (!report.updatedBlockCount) {
+        if (report.skippedRiskyIds.length > 0) {
+          showMessage("检测到高风险块，未执行清理（可先移除复杂内联后重试）", 5000, "error");
           return;
         }
         showMessage("选中块未发现 Emoji 表情", 4000, "info");
         return;
       }
 
-      let success = 0;
-      let failed = 0;
-      let removedCount = 0;
-      for (const item of updates) {
-        try {
-          await updateBlockMarkdown(item.id, item.next);
-          success += 1;
-          removedCount += item.removedCount;
-        } catch {
-          failed += 1;
-        }
-      }
-
-      if (failed > 0 || missingSourceCount > 0) {
+      if (report.failedBlockCount > 0) {
         showMessage(
-          `处理完成：成功 ${success} 个块，失败 ${failed} 个块，跳过 ${missingSourceCount} 个块`,
+          `处理完成：成功更新 ${report.updatedBlockCount} 个块，移除 ${removedEmojiCount} 个 Emoji 表情，失败 ${report.failedBlockCount} 个块`,
           7000,
           "error"
         );
         return;
       }
-      showMessage(`已清理 ${success} 个块，移除 ${removedCount} 个 Emoji 表情`, 5000, "info");
+      showMessage(`已清理 ${report.updatedBlockCount} 个块，移除 ${removedEmojiCount} 个 Emoji 表情`, 5000, "info");
       return;
     }
 
@@ -716,22 +802,30 @@ export function createSelectionActionHandlers(
     }
 
     deps.setBusy?.(true);
-    let success = 0;
-    let failed = 0;
-    for (const item of updates) {
-      try {
-        await updateBlockMarkdown(item.id, item.next);
-        success += 1;
-      } catch {
-        failed += 1;
-      }
-    }
 
-    if (failed > 0) {
-      showMessage(`清理完成：成功 ${success} 个块，失败 ${failed} 个块`, 7000, "error");
+    let actualRemovedCount = 0;
+    const report = await applyMarkdownTransformToBlocks({
+      blocks,
+      isHighRisk: (source) => isHighRiskForMarkdownWrite(source),
+      updateBlockMarkdown,
+      protyle,
+      transform: (source) => {
+        const cleaned = removeEmojiFromText(source);
+        return {
+          markdown: cleaned.next,
+          changedCount: cleaned.removedCount,
+        };
+      },
+      onUpdated: (cleaned) => {
+        actualRemovedCount += cleaned.changedCount;
+      },
+    });
+
+    if (report.failedBlockCount > 0) {
+      showMessage(`清理完成：成功更新 ${report.updatedBlockCount} 个块，失败 ${report.failedBlockCount} 个块`, 7000, "error");
       return;
     }
-    showMessage(`已清理整篇文档：成功更新 ${success} 个块，移除 ${totalEmojiCount} 个 Emoji 表情`, 5000, "info");
+    showMessage(`已清理整篇文档：成功更新 ${report.updatedBlockCount} 个块，移除 ${actualRemovedCount} 个 Emoji 表情`, 5000, "info");
   };
 
   const handleToggleSelectedPunctuation = async (_docId: string, protyle?: ProtyleLike) => {

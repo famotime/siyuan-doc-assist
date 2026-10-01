@@ -369,6 +369,47 @@ export async function getChildBlocksByParentId(
     .filter((row): row is ChildBlockMeta => !!row);
 }
 
+export async function getBlocksByIds(
+  ids: string[]
+): Promise<ChildBlockMeta[]> {
+  const normalizedIds = ids.map((id) => (id || "").trim()).filter(Boolean);
+  if (!normalizedIds.length) {
+    return [];
+  }
+  const rows = await sqlPaged<SqlChildBlockRow>(
+    `select id, type, content, markdown, sort
+     from blocks
+     where id in (${inClause(normalizedIds)})
+     order by sort asc`
+  );
+  const rowMap = new Map<string, ChildBlockMeta>();
+  for (const row of rows) {
+    rowMap.set(row.id, {
+      id: row.id,
+      type: row.type,
+      content: row.content || "",
+      markdown: row.markdown || "",
+      resolved: true,
+    });
+  }
+  const missingIds = normalizedIds.filter((id) => !rowMap.has(id));
+  if (missingIds.length) {
+    const kramdowns = await getBlockKramdowns(missingIds);
+    for (const item of kramdowns) {
+      rowMap.set(item.id, {
+        id: item.id,
+        type: "p",
+        content: "",
+        markdown: item.kramdown || "",
+        resolved: true,
+      });
+    }
+  }
+  return normalizedIds
+    .map((id) => rowMap.get(id))
+    .filter((row): row is ChildBlockMeta => !!row);
+}
+
 export async function getChildBlockRefsByParentId(
   parentId: string
 ): Promise<ChildBlockRef[]> {

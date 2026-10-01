@@ -10,6 +10,7 @@ export {
   getBlockKramdowns,
   getChildBlockRefsByParentId,
   getChildBlocksByParentId,
+  getBlocksByIds,
   insertBlockBefore,
   updateBlockDom,
   updateBlockMarkdown,

@@ -59,6 +59,45 @@ describe("emoji-cleanup-core", () => {
       expect(res.removedCount).toBe(2);
       expect(res.next).toBe("测试一下，再看这个。");
     });
+
+    it("should strictly preserve nested list indentation when removing emojis", () => {
+      const listMd = [
+        "1. **双主题 8 组精调预设色盘**：",
+        "",
+        "   - 提供科技蓝、薄荷绿；",
+        "   - 严格遵循 **WCAG AA** 规范。",
+        "2. **Emoji 前缀胶囊药丸**：",
+        "",
+        "   - 支持为标签配置直观的 Emoji 前缀（如 `💡 #灵感#`、`📌 #待办#`、`🎯 #复盘#`）；",
+        "   - 在正文编辑器中渲染为精致的高辨识度胶囊药丸。",
+        "3. **零 Markdown 格式污染**：",
+        "",
+        "   - 全部样式通过动态 CSS 注入。",
+      ].join("\n");
+
+      const res = removeEmojiFromText(listMd);
+      expect(res.removedCount).toBe(3);
+      // The 3-space indentation before nested items must be preserved!
+      expect(res.next).toContain("   - 支持为标签配置直观的 Emoji 前缀（如 `#灵感#`、`#待办#`、`#复盘#`）；");
+      expect(res.next).toContain("   - 提供科技蓝、薄荷绿；");
+      expect(res.next).toContain("1. **双主题 8 组精调预设色盘**：");
+      expect(res.next).toContain("2. **Emoji 前缀胶囊药丸**：");
+      expect(res.next).toContain("3. **零 Markdown 格式污染**：");
+    });
+
+    it("should strictly preserve Markdown table syntax and alignment row", () => {
+      const tableMd = [
+        "|维度|原生体验|🏷️ 标签管家|用户价值|",
+        "| :-----| :-------------------| :------------| :-------------------|",
+        "|**检索**|单标签搜索|**侧边抽屉流 🚀**|保持专注|",
+      ].join("\n");
+
+      const res = removeEmojiFromText(tableMd);
+      expect(res.removedCount).toBe(2);
+      expect(res.next).toContain("|维度|原生体验|标签管家|用户价值|");
+      expect(res.next).toContain("| :-----| :-------------------| :------------| :-------------------|");
+      expect(res.next).toContain("|**检索**|单标签搜索|**侧边抽屉流**|保持专注|");
+    });
   });
 
   describe("collapseExtraneousSpaces", () => {
@@ -69,5 +108,13 @@ describe("emoji-cleanup-core", () => {
     it("should handle empty lines and trim line ends", () => {
       expect(collapseExtraneousSpaces("   \n\n  word  ")).toBe("\n\nword");
     });
+
+    it("should preserve leading spaces for list items and blockquotes", () => {
+      expect(collapseExtraneousSpaces("   - item 1")).toBe("   - item 1");
+      expect(collapseExtraneousSpaces("    * item 2")).toBe("    * item 2");
+      expect(collapseExtraneousSpaces("  1. ordered item")).toBe("  1. ordered item");
+      expect(collapseExtraneousSpaces("   > quoted text")).toBe("   > quoted text");
+    });
   });
 });
+
