@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildFloatingWindowHtml } from "@/ui/floating-text/floating-window-template";
 import { DEFAULT_FLOATING_TEXT_CONFIG, simpleMarkdownToHtml } from "@/core/floating-text-core";
 import { MARKED_UMD_SOURCE } from "@/ui/floating-text/marked-source";
@@ -209,6 +209,196 @@ describe("floating-window-render", () => {
       const md = "这是 ==重要高亮== 内容";
       const html = simpleMarkdownToHtml(md);
       expect(html).toContain("<mark>重要高亮</mark>");
+    });
+  });
+
+  describe("header drag enhancement styles and script", () => {
+    it("includes dragging cursor styles and pointer-event protections", () => {
+      const html = buildFloatingWindowHtml({
+        title: "拖拽测试",
+        text: "测试内容",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        isDark: false,
+      });
+
+      expect(html).toContain("cursor: grab;");
+      expect(html).toContain("#ft-app.is-dragging");
+      expect(html).toContain("cursor: grabbing !important;");
+      expect(html).toContain(".ft-drag-handle");
+      expect(html).toContain("pointer-events: none;");
+    });
+
+    it("embeds mouse drag event listener script for fallback window movement", () => {
+      const html = buildFloatingWindowHtml({
+        title: "拖拽测试",
+        text: "测试内容",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        isDark: false,
+      });
+
+      expect(html).toContain("标题栏鼠标拖动增强与多环境兜底");
+      expect(html).toContain("siyuan-doc-assist-move-window");
+      expect(html).toContain("electronWin.setPosition");
+      expect(html).toContain("window.__docAssistantHost.setPosition");
+      expect(html).toContain("headerEl.addEventListener(\"mousedown\"");
+    });
+  });
+
+  describe("search bar and auto-paste integration", () => {
+    it("renders search bar and search results markup in template", () => {
+      const html = buildFloatingWindowHtml({
+        title: "搜索测试",
+        text: "- 第一条信息\n- 第二条包含重要内容\n- 第三条信息",
+        config: { ...DEFAULT_FLOATING_TEXT_CONFIG, autoPasteOnSelect: false },
+        isDark: false,
+      });
+
+      expect(html).toContain('id="ft-btn-search"');
+      expect(html).toContain('id="ft-search-bar"');
+      expect(html).toContain('id="ft-search-input"');
+      expect(html).toContain('id="ft-search-results"');
+      expect(html).toContain('id="ft-search-count"');
+      expect(html).toContain("ft-search-item");
+      expect(html).toContain("ft-search-highlight");
+    });
+
+    it("opens search bar, filters candidates, and navigates with keyboard in JSDOM", async () => {
+      const { JSDOM, VirtualConsole } = await import("jsdom");
+      const virtualConsole = new VirtualConsole();
+      const errors: any[] = [];
+      virtualConsole.on("error", (err) => errors.push(err));
+
+      const text = "- 第一条信息\n- 第二条包含重要关键字内容\n- 第三条信息";
+      const html = buildFloatingWindowHtml({
+        title: "交互搜索测试",
+        text,
+        config: { ...DEFAULT_FLOATING_TEXT_CONFIG, autoPasteOnSelect: false },
+        isDark: false,
+      });
+
+      const dom = new JSDOM(html, {
+        runScripts: "dangerously",
+        virtualConsole,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(errors).toHaveLength(0);
+
+      const doc = dom.window.document;
+      const searchBtn = doc.getElementById("ft-btn-search");
+      const searchBar = doc.getElementById("ft-search-bar");
+      const searchInput = doc.getElementById("ft-search-input") as HTMLInputElement;
+      const searchResults = doc.getElementById("ft-search-results") as HTMLElement;
+      const searchCount = doc.getElementById("ft-search-count") as HTMLElement;
+
+      // 默认折叠
+      expect(searchBar?.style.display).toBe("none");
+
+      // 点击展开搜索栏
+      searchBtn?.click();
+      expect(searchBar?.style.display).toBe("flex");
+
+      // 输入关键字
+      if (searchInput) {
+        searchInput.value = "关键字";
+        searchInput.dispatchEvent(new dom.window.Event("input"));
+      }
+
+      expect(searchResults.style.display).toBe("flex");
+      expect(searchCount.textContent).toBe("1 项");
+
+      const items = searchResults.querySelectorAll(".ft-search-item");
+      expect(items).toHaveLength(1);
+      expect(items[0]?.classList.contains("is-selected")).toBe(true);
+      expect(items[0]?.innerHTML).toContain("ft-search-highlight");
+      expect(items[0]?.innerHTML).toContain("关键字");
+
+      // 按 Esc 键清空搜索词
+      searchInput?.dispatchEvent(
+        new dom.window.KeyboardEvent("keydown", { key: "Escape" })
+      );
+      expect(searchInput?.value).toBe("");
+      expect(searchResults.style.display).toBe("none");
+
+      // 再次按 Esc 收起搜索栏
+      searchInput?.dispatchEvent(
+        new dom.window.KeyboardEvent("keydown", { key: "Escape" })
+      );
+      expect(searchBar?.style.display).toBe("none");
+    });
+
+    it("triggers copy and auto paste when autoPasteOnSelect is enabled", async () => {
+      const { JSDOM, VirtualConsole } = await import("jsdom");
+      const virtualConsole = new VirtualConsole();
+      const errors: any[] = [];
+      virtualConsole.on("error", (err) => errors.push(err));
+      virtualConsole.on("jsdomError", (err) => errors.push(err));
+
+      const text = "- 待粘贴的候选词条";
+      const html = buildFloatingWindowHtml({
+        title: "自动粘贴测试",
+        text,
+        config: { ...DEFAULT_FLOATING_TEXT_CONFIG, autoPasteOnSelect: true },
+        isDark: false,
+      });
+
+      const minimizeAndPasteMock = vi.fn();
+      let writtenClipboardText = "";
+
+      const dom = new JSDOM(html, {
+        runScripts: "dangerously",
+        virtualConsole,
+        beforeParse(window) {
+          (window as any).__docAssistantHost = {
+            minimizeAndPaste: minimizeAndPasteMock,
+          };
+          (window as any).navigator.clipboard = {
+            writeText: vi.fn().mockImplementation((txt) => {
+              writtenClipboardText = txt;
+              return Promise.resolve();
+            }),
+          };
+          (window as any).require = (mod: string) => {
+            if (mod === "electron") {
+              return {
+                clipboard: {
+                  writeText: (txt: string) => {
+                    writtenClipboardText = txt;
+                  },
+                },
+              };
+            }
+            return null;
+          };
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(errors).toHaveLength(0);
+
+      const doc = dom.window.document;
+      const searchBtn = doc.getElementById("ft-btn-search");
+      const searchInput = doc.getElementById("ft-search-input") as HTMLInputElement;
+      const searchResults = doc.getElementById("ft-search-results") as HTMLElement;
+
+      searchBtn?.click();
+      if (searchInput) {
+        searchInput.value = "词条";
+        searchInput.dispatchEvent(new dom.window.Event("input"));
+      }
+
+      const item = searchResults.querySelector(".ft-search-item") as HTMLElement;
+      expect(item).not.toBeNull();
+
+      // 点击候选条目
+      item.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(writtenClipboardText).toBe("- 待粘贴的候选词条");
+      expect(minimizeAndPasteMock).toHaveBeenCalledTimes(1);
+
+      const toast = doc.getElementById("ft-toast");
+      expect(toast?.textContent).toBe("已复制并自动粘贴");
     });
   });
 });

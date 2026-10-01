@@ -12,6 +12,7 @@ import {
   loadFloatingTextConfig,
   saveFloatingTextConfig,
 } from "@/services/floating-text/floating-text-storage";
+import { triggerSystemPaste } from "@/services/floating-text/floating-paste-helper";
 import { Dialog, showMessage } from "siyuan";
 
 let currentPipWindow: Window | null = null;
@@ -166,11 +167,39 @@ export async function openFloatingTextWindow(options: {
         isAlwaysOnTop: () => {
           return !win.isDestroyed() && win.isAlwaysOnTop();
         },
+        getPosition: (): [number, number] => {
+          if (!win.isDestroyed()) {
+            return win.getPosition();
+          }
+          return [0, 0];
+        },
+        setPosition: (x: number, y: number) => {
+          if (!win.isDestroyed()) {
+            win.setPosition(Math.round(x), Math.round(y));
+          }
+        },
+        focus: () => {
+          if (!win.isDestroyed()) {
+            win.focus?.();
+          }
+        },
+        minimizeAndPaste: () => {
+          if (!win.isDestroyed()) {
+            try {
+              win.minimize?.();
+            } catch (minErr) {
+              console.warn("[DocAssistant][FloatingText] win.minimize error:", minErr);
+            }
+            triggerSystemPaste(180);
+          }
+        },
       };
 
-      // 监听来自置顶子窗口的 IPC 配置持久化与置顶切换通知 (双通道监听保障可靠送达)
+      // 监听来自置顶子窗口的 IPC 配置持久化、置顶切换与位置移动通知 (双通道监听保障可靠送达)
       const IPC_CHANNEL = "siyuan-doc-assist-save-floating-config";
       const IPC_PIN_CHANNEL = "siyuan-doc-assist-set-always-on-top";
+      const IPC_MOVE_CHANNEL = "siyuan-doc-assist-move-window";
+      const IPC_PASTE_CHANNEL = "siyuan-doc-assist-minimize-and-paste";
       try {
         const electron = (window as any).require?.("electron");
         if (electron?.ipcRenderer) {
@@ -190,22 +219,48 @@ export async function openFloatingTextWindow(options: {
               }
             }
           });
+          electron.ipcRenderer.removeAllListeners(IPC_MOVE_CHANNEL);
+          electron.ipcRenderer.on(IPC_MOVE_CHANNEL, (_event: any, pos: { x: number; y: number }) => {
+            if (currentElectronWindow && !currentElectronWindow.isDestroyed() && pos && typeof pos.x === "number") {
+              currentElectronWindow.setPosition(Math.round(pos.x), Math.round(pos.y));
+            }
+          });
+          electron.ipcRenderer.removeAllListeners(IPC_PASTE_CHANNEL);
+          electron.ipcRenderer.on(IPC_PASTE_CHANNEL, () => {
+            if (currentElectronWindow && !currentElectronWindow.isDestroyed()) {
+              try {
+                currentElectronWindow.minimize?.();
+              } catch (minErr) {}
+              triggerSystemPaste(180);
+            }
+          });
         }
       } catch (ipcBindErr) {
         console.warn("[DocAssistant][FloatingText] ipcRenderer bind warning:", ipcBindErr);
       }
 
       if (win.webContents?.on) {
-        win.webContents.on("ipc-message", (_event: any, channel: string, patch: any) => {
-          if (channel === IPC_CHANNEL && patch && typeof patch === "object") {
-            saveFloatingTextConfig(patch);
+        win.webContents.on("ipc-message", (_event: any, channel: string, payload: any) => {
+          if (channel === IPC_CHANNEL && payload && typeof payload === "object") {
+            saveFloatingTextConfig(payload);
           } else if (channel === IPC_PIN_CHANNEL) {
             if (!win.isDestroyed()) {
-              win.setAlwaysOnTop(Boolean(patch));
-              if (patch) {
+              win.setAlwaysOnTop(Boolean(payload));
+              if (payload) {
                 win.moveTop?.();
                 win.focus?.();
               }
+            }
+          } else if (channel === IPC_MOVE_CHANNEL && payload && typeof payload.x === "number") {
+            if (!win.isDestroyed()) {
+              win.setPosition(Math.round(payload.x), Math.round(payload.y));
+            }
+          } else if (channel === IPC_PASTE_CHANNEL) {
+            if (!win.isDestroyed()) {
+              try {
+                win.minimize?.();
+              } catch (minErr) {}
+              triggerSystemPaste(180);
             }
           }
         });
@@ -241,6 +296,18 @@ export async function openFloatingTextWindow(options: {
 
       // 使用 data URL 直接在内存中加载自包含的完整 HTML，不依赖任何 HTTP 路由或鉴权
       win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+      win.once("ready-to-show", () => {
+        if (!win.isDestroyed()) {
+          win.show();
+          win.focus();
+        }
+      });
+      setTimeout(() => {
+        if (!win.isDestroyed()) {
+          win.show();
+          win.focus();
+        }
+      }, 60);
       return;
     } catch (remoteErr) {
       console.warn("[DocAssistant][FloatingText] remote.BrowserWindow failed:", remoteErr);
@@ -685,6 +752,61 @@ function bindPipWindowEvents(
       }
     }, 400);
   });
+
+  // 9. 标题栏鼠标拖拽增强 (针对 PiP / window.open 浏览器环境)
+  const headerEl = doc.querySelector(".ft-header") as HTMLElement | null;
+  const actionsEl = doc.querySelector(".ft-actions") as HTMLElement | null;
+  if (headerEl) {
+    let isDragging = false;
+    let startMouseX = 0;
+    let startMouseY = 0;
+    let startWinX = 0;
+    let startWinY = 0;
+    let hasMoved = false;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const dx = e.screenX - startMouseX;
+      const dy = e.screenY - startMouseY;
+      if (!hasMoved && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+        hasMoved = true;
+        appEl?.classList.add("is-dragging");
+      }
+      if (hasMoved && typeof pipWindow.moveTo === "function") {
+        try {
+          pipWindow.moveTo(Math.round(startWinX + dx), Math.round(startWinY + dy));
+        } catch {}
+      }
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      if (!isDragging) return;
+      isDragging = false;
+      doc.removeEventListener("mousemove", onMouseMove, true);
+      doc.removeEventListener("mouseup", onMouseUp, true);
+      appEl?.classList.remove("is-dragging");
+      if (hasMoved) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    headerEl.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (actionsEl && actionsEl.contains(e.target as Node)) return;
+      try {
+        pipWindow.focus?.();
+      } catch {}
+      isDragging = true;
+      hasMoved = false;
+      startMouseX = e.screenX;
+      startMouseY = e.screenY;
+      startWinX = typeof pipWindow.screenX === "number" ? pipWindow.screenX : 0;
+      startWinY = typeof pipWindow.screenY === "number" ? pipWindow.screenY : 0;
+      doc.addEventListener("mousemove", onMouseMove, true);
+      doc.addEventListener("mouseup", onMouseUp, true);
+    });
+  }
 }
 
 function openInAppFloatingFallback(
@@ -711,13 +833,67 @@ function openInAppFloatingFallback(
     baseUrl,
   });
 
-  new Dialog({
+  const dialog = new Dialog({
     title: `📌 ${title}`,
-    content: `<div style="height: 100%; min-height: 260px;">${dialogHtml}</div>`,
+    content: `<div class="doc-assistant-floating-dialog-wrapper" style="height: 100%; min-height: 260px;">${dialogHtml}</div>`,
     width: `${effectiveConfig.width}px`,
     height: `${effectiveConfig.height}px`,
     transparent: true,
   });
+
+  // 支持通过拖动内层标题栏联动拖拽思源 Dialog 容器
+  const dialogEl = dialog.element;
+  const dialogContainer = dialogEl?.querySelector(".b3-dialog__container") as HTMLElement | null;
+  const innerHeader = dialogEl?.querySelector(".ft-header") as HTMLElement | null;
+  const innerActions = dialogEl?.querySelector(".ft-actions") as HTMLElement | null;
+  if (dialogContainer && innerHeader) {
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initLeft = 0;
+    let initTop = 0;
+    let hasMoved = false;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!hasMoved && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+        hasMoved = true;
+      }
+      if (hasMoved) {
+        dialogContainer.style.left = `${initLeft + dx}px`;
+        dialogContainer.style.top = `${initTop + dy}px`;
+        dialogContainer.style.position = "absolute";
+        dialogContainer.style.transform = "none";
+      }
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      if (!isDragging) return;
+      isDragging = false;
+      document.removeEventListener("mousemove", onMouseMove, true);
+      document.removeEventListener("mouseup", onMouseUp, true);
+      if (hasMoved) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    innerHeader.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (innerActions && innerActions.contains(e.target as Node)) return;
+      isDragging = true;
+      hasMoved = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = dialogContainer.getBoundingClientRect();
+      initLeft = rect.left;
+      initTop = rect.top;
+      document.addEventListener("mousemove", onMouseMove, true);
+      document.addEventListener("mouseup", onMouseUp, true);
+    });
+  }
 
   showMessage("当前环境已在应用内打开悬浮窗", 3000, "info");
 }

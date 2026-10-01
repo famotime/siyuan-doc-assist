@@ -22,6 +22,8 @@ export interface FloatingTextConfig {
   height: number;
   /** 是否自动记忆窗口尺寸 */
   rememberSize: boolean;
+  /** 浮窗命中文本直接粘贴：选择匹配条目后复制并尝试在焦点输入框粘贴，默认关闭 (false) */
+  autoPasteOnSelect: boolean;
 }
 
 export const DEFAULT_FLOATING_TEXT_CONFIG: FloatingTextConfig = {
@@ -33,6 +35,7 @@ export const DEFAULT_FLOATING_TEXT_CONFIG: FloatingTextConfig = {
   width: 420,
   height: 320,
   rememberSize: true,
+  autoPasteOnSelect: false,
 };
 
 export const MIN_FONT_SIZE = 11;
@@ -91,6 +94,8 @@ export function normalizeFloatingConfig(
 
   const fontFamily = typeof raw.fontFamily === "string" ? raw.fontFamily.trim() : "";
   const rememberSize = typeof raw.rememberSize === "boolean" ? raw.rememberSize : true;
+  const autoPasteOnSelect =
+    typeof raw.autoPasteOnSelect === "boolean" ? raw.autoPasteOnSelect : false;
 
   return {
     opacity,
@@ -101,6 +106,7 @@ export function normalizeFloatingConfig(
     width,
     height,
     rememberSize,
+    autoPasteOnSelect,
   };
 }
 

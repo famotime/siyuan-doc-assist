@@ -456,7 +456,7 @@ describe("plugin settings", () => {
   test("hides alpha actions and related settings panels when configured", async () => {
     const { ALPHA_FEATURE_HIDE_CONFIG } = await import("@/plugin/alpha-feature-config");
     ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["clean-ai-output"];
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode", "floating-text"];
 
     try {
       const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
@@ -537,5 +537,30 @@ describe("plugin settings", () => {
 
     expect(plugin.debugLogEnabled).toBe(true);
     expect(isDocAssistantDebugEnabled()).toBe(true);
+  });
+
+  test("autoPasteOnSelect toggle controls floatingConfig state", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
+    plugin.openSetting();
+
+    const setting = settingInstances[1];
+    const autoPasteItem = setting.items.find((item) => item.title === "浮窗命中文本直接粘贴");
+    expect(autoPasteItem).toBeDefined();
+    expect(autoPasteItem?.description).toContain("开启后，在悬浮窗搜索栏选择匹配文本后自动复制");
+
+    const control = autoPasteItem?.actionElement as HTMLElement;
+    expect(control.classList.contains("doc-assistant-settings__autopaste-control")).toBe(true);
+    const toggle = control.querySelector("input[type='checkbox']") as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.floatingConfig.autoPasteOnSelect).toBe(true);
   });
 });

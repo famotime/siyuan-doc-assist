@@ -382,6 +382,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       aiSummaryConfig: this.aiSummaryConfig,
       managedAiConfig: this.managedAiConfig,
       debugLogEnabled: this.debugLogEnabled,
+      autoPasteOnSelect: this.floatingConfig.autoPasteOnSelect ?? false,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
@@ -391,6 +392,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onToggleSingleMenu: (key, enabled) =>
         this.setSingleDocMenuRegistration(key, enabled),
       onDebugLogEnabledChange: (enabled) => this.setDebugLogEnabled(enabled),
+      onAutoPasteOnSelectChange: (enabled) =>
+        this.setFloatingConfig({ autoPasteOnSelect: enabled }),
     });
   }
 

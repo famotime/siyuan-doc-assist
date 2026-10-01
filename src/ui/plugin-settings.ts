@@ -20,6 +20,7 @@ type CreatePluginSettingsOptions = {
   aiSummaryConfig: AiServiceConfig;
   managedAiConfig: AiServiceConfig | null; // 添加被管家接管的配置
   debugLogEnabled: boolean;
+  autoPasteOnSelect?: boolean;
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
   onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
@@ -27,6 +28,7 @@ type CreatePluginSettingsOptions = {
   onToggleSingleEnabled: (key: ActionKey, enabled: boolean) => Promise<void> | void;
   onToggleSingleMenu: (key: ActionKey, enabled: boolean) => Promise<void> | void;
   onDebugLogEnabledChange: (enabled: boolean) => Promise<void> | void;
+  onAutoPasteOnSelectChange?: (enabled: boolean) => Promise<void> | void;
 };
 
 function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
@@ -138,6 +140,34 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     });
     hostNormalizedRows.push({
       element: debugControlWrap,
+      fallbackDescription: description,
+    });
+  }
+
+  if (options.onAutoPasteOnSelectChange && !hiddenSettingKeys.has("floating-text")) {
+    const autoPasteToggle = document.createElement("input");
+    autoPasteToggle.className = "b3-switch fn__flex-center";
+    autoPasteToggle.type = "checkbox";
+    autoPasteToggle.checked = Boolean(options.autoPasteOnSelect);
+    autoPasteToggle.addEventListener("change", () => {
+      options.onAutoPasteOnSelectChange?.(autoPasteToggle.checked);
+    });
+
+    const autoPasteControlWrap = createElement(
+      "div",
+      "doc-assistant-settings__autopaste-control"
+    );
+    autoPasteControlWrap.append(autoPasteToggle);
+    const description =
+      "开启后，在悬浮窗搜索栏选择匹配文本后自动复制，浮窗自动缩小并在当前焦点输入框自动粘贴；关闭时仅复制到剪贴板，保持浮窗显示。";
+
+    setting.addItem({
+      title: "浮窗命中文本直接粘贴",
+      description,
+      actionElement: autoPasteControlWrap,
+    });
+    hostNormalizedRows.push({
+      element: autoPasteControlWrap,
       fallbackDescription: description,
     });
   }

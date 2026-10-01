@@ -56,6 +56,12 @@ describe("floating-text-core", () => {
       expect(invalid.themeMode).toBe("auto");
       expect(invalid.viewMode).toBe("text");
     });
+
+    it("normalizes autoPasteOnSelect boolean", () => {
+      expect(normalizeFloatingConfig({ autoPasteOnSelect: true }).autoPasteOnSelect).toBe(true);
+      expect(normalizeFloatingConfig({ autoPasteOnSelect: false }).autoPasteOnSelect).toBe(false);
+      expect(normalizeFloatingConfig({ autoPasteOnSelect: "invalid" as any }).autoPasteOnSelect).toBe(false);
+    });
   });
 
   describe("calculateSteppedFontSize", () => {

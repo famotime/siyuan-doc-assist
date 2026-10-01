@@ -88,6 +88,14 @@ export function getFloatingWindowStyles(): string {
       user-select: none;
       flex-shrink: 0;
       -webkit-app-region: drag;
+      cursor: grab;
+    }
+
+    #ft-app.is-dragging,
+    #ft-app.is-dragging .ft-header,
+    #ft-app.is-dragging .ft-title-area {
+      cursor: grabbing !important;
+      user-select: none !important;
     }
 
     .ft-title-area {
@@ -100,6 +108,7 @@ export function getFloatingWindowStyles(): string {
       font-size: 12px;
       font-weight: 600;
       opacity: 0.9;
+      cursor: inherit;
     }
 
     .ft-drag-handle {
@@ -107,7 +116,8 @@ export function getFloatingWindowStyles(): string {
       align-items: center;
       justify-content: center;
       opacity: 0.55;
-      cursor: grab;
+      cursor: inherit;
+      pointer-events: none;
     }
 
     .ft-title-text {
@@ -115,6 +125,7 @@ export function getFloatingWindowStyles(): string {
       text-overflow: ellipsis;
       white-space: nowrap;
       max-width: 160px;
+      pointer-events: none;
     }
 
     .ft-word-count {
@@ -126,6 +137,7 @@ export function getFloatingWindowStyles(): string {
       border-radius: 4px;
       background: rgba(128, 128, 128, 0.1);
       margin-left: 2px;
+      pointer-events: none;
     }
 
     .ft-actions {
@@ -134,6 +146,11 @@ export function getFloatingWindowStyles(): string {
       gap: 2px;
       flex-shrink: 0;
       -webkit-app-region: no-drag;
+      cursor: default;
+    }
+
+    .ft-actions * {
+      pointer-events: auto;
     }
 
     /* 操作按钮 */
@@ -383,6 +400,102 @@ export function getFloatingWindowStyles(): string {
       transform: scale(0.92);
     }
 
+    /* 搜索栏 */
+    .ft-search-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--ft-header-bg);
+      border-bottom: 1px solid var(--ft-border-color);
+      flex-shrink: 0;
+      -webkit-app-region: no-drag;
+      animation: ftSlideDown 0.16s ease-out;
+    }
+
+    @keyframes ftSlideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .ft-search-icon-prefix {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.55;
+      flex-shrink: 0;
+    }
+
+    .ft-search-icon-prefix .ft-icon {
+      width: 14px;
+      height: 14px;
+    }
+
+    .ft-search-input {
+      flex: 1;
+      min-width: 0;
+      height: 26px;
+      padding: 0 8px;
+      border: 1px solid var(--ft-border-color);
+      border-radius: 4px;
+      background: rgba(128, 128, 128, 0.08);
+      color: var(--ft-text-color);
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .ft-search-input:focus {
+      border-color: #2ea043;
+      background: rgba(128, 128, 128, 0.12);
+    }
+
+    .ft-search-count {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ft-text-secondary);
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(128, 128, 128, 0.12);
+    }
+
+    .ft-search-clear-btn,
+    .ft-search-close-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--ft-text-secondary);
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .ft-search-clear-btn:hover,
+    .ft-search-close-btn:hover {
+      background: var(--ft-button-hover);
+      color: var(--ft-text-color);
+    }
+
+    .ft-search-clear-btn .ft-icon,
+    .ft-search-close-btn .ft-icon {
+      width: 12px;
+      height: 12px;
+    }
+
     /* 主内容展示区 */
     .ft-body {
       flex: 1;
@@ -547,6 +660,99 @@ export function getFloatingWindowStyles(): string {
       cursor: zoom-out;
     }
 
+    /* 搜索结果列表 */
+    .ft-search-results {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 100%;
+    }
+
+    .ft-search-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      font-size: 13px;
+      color: var(--ft-text-secondary);
+      user-select: none;
+    }
+
+    .ft-search-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--ft-border-color);
+      background: rgba(128, 128, 128, 0.05);
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, transform 0.1s;
+      user-select: text;
+    }
+
+    .ft-search-item:hover,
+    .ft-search-item.is-selected {
+      background: rgba(46, 160, 67, 0.12);
+      border-color: rgba(46, 160, 67, 0.4);
+    }
+
+    .ft-search-item.is-selected {
+      box-shadow: 0 0 0 1px rgba(46, 160, 67, 0.35);
+    }
+
+    .ft-search-item-line {
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 600;
+      color: var(--ft-text-secondary);
+      background: rgba(128, 128, 128, 0.15);
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      user-select: none;
+    }
+
+    .ft-search-item-text {
+      flex: 1;
+      font-size: calc(var(--ft-font-size) - 1px);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .ft-search-item-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      color: var(--ft-accent);
+      opacity: 0;
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: opacity 0.15s;
+      user-select: none;
+    }
+
+    .ft-search-item:hover .ft-search-item-action,
+    .ft-search-item.is-selected .ft-search-item-action {
+      opacity: 0.9;
+    }
+
+    .ft-search-highlight {
+      background: rgba(255, 212, 0, 0.4);
+      color: inherit;
+      padding: 0 2px;
+      border-radius: 2px;
+      font-weight: 600;
+    }
+
+    [data-theme="dark"] .ft-search-highlight {
+      background: rgba(230, 165, 0, 0.45);
+      color: inherit;
+    }
+
     /* 快捷提示浮条 (备用) */
     .ft-toast {
       position: fixed;
@@ -677,6 +883,10 @@ export function buildFloatingWindowHtml(options: {
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </symbol>
+        <symbol id="ft-icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </symbol>
       </svg>
 
       <div id="ft-app" style="--ft-opacity: ${config.opacity}; --ft-font-size: ${config.fontSize}px; ${fontFamStyle}">
@@ -696,6 +906,14 @@ export function buildFloatingWindowHtml(options: {
                 <svg class="ft-icon" id="ft-pin-icon"><use href="#ft-icon-pin"></use></svg>
               </button>
               <div class="ft-tooltip" id="ft-pin-tooltip">取消置顶 <kbd>Alt+P</kbd></div>
+            </div>
+
+            <!-- 搜索操作 -->
+            <div class="ft-tooltip-wrapper">
+              <button id="ft-btn-search" class="ft-btn" aria-label="搜索文本">
+                <svg class="ft-icon" id="ft-search-icon"><use href="#ft-icon-search"></use></svg>
+              </button>
+              <div class="ft-tooltip" id="ft-search-tooltip">搜索过滤 <kbd>Ctrl+F</kbd></div>
             </div>
 
             <!-- 视图切换 -->
@@ -734,6 +952,28 @@ export function buildFloatingWindowHtml(options: {
           </div>
         </header>
 
+        <!-- 搜索栏容器 (默认折叠) -->
+        <div class="ft-search-bar" id="ft-search-bar" style="display: none;">
+          <div class="ft-search-icon-prefix" aria-hidden="true">
+            <svg class="ft-icon"><use href="#ft-icon-search"></use></svg>
+          </div>
+          <input
+            type="text"
+            class="ft-search-input"
+            id="ft-search-input"
+            placeholder="搜索关键词 (↑↓选择, Enter复制)..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <span class="ft-search-count" id="ft-search-count" style="display: none;">0 项</span>
+          <button class="ft-search-clear-btn" id="ft-search-clear" title="清空搜索词" style="display: none;">
+            <svg class="ft-icon"><use href="#ft-icon-close"></use></svg>
+          </button>
+          <button class="ft-search-close-btn" id="ft-search-close" title="收起搜索栏 (Esc)">
+            <svg class="ft-icon"><use href="#ft-icon-close"></use></svg>
+          </button>
+        </div>
+
         <!-- 悬浮 Popover 调节面板 -->
         <div id="ft-popover" class="ft-popover" role="dialog" aria-label="外观设置">
           <div class="ft-popover-item">
@@ -763,6 +1003,7 @@ export function buildFloatingWindowHtml(options: {
         <main class="ft-body" id="ft-scroll-body">
           <div id="ft-text-view" class="ft-text-view" contenteditable="plaintext-only" spellcheck="false" data-placeholder="在此处编辑文本..." style="${config.viewMode === "markdown" ? "display:none;" : "display:block;"}">${escapeHtml(text)}</div>
           <div id="ft-markdown-view" class="ft-markdown-view" style="${config.viewMode === "markdown" ? "display:block;" : "display:none;"}">${markdownHtml}</div>
+          <div id="ft-search-results" class="ft-search-results" style="display: none;"></div>
         </main>
 
         <div id="ft-toast" class="ft-toast">已复制</div>
@@ -795,6 +1036,7 @@ export function buildFloatingWindowHtml(options: {
           let currentFontSize = ${config.fontSize};
           let currentOpacity = ${config.opacity};
           let isMarkdown = ${config.viewMode === "markdown"};
+          const autoPasteOnSelect = ${Boolean(config.autoPasteOnSelect)};
 
           const appEl = document.getElementById("ft-app");
           const popoverEl = document.getElementById("ft-popover");
@@ -804,6 +1046,17 @@ export function buildFloatingWindowHtml(options: {
           const pinIconUse = document.querySelector("#ft-pin-icon use");
           const pinTooltip = document.getElementById("ft-pin-tooltip");
           let isPinned = true;
+          const searchBtn = document.getElementById("ft-btn-search");
+          const searchBarEl = document.getElementById("ft-search-bar");
+          const searchInputEl = document.getElementById("ft-search-input");
+          const searchCountEl = document.getElementById("ft-search-count");
+          const searchClearBtn = document.getElementById("ft-search-clear");
+          const searchCloseBtn = document.getElementById("ft-search-close");
+          const searchResultsEl = document.getElementById("ft-search-results");
+          let isSearchOpen = false;
+          let currentMatchedCandidates = [];
+          let selectedCandidateIndex = -1;
+
           const viewBtn = document.getElementById("ft-btn-view");
           const viewIconUse = document.querySelector("#ft-view-icon use");
           const viewTooltip = document.getElementById("ft-view-tooltip");
@@ -917,8 +1170,12 @@ export function buildFloatingWindowHtml(options: {
               } catch (e) {}
             }
 
-            if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-              return navigator.clipboard.writeText(str).then(function() {
+            const nav =
+              (typeof window !== "undefined" && window.navigator) ||
+              (typeof navigator !== "undefined" ? navigator : null);
+
+            if (nav && nav.clipboard && typeof nav.clipboard.writeText === "function") {
+              return nav.clipboard.writeText(str).then(function() {
                 return true;
               }).catch(function() {
                 return fallbackExecCopy(str);
@@ -1231,6 +1488,326 @@ export function buildFloatingWindowHtml(options: {
             if (settingsBtn) settingsBtn.classList.remove("ft-btn-active");
           }
 
+          function parseCandidates(str) {
+            if (!str) return [];
+            var LF = String.fromCharCode(10);
+            var CR = String.fromCharCode(13);
+            var clean = str.split(CR + LF).join(LF).split(CR).join(LF);
+            var lines = clean.split(LF);
+            var res = [];
+            var id = 1;
+            for (var i = 0; i < lines.length; i++) {
+              var raw = lines[i];
+              var trimmed = raw.trim();
+              if (!trimmed) continue;
+              res.push({
+                id: id++,
+                line: i + 1,
+                rawText: raw,
+                displayText: trimmed,
+              });
+            }
+            return res;
+          }
+
+          function escapeHtmlText(s) {
+            if (!s) return "";
+            return s
+              .split("&").join("&amp;")
+              .split("<").join("&lt;")
+              .split(">").join("&gt;")
+              .split('"').join("&quot;")
+              .split("'").join("&#39;");
+          }
+
+          function highlightKeywords(text, keywords) {
+            if (!text) return "";
+            if (!keywords || keywords.length === 0) return escapeHtmlText(text);
+            var escapedKws = [];
+            var specialChars = [".", "*", "+", "?", "^", "$", "{", "}", "(", ")", "|", "[", "]", "\\\\"];
+            for (var i = 0; i < keywords.length; i++) {
+              var curKw = keywords[i];
+              for (var sc = 0; sc < specialChars.length; sc++) {
+                curKw = curKw.split(specialChars[sc]).join("\\\\" + specialChars[sc]);
+              }
+              escapedKws.push(curKw);
+            }
+            var pattern = "(" + escapedKws.join("|") + ")";
+            var regex = new RegExp(pattern, "gi");
+            var parts = text.split(regex);
+            var out = [];
+            for (var j = 0; j < parts.length; j++) {
+              var p = parts[j];
+              var lowerP = p.toLowerCase();
+              var isHit = false;
+              for (var k = 0; k < keywords.length; k++) {
+                if (keywords[k] === lowerP) {
+                  isHit = true;
+                  break;
+                }
+              }
+              if (isHit) {
+                out.push('<mark class="ft-search-highlight">' + escapeHtmlText(p) + "</mark>");
+              } else {
+                out.push(escapeHtmlText(p));
+              }
+            }
+            return out.join("");
+          }
+
+          function openSearchBar() {
+            isSearchOpen = true;
+            if (searchBarEl) searchBarEl.style.display = "flex";
+            if (searchBtn) searchBtn.classList.add("ft-btn-active");
+            if (searchInputEl) {
+              searchInputEl.focus();
+              searchInputEl.select();
+            }
+            executeSearch();
+          }
+
+          function closeSearchBar() {
+            isSearchOpen = false;
+            if (searchBarEl) searchBarEl.style.display = "none";
+            if (searchBtn) searchBtn.classList.remove("ft-btn-active");
+            if (searchResultsEl) searchResultsEl.style.display = "none";
+            if (isMarkdown) {
+              if (mdView) mdView.style.display = "block";
+              if (textView) textView.style.display = "none";
+            } else {
+              if (textView) textView.style.display = "block";
+              if (mdView) mdView.style.display = "none";
+            }
+          }
+
+          function toggleSearchBar() {
+            if (isSearchOpen) {
+              closeSearchBar();
+            } else {
+              openSearchBar();
+            }
+          }
+
+          function requestAutoPaste() {
+            let handled = false;
+            if (window.__docAssistantHost && typeof window.__docAssistantHost.minimizeAndPaste === "function") {
+              try {
+                window.__docAssistantHost.minimizeAndPaste();
+                handled = true;
+              } catch (e) {}
+            }
+            if (!handled) {
+              try {
+                const req =
+                  (typeof window !== "undefined" && window.require) ||
+                  (typeof require === "function" ? require : null);
+                if (req) {
+                  const elMod = req("electron");
+                  const ipc = elMod && elMod.ipcRenderer;
+                  if (ipc && typeof ipc.send === "function") {
+                    ipc.send("siyuan-doc-assist-minimize-and-paste");
+                    if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
+                      try {
+                        ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-minimize-and-paste");
+                      } catch (e) {}
+                    }
+                    handled = true;
+                  }
+                }
+              } catch (e) {}
+            }
+            if (!handled && electronWin && typeof electronWin.minimize === "function") {
+              try {
+                electronWin.minimize();
+              } catch (e) {}
+            }
+          }
+
+          function selectCandidate(rawText) {
+            if (typeof rawText !== "string") return;
+            copyText(rawText).then(function(ok) {
+              if (!ok) return;
+              if (autoPasteOnSelect) {
+                showToast("已复制并自动粘贴");
+                requestAutoPaste();
+              } else {
+                showToast("已复制到剪贴板");
+              }
+            });
+          }
+
+          function updateCandidateSelection(index) {
+            if (!searchResultsEl) return;
+            var items = searchResultsEl.querySelectorAll(".ft-search-item");
+            if (items.length === 0) {
+              selectedCandidateIndex = -1;
+              return;
+            }
+            selectedCandidateIndex = Math.max(0, Math.min(items.length - 1, index));
+            for (var i = 0; i < items.length; i++) {
+              var el = items[i];
+              if (i === selectedCandidateIndex) {
+                el.classList.add("is-selected");
+                if (typeof el.scrollIntoView === "function") {
+                  try { el.scrollIntoView({ block: "nearest" }); } catch (e) {}
+                }
+              } else {
+                el.classList.remove("is-selected");
+              }
+            }
+          }
+
+          function executeSearch() {
+            if (!searchInputEl || !searchResultsEl) return;
+            var query = (searchInputEl.value || "").trim();
+            if (!query) {
+              if (searchClearBtn) searchClearBtn.style.display = "none";
+              if (searchCountEl) searchCountEl.style.display = "none";
+              searchResultsEl.style.display = "none";
+              currentMatchedCandidates = [];
+              selectedCandidateIndex = -1;
+              if (isMarkdown) {
+                if (mdView) mdView.style.display = "block";
+                if (textView) textView.style.display = "none";
+              } else {
+                if (textView) textView.style.display = "block";
+                if (mdView) mdView.style.display = "none";
+              }
+              return;
+            }
+
+            if (searchClearBtn) searchClearBtn.style.display = "inline-flex";
+
+            var curText = getCurrentText() || originalText;
+            var allCandidates = parseCandidates(curText);
+            var keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
+
+            var matched = allCandidates.filter(function(item) {
+              var lower = item.rawText.toLowerCase();
+              return keywords.every(function(kw) {
+                return lower.indexOf(kw) !== -1;
+              });
+            });
+
+            currentMatchedCandidates = matched;
+
+            if (searchCountEl) {
+              searchCountEl.style.display = "inline-block";
+              searchCountEl.textContent = matched.length + " 项";
+            }
+
+            if (textView) textView.style.display = "none";
+            if (mdView) mdView.style.display = "none";
+            searchResultsEl.style.display = "flex";
+
+            if (matched.length === 0) {
+              searchResultsEl.innerHTML = '<div class="ft-search-empty">未找到匹配的内容</div>';
+              selectedCandidateIndex = -1;
+              return;
+            }
+
+            var html = "";
+            for (var i = 0; i < matched.length; i++) {
+              var item = matched[i];
+              var isSel = i === 0 ? " is-selected" : "";
+              var highlighted = highlightKeywords(item.displayText, keywords);
+              html += '<div class="ft-search-item' + isSel + '" data-index="' + i + '" title="点击或按 Enter 复制">' +
+                '<span class="ft-search-item-line">L' + item.line + '</span>' +
+                '<span class="ft-search-item-text">' + highlighted + '</span>' +
+                '<span class="ft-search-item-action">复制 ↵</span>' +
+                '</div>';
+            }
+
+            searchResultsEl.innerHTML = html;
+            selectedCandidateIndex = 0;
+            searchResultsEl.scrollTop = 0;
+          }
+
+          if (searchBtn) {
+            searchBtn.addEventListener("click", toggleSearchBar);
+          }
+          if (searchCloseBtn) {
+            searchCloseBtn.addEventListener("click", closeSearchBar);
+          }
+          if (searchClearBtn) {
+            searchClearBtn.addEventListener("click", function() {
+              if (searchInputEl) {
+                searchInputEl.value = "";
+                searchInputEl.focus();
+                executeSearch();
+              }
+            });
+          }
+          if (searchInputEl) {
+            searchInputEl.addEventListener("input", executeSearch);
+            searchInputEl.addEventListener("keydown", function(e) {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                if (currentMatchedCandidates.length > 0) {
+                  updateCandidateSelection((selectedCandidateIndex + 1) % currentMatchedCandidates.length);
+                }
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                if (currentMatchedCandidates.length > 0) {
+                  updateCandidateSelection((selectedCandidateIndex - 1 + currentMatchedCandidates.length) % currentMatchedCandidates.length);
+                }
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (selectedCandidateIndex >= 0 && selectedCandidateIndex < currentMatchedCandidates.length) {
+                  selectCandidate(currentMatchedCandidates[selectedCandidateIndex].rawText);
+                }
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                if (searchInputEl.value) {
+                  searchInputEl.value = "";
+                  executeSearch();
+                } else {
+                  closeSearchBar();
+                }
+              }
+            });
+          }
+
+          if (searchResultsEl) {
+            function findSearchItem(target) {
+              var cur = target;
+              while (cur && cur !== searchResultsEl) {
+                if (cur.classList && cur.classList.contains("ft-search-item")) {
+                  return cur;
+                }
+                cur = cur.parentElement;
+              }
+              return null;
+            }
+
+            searchResultsEl.addEventListener("click", function(e) {
+              var item = findSearchItem(e.target);
+              if (!item) return;
+              var idx = parseInt(item.getAttribute("data-index"), 10);
+              if (!isNaN(idx) && idx >= 0 && idx < currentMatchedCandidates.length) {
+                updateCandidateSelection(idx);
+                selectCandidate(currentMatchedCandidates[idx].rawText);
+              }
+            });
+
+            searchResultsEl.addEventListener("mouseover", function(e) {
+              var item = findSearchItem(e.target);
+              if (!item) return;
+              var idx = parseInt(item.getAttribute("data-index"), 10);
+              if (!isNaN(idx) && idx >= 0 && idx < currentMatchedCandidates.length) {
+                if (idx !== selectedCandidateIndex) {
+                  selectedCandidateIndex = idx;
+                  var allItems = searchResultsEl.querySelectorAll(".ft-search-item");
+                  for (var i = 0; i < allItems.length; i++) {
+                    if (i === idx) allItems[i].classList.add("is-selected");
+                    else allItems[i].classList.remove("is-selected");
+                  }
+                }
+              }
+            });
+          }
+
           document.addEventListener("click", function(e) {
             if (!popoverEl || !popoverEl.classList.contains("ft-popover-open")) return;
             var target = e.target;
@@ -1241,12 +1818,27 @@ export function buildFloatingWindowHtml(options: {
 
           document.addEventListener("keydown", function(e) {
             if (e.key === "Escape") {
+              if (isSearchOpen) {
+                if (searchInputEl && searchInputEl.value) {
+                  searchInputEl.value = "";
+                  executeSearch();
+                } else {
+                  closeSearchBar();
+                }
+                return;
+              }
               if (popoverEl && popoverEl.classList.contains("ft-popover-open")) {
                 closePopover();
                 return;
               }
               if (electronWin) electronWin.close();
               else window.close();
+              return;
+            }
+
+            if ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.key === "F")) {
+              e.preventDefault();
+              openSearchBar();
               return;
             }
 
@@ -1543,6 +2135,126 @@ export function buildFloatingWindowHtml(options: {
               });
             }, 300);
           });
+
+          // 标题栏鼠标拖动增强与多环境兜底
+          const headerEl = document.querySelector(".ft-header");
+          const actionsEl = document.querySelector(".ft-actions");
+          if (headerEl) {
+            let isDragging = false;
+            let startMouseX = 0;
+            let startMouseY = 0;
+            let startWinX = 0;
+            let startWinY = 0;
+            let hasMoved = false;
+
+            function getWindowPosition() {
+              if (electronWin && typeof electronWin.getPosition === "function") {
+                try {
+                  const pos = electronWin.getPosition();
+                  if (Array.isArray(pos) && pos.length >= 2) return [pos[0], pos[1]];
+                } catch (e) {}
+              }
+              if (window.__docAssistantHost && typeof window.__docAssistantHost.getPosition === "function") {
+                try {
+                  const pos = window.__docAssistantHost.getPosition();
+                  if (Array.isArray(pos) && pos.length >= 2) return [pos[0], pos[1]];
+                } catch (e) {}
+              }
+              const sx = typeof window.screenX === "number" ? window.screenX : 0;
+              const sy = typeof window.screenY === "number" ? window.screenY : 0;
+              return [sx, sy];
+            }
+
+            function setWindowPosition(x, y) {
+              const rx = Math.round(x);
+              const ry = Math.round(y);
+              let moved = false;
+              if (electronWin && typeof electronWin.setPosition === "function") {
+                try {
+                  electronWin.setPosition(rx, ry);
+                  moved = true;
+                } catch (e) {}
+              }
+              if (!moved && window.__docAssistantHost && typeof window.__docAssistantHost.setPosition === "function") {
+                try {
+                  window.__docAssistantHost.setPosition(rx, ry);
+                  moved = true;
+                } catch (e) {}
+              }
+              if (!moved) {
+                try {
+                  const req = (typeof window !== "undefined" && window.require) || (typeof require === "function" ? require : null);
+                  if (req) {
+                    const elMod = req("electron");
+                    const ipc = elMod && elMod.ipcRenderer;
+                    if (ipc && typeof ipc.send === "function") {
+                      ipc.send("siyuan-doc-assist-move-window", { x: rx, y: ry });
+                      if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
+                        ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-move-window", { x: rx, y: ry });
+                      }
+                      moved = true;
+                    }
+                  }
+                } catch (e) {}
+              }
+              if (!moved && typeof window.moveTo === "function") {
+                try {
+                  window.moveTo(rx, ry);
+                } catch (e) {}
+              }
+            }
+
+            function onMouseMove(e) {
+              if (!isDragging) return;
+              const dx = e.screenX - startMouseX;
+              const dy = e.screenY - startMouseY;
+              if (!hasMoved && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+                hasMoved = true;
+                if (appEl) appEl.classList.add("is-dragging");
+              }
+              if (hasMoved) {
+                setWindowPosition(startWinX + dx, startWinY + dy);
+              }
+            }
+
+            function onMouseUp(e) {
+              if (!isDragging) return;
+              isDragging = false;
+              document.removeEventListener("mousemove", onMouseMove, true);
+              document.removeEventListener("mouseup", onMouseUp, true);
+              if (appEl) appEl.classList.remove("is-dragging");
+              if (hasMoved) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }
+
+            headerEl.addEventListener("mousedown", function(e) {
+              if (e.button !== 0) return;
+              if (actionsEl && actionsEl.contains(e.target)) return;
+
+              // 立即主动获取窗口焦点，避免在非激活状态下首击拖拽被 Windows 系统吞噬
+              try {
+                if (electronWin && typeof electronWin.focus === "function") {
+                  electronWin.focus();
+                } else if (window.__docAssistantHost && typeof window.__docAssistantHost.focus === "function") {
+                  window.__docAssistantHost.focus();
+                }
+                window.focus();
+              } catch (focusErr) {}
+
+              isDragging = true;
+              hasMoved = false;
+              startMouseX = e.screenX;
+              startMouseY = e.screenY;
+              const [curX, curY] = getWindowPosition();
+              startWinX = curX;
+              startWinY = curY;
+
+              document.addEventListener("mousemove", onMouseMove, true);
+              document.addEventListener("mouseup", onMouseUp, true);
+            });
+          }
         })();
       </script>
     </body>
