@@ -1589,10 +1589,37 @@ export function buildFloatingWindowHtml(options: {
           }
 
           function requestAutoPaste() {
-            let handled = false;
-            if (window.__docAssistantHost && typeof window.__docAssistantHost.minimizeAndPaste === "function") {
+            var realPinned = Boolean(isPinned);
+            if (electronWin && typeof electronWin.isAlwaysOnTop === "function") {
               try {
-                window.__docAssistantHost.minimizeAndPaste();
+                realPinned = Boolean(electronWin.isAlwaysOnTop());
+              } catch (e) {}
+            }
+            var pastePayload = { isPinned: realPinned, delayMs: realPinned ? 260 : 180 };
+            var handled = false;
+
+            if (realPinned) {
+              try {
+                if (document.activeElement && typeof document.activeElement.blur === "function") {
+                  document.activeElement.blur();
+                }
+                if (typeof window.blur === "function") {
+                  window.blur();
+                }
+                if (electronWin && typeof electronWin.setAlwaysOnTop === "function") {
+                  electronWin.setAlwaysOnTop(true);
+                }
+              } catch (e) {}
+            }
+
+            var hostObj =
+              (typeof window !== "undefined" && window.__docAssistantHost) ||
+              (electronWin && electronWin.__docAssistantHost) ||
+              null;
+
+            if (hostObj && typeof hostObj.minimizeAndPaste === "function") {
+              try {
+                hostObj.minimizeAndPaste(pastePayload);
                 handled = true;
               } catch (e) {}
             }
@@ -1605,10 +1632,10 @@ export function buildFloatingWindowHtml(options: {
                   const elMod = req("electron");
                   const ipc = elMod && elMod.ipcRenderer;
                   if (ipc && typeof ipc.send === "function") {
-                    ipc.send("siyuan-doc-assist-minimize-and-paste");
+                    ipc.send("siyuan-doc-assist-minimize-and-paste", pastePayload);
                     if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
                       try {
-                        ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-minimize-and-paste");
+                        ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-minimize-and-paste", pastePayload);
                       } catch (e) {}
                     }
                     handled = true;
@@ -1616,10 +1643,20 @@ export function buildFloatingWindowHtml(options: {
                 }
               } catch (e) {}
             }
-            if (!handled && electronWin && typeof electronWin.minimize === "function") {
-              try {
-                electronWin.minimize();
-              } catch (e) {}
+            if (!handled) {
+              if (realPinned) {
+                if (electronWin && typeof electronWin.blur === "function") {
+                  try {
+                    electronWin.blur();
+                  } catch (e) {}
+                }
+              } else {
+                if (electronWin && typeof electronWin.minimize === "function") {
+                  try {
+                    electronWin.minimize();
+                  } catch (e) {}
+                }
+              }
             }
           }
 

@@ -390,15 +390,26 @@ describe("floating-window-render", () => {
       const item = searchResults.querySelector(".ft-search-item") as HTMLElement;
       expect(item).not.toBeNull();
 
-      // 点击候选条目
+      // 1. 浮窗处于钉住置顶状态（默认）下选定条目：保持置顶，携带 isPinned: true 与延迟间隔调用
       item.click();
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(writtenClipboardText).toBe("- 待粘贴的候选词条");
       expect(minimizeAndPasteMock).toHaveBeenCalledTimes(1);
+      expect(minimizeAndPasteMock).toHaveBeenLastCalledWith({ isPinned: true, delayMs: 260 });
 
       const toast = doc.getElementById("ft-toast");
       expect(toast?.textContent).toBe("已复制并自动粘贴");
+
+      // 2. 点击图钉按钮切换为非钉住状态：选定条目时携带 isPinned: false 与最小化自动粘贴调用
+      const pinBtn = doc.getElementById("ft-btn-pin");
+      pinBtn?.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      item.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(minimizeAndPasteMock).toHaveBeenCalledTimes(2);
+      expect(minimizeAndPasteMock).toHaveBeenLastCalledWith({ isPinned: false, delayMs: 180 });
     });
   });
 });

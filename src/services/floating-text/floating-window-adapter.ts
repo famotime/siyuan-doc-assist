@@ -183,14 +183,24 @@ export async function openFloatingTextWindow(options: {
             win.focus?.();
           }
         },
-        minimizeAndPaste: () => {
+        minimizeAndPaste: (payload?: { isPinned?: boolean; delayMs?: number }) => {
           if (!win.isDestroyed()) {
-            try {
-              win.minimize?.();
-            } catch (minErr) {
-              console.warn("[DocAssistant][FloatingText] win.minimize error:", minErr);
+            if (payload?.isPinned) {
+              try {
+                win.setAlwaysOnTop(true);
+                win.blur?.();
+              } catch (blurErr) {
+                console.warn("[DocAssistant][FloatingText] win.blur error:", blurErr);
+              }
+              triggerSystemPaste(payload.delayMs ?? 260);
+            } else {
+              try {
+                win.minimize?.();
+              } catch (minErr) {
+                console.warn("[DocAssistant][FloatingText] win.minimize error:", minErr);
+              }
+              triggerSystemPaste(payload?.delayMs ?? 180);
             }
-            triggerSystemPaste(180);
           }
         },
       };
@@ -226,12 +236,20 @@ export async function openFloatingTextWindow(options: {
             }
           });
           electron.ipcRenderer.removeAllListeners(IPC_PASTE_CHANNEL);
-          electron.ipcRenderer.on(IPC_PASTE_CHANNEL, () => {
+          electron.ipcRenderer.on(IPC_PASTE_CHANNEL, (_event: any, payload?: { isPinned?: boolean; delayMs?: number }) => {
             if (currentElectronWindow && !currentElectronWindow.isDestroyed()) {
-              try {
-                currentElectronWindow.minimize?.();
-              } catch (minErr) {}
-              triggerSystemPaste(180);
+              if (payload?.isPinned) {
+                try {
+                  currentElectronWindow.setAlwaysOnTop(true);
+                  currentElectronWindow.blur?.();
+                } catch (e) {}
+                triggerSystemPaste(payload.delayMs ?? 260);
+              } else {
+                try {
+                  currentElectronWindow.minimize?.();
+                } catch (minErr) {}
+                triggerSystemPaste(payload?.delayMs ?? 180);
+              }
             }
           });
         }
@@ -257,10 +275,18 @@ export async function openFloatingTextWindow(options: {
             }
           } else if (channel === IPC_PASTE_CHANNEL) {
             if (!win.isDestroyed()) {
-              try {
-                win.minimize?.();
-              } catch (minErr) {}
-              triggerSystemPaste(180);
+              if (payload?.isPinned) {
+                try {
+                  win.setAlwaysOnTop(true);
+                  win.blur?.();
+                } catch (e) {}
+                triggerSystemPaste(payload?.delayMs ?? 260);
+              } else {
+                try {
+                  win.minimize?.();
+                } catch (minErr) {}
+                triggerSystemPaste(payload?.delayMs ?? 180);
+              }
             }
           }
         });

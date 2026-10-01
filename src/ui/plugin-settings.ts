@@ -159,7 +159,7 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     );
     autoPasteControlWrap.append(autoPasteToggle);
     const description =
-      "开启后，在悬浮窗搜索栏选择匹配文本后自动复制，浮窗自动缩小并在当前焦点输入框自动粘贴；关闭时仅复制到剪贴板，保持浮窗显示。";
+      "开启后，在悬浮窗搜索栏选择匹配文本后自动复制：若浮窗未钉住，浮窗自动缩小并在当前焦点输入框自动粘贴；若浮窗为钉住状态，则保持浮窗置顶并在短暂间隔后自动粘贴。关闭时仅复制到剪贴板，保持浮窗显示。";
 
     setting.addItem({
       title: "浮窗命中文本直接粘贴",
