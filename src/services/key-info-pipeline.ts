@@ -1,4 +1,4 @@
-import { KeyInfoItem } from "@/core/key-info-core";
+import { KEY_INFO_TYPE_PRIORITY, KeyInfoItem, KeyInfoType } from "@/core/key-info-core";
 import {
   buildInlineRaw,
   extractHighlightInlineCodeTexts,
@@ -291,10 +291,20 @@ function mergeSeparatedItemsWithinBlock(items: KeyInfoItem[]): KeyInfoItem[] {
 
     const merged = rest.reduce<KeyInfoItem>((current, item) => {
       if (item.text === current.text) {
+        if (item.types && item.types.length) {
+          const set = new Set(current.types || [current.type]);
+          item.types.forEach((t) => set.add(t));
+          current.types = Array.from(set);
+        }
         return current;
       }
       current.text = `${current.text}  ${item.text}`;
       current.raw = `${current.raw}  ${item.raw}`;
+      if (item.types && item.types.length) {
+        const set = new Set(current.types || [current.type]);
+        item.types.forEach((t) => set.add(t));
+        current.types = Array.from(set);
+      }
       if (!current.listPrefix && item.listPrefix) {
         current.listPrefix = item.listPrefix;
       }
@@ -312,9 +322,144 @@ function mergeSeparatedItemsWithinBlock(items: KeyInfoItem[]): KeyInfoItem[] {
   return [...nonMergeable, ...mergedItems];
 }
 
+function getVisibleKeyInfoText(item: KeyInfoItem): string {
+  const text = (item.text || "").trim();
+  if (item.type === "link") {
+    const mdLink = text.match(/^\[([^\]]+)\]\([^)]+\)$/);
+    if (mdLink && mdLink[1]) {
+      return mdLink[1].trim();
+    }
+  }
+  if (item.type === "ref") {
+    const refMatch =
+      text.match(/^\(\(\s*[^\s]+\s+["'](.*)["']\s*\)\)$/) ||
+      text.match(/^\[\[\s*[^\s]+\s+["'](.*)["']\s*\]\]$/);
+    if (refMatch && refMatch[1]) {
+      return refMatch[1].trim();
+    }
+  }
+  return text;
+}
+
+export function mergeMultiStyleItemsWithinBlock(items: KeyInfoItem[]): KeyInfoItem[] {
+  const nonMergeable: KeyInfoItem[] = [];
+  const buckets = new Map<string, KeyInfoItem[]>();
+
+  items.forEach((item) => {
+    if (item.type === "title" || !(item.text || "").trim()) {
+      nonMergeable.push(item);
+      return;
+    }
+    const blockKey = `${item.blockId || ""}|${item.blockSort}`;
+    const bucket = buckets.get(blockKey) || [];
+    bucket.push({ ...item });
+    buckets.set(blockKey, bucket);
+  });
+
+  const mergedItems: KeyInfoItem[] = [];
+
+  buckets.forEach((bucket) => {
+    bucket.sort((a, b) => {
+      const visA = getVisibleKeyInfoText(a);
+      const visB = getVisibleKeyInfoText(b);
+      const lenDiff = visB.length - visA.length;
+      if (lenDiff !== 0) {
+        return lenDiff;
+      }
+      const priorityA = KEY_INFO_TYPE_PRIORITY[a.type] ?? 999;
+      const priorityB = KEY_INFO_TYPE_PRIORITY[b.type] ?? 999;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      if (a.offset !== b.offset) {
+        return a.offset - b.offset;
+      }
+      return a.order - b.order;
+    });
+
+    const clusters: KeyInfoItem[][] = [];
+    const visited = new Set<number>();
+
+    for (let i = 0; i < bucket.length; i++) {
+      if (visited.has(i)) {
+        continue;
+      }
+      visited.add(i);
+      const cluster: KeyInfoItem[] = [bucket[i]!];
+      const mainVis = getVisibleKeyInfoText(bucket[i]!);
+
+      for (let j = i + 1; j < bucket.length; j++) {
+        if (visited.has(j)) {
+          continue;
+        }
+        const candidateVis = getVisibleKeyInfoText(bucket[j]!);
+        if (mainVis === candidateVis || (candidateVis.length > 0 && mainVis.includes(candidateVis))) {
+          visited.add(j);
+          cluster.push(bucket[j]!);
+        }
+      }
+      clusters.push(cluster);
+    }
+
+    clusters.forEach((cluster) => {
+      const primaryItem = cluster[0]!;
+      const allTypes = new Set<KeyInfoType>();
+      cluster.forEach((item) => {
+        if (item.types && item.types.length) {
+          item.types.forEach((t) => allTypes.add(t));
+        } else {
+          allTypes.add(item.type);
+        }
+      });
+
+      let highestPriorityType = primaryItem.type;
+      let bestPriorityScore = KEY_INFO_TYPE_PRIORITY[highestPriorityType] ?? 999;
+
+      allTypes.forEach((t) => {
+        const score = KEY_INFO_TYPE_PRIORITY[t] ?? 999;
+        if (score < bestPriorityScore) {
+          bestPriorityScore = score;
+          highestPriorityType = t;
+        }
+      });
+
+      const minOffset = Math.min(...cluster.map((i) => i.offset));
+      const minOrder = Math.min(...cluster.map((i) => i.order));
+      const hasListItem = cluster.some((i) => i.listItem);
+      const listPrefix = cluster.find((i) => i.listPrefix)?.listPrefix || primaryItem.listPrefix;
+
+      let text = primaryItem.text;
+      let raw = primaryItem.raw;
+      if (primaryItem.type === "link" || primaryItem.type === "ref") {
+        const cleanItem = cluster.find((i) => i.type !== "link" && i.type !== "ref" && (i.text || "").trim());
+        if (cleanItem) {
+          text = cleanItem.text;
+          raw = cleanItem.raw;
+        }
+      }
+
+      mergedItems.push({
+        ...primaryItem,
+        type: highestPriorityType,
+        types: Array.from(allTypes),
+        text,
+        raw,
+        offset: minOffset,
+        order: minOrder,
+        listItem: hasListItem,
+        listPrefix,
+      });
+    });
+  });
+
+  return [...nonMergeable, ...mergedItems];
+}
+
 export function normalizeKeyInfoItemsByPipeline(items: KeyInfoItem[]): KeyInfoItem[] {
   return mergeSeparatedItemsWithinBlock(
-    normalizeTagItems(normalizeRemarkItems(normalizeBoldItems(normalizeHighlightItems(items))))
+    mergeMultiStyleItemsWithinBlock(
+      normalizeTagItems(normalizeRemarkItems(normalizeBoldItems(normalizeHighlightItems(items))))
+    )
   );
 }
 

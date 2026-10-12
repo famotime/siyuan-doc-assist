@@ -56,6 +56,20 @@ export type KeyInfoItem = KeyInfoExtract & {
   order: number;
   listItem?: boolean;
   listPrefix?: string;
+  types?: KeyInfoType[];
+};
+
+export const KEY_INFO_TYPE_PRIORITY: Record<KeyInfoType, number> = {
+  highlight: 1,
+  bold: 2,
+  underline: 3,
+  italic: 4,
+  code: 5,
+  remark: 6,
+  link: 7,
+  ref: 7,
+  tag: 7,
+  title: 8,
 };
 
 const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
@@ -109,7 +123,10 @@ export function filterKeyInfoItems(items: KeyInfoItem[], filter?: KeyInfoFilter)
   }
 
   const active = new Set(filter);
-  const filtered = items.filter((item) => active.has(item.type));
+  const filtered = items.filter((item) => {
+    const itemTypes = item.types && item.types.length ? item.types : [item.type];
+    return itemTypes.some((t) => active.has(t));
+  });
   if (!active.has("title")) {
     return filtered;
   }

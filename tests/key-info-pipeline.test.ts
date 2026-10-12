@@ -126,4 +126,54 @@ describe("key-info pipeline", () => {
       }),
     ]);
   });
+
+  test("merges multiple styles on identical text in the same block into a single item with highest priority type", () => {
+    const normalized = normalizeKeyInfoItemsByPipeline([
+      item("b-1", "bold", "核心概念", { raw: "**核心概念**", blockId: "p-1", blockSort: 1, offset: 0, order: 1 }),
+      item("hl-1", "highlight", "核心概念", { raw: "==核心概念==", blockId: "p-1", blockSort: 1, offset: 0, order: 2 }),
+      item("u-1", "underline", "核心概念", { raw: "<u>核心概念</u>", blockId: "p-1", blockSort: 1, offset: 0, order: 3 }),
+    ]);
+
+    const blockItems = normalized.filter((entry) => entry.blockId === "p-1");
+    expect(blockItems).toHaveLength(1);
+    expect(blockItems[0]?.text).toBe("核心概念");
+    expect(blockItems[0]?.type).toBe("highlight");
+    expect(blockItems[0]?.types).toEqual(expect.arrayContaining(["highlight", "bold", "underline"]));
+  });
+
+  test("merges containment styles in the same block and preserves longer text", () => {
+    const normalized = normalizeKeyInfoItemsByPipeline([
+      item("b-1", "bold", "深度学习是人工智能的核心", {
+        raw: "**深度学习是人工智能的核心**",
+        blockId: "p-1",
+        blockSort: 1,
+        offset: 0,
+        order: 1,
+      }),
+      item("hl-1", "highlight", "深度学习", {
+        raw: "==深度学习==",
+        blockId: "p-1",
+        blockSort: 1,
+        offset: 0,
+        order: 2,
+      }),
+    ]);
+
+    const blockItems = normalized.filter((entry) => entry.blockId === "p-1");
+    expect(blockItems).toHaveLength(1);
+    expect(blockItems[0]?.text).toBe("深度学习是人工智能的核心");
+    expect(blockItems[0]?.type).toBe("highlight");
+    expect(blockItems[0]?.types).toEqual(expect.arrayContaining(["highlight", "bold"]));
+  });
+
+  test("does not merge multi-style items across different blocks", () => {
+    const normalized = normalizeKeyInfoItemsByPipeline([
+      item("b-1", "bold", "重点词", { blockId: "p-1", blockSort: 1, offset: 0, order: 1 }),
+      item("hl-1", "highlight", "重点词", { blockId: "p-2", blockSort: 2, offset: 0, order: 2 }),
+    ]);
+
+    expect(normalized).toHaveLength(2);
+    expect(normalized.some((i) => i.blockId === "p-1" && i.type === "bold")).toBe(true);
+    expect(normalized.some((i) => i.blockId === "p-2" && i.type === "highlight")).toBe(true);
+  });
 });

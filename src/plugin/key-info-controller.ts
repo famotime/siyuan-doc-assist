@@ -234,7 +234,7 @@ export class KeyInfoController {
     });
   }
 
-  private exportKeyInfoMarkdown() {
+  private async exportKeyInfoMarkdown() {
     if (!this.keyInfoDock) {
       return;
     }
@@ -249,7 +249,22 @@ export class KeyInfoController {
     const content = buildKeyInfoMarkdown(items);
     const fileName = this.buildKeyInfoFileName(docTitle);
     this.triggerMarkdownDownload(fileName, content);
-    showMessage(`已导出 ${items.length} 条关键内容`, 5000, "info");
+
+    let copied = false;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(content);
+        copied = true;
+      }
+    } catch (error) {
+      console.warn("[doc-assist] Copy markdown to clipboard failed:", error);
+    }
+
+    if (copied) {
+      showMessage(`已导出 ${items.length} 条关键内容并已复制到剪贴板`, 5000, "info");
+    } else {
+      showMessage(`已导出 ${items.length} 条关键内容`, 5000, "info");
+    }
   }
 
   private buildKeyInfoFileName(docTitle: string): string {

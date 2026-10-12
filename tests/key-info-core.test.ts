@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildDefaultKeyInfoFilter,
   filterKeyInfoItems,
+  KEY_INFO_TYPE_PRIORITY,
   buildKeyInfoMarkdown,
   extractKeyInfoFromMarkdown,
 } from "@/core/key-info-core";
@@ -261,5 +262,33 @@ describe("key-info-core", () => {
     expect(filterKeyInfoItems(items, ["highlight"]).map((item) => item.type)).toEqual([
       "highlight",
     ]);
+  });
+
+  test("matches multi-style item when any of its types is active in filter", () => {
+    const item = {
+      id: "b1",
+      type: "highlight" as const,
+      types: ["highlight" as const, "bold" as const],
+      text: "复合样式文本",
+      raw: "==**复合样式文本**==",
+      offset: 0,
+      blockId: "p1",
+      blockSort: 0,
+      order: 0,
+    };
+
+    expect(filterKeyInfoItems([item], ["highlight"])).toHaveLength(1);
+    expect(filterKeyInfoItems([item], ["bold"])).toHaveLength(1);
+    expect(filterKeyInfoItems([item], ["italic"])).toHaveLength(0);
+    expect(filterKeyInfoItems([item], ["underline", "code"])).toHaveLength(0);
+  });
+
+  test("follows defined visual weight hierarchy for key info styles", () => {
+    expect(KEY_INFO_TYPE_PRIORITY.highlight).toBeLessThan(KEY_INFO_TYPE_PRIORITY.bold);
+    expect(KEY_INFO_TYPE_PRIORITY.bold).toBeLessThan(KEY_INFO_TYPE_PRIORITY.underline);
+    expect(KEY_INFO_TYPE_PRIORITY.underline).toBeLessThan(KEY_INFO_TYPE_PRIORITY.italic);
+    expect(KEY_INFO_TYPE_PRIORITY.italic).toBeLessThan(KEY_INFO_TYPE_PRIORITY.code);
+    expect(KEY_INFO_TYPE_PRIORITY.code).toBeLessThan(KEY_INFO_TYPE_PRIORITY.remark);
+    expect(KEY_INFO_TYPE_PRIORITY.remark).toBeLessThan(KEY_INFO_TYPE_PRIORITY.link);
   });
 });

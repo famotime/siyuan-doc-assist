@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { filterKeyInfoItems } from "@/core/key-info-core";
 
 vi.mock("@/services/kernel", () => ({
   getBlockKramdowns: vi.fn(),
@@ -802,13 +803,17 @@ describe("key-info service heading inline merge", () => {
 
     const result = await getDocKeyInfo("doc-1");
     const blockItems = result.items.filter((item) => item.blockId === "p-1");
-    const boldItems = blockItems.filter((item) => item.type === "bold");
-    const highlightItems = blockItems.filter((item) => item.type === "highlight");
+    expect(blockItems).toHaveLength(1);
+    expect(blockItems[0]?.text).toBe("123456789");
+    expect(blockItems[0]?.type).toBe("highlight");
+    expect(blockItems[0]?.types).toEqual(expect.arrayContaining(["bold", "highlight"]));
+    expect(filterKeyInfoItems(result.items, ["bold"]).some((item) => item.blockId === "p-1")).toBe(true);
+    expect(filterKeyInfoItems(result.items, ["highlight"]).some((item) => item.blockId === "p-1")).toBe(true);
 
-    expect(boldItems).toHaveLength(1);
-    expect(boldItems[0]?.text).toBe("123456789");
-    expect(highlightItems).toHaveLength(1);
-    expect(highlightItems[0]?.text).toBe("456");
+
+
+
+
   });
 
   test("merges multiple separated highlights in the same block into one item with double spaces", async () => {
