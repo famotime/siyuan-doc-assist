@@ -14,10 +14,14 @@
     "release:patch": "node ./release.js --mode=patch",
     "release:minor": "node ./release.js --mode=minor",
     "release:major": "node ./release.js --mode=major",
-    "build": "vite build",
+    "build": "vite build && node ./scripts/verify-package.mjs",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
     "test": "node ./scripts/vitest-sandbox.mjs run",
-    "test:watch": "node ./scripts/vitest-sandbox.mjs"
+    "test:watch": "node ./scripts/vitest-sandbox.mjs",
+    "release:changelog": "node ./release.js --mode=changelog",
+    "verify:package": "node ./scripts/verify-package.mjs",
+    "changelog:extract": "node ./scripts/extract-changelog.mjs",
+    "preinstall": "npx --yes only-allow pnpm"
   },
   "dependencies": {
     "marked": "^18.0.11"
@@ -40,6 +44,8 @@
     "vite": "^6.2.1",
     "vite-plugin-static-copy": "^0.15.0",
     "vite-plugin-zip-pack": "^1.0.5",
-    "vitest": "^3.2.4"
-  }
+    "vitest": "^3.2.4",
+    "jszip": "^3.10.1"
+  },
+  "packageManager": "pnpm@10.18.3"
 }
