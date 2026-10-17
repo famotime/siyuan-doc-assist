@@ -10,6 +10,7 @@ type PluginLifecycleHandlers = {
   onEditorTitleMenu: PluginEventHandler;
   onContentMenu?: PluginEventHandler;
   onDocTreeMenu?: PluginEventHandler;
+  onBlockIconMenu?: PluginEventHandler;
 };
 
 export function bindPluginLifecycleEvents(
@@ -24,6 +25,9 @@ export function bindPluginLifecycleEvents(
   if (handlers.onDocTreeMenu) {
     eventBus.on("open-menu-doctree", handlers.onDocTreeMenu);
   }
+  if (handlers.onBlockIconMenu) {
+    eventBus.on("click-blockicon", handlers.onBlockIconMenu);
+  }
 }
 
 export function unbindPluginLifecycleEvents(
@@ -37,5 +41,8 @@ export function unbindPluginLifecycleEvents(
   }
   if (handlers.onDocTreeMenu) {
     eventBus.off("open-menu-doctree", handlers.onDocTreeMenu);
+  }
+  if (handlers.onBlockIconMenu) {
+    eventBus.off("click-blockicon", handlers.onBlockIconMenu);
   }
 }

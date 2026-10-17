@@ -200,5 +200,45 @@ describe("floating-selection-helper", () => {
     expect(result).toBe("![](assets/solo-image.png)");
     vi.restoreAllMocks();
   });
+
+  it("extracts markdown from explicitBlocks elements when text range is missing", async () => {
+    vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
+    vi.spyOn(actionRunnerContext, "getSelectedImageAssetPaths").mockReturnValue([]);
+
+    const blockEl = document.createElement("div");
+    blockEl.setAttribute("data-node-id", "target-block-1");
+
+    vi.spyOn(kernel, "getBlockKramdowns").mockResolvedValue([
+      { id: "target-block-1", kramdown: '目标块文本内容{: id="target-block-1"}' },
+    ]);
+
+    const result = await extractFloatingMarkdownFromSelection(undefined, null, [blockEl]);
+    expect(result).toBe("目标块文本内容");
+    vi.restoreAllMocks();
+  });
+
+  it("prefers active text range over explicitBlocks when text range is present", async () => {
+    vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
+    vi.spyOn(actionRunnerContext, "getSelectedImageAssetPaths").mockReturnValue([]);
+
+    const mockRange = {
+      toString: () => "划选的局部文本",
+      cloneRange: () => mockRange,
+      startContainer: document.createTextNode("划选的局部文本"),
+      endContainer: document.createTextNode("划选的局部文本"),
+      collapsed: false,
+    } as any;
+
+    const blockEl = document.createElement("div");
+    blockEl.setAttribute("data-node-id", "target-block-1");
+
+    const result = await extractFloatingMarkdownFromSelection(
+      undefined,
+      mockRange,
+      [blockEl]
+    );
+    expect(result).toBe("划选的局部文本");
+    vi.restoreAllMocks();
+  });
 });
 

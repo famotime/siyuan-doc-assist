@@ -103,7 +103,8 @@ export function extractTextFromRange(range: Range): string {
  */
 export async function extractFloatingMarkdownFromSelection(
   protyle?: ProtyleLike,
-  explicitRange?: Range | null
+  explicitRange?: Range | null,
+  explicitBlocks?: Array<HTMLElement | Element | string> | null
 ): Promise<string> {
   // 1. 优先检查是否存在块级多选（用户框选了完整块，带 .protyle-wysiwyg--select）
   const selectedBlockIds = getSelectedBlockIds(protyle);
@@ -151,12 +152,41 @@ export async function extractFloatingMarkdownFromSelection(
     }
   }
 
-  if (!range) {
-    return "";
+  let selectedText = "";
+  if (range && !range.collapsed) {
+    selectedText = extractTextFromRange(range);
   }
 
-  const selectedText = extractTextFromRange(range);
-  if (!selectedText) {
+  // 4. 若无行内划选文本，检查显式传入的目标块列表 (例如来自块菜单 click-blockicon 的 blockElements)
+  if (!selectedText && explicitBlocks && explicitBlocks.length > 0) {
+    const blockIds = explicitBlocks
+      .map((item) =>
+        typeof item === "string"
+          ? item.trim()
+          : (item.getAttribute?.("data-node-id") ||
+             (item as HTMLElement).dataset?.nodeId ||
+             "").trim()
+      )
+      .filter(Boolean);
+
+    if (blockIds.length > 0) {
+      try {
+        const kramdowns = await getBlockKramdowns(blockIds);
+        const rawContent = kramdowns
+          .map((item) => (item?.kramdown || "").trim())
+          .filter(Boolean)
+          .join("\n\n");
+        const cleaned = stripKramdownBlockAttributes(rawContent);
+        if (cleaned) {
+          return cleaned;
+        }
+      } catch (e) {
+        console.warn("[DocAssistant][FloatingSelection] getBlockKramdowns for explicitBlocks failed:", e);
+      }
+    }
+  }
+
+  if (!range || !selectedText) {
     return "";
   }
 

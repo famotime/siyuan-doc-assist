@@ -20,14 +20,17 @@ import {
   setSingleDocMenuRegistration,
   sortActionsByOrder,
 } from "@/core/doc-menu-registration-core";
-
 describe("doc-menu-registration-core", () => {
-  test("builds default menu registration state with all actions disabled", () => {
+  test("builds default menu registration state with float-selected-text enabled and others disabled", () => {
     const state = buildDefaultDocMenuRegistration(ACTIONS);
 
     expect(Object.keys(state)).toHaveLength(ACTIONS.length);
     for (const action of ACTIONS) {
-      expect(state[action.key]).toBe(false);
+      if (action.key === "float-selected-text") {
+        expect(state[action.key]).toBe(true);
+      } else {
+        expect(state[action.key]).toBe(false);
+      }
     }
     expect(isAllDocMenuRegistrationEnabled(state)).toBe(false);
   });
@@ -123,8 +126,12 @@ describe("doc-menu-registration-core", () => {
   });
 
   test("filters menu actions by registration state and enabled state", () => {
-    const menuState = setSingleDocMenuRegistration(
+    const emptyMenuState = setAllDocMenuRegistration(
       buildDefaultDocMenuRegistration(ACTIONS),
+      false
+    );
+    const menuState = setSingleDocMenuRegistration(
+      emptyMenuState,
       "export-current",
       true
     );

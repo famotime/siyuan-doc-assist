@@ -73,6 +73,38 @@ if (typeof window !== "undefined") {
   }
 }
 
+function writeFloatingHtmlToTempFile(html: string): string | null {
+  try {
+    const electron = (window as any).require?.("electron");
+    const remote = (window as any).require?.("@electron/remote") || electron?.remote;
+    const path = (window as any).require?.("path");
+    const os = (window as any).require?.("os");
+    const fs = (window as any).require?.("fs");
+    if (!fs || !path) return null;
+
+    let tempDir = "";
+    if (remote?.app && typeof remote.app.getPath === "function") {
+      try {
+        tempDir = remote.app.getPath("temp");
+      } catch {}
+    }
+    if (!tempDir && os && typeof os.tmpdir === "function") {
+      tempDir = os.tmpdir();
+    }
+    if (!tempDir && typeof process !== "undefined" && process.env) {
+      tempDir = process.env.TEMP || process.env.TMP || "";
+    }
+    if (!tempDir) return null;
+
+    const targetPath = path.join(tempDir, "siyuan-doc-assist-floating-window.html");
+    fs.writeFileSync(targetPath, html, "utf-8");
+    return targetPath;
+  } catch (err) {
+    console.warn("[DocAssistant][FloatingText] write temp html file failed:", err);
+    return null;
+  }
+}
+
 /**
  * 启动桌面置顶悬浮文本窗口
  */
@@ -146,6 +178,11 @@ export async function openFloatingTextWindow(options: {
 
       // 挂载宿主代理对象供子窗口直接同步调用
       (win as any).__docAssistantHost = {
+        close: () => {
+          if (!win.isDestroyed()) {
+            win.close();
+          }
+        },
         saveConfig: (patch: Partial<FloatingTextConfig>) => {
           return saveFloatingTextConfig(patch);
         },
@@ -210,6 +247,7 @@ export async function openFloatingTextWindow(options: {
       const IPC_PIN_CHANNEL = "siyuan-doc-assist-set-always-on-top";
       const IPC_MOVE_CHANNEL = "siyuan-doc-assist-move-window";
       const IPC_PASTE_CHANNEL = "siyuan-doc-assist-minimize-and-paste";
+      const IPC_CLOSE_CHANNEL = "siyuan-doc-assist-close-window";
       try {
         const electron = (window as any).require?.("electron");
         if (electron?.ipcRenderer) {
@@ -252,6 +290,12 @@ export async function openFloatingTextWindow(options: {
               }
             }
           });
+          electron.ipcRenderer.removeAllListeners(IPC_CLOSE_CHANNEL);
+          electron.ipcRenderer.on(IPC_CLOSE_CHANNEL, () => {
+            if (currentElectronWindow && !currentElectronWindow.isDestroyed()) {
+              currentElectronWindow.close();
+            }
+          });
         }
       } catch (ipcBindErr) {
         console.warn("[DocAssistant][FloatingText] ipcRenderer bind warning:", ipcBindErr);
@@ -288,6 +332,10 @@ export async function openFloatingTextWindow(options: {
                 triggerSystemPaste(payload?.delayMs ?? 180);
               }
             }
+          } else if (channel === IPC_CLOSE_CHANNEL) {
+            if (!win.isDestroyed()) {
+              win.close();
+            }
           }
         });
       }
@@ -317,11 +365,29 @@ export async function openFloatingTextWindow(options: {
         }
       });
 
-
       currentElectronWindow = win;
 
-      // 使用 data URL 直接在内存中加载自包含的完整 HTML，不依赖任何 HTTP 路由或鉴权
-      win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+      // 优先通过本地临时 HTML 文件加载，彻底消除长文档 data URL 超限崩溃
+      const tempPath = writeFloatingHtmlToTempFile(html);
+      let loaded = false;
+      if (tempPath) {
+        try {
+          if (typeof win.loadFile === "function") {
+            win.loadFile(tempPath);
+            loaded = true;
+          } else {
+            const fileUrl = "file:///" + tempPath.replace(/\\/g, "/");
+            win.loadURL(fileUrl);
+            loaded = true;
+          }
+        } catch (loadErr) {
+          console.warn("[DocAssistant][FloatingText] loadFile failed, fallback to data URL:", loadErr);
+        }
+      }
+      if (!loaded) {
+        win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+      }
+
       win.once("ready-to-show", () => {
         if (!win.isDestroyed()) {
           win.show();
@@ -857,69 +923,84 @@ function openInAppFloatingFallback(
     isDark,
     initialHtml,
     baseUrl,
+    isDialogFallback: true,
   });
 
   const dialog = new Dialog({
-    title: `📌 ${title}`,
+    title: "", // 设为空字符串，思源自动隐藏 b3-dialog__header 避免重复标题栏
     content: `<div class="doc-assistant-floating-dialog-wrapper" style="height: 100%; min-height: 260px;">${dialogHtml}</div>`,
     width: `${effectiveConfig.width}px`,
     height: `${effectiveConfig.height}px`,
     transparent: true,
   });
 
-  // 支持通过拖动内层标题栏联动拖拽思源 Dialog 容器
   const dialogEl = dialog.element;
   const dialogContainer = dialogEl?.querySelector(".b3-dialog__container") as HTMLElement | null;
-  const innerHeader = dialogEl?.querySelector(".ft-header") as HTMLElement | null;
-  const innerActions = dialogEl?.querySelector(".ft-actions") as HTMLElement | null;
-  if (dialogContainer && innerHeader) {
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let initLeft = 0;
-    let initTop = 0;
-    let hasMoved = false;
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      if (!hasMoved && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
-        hasMoved = true;
-      }
-      if (hasMoved) {
-        dialogContainer.style.left = `${initLeft + dx}px`;
-        dialogContainer.style.top = `${initTop + dy}px`;
-        dialogContainer.style.position = "absolute";
-        dialogContainer.style.transform = "none";
-      }
-    };
-
-    const onMouseUp = (e: MouseEvent) => {
-      if (!isDragging) return;
-      isDragging = false;
-      document.removeEventListener("mousemove", onMouseMove, true);
-      document.removeEventListener("mouseup", onMouseUp, true);
-      if (hasMoved) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
-    innerHeader.addEventListener("mousedown", (e) => {
-      if (e.button !== 0) return;
-      if (innerActions && innerActions.contains(e.target as Node)) return;
-      isDragging = true;
-      hasMoved = false;
-      startX = e.clientX;
-      startY = e.clientY;
-      const rect = dialogContainer.getBoundingClientRect();
-      initLeft = rect.left;
-      initTop = rect.top;
-      document.addEventListener("mousemove", onMouseMove, true);
-      document.addEventListener("mouseup", onMouseUp, true);
-    });
+  // 1. 清理思源外层 Dialog 容器样式，消除多余边框与内边距，让毛玻璃内层完整沉浸式展示
+  if (dialogContainer) {
+    dialogContainer.style.background = "transparent";
+    dialogContainer.style.boxShadow = "none";
+    dialogContainer.style.border = "none";
+    dialogContainer.style.overflow = "hidden";
+    const bodyEl = dialogContainer.querySelector(".b3-dialog__body") as HTMLElement | null;
+    if (bodyEl) {
+      bodyEl.style.padding = "0";
+      bodyEl.style.height = "100%";
+      bodyEl.style.overflow = "hidden";
+      bodyEl.style.background = "transparent";
+    }
   }
+
+  // 2. 统一关闭逻辑与生命周期销毁
+  let isCleanedUp = false;
+  const cleanup = () => {
+    if (isCleanedUp) return;
+    isCleanedUp = true;
+    document.removeEventListener("keydown", onKeyDown, true);
+    document.removeEventListener("doc-assistant-floating-close", onCloseEvent);
+  };
+
+  const closeDialog = () => {
+    cleanup();
+    dialog.destroy();
+  };
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeDialog();
+    }
+  };
+
+  const onCloseEvent = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeDialog();
+  };
+
+  document.addEventListener("keydown", onKeyDown, true);
+  document.addEventListener("doc-assistant-floating-close", onCloseEvent);
+
+  // 监听内层自定义关闭按钮点击 (捕获阶段，阻止向外冒泡)
+  const innerCloseBtn = dialogEl?.querySelector("#ft-btn-close");
+  innerCloseBtn?.addEventListener(
+    "click",
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeDialog();
+    },
+    true
+  );
+
+  // 挂载安全代理，拦截 dialog.destroy，确保任何途径销毁时解绑全局事件
+  const origDestroy = dialog.destroy.bind(dialog);
+  dialog.destroy = () => {
+    cleanup();
+    origDestroy();
+  };
 
   showMessage("当前环境已在应用内打开悬浮窗", 3000, "info");
 }

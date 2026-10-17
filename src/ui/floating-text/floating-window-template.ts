@@ -783,8 +783,9 @@ export function buildFloatingWindowHtml(options: {
   initialHtml?: string;
   hostWebContentsId?: number | null;
   baseUrl?: string;
+  isDialogFallback?: boolean;
 }): string {
-  const { title, text, config, isDark, initialHtml, hostWebContentsId, baseUrl } = options;
+  const { title, text, config, isDark, initialHtml, hostWebContentsId, baseUrl, isDialogFallback } = options;
   const safeTitle = escapeHtml(title || "悬浮文本");
   const markdownHtml =
     typeof initialHtml === "string" && initialHtml.trim()
@@ -890,23 +891,23 @@ export function buildFloatingWindowHtml(options: {
       </svg>
 
       <div id="ft-app" style="--ft-opacity: ${config.opacity}; --ft-font-size: ${config.fontSize}px; ${fontFamStyle}">
-        <header class="ft-header">
-          <div class="ft-title-area" title="按住可拖动窗口">
-            <span class="ft-drag-handle" aria-hidden="true">
+        <header class="ft-header${isDialogFallback ? " resize__move" : ""}" style="${isDialogFallback ? "-webkit-app-region: no-drag; cursor: move;" : ""}">
+          <div class="ft-title-area${isDialogFallback ? " resize__move" : ""}" title="按住可拖动窗口">
+            <span class="ft-drag-handle${isDialogFallback ? " resize__move" : ""}" aria-hidden="true">
               <svg class="ft-icon ft-grip-icon"><use href="#ft-icon-grip"></use></svg>
             </span>
-            <span id="ft-title-text" class="ft-title-text">${safeTitle}</span>
+            <span id="ft-title-text" class="ft-title-text${isDialogFallback ? " resize__move" : ""}">${safeTitle}</span>
             <span id="ft-word-count" class="ft-word-count"></span>
           </div>
 
-          <div class="ft-actions">
-            <!-- 置顶状态切换 -->
+          <div class="ft-actions" style="-webkit-app-region: no-drag;">
+            ${isDialogFallback ? "" : `<!-- 置顶状态切换 -->
             <div class="ft-tooltip-wrapper">
               <button id="ft-btn-pin" class="ft-btn ft-btn-active ft-btn-pinned" aria-label="取消置顶">
                 <svg class="ft-icon" id="ft-pin-icon"><use href="#ft-icon-pin"></use></svg>
               </button>
               <div class="ft-tooltip" id="ft-pin-tooltip">取消置顶 <kbd>Alt+P</kbd></div>
-            </div>
+            </div>`}
 
             <!-- 搜索操作 -->
             <div class="ft-tooltip-wrapper">
@@ -1037,8 +1038,46 @@ export function buildFloatingWindowHtml(options: {
           let currentOpacity = ${config.opacity};
           let isMarkdown = ${config.viewMode === "markdown"};
           const autoPasteOnSelect = ${Boolean(config.autoPasteOnSelect)};
+          const isDialogFallback = ${Boolean(isDialogFallback)};
 
-          const appEl = document.getElementById("ft-app");
+          function closeFloatingWindow() {
+            if (isDialogFallback) {
+              try {
+                const evt = new CustomEvent("doc-assistant-floating-close", { bubbles: true, composed: true });
+                document.dispatchEvent(evt);
+              } catch (e) {}
+              return;
+            }
+
+            try {
+              if (window.__docAssistantHost && typeof window.__docAssistantHost.close === "function") {
+                window.__docAssistantHost.close();
+                return;
+              }
+            } catch (e) {}
+
+            try {
+              if (electronWin && typeof electronWin.close === "function") {
+                electronWin.close();
+                return;
+              }
+            } catch (e) {}
+
+            try {
+              const req = (typeof window !== "undefined" && window.require) || (typeof require === "function" ? require : null);
+              if (req) {
+                const elMod = req("electron");
+                const ipc = elMod && elMod.ipcRenderer;
+                if (ipc && typeof ipc.send === "function") {
+                  ipc.send("siyuan-doc-assist-close-window");
+                }
+              }
+            } catch (e) {}
+
+            try {
+              window.close();
+            } catch (e) {}
+          }
           const popoverEl = document.getElementById("ft-popover");
           const textView = document.getElementById("ft-text-view");
           const mdView = document.getElementById("ft-markdown-view");
@@ -1868,8 +1907,7 @@ export function buildFloatingWindowHtml(options: {
                 closePopover();
                 return;
               }
-              if (electronWin) electronWin.close();
-              else window.close();
+              closeFloatingWindow();
               return;
             }
 
@@ -2084,9 +2122,12 @@ export function buildFloatingWindowHtml(options: {
           }
 
           if (closeBtn) {
-            closeBtn.addEventListener("click", function() {
-              if (electronWin) electronWin.close();
-              else window.close();
+            closeBtn.addEventListener("click", function(e) {
+              if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+              closeFloatingWindow();
             });
           }
 
@@ -2173,10 +2214,10 @@ export function buildFloatingWindowHtml(options: {
             }, 300);
           });
 
-          // 标题栏鼠标拖动增强与多环境兜底
+          // 标题栏鼠标拖动增强与多环境兜底 (仅在独立原生窗口/Web弹出窗下启用，应用内Dialog由宿主思源接管)
           const headerEl = document.querySelector(".ft-header");
           const actionsEl = document.querySelector(".ft-actions");
-          if (headerEl) {
+          if (headerEl && !isDialogFallback) {
             let isDragging = false;
             let startMouseX = 0;
             let startMouseY = 0;

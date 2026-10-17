@@ -97,7 +97,7 @@ describe("plugin menu registration", () => {
     vi.clearAllMocks();
   });
 
-  test("does not register actions in title menu by default", async () => {
+  test("registers float-selected-text in title menu by default", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
@@ -105,8 +105,34 @@ describe("plugin menu registration", () => {
     const menu = { addSeparator: vi.fn(), addItem: vi.fn() };
     plugin.emitEvent("click-editortitleicon", { menu, data: { id: "doc-1" } });
 
-    expect(menu.addSeparator).not.toHaveBeenCalled();
-    expect(menu.addItem).not.toHaveBeenCalled();
+    expect(menu.addSeparator).toHaveBeenCalledTimes(1);
+    expect(menu.addItem).toHaveBeenCalledTimes(1);
+    expect(menu.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({ label: "悬浮选中文本" })
+    );
+  });
+
+  test("registers float-selected-text in block menu on click-blockicon", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+
+    const menu = { addItem: vi.fn() };
+    const blockEl = document.createElement("div");
+    blockEl.setAttribute("data-node-id", "b-1");
+
+    plugin.emitEvent("click-blockicon", {
+      menu,
+      blockElements: [blockEl],
+      protyle: { block: { rootID: "doc-1" } },
+    });
+
+    expect(menu.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "悬浮选中文本",
+        icon: "iconPin",
+      })
+    );
   });
 
   test("does not register disabled single action to title menu", async () => {
@@ -147,6 +173,7 @@ describe("plugin menu registration", () => {
       actionMenuRegistered: {
         "export-current": false,
         "insert-backlinks": true,
+        "float-selected-text": false,
       },
     });
     await plugin.onload();

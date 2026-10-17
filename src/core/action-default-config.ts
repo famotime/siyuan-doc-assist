@@ -15,9 +15,11 @@ const DEFAULT_DISABLED_ACTION_KEYS = new Set<ActionKey>([
 ]);
 
 /**
- * 默认注册到文档菜单的命令集合（当前默认全部不注册）
+ * 默认注册到文档菜单的命令集合
  */
-const DEFAULT_MENU_REGISTERED_ACTION_KEYS = new Set<ActionKey>([]);
+const DEFAULT_MENU_REGISTERED_ACTION_KEYS = new Set<ActionKey>([
+  "float-selected-text",
+]);
 
 export function getDefaultActionState(key: ActionKey): ActionDefaultState {
   const isDefaultDisabled = DEFAULT_DISABLED_ACTION_KEYS.has(key);
@@ -58,7 +60,7 @@ export const ACTION_DEFAULT_CONFIGS: Record<ActionKey, ActionDefaultState> = {
   "create-top100-large-documents-report": { defaultEnabled: true, defaultMenuRegistered: false },
   dedupe: { defaultEnabled: true, defaultMenuRegistered: false },
   "split-doc-by-headings": { defaultEnabled: true, defaultMenuRegistered: false },
-  "float-selected-text": { defaultEnabled: true, defaultMenuRegistered: false },
+  "float-selected-text": { defaultEnabled: true, defaultMenuRegistered: true },
   "link-to-doc": { defaultEnabled: true, defaultMenuRegistered: false },
 
   // 插入

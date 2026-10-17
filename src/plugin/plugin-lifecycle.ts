@@ -191,6 +191,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
     if (!menu) {
       return;
     }
+    if (
+      getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG).has("float-selected-text") ||
+      this.docActionEnabledState?.["float-selected-text"] === false
+    ) {
+      return;
+    }
     const selectedText = detail.range
       ? detail.range.toString()
       : typeof window !== "undefined"
@@ -208,6 +214,54 @@ export default class DocLinkToolkitPlugin extends Plugin {
       click: async () => {
         const text = await extractFloatingMarkdownFromSelection(detail.protyle, capturedRange);
         void floatingTextService.openFloatingText(text || selectedText);
+      },
+    });
+  };
+
+  private readonly onBlockIconMenu = (event: CustomEvent<{
+    menu?: {
+      addItem: (config: { icon: string; label: string; click: () => void }) => void;
+      addSeparator?: () => void;
+    };
+    protyle?: ProtyleLike;
+    blockElements?: HTMLElement[];
+  }>) => {
+    const detail = event.detail;
+    const menu = detail?.menu;
+    if (!menu) {
+      return;
+    }
+    if (
+      getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG).has("float-selected-text") ||
+      this.docActionEnabledState?.["float-selected-text"] === false
+    ) {
+      return;
+    }
+
+    const protyle = detail.protyle;
+    const toolbarRange = (protyle as any)?.toolbar?.range;
+    const capturedRange = toolbarRange && typeof toolbarRange.cloneRange === "function"
+      ? toolbarRange.cloneRange()
+      : typeof window !== "undefined" && window.getSelection()?.rangeCount
+      ? window.getSelection()!.getRangeAt(0).cloneRange()
+      : null;
+    const blockElements = detail.blockElements ? [...detail.blockElements] : [];
+
+    menu.addItem({
+      icon: "iconPin",
+      label: "悬浮选中文本",
+      click: async () => {
+        const text = await extractFloatingMarkdownFromSelection(
+          protyle,
+          capturedRange,
+          blockElements
+        );
+        if (text) {
+          void floatingTextService.openFloatingText(text);
+        } else {
+          const docId = getProtyleDocId(protyle as ProtyleLike) || this.currentDocId;
+          void this.actionRunner.runAction("float-selected-text", docId, protyle as ProtyleLike);
+        }
       },
     });
   };
@@ -256,6 +310,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onEditorTitleMenu: this.onEditorTitleMenu,
       onContentMenu: this.onContentMenu,
       onDocTreeMenu: this.onDocTreeMenu,
+      onBlockIconMenu: this.onBlockIconMenu,
     });
     this.keyInfoController.registerDock(this);
 
@@ -286,6 +341,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onEditorTitleMenu: this.onEditorTitleMenu,
       onContentMenu: this.onContentMenu,
       onDocTreeMenu: this.onDocTreeMenu,
+      onBlockIconMenu: this.onBlockIconMenu,
     });
     this.keyInfoController.destroy();
     destroyActionProcessingOverlay();
