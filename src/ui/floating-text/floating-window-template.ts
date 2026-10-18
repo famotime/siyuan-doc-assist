@@ -1527,6 +1527,44 @@ export function buildFloatingWindowHtml(options: {
             if (settingsBtn) settingsBtn.classList.remove("ft-btn-active");
           }
 
+          function stripLeadingPrefixes(raw) {
+            if (!raw) return "";
+            var str = raw.replace(/\\{:[^}]*\\}/g, "");
+            var prev = "";
+            var guard = 0;
+            while (str !== prev && guard < 10) {
+              prev = str;
+              guard++;
+              str = str.replace(/^[\\s\\t]+/, "");
+              var quoteMatch = str.match(/^>+\\s*/);
+              if (quoteMatch) {
+                str = str.slice(quoteMatch[0].length);
+                continue;
+              }
+              var headingMatch = str.match(/^#{1,6}\\s+/);
+              if (headingMatch) {
+                str = str.slice(headingMatch[0].length);
+                continue;
+              }
+              var todoMatch = str.match(/^(?:[-*+]\\s+)?\\[([ xX])\\]\\s*/);
+              if (todoMatch) {
+                str = str.slice(todoMatch[0].length);
+                continue;
+              }
+              var unorderedMatch = str.match(/^[-*+]\\s+/);
+              if (unorderedMatch) {
+                str = str.slice(unorderedMatch[0].length);
+                continue;
+              }
+              var orderedMatch = str.match(/^\\d+[\\.\\)､、]\\s*/);
+              if (orderedMatch) {
+                str = str.slice(orderedMatch[0].length);
+                continue;
+              }
+            }
+            return str.trim();
+          }
+
           function parseCandidates(str) {
             if (!str) return [];
             var LF = String.fromCharCode(10);
@@ -1537,13 +1575,14 @@ export function buildFloatingWindowHtml(options: {
             var id = 1;
             for (var i = 0; i < lines.length; i++) {
               var raw = lines[i];
-              var trimmed = raw.trim();
-              if (!trimmed) continue;
+              var cleaned = stripLeadingPrefixes(raw);
+              if (!cleaned) continue;
               res.push({
                 id: id++,
                 line: i + 1,
                 rawText: raw,
-                displayText: trimmed,
+                displayText: cleaned,
+                cleanText: cleaned,
               });
             }
             return res;
@@ -1701,7 +1740,10 @@ export function buildFloatingWindowHtml(options: {
 
           function selectCandidate(rawText) {
             if (typeof rawText !== "string") return;
-            copyText(rawText).then(function(ok) {
+            var cleanText = stripLeadingPrefixes(rawText);
+            var textToCopy = cleanText || rawText.trim();
+            if (!textToCopy) return;
+            copyText(textToCopy).then(function(ok) {
               if (!ok) return;
               if (autoPasteOnSelect) {
                 showToast("已复制并自动粘贴");
@@ -1759,9 +1801,9 @@ export function buildFloatingWindowHtml(options: {
             var keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
 
             var matched = allCandidates.filter(function(item) {
-              var lower = item.rawText.toLowerCase();
+              var target = (item.cleanText || item.displayText || item.rawText).toLowerCase();
               return keywords.every(function(kw) {
-                return lower.indexOf(kw) !== -1;
+                return target.indexOf(kw) !== -1;
               });
             });
 
@@ -1830,7 +1872,8 @@ export function buildFloatingWindowHtml(options: {
               } else if (e.key === "Enter") {
                 e.preventDefault();
                 if (selectedCandidateIndex >= 0 && selectedCandidateIndex < currentMatchedCandidates.length) {
-                  selectCandidate(currentMatchedCandidates[selectedCandidateIndex].rawText);
+                  var targetCandidate = currentMatchedCandidates[selectedCandidateIndex];
+                  selectCandidate(targetCandidate.cleanText || targetCandidate.displayText || targetCandidate.rawText);
                 }
               } else if (e.key === "Escape") {
                 e.preventDefault();
@@ -1863,7 +1906,8 @@ export function buildFloatingWindowHtml(options: {
               var idx = parseInt(item.getAttribute("data-index"), 10);
               if (!isNaN(idx) && idx >= 0 && idx < currentMatchedCandidates.length) {
                 updateCandidateSelection(idx);
-                selectCandidate(currentMatchedCandidates[idx].rawText);
+                var targetCandidate = currentMatchedCandidates[idx];
+                selectCandidate(targetCandidate.cleanText || targetCandidate.displayText || targetCandidate.rawText);
               }
             });
 

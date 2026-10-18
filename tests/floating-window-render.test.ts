@@ -394,7 +394,7 @@ describe("floating-window-render", () => {
       item.click();
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      expect(writtenClipboardText).toBe("- 待粘贴的候选词条");
+      expect(writtenClipboardText).toBe("待粘贴的候选词条");
       expect(minimizeAndPasteMock).toHaveBeenCalledTimes(1);
       expect(minimizeAndPasteMock).toHaveBeenLastCalledWith({ isPinned: true, delayMs: 260 });
 
