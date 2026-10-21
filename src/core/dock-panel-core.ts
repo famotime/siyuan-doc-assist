@@ -50,6 +50,13 @@ export function normalizeDockTabKey(value: unknown, fallback: DockTabKey = "key-
   return isDockTabKey(value) ? value : fallback;
 }
 
+export function resolveInitialDockActiveTab(storage: Pick<Storage, "getItem"> | null | undefined, startupDocProcessTabEnabled = false): DockTabKey {
+  if (startupDocProcessTabEnabled) {
+    return "doc-process";
+  }
+  return loadPersistedDockActiveTab(storage);
+}
+
 export function loadPersistedDockActiveTab(storage: Pick<Storage, "getItem"> | null | undefined): DockTabKey {
   if (!storage || typeof storage.getItem !== "function") {
     return "key-info";

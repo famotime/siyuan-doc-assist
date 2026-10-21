@@ -43,6 +43,7 @@ export type PluginDocMenuState = {
   aiSummaryConfig: AiServiceConfig;
   debugLogEnabled: boolean;
   floatingConfig: FloatingTextConfig;
+  startupDocProcessTabEnabled: boolean;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
@@ -50,6 +51,7 @@ type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   aiSummaryConfig?: unknown;
   debugLogEnabled?: unknown;
   floatingConfig?: unknown;
+  startupDocProcessTabEnabled?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -64,6 +66,7 @@ export function buildDefaultPluginDocMenuState(
     aiSummaryConfig: buildDefaultAiServiceConfig(),
     debugLogEnabled: false,
     floatingConfig: { ...DEFAULT_FLOATING_TEXT_CONFIG },
+    startupDocProcessTabEnabled: false,
   };
 }
 
@@ -80,6 +83,7 @@ export function normalizePluginDocMenuState(
     aiSummaryConfig: normalizeStoredAiSummaryConfig(raw),
     debugLogEnabled: normalizeStoredDebugLogEnabled(raw),
     floatingConfig: normalizeStoredFloatingConfig(raw),
+    startupDocProcessTabEnabled: normalizeStoredStartupDocProcessTabEnabled(raw),
   };
 }
 
@@ -119,6 +123,14 @@ function normalizeStoredFloatingConfig(raw: unknown): FloatingTextConfig {
   return normalizeFloatingConfig(value as any);
 }
 
+function normalizeStoredStartupDocProcessTabEnabled(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") {
+    return false;
+  }
+  const value = (raw as PluginDocMenuStorageV1).startupDocProcessTabEnabled;
+  return typeof value === "boolean" ? value : false;
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -132,6 +144,7 @@ export function serializePluginDocMenuState(
     aiSummaryConfig: state.aiSummaryConfig,
     debugLogEnabled: state.debugLogEnabled,
     floatingConfig: state.floatingConfig,
+    startupDocProcessTabEnabled: state.startupDocProcessTabEnabled,
   };
 }
 
@@ -281,6 +294,16 @@ export function setFloatingConfig(
       ...state.floatingConfig,
       ...config,
     }),
+  };
+}
+
+export function setPluginStartupDocProcessTabEnabled(
+  state: PluginDocMenuState,
+  enabled: boolean
+): PluginDocMenuState {
+  return {
+    ...state,
+    startupDocProcessTabEnabled: Boolean(enabled),
   };
 }
 

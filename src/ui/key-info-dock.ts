@@ -19,7 +19,8 @@ import type { KeyInfoListScrollLock } from "@/core/key-info-scroll-lock-core";
 import {
   DockDocAction,
   DockTabKey,
-  loadPersistedDockActiveTab,
+
+  resolveInitialDockActiveTab,
   savePersistedDockActiveTab,
 } from "@/core/dock-panel-core";
 import {
@@ -91,9 +92,15 @@ const MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS = new Set<string>([
   "select-from-current-to-end",
 ]);
 
+export type CreateKeyInfoDockOptions = {
+  startupDocProcessTabEnabled?: boolean;
+  initialActiveTab?: DockTabKey;
+};
+
 export function createKeyInfoDock(
   element: HTMLElement,
-  callbacks: KeyInfoDockCallbacks
+  callbacks: KeyInfoDockCallbacks,
+  options?: CreateKeyInfoDockOptions
 ): KeyInfoDockHandle {
   const tabStorage = typeof localStorage !== "undefined" ? localStorage : null;
   const state: KeyInfoDockState = {
@@ -104,7 +111,9 @@ export function createKeyInfoDock(
     loading: false,
     isRefreshing: false,
     emptyText: "暂无关键内容",
-    activeTab: loadPersistedDockActiveTab(tabStorage),
+    activeTab:
+      options?.initialActiveTab ??
+      resolveInitialDockActiveTab(tabStorage, options?.startupDocProcessTabEnabled),
     docMenuRegisterAll: false,
     docActions: [],
     favoriteActionKeys: [],
@@ -576,6 +585,10 @@ export function createKeyInfoDock(
   renderLoadingState();
   renderList();
   renderDocActions();
+
+  if (state.activeTab === "doc-process") {
+    callbacks.onDocProcessActivate?.();
+  }
 
   return {
     setState,

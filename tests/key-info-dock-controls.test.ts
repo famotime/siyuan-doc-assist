@@ -163,6 +163,36 @@ describe("key-info-dock controls", () => {
     host.remove();
   });
 
+  test("defaults to doc-process tab when startupDocProcessTabEnabled is true even if storage has key-info", () => {
+    localStorage.setItem(DOCK_ACTIVE_TAB_STORAGE_KEY, "key-info");
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const dock = createKeyInfoDock(host, { onExport: () => {} }, { startupDocProcessTabEnabled: true });
+    const keyInfoTab = host.querySelector(
+      '.doc-assistant-keyinfo__tab[data-tab="key-info"]'
+    ) as HTMLButtonElement | null;
+    const docProcessTab = host.querySelector(
+      '.doc-assistant-keyinfo__tab[data-tab="doc-process"]'
+    ) as HTMLButtonElement | null;
+    const keyInfoPanel = host.querySelector(
+      ".doc-assistant-keyinfo__panel--key-info"
+    ) as HTMLDivElement | null;
+    const docProcessPanel = host.querySelector(
+      ".doc-assistant-keyinfo__panel--doc-process"
+    ) as HTMLDivElement | null;
+
+    expect(dock.getState().activeTab).toBe("doc-process");
+    expect(docProcessTab?.classList.contains("is-active")).toBe(true);
+    expect(keyInfoTab?.classList.contains("is-active")).toBe(false);
+    expect(docProcessPanel?.classList.contains("is-hidden")).toBe(false);
+    expect(keyInfoPanel?.classList.contains("is-hidden")).toBe(true);
+
+    dock.destroy();
+    host.remove();
+  });
+
   test("falls back to key-info tab when persisted dock tab is invalid", () => {
     localStorage.setItem(DOCK_ACTIVE_TAB_STORAGE_KEY, "invalid");
     const host = document.createElement("div");

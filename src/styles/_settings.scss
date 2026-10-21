@@ -520,7 +520,9 @@
   }
 }
 
-.doc-assistant-settings__debug-control {
+.doc-assistant-settings__debug-control,
+.doc-assistant-settings__autopaste-control,
+.doc-assistant-settings__startup-tab-control {
   grid-column: 2 !important;
   display: inline-flex !important;
   align-items: center !important;

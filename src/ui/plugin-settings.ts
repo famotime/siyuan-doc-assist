@@ -21,6 +21,7 @@ type CreatePluginSettingsOptions = {
   managedAiConfig: AiServiceConfig | null; // 添加被管家接管的配置
   debugLogEnabled: boolean;
   autoPasteOnSelect?: boolean;
+  startupDocProcessTabEnabled?: boolean;
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
   onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
@@ -29,6 +30,7 @@ type CreatePluginSettingsOptions = {
   onToggleSingleMenu: (key: ActionKey, enabled: boolean) => Promise<void> | void;
   onDebugLogEnabledChange: (enabled: boolean) => Promise<void> | void;
   onAutoPasteOnSelectChange?: (enabled: boolean) => Promise<void> | void;
+  onStartupDocProcessTabEnabledChange?: (enabled: boolean) => Promise<void> | void;
 };
 
 function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
@@ -94,6 +96,34 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     actionElement: menuRegistrationPanel,
   });
   hostNormalizedPanels.push(menuRegistrationPanel);
+
+  if (options.onStartupDocProcessTabEnabledChange) {
+    const startupDocProcessTabToggle = document.createElement("input");
+    startupDocProcessTabToggle.className = "b3-switch fn__flex-center";
+    startupDocProcessTabToggle.type = "checkbox";
+    startupDocProcessTabToggle.checked = Boolean(options.startupDocProcessTabEnabled);
+    startupDocProcessTabToggle.addEventListener("change", () => {
+      options.onStartupDocProcessTabEnabledChange?.(startupDocProcessTabToggle.checked);
+    });
+
+    const startupControlWrap = createElement(
+      "div",
+      "doc-assistant-settings__startup-tab-control"
+    );
+    startupControlWrap.append(startupDocProcessTabToggle);
+    const description =
+      "开启时打开侧栏默认显示“文档处理”页签，关闭时保持默认“关键内容”页签或上次选中页签。";
+
+    setting.addItem({
+      title: "启动显示“文档处理”页签",
+      description,
+      actionElement: startupControlWrap,
+    });
+    hostNormalizedRows.push({
+      element: startupControlWrap,
+      fallbackDescription: description,
+    });
+  }
 
   if (!hiddenSettingKeys.has("ai-service")) {
     // 渲染时，如果有接管配置，用接管配置来展示

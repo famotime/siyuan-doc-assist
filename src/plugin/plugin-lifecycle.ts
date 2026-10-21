@@ -47,6 +47,7 @@ import {
   setFloatingConfig,
   setPluginDocActionFavorite,
   setPluginDocActionOrder,
+  setPluginStartupDocProcessTabEnabled,
   setPluginKeyInfoFilter,
   setSinglePluginDocActionEnabled,
   setSinglePluginDocMenuRegistration,
@@ -89,6 +90,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private floatingConfig: FloatingTextConfig =
     buildDefaultPluginDocMenuState(ACTIONS).floatingConfig;
   private debugLogEnabled = false;
+  private startupDocProcessTabEnabled = false;
   private managedAiConfig: AiServiceConfig | null = null;
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
     pluginVersion: pluginInfo.version,
@@ -133,6 +135,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     setDocFavoriteActionOrder: (order) =>
       this.setDocFavoriteActionOrder(order),
     resolveCanvasPlugin: () => resolveCanvasPluginFromPlugins(this.app?.plugins),
+    getStartupDocProcessTabEnabled: () => this.startupDocProcessTabEnabled,
   });
 
   private readonly onSwitchProtyle = (event: CustomEvent<{ protyle?: ProtyleLike }>) => {
@@ -439,6 +442,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       managedAiConfig: this.managedAiConfig,
       debugLogEnabled: this.debugLogEnabled,
       autoPasteOnSelect: this.floatingConfig.autoPasteOnSelect ?? false,
+      startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
@@ -450,6 +454,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onDebugLogEnabledChange: (enabled) => this.setDebugLogEnabled(enabled),
       onAutoPasteOnSelectChange: (enabled) =>
         this.setFloatingConfig({ autoPasteOnSelect: enabled }),
+      onStartupDocProcessTabEnabledChange: (enabled) =>
+        this.setStartupDocProcessTabEnabled(enabled),
     });
   }
 
@@ -542,6 +548,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       aiSummaryConfig: this.aiSummaryConfig,
       debugLogEnabled: this.debugLogEnabled,
       floatingConfig: this.floatingConfig,
+      startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
     };
   }
 
@@ -554,6 +561,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.aiSummaryConfig = state.aiSummaryConfig;
     this.debugLogEnabled = state.debugLogEnabled ?? false;
     this.floatingConfig = state.floatingConfig;
+    this.startupDocProcessTabEnabled = state.startupDocProcessTabEnabled ?? false;
     setCachedFloatingTextConfig(state.floatingConfig);
     setTransactionDebugLogEnabled(this.debugLogEnabled);
     setDocAssistantDebugEnabled(this.debugLogEnabled);
@@ -641,6 +649,16 @@ export default class DocLinkToolkitPlugin extends Plugin {
     const state = this.snapshotDocMenuState();
     state.debugLogEnabled = enabled;
     this.applyDocMenuState(state);
+    await this.persistDocMenuRegistrationState();
+  }
+
+  async setStartupDocProcessTabEnabled(enabled: boolean) {
+    this.applyDocMenuState(
+      setPluginStartupDocProcessTabEnabled(this.snapshotDocMenuState(), enabled)
+    );
+    if (enabled) {
+      this.keyInfoController.setActiveTab("doc-process");
+    }
     await this.persistDocMenuRegistrationState();
   }
 

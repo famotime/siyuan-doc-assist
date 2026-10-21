@@ -171,7 +171,8 @@ describe("plugin settings", () => {
     expect(plugin.setting).toBe(setting);
     expect(setting.items[0]?.title).toBe("启用命令");
     expect(setting.items[0]?.direction).toBe("row");
-    expect(setting.items).toHaveLength(1);
+    expect(setting.items[1]?.title).toBe("启动显示“文档处理”页签");
+    expect(setting.items).toHaveLength(2);
 
     const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
     expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
@@ -468,6 +469,7 @@ describe("plugin settings", () => {
       const setting = settingInstances[1];
       expect(setting.items.map((item) => item.title)).toEqual([
         "启用命令",
+        "启动显示“文档处理”页签",
       ]);
 
       const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
@@ -562,5 +564,50 @@ describe("plugin settings", () => {
     await Promise.resolve();
 
     expect(plugin.floatingConfig.autoPasteOnSelect).toBe(true);
+  });
+
+  test("startupDocProcessTabEnabled toggle controls startup doc process tab state and dock active tab", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+
+    const dockConfig = plugin.addDock.mock.calls[0]?.[0];
+    const host = document.createElement("div");
+    dockConfig?.init?.({ element: host });
+
+    plugin.openSetting();
+
+    const setting = settingInstances[1];
+    const startupItem = setting.items.find((item) => item.title === "启动显示“文档处理”页签");
+    expect(startupItem).toBeDefined();
+    expect(startupItem?.description).toContain("开启时打开侧栏默认显示“文档处理”页签");
+
+    const control = startupItem?.actionElement as HTMLElement;
+    expect(control.classList.contains("doc-assistant-settings__startup-tab-control")).toBe(true);
+    const toggle = control.querySelector("input[type='checkbox']") as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    expect(plugin.startupDocProcessTabEnabled).toBe(false);
+    expect(plugin.keyInfoController.getActiveTab?.()).toBe("key-info");
+
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.startupDocProcessTabEnabled).toBe(true);
+    expect(plugin.keyInfoController.getActiveTab?.()).toBe("doc-process");
+
+    // 模拟思源重启或首次打开侧栏加载 dock
+    const host2 = document.createElement("div");
+    dockConfig?.init?.({ element: host2 });
+    expect(plugin.keyInfoController.getActiveTab?.()).toBe("doc-process");
+
+    toggle.checked = false;
+    toggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.startupDocProcessTabEnabled).toBe(false);
+
+    host.remove();
+    host2.remove();
   });
 });

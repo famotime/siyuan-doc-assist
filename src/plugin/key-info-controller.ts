@@ -1,5 +1,6 @@
 import { getActiveEditor, showMessage } from "siyuan";
 import { DocMenuRegistrationState } from "@/core/doc-menu-registration-core";
+import { DockTabKey } from "@/core/dock-panel-core";
 import { buildKeyInfoMarkdown, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
 import {
   buildKeyInfoControllerDockActionState,
@@ -40,6 +41,7 @@ type KeyInfoControllerDeps = {
   setDocActionFavorite: (key: ActionKey, favorited: boolean) => Promise<void> | void;
   setDocFavoriteActionOrder: (order: ActionKey[]) => Promise<void> | void;
   resolveCanvasPlugin?: () => CanvasPluginLike | null;
+  getStartupDocProcessTabEnabled?: () => boolean;
 };
 
 export class KeyInfoController {
@@ -67,6 +69,9 @@ export class KeyInfoController {
         },
       },
       init: (dock: { element: HTMLElement }) => {
+        const startupDocProcessTabEnabled = Boolean(
+          this.deps.getStartupDocProcessTabEnabled?.()
+        );
         this.keyInfoDock = createKeyInfoDock(
           dock.element,
           {
@@ -83,7 +88,8 @@ export class KeyInfoController {
             onFilterChange: (filter) => {
               void this.deps.setKeyInfoFilter?.(cloneKeyInfoDockFilter(filter) || []);
             },
-          }
+          },
+          { startupDocProcessTabEnabled }
         );
         const initialFilter = cloneKeyInfoDockFilter(this.deps.getKeyInfoFilter?.());
         if (initialFilter) {
@@ -100,6 +106,20 @@ export class KeyInfoController {
         this.destroy();
       },
     });
+  }
+
+  setActiveTab(tab: DockTabKey) {
+    if (!this.keyInfoDock) {
+      return;
+    }
+    this.keyInfoDock.setState({ activeTab: tab });
+    if (tab === "doc-process") {
+      void this.syncCurrentDocReadonlyState();
+    }
+  }
+
+  getActiveTab(): DockTabKey | undefined {
+    return this.keyInfoDock?.getState().activeTab;
   }
 
   destroy() {

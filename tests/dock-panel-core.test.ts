@@ -4,6 +4,7 @@ import {
   DOCK_ACTIVE_TAB_STORAGE_KEY,
   DOCK_TABS,
   loadPersistedDockActiveTab,
+  resolveInitialDockActiveTab,
   normalizeDockTabKey,
   savePersistedDockActiveTab,
 } from "@/core/dock-panel-core";
@@ -236,5 +237,22 @@ describe("dock-panel-core", () => {
 
     expect(loadPersistedDockActiveTab(throwingStorage)).toBe("key-info");
     expect(() => savePersistedDockActiveTab(throwingStorage, "doc-process")).not.toThrow();
+  });
+
+  test("resolves initial dock active tab considering startupDocProcessTabEnabled", () => {
+    const storage = {
+      getItem: vi.fn(() => "key-info"),
+    };
+
+    expect(resolveInitialDockActiveTab(storage, true)).toBe("doc-process");
+    expect(resolveInitialDockActiveTab(null, true)).toBe("doc-process");
+
+    expect(resolveInitialDockActiveTab(storage, false)).toBe("key-info");
+    expect(resolveInitialDockActiveTab(null, false)).toBe("key-info");
+
+    const processStorage = {
+      getItem: vi.fn(() => "doc-process"),
+    };
+    expect(resolveInitialDockActiveTab(processStorage, false)).toBe("doc-process");
   });
 });

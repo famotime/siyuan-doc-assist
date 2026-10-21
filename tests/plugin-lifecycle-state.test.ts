@@ -4,6 +4,7 @@ import {
   buildDefaultPluginDocMenuState,
   normalizePluginDocMenuState,
   serializePluginDocMenuState,
+  setPluginStartupDocProcessTabEnabled,
 } from "@/plugin/plugin-lifecycle-state";
 
 describe("plugin lifecycle state", () => {
@@ -55,5 +56,48 @@ describe("plugin lifecycle state", () => {
         },
       })
     );
+  });
+
+  test("defaults startupDocProcessTabEnabled to false", () => {
+    const state = buildDefaultPluginDocMenuState(ACTIONS);
+    expect(state.startupDocProcessTabEnabled).toBe(false);
+  });
+
+  test("normalizes and serializes startupDocProcessTabEnabled", () => {
+    const stateWithTrue = normalizePluginDocMenuState({
+      startupDocProcessTabEnabled: true,
+    }, ACTIONS);
+    expect(stateWithTrue.startupDocProcessTabEnabled).toBe(true);
+
+    const stateWithFalse = normalizePluginDocMenuState({
+      startupDocProcessTabEnabled: false,
+    }, ACTIONS);
+    expect(stateWithFalse.startupDocProcessTabEnabled).toBe(false);
+
+    const stateWithInvalid = normalizePluginDocMenuState({
+      startupDocProcessTabEnabled: "invalid",
+    }, ACTIONS);
+    expect(stateWithInvalid.startupDocProcessTabEnabled).toBe(false);
+
+    const stateWithMissing = normalizePluginDocMenuState({}, ACTIONS);
+    expect(stateWithMissing.startupDocProcessTabEnabled).toBe(false);
+
+    expect(serializePluginDocMenuState(stateWithTrue)).toEqual(
+      expect.objectContaining({
+        startupDocProcessTabEnabled: true,
+      })
+    );
+  });
+
+  test("updates startupDocProcessTabEnabled via setPluginStartupDocProcessTabEnabled", () => {
+    const initial = buildDefaultPluginDocMenuState(ACTIONS);
+    expect(initial.startupDocProcessTabEnabled).toBe(false);
+
+    const updated = setPluginStartupDocProcessTabEnabled(initial, true);
+    expect(updated.startupDocProcessTabEnabled).toBe(true);
+    expect(initial.startupDocProcessTabEnabled).toBe(false);
+
+    const reverted = setPluginStartupDocProcessTabEnabled(updated, false);
+    expect(reverted.startupDocProcessTabEnabled).toBe(false);
   });
 });
