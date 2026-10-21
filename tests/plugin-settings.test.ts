@@ -169,12 +169,12 @@ describe("plugin settings", () => {
     expect(settingInstances).toHaveLength(2);
     const setting = settingInstances[1];
     expect(plugin.setting).toBe(setting);
-    expect(setting.items[0]?.title).toBe("启用命令");
-    expect(setting.items[0]?.direction).toBe("row");
-    expect(setting.items[1]?.title).toBe("启动显示“文档处理”页签");
+    expect(setting.items[0]?.title).toBe("启动显示“文档处理”页签");
+    expect(setting.items[1]?.title).toBe("启用命令");
+    expect(setting.items[1]?.direction).toBe("row");
     expect(setting.items).toHaveLength(2);
 
-    const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
     expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
       true
     );
@@ -276,7 +276,7 @@ describe("plugin settings", () => {
     plugin.openSetting();
 
     const setting = settingInstances[1];
-    const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items.find((item) => item.title === "启用命令")?.actionElement as HTMLElement;
     const summaryToggles = menuRegistrationPanel.querySelectorAll(
       ".doc-assistant-settings__menu-registration-summary input[type='checkbox']"
     );
@@ -340,7 +340,7 @@ describe("plugin settings", () => {
     });
 
     const setting = settingInstances[0];
-    const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items.find((item) => item.title === "启用命令")?.actionElement as HTMLElement;
     const groupTitles = Array.from(
       menuRegistrationPanel.querySelectorAll(".doc-assistant-settings__menu-registration-group-title")
     ).map((element) => element.textContent?.trim());
@@ -380,7 +380,7 @@ describe("plugin settings", () => {
     });
 
     const setting = settingInstances[0];
-    const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items.find((item) => item.title === "启用命令")?.actionElement as HTMLElement;
     const moveBacklinksRow = menuRegistrationPanel.querySelector(
       "[data-action-key='move-backlinks']"
     ) as HTMLElement;
@@ -419,7 +419,7 @@ describe("plugin settings", () => {
       onToggleSingleMenu: vi.fn(),
     });
 
-    const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items.find((item) => item.title === "启用命令")?.actionElement as HTMLElement;
     const aiPanel = setting.items[1]?.actionElement as HTMLElement;
     const aiHostItem = document.createElement("div");
     aiHostItem.className = "fn__flex b3-label config__item";
@@ -468,11 +468,11 @@ describe("plugin settings", () => {
 
       const setting = settingInstances[1];
       expect(setting.items.map((item) => item.title)).toEqual([
-        "启用命令",
         "启动显示“文档处理”页签",
+        "启用命令",
       ]);
 
-      const menuRegistrationPanel = setting.items[0]?.actionElement as HTMLElement;
+      const menuRegistrationPanel = setting.items.find((item) => item.title === "启用命令")?.actionElement as HTMLElement;
       expect(
         menuRegistrationPanel.querySelector("[data-action-key='clean-ai-output']")
       ).toBeNull();
@@ -609,5 +609,23 @@ describe("plugin settings", () => {
 
     host.remove();
     host2.remove();
+  });
+
+  test("renders settings items in the specified order: 启动显示..., 浮窗..., 启用命令, AI服务, 调试模式", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
+    plugin.openSetting();
+
+    const setting = settingInstances[1];
+    expect(setting.items.map((item) => item.title)).toEqual([
+      "启动显示“文档处理”页签",
+      "浮窗命中文本直接粘贴",
+      "启用命令",
+      "AI 服务",
+      "调试模式",
+    ]);
   });
 });

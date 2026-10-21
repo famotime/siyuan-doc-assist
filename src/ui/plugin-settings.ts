@@ -78,25 +78,6 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     fallbackDescription?: string;
   }> = [];
 
-  const menuRegistrationPanel = createMenuRegistrationPanel({
-    actions: options.actions,
-    enabledState: options.enabledState,
-    registration: options.registration,
-    isMobile: options.isMobile,
-    onToggleAllEnabled: options.onToggleAllEnabled,
-    onToggleAllMenu: options.onToggleAllMenu,
-    onToggleSingleEnabled: options.onToggleSingleEnabled,
-    onToggleSingleMenu: options.onToggleSingleMenu,
-  });
-  setting.addItem({
-    title: "启用命令",
-    direction: "row",
-    description:
-      "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。",
-    actionElement: menuRegistrationPanel,
-  });
-  hostNormalizedPanels.push(menuRegistrationPanel);
-
   if (options.onStartupDocProcessTabEnabledChange) {
     const startupDocProcessTabToggle = document.createElement("input");
     startupDocProcessTabToggle.className = "b3-switch fn__flex-center";
@@ -124,6 +105,53 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       fallbackDescription: description,
     });
   }
+
+  if (options.onAutoPasteOnSelectChange && !hiddenSettingKeys.has("floating-text")) {
+    const autoPasteToggle = document.createElement("input");
+    autoPasteToggle.className = "b3-switch fn__flex-center";
+    autoPasteToggle.type = "checkbox";
+    autoPasteToggle.checked = Boolean(options.autoPasteOnSelect);
+    autoPasteToggle.addEventListener("change", () => {
+      options.onAutoPasteOnSelectChange?.(autoPasteToggle.checked);
+    });
+
+    const autoPasteControlWrap = createElement(
+      "div",
+      "doc-assistant-settings__autopaste-control"
+    );
+    autoPasteControlWrap.append(autoPasteToggle);
+    const description =
+      "开启后，在悬浮窗搜索栏选择匹配文本后自动复制：若浮窗未钉住，浮窗自动缩小并在当前焦点输入框自动粘贴；若浮窗为钉住状态，则保持浮窗置顶并在短暂间隔后自动粘贴。关闭时仅复制到剪贴板，保持浮窗显示。";
+
+    setting.addItem({
+      title: "浮窗命中文本直接粘贴",
+      description,
+      actionElement: autoPasteControlWrap,
+    });
+    hostNormalizedRows.push({
+      element: autoPasteControlWrap,
+      fallbackDescription: description,
+    });
+  }
+
+  const menuRegistrationPanel = createMenuRegistrationPanel({
+    actions: options.actions,
+    enabledState: options.enabledState,
+    registration: options.registration,
+    isMobile: options.isMobile,
+    onToggleAllEnabled: options.onToggleAllEnabled,
+    onToggleAllMenu: options.onToggleAllMenu,
+    onToggleSingleEnabled: options.onToggleSingleEnabled,
+    onToggleSingleMenu: options.onToggleSingleMenu,
+  });
+  setting.addItem({
+    title: "启用命令",
+    direction: "row",
+    description:
+      "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。",
+    actionElement: menuRegistrationPanel,
+  });
+  hostNormalizedPanels.push(menuRegistrationPanel);
 
   if (!hiddenSettingKeys.has("ai-service")) {
     // 渲染时，如果有接管配置，用接管配置来展示
@@ -170,34 +198,6 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     });
     hostNormalizedRows.push({
       element: debugControlWrap,
-      fallbackDescription: description,
-    });
-  }
-
-  if (options.onAutoPasteOnSelectChange && !hiddenSettingKeys.has("floating-text")) {
-    const autoPasteToggle = document.createElement("input");
-    autoPasteToggle.className = "b3-switch fn__flex-center";
-    autoPasteToggle.type = "checkbox";
-    autoPasteToggle.checked = Boolean(options.autoPasteOnSelect);
-    autoPasteToggle.addEventListener("change", () => {
-      options.onAutoPasteOnSelectChange?.(autoPasteToggle.checked);
-    });
-
-    const autoPasteControlWrap = createElement(
-      "div",
-      "doc-assistant-settings__autopaste-control"
-    );
-    autoPasteControlWrap.append(autoPasteToggle);
-    const description =
-      "开启后，在悬浮窗搜索栏选择匹配文本后自动复制：若浮窗未钉住，浮窗自动缩小并在当前焦点输入框自动粘贴；若浮窗为钉住状态，则保持浮窗置顶并在短暂间隔后自动粘贴。关闭时仅复制到剪贴板，保持浮窗显示。";
-
-    setting.addItem({
-      title: "浮窗命中文本直接粘贴",
-      description,
-      actionElement: autoPasteControlWrap,
-    });
-    hostNormalizedRows.push({
-      element: autoPasteControlWrap,
       fallbackDescription: description,
     });
   }
