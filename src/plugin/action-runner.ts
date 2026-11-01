@@ -202,6 +202,9 @@ export class ActionRunner {
   }
 
   private shouldAutoConfirm(): boolean {
+    if (this.currentInvokeContext?.skipConfirm === true || this.currentInvokeContext?.confirmed === true) {
+      return true;
+    }
     return this.currentInvokeContext?.trigger === "workflow-step";
   }
 

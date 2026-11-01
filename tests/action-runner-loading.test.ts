@@ -3631,4 +3631,38 @@ describe("action-runner loading guard", () => {
     expect(updateBlockMarkdownMock).not.toHaveBeenCalled();
     expect(deleteBlockByIdMock).not.toHaveBeenCalled();
   });
+
+  test("skips confirmation dialog when context provides skipConfirm or confirmed true", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", markdown: "段落 1 ~~待删~~ 结束", resolved: true } as any,
+    ]);
+    updateBlockMarkdownMock.mockResolvedValue(undefined);
+    const askConfirm = vi.fn().mockResolvedValue(true);
+    const runner = new ActionRunner({
+      isMobile: () => false,
+      resolveDocId: () => "doc-1",
+      askConfirm,
+    } as any);
+
+    // 1. skipConfirm: true 时跳过弹窗确认
+    await runner.runAction("remove-strikethrough-marked-content" as any, {
+      trigger: "button-click",
+      sourcePlugin: "siyuan-mate",
+      docId: "doc-1",
+      skipConfirm: true,
+    });
+
+    expect(askConfirm).not.toHaveBeenCalled();
+    expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(1);
+
+    // 2. confirmed: true 时同样跳过弹窗确认
+    await runner.runAction("remove-strikethrough-marked-content" as any, {
+      trigger: "button-click",
+      sourcePlugin: "siyuan-mate",
+      docId: "doc-1",
+      confirmed: true,
+    });
+
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
 });

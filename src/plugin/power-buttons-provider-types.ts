@@ -9,6 +9,8 @@ export interface PowerButtonsInvokeContext {
   selectionBlockIds?: string[];
   workflowId?: string;
   stepIndex?: number;
+  skipConfirm?: boolean;
+  confirmed?: boolean;
 }
 
 type PowerButtonsInvokeErrorCode =
