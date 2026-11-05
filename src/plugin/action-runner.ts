@@ -22,6 +22,7 @@ import { handleTrimTrailingWhitespace } from "@/plugin/action-runner-trim-handle
 export type ActionRunResult =
   | {
       ok: true;
+      message?: string;
       alreadyNotified: true;
     }
   | {
@@ -79,7 +80,9 @@ export class ActionRunner {
         resolveCanvasPlugin: this.deps.resolveCanvasPlugin,
         setBusy: this.deps.setBusy,
       }),
-      ...createInsertActionHandlers(),
+      ...createInsertActionHandlers({
+        shouldAutoConfirm: () => this.shouldAutoConfirm(),
+      }),
       ...createOrganizeActionHandlers({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
         ensureDocWritable: (docId, actionLabel) => this.ensureDocWritable(docId, actionLabel),
@@ -177,7 +180,24 @@ export class ActionRunner {
     try {
       this.isRunning = true;
       this.deps.setBusy?.(true);
-      await dispatchAction(action, docId, protyle, this.actionHandlers);
+      const handlerRes = await dispatchAction(action, docId, protyle, this.actionHandlers);
+      if (handlerRes && typeof handlerRes === "object") {
+        if (handlerRes.ok === false) {
+          return {
+            ok: false,
+            errorCode: handlerRes.errorCode || "execution-failed",
+            message: handlerRes.message || "执行未完成",
+            alreadyNotified: true,
+          };
+        }
+        if (handlerRes.message) {
+          return {
+            ok: true,
+            alreadyNotified: true,
+            message: handlerRes.message,
+          };
+        }
+      }
       return { ok: true, alreadyNotified: true };
     } catch (error: unknown) {
       this.showActionError(error);
@@ -250,7 +270,24 @@ export class ActionRunner {
 
     void (async () => {
       try {
-        await dispatchAction(action, docId, protyle, this.actionHandlers);
+        const handlerRes = await dispatchAction(action, docId, protyle, this.actionHandlers);
+      if (handlerRes && typeof handlerRes === "object") {
+        if (handlerRes.ok === false) {
+          return {
+            ok: false,
+            errorCode: handlerRes.errorCode || "execution-failed",
+            message: handlerRes.message || "执行未完成",
+            alreadyNotified: true,
+          };
+        }
+        if (handlerRes.message) {
+          return {
+            ok: true,
+            alreadyNotified: true,
+            message: handlerRes.message,
+          };
+        }
+      }
       } catch (error: unknown) {
         this.showActionError(error);
       } finally {

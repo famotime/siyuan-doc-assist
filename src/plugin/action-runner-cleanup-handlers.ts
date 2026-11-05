@@ -831,7 +831,9 @@ export function createCleanupActionHandlers(
     const docMarkdown = blocks.map((block) => block.markdown || "").join("\n");
     const modeResult = convertSiyuanLinksAndRefsInMarkdown(docMarkdown);
     if (modeResult.mode === "none" || modeResult.convertedCount <= 0) {
-      showMessage("当前文档未发现可互转的思源文档链接或引用", 4000, "info");
+      const emptyMsg = "当前文档未发现可互转的思源文档链接或引用";
+      showMessage(emptyMsg, 4000, "info");
+      return { ok: false, errorCode: "execution-failed", message: emptyMsg };
       return;
     }
     const preferredMode = modeResult.mode === "link-to-ref" ? "link-to-ref" : "ref-to-link";
@@ -862,7 +864,9 @@ export function createCleanupActionHandlers(
         showMessage("检测到高风险块，未执行互转（可先移除复杂内联后重试）", 5000, "error");
         return;
       }
-      showMessage("当前文档未发现可互转的思源文档链接或引用", 4000, "info");
+      const emptyMsg = "当前文档未发现可互转的思源文档链接或引用";
+      showMessage(emptyMsg, 4000, "info");
+      return { ok: false, errorCode: "execution-failed", message: emptyMsg };
       return;
     }
 
@@ -904,7 +908,9 @@ export function createCleanupActionHandlers(
         showMessage("检测到高风险块，未执行互转（可先移除复杂内联后重试）", 5000, "error");
         return;
       }
-      showMessage("当前文档未发现可互转的思源文档链接或引用", 4000, "info");
+      const emptyMsg = "当前文档未发现可互转的思源文档链接或引用";
+      showMessage(emptyMsg, 4000, "info");
+      return { ok: false, errorCode: "execution-failed", message: emptyMsg };
       return;
     }
 
@@ -916,7 +922,9 @@ export function createCleanupActionHandlers(
       );
       return;
     }
-    showMessage(`已将 ${convertedCount} 处${actionLabel}，共更新 ${updatedBlockCount} 个块`, 5000, "info");
+    const succMsg = `已将 ${convertedCount} 处${actionLabel}，共更新 ${updatedBlockCount} 个块`;
+    showMessage(succMsg, 5000, "info");
+    return { ok: true, message: succMsg };
   };
 
   return {

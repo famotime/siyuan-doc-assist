@@ -1,7 +1,15 @@
 import { ActionKey } from "@/plugin/actions";
 import { ProtyleLike } from "@/plugin/doc-context";
 
-export type ActionHandler = (docId: string, protyle?: ProtyleLike) => Promise<void>;
+export type ActionHandlerResult =
+  | {
+      ok?: boolean;
+      errorCode?: "context-unavailable" | "not-supported" | "execution-failed";
+      message?: string;
+    }
+  | void;
+
+export type ActionHandler = (docId: string, protyle?: ProtyleLike) => Promise<ActionHandlerResult>;
 
 export type ActionHandlerMap = Record<ActionKey, ActionHandler>;
 
@@ -17,5 +25,5 @@ export async function dispatchAction(
   if (!handler) {
     return;
   }
-  await handler(docId, protyle);
+  return await handler(docId, protyle);
 }

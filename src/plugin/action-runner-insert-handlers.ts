@@ -110,7 +110,9 @@ function resolveTextFromProtyle(docId: string, protyle?: ProtyleLike): string | 
   return text || null;
 }
 
-export function createInsertActionHandlers(): PartialActionHandlerMap {
+export function createInsertActionHandlers(deps?: {
+  shouldAutoConfirm?: () => boolean;
+}): PartialActionHandlerMap {
   return {
     "set-selection-as-title": async (docId, protyle) => {
       const text = resolveTextFromProtyle(docId, protyle);
@@ -163,7 +165,9 @@ export function createInsertActionHandlers(): PartialActionHandlerMap {
       } else {
         const childBlocks = await getChildBlocksByParentId(docId);
         if (!childBlocks.length) {
-          showMessage("当前文档没有可处理的段落", 4000, "info");
+          const emptyDocMsg = "当前文档没有可处理的段落";
+          showMessage(emptyDocMsg, 4000, "info");
+          return { ok: false, errorCode: "execution-failed", message: emptyDocMsg };
           return;
         }
         const ids = childBlocks.map((b) => b.id);
@@ -178,8 +182,33 @@ export function createInsertActionHandlers(): PartialActionHandlerMap {
       }
 
       if (allCandidates.length === 0) {
-        showMessage("未检测到需要转换的纯文本 URL", 4000, "info");
+        const noUrlMsg = "当前文档未检测到需要转换的纯文本 URL";
+        showMessage(noUrlMsg, 4000, "info");
+        return { ok: false, errorCode: "execution-failed", message: noUrlMsg };
         return;
+      }
+
+      if (deps?.shouldAutoConfirm?.()) {
+        const allOriginalUrls = new Set(allCandidates.map((c) => c.originalUrl));
+        const report = await applyMarkdownTransformToBlocks({
+          blocks: targetBlocks,
+          isHighRisk: () => false,
+          transform: (source) => {
+            const res = convertTextToLinkInMarkdown(source, allOriginalUrls);
+            return { markdown: res.markdown, changedCount: res.replacedCount };
+          },
+          updateBlockMarkdown,
+          protyle,
+        });
+
+        if (report.changedCount > 0) {
+          const succMsg = `已成功将 ${report.changedCount} 个 URL 转换为超链接`;
+          showMessage(succMsg, 5000, "info");
+          return { ok: true, message: succMsg };
+        } else {
+          showMessage("未进行任何转换", 4000, "info");
+          return { ok: false, errorCode: "execution-failed", message: "未进行任何转换" };
+        }
       }
 
       openTextToLinkDialog({

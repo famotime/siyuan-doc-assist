@@ -203,6 +203,13 @@ HTML 链接：<a href="https://html-link.com">点击</a>
       expect(result).toBe("参考文档见 [jev-ultrafast](https://github.com/browser-use/jev-ultrafast)。");
     });
 
+    it("支持传入 Array 等 Iterable 类型的 targetOriginalUrls", () => {
+      const markdown = "访问 https://github.com 查看";
+      const { markdown: result, replacedCount } = convertTextToLinkInMarkdown(markdown, ["https://github.com"]);
+      expect(replacedCount).toBe(1);
+      expect(result).toBe("访问 [github.com](https://github.com) 查看");
+    });
+
     it("正确转换不带 http/https 前缀的 GitHub 仓库网址（如 github.com/geeklee/srt-whiteboard-animation）", () => {
       const markdown = "相关仓库：github.com/geeklee/srt-whiteboard-animation，欢迎 Star！";
       const selectedUrls = new Set(["github.com/geeklee/srt-whiteboard-animation"]);

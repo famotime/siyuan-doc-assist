@@ -366,9 +366,10 @@ export function findCandidatesInMarkdown(
  */
 export function convertTextToLinkInMarkdown(
   markdown: string,
-  targetOriginalUrls: Set<string>
+  targetOriginalUrls: Set<string> | Iterable<string>
 ): { markdown: string; replacedCount: number } {
-  if (!markdown || targetOriginalUrls.size === 0) {
+  const targetSet = targetOriginalUrls instanceof Set ? targetOriginalUrls : new Set(targetOriginalUrls);
+  if (!markdown || targetSet.size === 0) {
     return { markdown, replacedCount: 0 };
   }
 
@@ -382,7 +383,7 @@ export function convertTextToLinkInMarkdown(
   for (let i = matches.length - 1; i >= 0; i--) {
     const { rawMatch, index } = matches[i];
     const { url: originalUrl, trimmedSuffix } = sanitizeUrlMatch(rawMatch);
-    if (targetOriginalUrls.has(originalUrl)) {
+    if (targetSet.has(originalUrl)) {
       replacedCount++;
       const targetUrl = normalizeTargetUrl(originalUrl);
       const linkText = extractLinkTextFromUrl(originalUrl);
