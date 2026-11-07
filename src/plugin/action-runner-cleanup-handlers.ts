@@ -833,7 +833,7 @@ export function createCleanupActionHandlers(
     if (modeResult.mode === "none" || modeResult.convertedCount <= 0) {
       const emptyMsg = "当前文档未发现可互转的思源文档链接或引用";
       showMessage(emptyMsg, 4000, "info");
-      return { ok: false, errorCode: "execution-failed", message: emptyMsg };
+      return { ok: false, errorCode: "execution-failed" as const, message: emptyMsg };
       return;
     }
     const preferredMode = modeResult.mode === "link-to-ref" ? "link-to-ref" : "ref-to-link";
@@ -866,7 +866,7 @@ export function createCleanupActionHandlers(
       }
       const emptyMsg = "当前文档未发现可互转的思源文档链接或引用";
       showMessage(emptyMsg, 4000, "info");
-      return { ok: false, errorCode: "execution-failed", message: emptyMsg };
+      return { ok: false, errorCode: "execution-failed" as const, message: emptyMsg };
       return;
     }
 
@@ -910,7 +910,7 @@ export function createCleanupActionHandlers(
       }
       const emptyMsg = "当前文档未发现可互转的思源文档链接或引用";
       showMessage(emptyMsg, 4000, "info");
-      return { ok: false, errorCode: "execution-failed", message: emptyMsg };
+      return { ok: false, errorCode: "execution-failed" as const, message: emptyMsg };
       return;
     }
 
