@@ -37,6 +37,55 @@ describe("power buttons provider", () => {
     expect(commandIds).not.toContain("toggle-selected-punctuation");
   });
 
+  it("exposes the cleanup and organize batch synced with siyuan-mate catalog", async () => {
+    const provider = createPowerButtonsProvider({
+      pluginVersion: "1.4.5",
+      runAction: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const commands = await provider.listCommands();
+    const commandIds = commands.map(command => command.id);
+
+    for (const id of [
+      "clean-emoji",
+      "clean-clipped-list-prefixes",
+      "remove-strikethrough-marked-content",
+      "toggle-heading-bold",
+      "mark-invalid-links-refs",
+      "extract-web-links",
+      "dedupe",
+      "split-doc-by-headings",
+      "create-doc-concept-map",
+      "generate-better-titles",
+    ]) {
+      expect(commandIds).toContain(id);
+      expect(commands.find(command => command.id === id)).toEqual(expect.objectContaining({
+        supportsTargetDoc: true,
+        supportsSelection: false,
+      }));
+    }
+  });
+
+  it("routes clean-emoji invocations to runAction instead of command-not-found", async () => {
+    const runAction = vi.fn().mockResolvedValue({ ok: true, alreadyNotified: true });
+    const provider = createPowerButtonsProvider({
+      pluginVersion: "1.4.5",
+      runAction,
+    });
+
+    const res = await provider.invokeCommand("clean-emoji", {
+      trigger: "button-click",
+      sourcePlugin: "siyuan-mate",
+      docId: "doc-target",
+    } as any);
+
+    expect(res).toEqual({ ok: true, alreadyNotified: true });
+    expect(runAction).toHaveBeenCalledWith("clean-emoji", expect.objectContaining({
+      sourcePlugin: "siyuan-mate",
+      docId: "doc-target",
+    }));
+  });
+
   it("keeps the public provider surface stable even when local UI actions are hidden", async () => {
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",

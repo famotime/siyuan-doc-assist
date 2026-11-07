@@ -28,6 +28,16 @@ const PUBLIC_ACTION_KEYS = new Set<ActionKey>([
   "translate-doc-paragraphs",
   "add-related-links-and-tags",
   "generate-llm-wiki",
+  "clean-emoji",
+  "clean-clipped-list-prefixes",
+  "remove-strikethrough-marked-content",
+  "toggle-heading-bold",
+  "mark-invalid-links-refs",
+  "extract-web-links",
+  "dedupe",
+  "split-doc-by-headings",
+  "create-doc-concept-map",
+  "generate-better-titles",
 ]);
 
 const TARGET_DOC_SUPPORTED_ACTION_KEYS = new Set<ActionKey>([
@@ -48,6 +58,16 @@ const TARGET_DOC_SUPPORTED_ACTION_KEYS = new Set<ActionKey>([
   "translate-doc-paragraphs",
   "add-related-links-and-tags",
   "generate-llm-wiki",
+  "clean-emoji",
+  "clean-clipped-list-prefixes",
+  "remove-strikethrough-marked-content",
+  "toggle-heading-bold",
+  "mark-invalid-links-refs",
+  "extract-web-links",
+  "dedupe",
+  "split-doc-by-headings",
+  "create-doc-concept-map",
+  "generate-better-titles",
 ]);
 
 const SELECTION_SUPPORTED_ACTION_KEYS = new Set<ActionKey>([]);
