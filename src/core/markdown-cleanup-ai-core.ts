@@ -25,7 +25,7 @@ function createEmptyAiOutputCleanupMetrics(): AiOutputCleanupMetrics {
     removedInternetLinkCount: 0,
     removedHiddenSpanCount: 0,
     removedRefCount: 0,
-    removedDividerCount: 0,
+    removedDividerCount: 0
   };
 }
 
@@ -50,7 +50,7 @@ function mergeAiOutputCleanupMetrics(
     removedInternetLinkCount: base.removedInternetLinkCount + add.removedInternetLinkCount,
     removedHiddenSpanCount: base.removedHiddenSpanCount + add.removedHiddenSpanCount,
     removedRefCount: base.removedRefCount + add.removedRefCount,
-    removedDividerCount: base.removedDividerCount + add.removedDividerCount,
+    removedDividerCount: base.removedDividerCount + add.removedDividerCount
   };
 }
 
@@ -100,7 +100,7 @@ function stripTrailingInternetLinksInLine(
 
   return {
     line: next,
-    removedCount,
+    removedCount
   };
 }
 
@@ -116,8 +116,8 @@ function applySupRule(line: string): AiOutputLineRuleResult {
     line: nextLine,
     metrics: {
       ...createEmptyAiOutputCleanupMetrics(),
-      removedSupCount,
-    },
+      removedSupCount
+    }
   };
 }
 
@@ -133,8 +133,8 @@ function applyCaretRule(line: string): AiOutputLineRuleResult {
     line: nextLine,
     metrics: {
       ...createEmptyAiOutputCleanupMetrics(),
-      removedCaretCount,
-    },
+      removedCaretCount
+    }
   };
 }
 
@@ -158,13 +158,13 @@ function applyTrailingInternetLinkRule(line: string): AiOutputLineRuleResult {
     line: nextLine,
     metrics: {
       ...createEmptyAiOutputCleanupMetrics(),
-      removedInternetLinkCount,
-    },
+      removedInternetLinkCount
+    }
   };
 }
 
 function applyHiddenSpanRule(line: string): AiOutputLineRuleResult {
-  const hiddenSpanPattern = /<span\b[^>]*\bstyle\s*=\s*["'][^"']*\bdisplay\s*:\s*none\b[^"']*["'][^>]*>[\s\S]*?<\/span>/giu;
+  const hiddenSpanPattern = /<span\b[^>]+\bstyle\s*=\s*["'][^"']*\bdisplay\s*:\s*none\b[^"']*["'][^>]*>[\s\S]*?<\/span>/giu;
   let removedHiddenSpanCount = 0;
   const nextLine = line.replace(hiddenSpanPattern, () => {
     removedHiddenSpanCount += 1;
@@ -175,13 +175,13 @@ function applyHiddenSpanRule(line: string): AiOutputLineRuleResult {
     line: nextLine,
     metrics: {
       ...createEmptyAiOutputCleanupMetrics(),
-      removedHiddenSpanCount,
-    },
+      removedHiddenSpanCount
+    }
   };
 }
 
 function applyRefMarkerRule(line: string): AiOutputLineRuleResult {
-  const refPattern = /\[\^[0-9]+(?:_[0-9]+)*\](?!\():?|\[[0-9]+(?:_[0-9]+)+\](?!\()/gu;
+  const refPattern = /\[\^\d+(?:_\d+)*\](?!\():?|\[\d+(?:_\d+)+\](?!\()/gu;
   let removedRefCount = 0;
   const nextLine = line.replace(refPattern, (match, offset) => {
     const isLineStart = /^\s*$/.test(line.slice(0, offset));
@@ -196,25 +196,25 @@ function applyRefMarkerRule(line: string): AiOutputLineRuleResult {
     line: nextLine,
     metrics: {
       ...createEmptyAiOutputCleanupMetrics(),
-      removedRefCount,
-    },
+      removedRefCount
+    }
   };
 }
 
 function applyDividerRule(line: string): AiOutputLineRuleResult {
-  const dividerPattern = /^[ \t]*(?:(?:\-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/;
+  const dividerPattern = /^[ \t]*(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/;
   if (dividerPattern.test(line)) {
     return {
       line: "",
       metrics: {
         ...createEmptyAiOutputCleanupMetrics(),
-        removedDividerCount: 1,
-      },
+        removedDividerCount: 1
+      }
     };
   }
   return {
     line,
-    metrics: createEmptyAiOutputCleanupMetrics(),
+    metrics: createEmptyAiOutputCleanupMetrics()
   };
 }
 
@@ -224,7 +224,7 @@ const AI_OUTPUT_LINE_RULES: AiOutputLineRule[] = [
   applyCaretRule,
   applyTrailingInternetLinkRule,
   applyRefMarkerRule,
-  applyDividerRule,
+  applyDividerRule
 ];
 
 function cleanupAiOutputLine(line: string): AiOutputCleanupResult {
@@ -241,7 +241,7 @@ function cleanupAiOutputLine(line: string): AiOutputCleanupResult {
   return {
     markdown: nextLine,
     ...metrics,
-    removedCount,
+    removedCount
   };
 }
 
@@ -256,7 +256,7 @@ export function cleanupAiOutputArtifactsInMarkdown(markdown: string): AiOutputCl
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
       removedDividerCount: 0,
-      removedCount: 0,
+      removedCount: 0
     };
   }
 
@@ -276,6 +276,6 @@ export function cleanupAiOutputArtifactsInMarkdown(markdown: string): AiOutputCl
   return {
     markdown: output.join("\n"),
     ...metrics,
-    removedCount,
+    removedCount
   };
 }

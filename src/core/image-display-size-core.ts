@@ -14,12 +14,12 @@ function unwrapTarget(target: string): { value: string; wrapped: boolean } {
   if (trimmed.startsWith("<") && trimmed.endsWith(">")) {
     return {
       value: trimmed.slice(1, -1),
-      wrapped: true,
+      wrapped: true
     };
   }
   return {
     value: trimmed,
-    wrapped: false,
+    wrapped: false
   };
 }
 
@@ -30,7 +30,7 @@ function splitSuffix(target: string): { base: string; suffix: string } {
   }
   return {
     base: target.slice(0, match.index),
-    suffix: target.slice(match.index),
+    suffix: target.slice(match.index)
   };
 }
 
@@ -76,7 +76,7 @@ export function parseDisplaySizeSpecFromAttributes(attrs: string): DisplaySizeSp
   }
   return {
     width: width || null,
-    height: height || null,
+    height: height || null
   };
 }
 
@@ -93,7 +93,7 @@ function toCandidate(target: string, attrs: string): DisplaySizedImageCandidate 
   return {
     assetPath,
     width: size.width,
-    height: size.height,
+    height: size.height
   };
 }
 
@@ -106,14 +106,14 @@ function replaceTarget(
   if (!normalized) {
     return {
       next: target,
-      replaced: false,
+      replaced: false
     };
   }
   const replacement = replacements[normalized];
   if (!replacement) {
     return {
       next: target,
-      replaced: false,
+      replaced: false
     };
   }
   const { base, suffix } = splitSuffix(value);
@@ -121,7 +121,7 @@ function replaceTarget(
   const nextValue = `${nextBase}${suffix}`;
   return {
     next: wrapped ? `<${nextValue}>` : nextValue,
-    replaced: nextValue !== value,
+    replaced: nextValue !== value
   };
 }
 
@@ -129,7 +129,7 @@ export function collectDisplaySizedLocalImageCandidatesFromMarkdown(
   markdown: string
 ): DisplaySizedImageCandidate[] {
   const candidates: DisplaySizedImageCandidate[] = [];
-  const markdownImagePattern = /!\[[^\]]*?\]\(([^)\s]+)\)(\s*\{:\s*[^}]*\})?/g;
+  const markdownImagePattern = /!\[[^\]]*\]\(([^)\s]+)\)(\s*\{:[^}]*\})?/g;
   const htmlImagePattern = /<img\b[^>]*>/gi;
 
   let markdownMatch: RegExpExecArray | null = markdownImagePattern.exec(markdown);
@@ -162,8 +162,8 @@ export function rewriteDisplaySizedMarkdownImageAssetLinks(
   replacements: Record<string, string>
 ): { markdown: string; replacedCount: number } {
   let replacedCount = 0;
-  const markdownImagePattern = /(!\[[^\]]*?\]\()([^) \t]+)(\))(\s*\{:\s*[^}]*\})?/g;
-  const htmlImagePattern = /(<img\b[^>]*?\bsrc\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
+  const markdownImagePattern = /(!\[[^\]]*\]\()([^) \t]+)(\))(\s*\{:[^}]*\})?/g;
+  const htmlImagePattern = /(<img\b[^>]+?\bsrc\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
 
   let next = markdown.replace(markdownImagePattern, (full, prefix, target, suffix, attrs) => {
     const size = parseDisplaySizeSpecFromAttributes(attrs || "");
@@ -193,6 +193,6 @@ export function rewriteDisplaySizedMarkdownImageAssetLinks(
 
   return {
     markdown: next,
-    replacedCount,
+    replacedCount
   };
 }

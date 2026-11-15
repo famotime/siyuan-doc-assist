@@ -19,11 +19,11 @@ export function runProtyleTransaction(
   doOperations: IOperation[],
   undoOperations: IOperation[]
 ): boolean {
-  // @ts-ignore: protyle.transaction might not be explicitly typed in ProtyleLike
+  // @ts-expect-error: protyle.transaction might not be explicitly typed in ProtyleLike
   if (!protyle || typeof protyle.transaction !== "function") {
     return false;
   }
-  
+
   if (isDebugLogEnabled) {
     console.log("[doc-assist] --------------------");
     console.log("[doc-assist] Protyle transaction triggered");
@@ -33,7 +33,7 @@ export function runProtyleTransaction(
   }
 
   try {
-    // @ts-ignore
+    // @ts-expect-error: protyle.transaction might not be explicitly typed in ProtyleLike
     protyle.transaction(doOperations, undoOperations);
     return true;
   } catch (err) {

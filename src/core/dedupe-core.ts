@@ -26,10 +26,10 @@ function removeBracketedContent(text: string): string {
   const patterns = [
     /\(([^()]*)\)/g,
     /（([^（）]*)）/g,
-    /\[([^\[\]]*)\]/g,
+    /\[([^[\]]*)\]/g,
     /【([^【】]*)】/g,
     /\{([^{}]*)\}/g,
-    /｛([^｛｝]*)｝/g,
+    /｛([^｛｝]*)｝/g
   ];
 
   for (let i = 0; i < 4; i++) {
@@ -49,7 +49,7 @@ export function normalizeTitle(title: string): string {
   return removeBracketedContent(title)
     .normalize("NFKC")
     .toLowerCase()
-    .replace(/[\s\p{P}\p{S}_]+/gu, "")
+    .replace(/[\s\p{P}\p{S}]+/gu, "")
     .trim();
 }
 
@@ -59,7 +59,7 @@ function levenshtein(a: string, b: string): number {
   if (!b.length) return a.length;
 
   const cols = b.length + 1;
-  const dp: number[] = Array(cols).fill(0);
+  const dp: number[] = Array.from({ length: cols }, () => 0);
   for (let j = 0; j < cols; j++) dp[j] = j;
 
   for (let i = 1; i <= a.length; i++) {
@@ -159,7 +159,7 @@ export function buildDuplicateGroups(
     }
     result.push({
       docs: indices.map((index) => docs[index]),
-      score: maxScore,
+      score: maxScore
     });
   }
 

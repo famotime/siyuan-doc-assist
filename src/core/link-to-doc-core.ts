@@ -5,6 +5,8 @@
  * 共享标题清洗与元数据类型见 `web-clip-shared-core.ts`。
  */
 
+import type { WebArticleMeta } from "./web-clip-shared-core";
+
 export type WebLinkItem = {
   /** 规范化后的完整链接（已去除追踪参数） */
   url: string;
@@ -14,12 +16,10 @@ export type WebLinkItem = {
   fallbackTitle?: string;
 };
 
-import type { WebArticleMeta } from "./web-clip-shared-core";
-
 // 聚合导出：保持历史导入路径 `@/core/link-to-doc-core` 的全部符号可用
 export {
   sanitizeDocTitle,
-  type WebArticleMeta,
+  type WebArticleMeta
 } from "./web-clip-shared-core";
 export {
   extractXPostId,
@@ -33,13 +33,13 @@ export {
   type XArticleBlock,
   type XArticleEntity,
   type XArticleData,
-  type ParsedXPost,
+  type ParsedXPost
 } from "./x-post-core";
 export {
   extractWechatOriginalLink,
   extractWebMetadataFromHtml,
   cleanAndConvertHtmlToMarkdown,
-  domNodeToMarkdown,
+  domNodeToMarkdown
 } from "./web-article-html-core";
 
 /** 常见追踪参数（与参考脚本一致） */
@@ -58,7 +58,7 @@ const TRACKING_PARAMS = new Set([
   "share_did",
   "share_uid",
   "share_token",
-  "use_new_style",
+  "use_new_style"
 ]);
 
 /** 常见追踪参数前缀 */
@@ -127,10 +127,8 @@ export function extractWebLinksFromMarkdown(markdown: string): WebLinkItem[] {
   const seenUrls = new Set<string>();
 
   // 1. 优先提取标准 Markdown 链接 `[文本](https://...)`，保留文本作为 fallbackTitle
-  const mdLinkRegex = /\[([^\]]+)\]\(((?:https?:\/\/)[^\s<>)\]]+)\)/gi;
-  let match: RegExpExecArray | null;
-
-  while ((match = mdLinkRegex.exec(markdown)) !== null) {
+  const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s<>)\]]+)\)/gi;
+  for (const match of markdown.matchAll(mdLinkRegex)) {
     const rawLabel = (match[1] || "").trim();
     const rawUrl = match[2] || "";
     const normalized = normalizeWebUrl(rawUrl);
@@ -139,21 +137,21 @@ export function extractWebLinksFromMarkdown(markdown: string): WebLinkItem[] {
       results.push({
         url: normalized,
         originalUrl: rawUrl,
-        fallbackTitle: rawLabel && !rawLabel.startsWith("http") ? rawLabel : undefined,
+        fallbackTitle: rawLabel && !rawLabel.startsWith("http") ? rawLabel : undefined
       });
     }
   }
 
   // 2. 提取文本中直接出现的裸 URL
   const rawUrlRegex = /https?:\/\/[^\s<>"')\]]+/gi;
-  while ((match = rawUrlRegex.exec(markdown)) !== null) {
+  for (const match of markdown.matchAll(rawUrlRegex)) {
     const rawUrl = match[0] || "";
     const normalized = normalizeWebUrl(rawUrl);
     if (isValidExternalHttpUrl(normalized) && !seenUrls.has(normalized)) {
       seenUrls.add(normalized);
       results.push({
         url: normalized,
-        originalUrl: rawUrl,
+        originalUrl: rawUrl
       });
     }
   }
@@ -204,7 +202,7 @@ export function buildClippedMarkdownDocument(
 ): string {
   const metadataLines: string[] = [
     `**原始链接：** [${meta.url}](${meta.url})`,
-    `**保存时间：** ${formatCurrentTime()}`,
+    `**保存时间：** ${formatCurrentTime()}`
   ];
 
   if (meta.author) {

@@ -50,7 +50,7 @@ export function splitDocByHeadingsCore(
     }
   }
 
-  if (!isFinite(highestLevel)) {
+  if (!Number.isFinite(highestLevel)) {
     return { highestLevel: 0, sections: [], preHeadingBlockIds: blocks.map((b) => b.id) };
   }
 
@@ -69,11 +69,11 @@ export function splitDocByHeadingsCore(
       currentSection = {
         title: extractHeadingTitle(block.markdown),
         blockIds: [block.id],
-        markdown: "",
+        markdown: ""
       };
     } else if (currentSection) {
       currentSection.blockIds.push(block.id);
-      currentSection.markdown += currentSection.markdown ? "\n\n" + block.markdown : block.markdown;
+      currentSection.markdown += currentSection.markdown ? `\n\n${block.markdown}` : block.markdown;
     } else {
       preHeadingBlockIds.push(block.id);
     }

@@ -1,5 +1,6 @@
 import { KeyInfoType } from "@/core/key-info-core";
 import { maskRanges, replaceLinksWithVisibleText, stripLinks } from "@/services/key-info-text-normalize";
+
 export { resolveSpanFormatType } from "@/services/key-info-span-format";
 export { extractInlineMemoHint, formatRemarkText, parseInlineMemoFromText, parseRemarkText } from "@/services/key-info-remark-model";
 
@@ -87,7 +88,7 @@ export function normalizeTagTextValue(value: string): string {
 }
 
 export function containsLinkTargetSyntax(source: string): boolean {
-  return /<a\b|!?\[[^\]]*?\]\([^)]+\)|\bhref\s*=|\bdata-href\s*=|zotero:\/\//i.test(
+  return /<a\b|!?\[[^\]]*\]\([^)]+\)|\bhref\s*=|\bdata-href\s*=|zotero:\/\//i.test(
     source || ""
   );
 }
@@ -107,7 +108,7 @@ export function normalizeInlineVisibleText(source: string): string {
   next = next.replace(/<i\b[^>]*>([\s\S]+?)<\/i>/gi, "$1");
   next = next.replace(/<u\b[^>]*>([\s\S]+?)<\/u>/gi, "$1");
   next = next.replace(/<ins\b[^>]*>([\s\S]+?)<\/ins>/gi, "$1");
-  next = next.replace(/<span\b[^>]*data-type=["'](?:u|underline)["'][^>]*>([\s\S]+?)<\/span>/gi, "$1");
+  next = next.replace(/<span\b[^>]+data-type=["'](?:u|underline)["'][^>]*>([\s\S]+?)<\/span>/gi, "$1");
   next = next.replace(/<span\b[^>]*>([\s\S]+?)<\/span>/gi, "$1");
   next = next.replace(/<[^>]+>/g, " ");
   return cleanInlineText(next);
@@ -123,7 +124,7 @@ export function normalizeInlineDisplayText(text: string, raw = ""): string {
   return normalizeInlineVisibleText(text || raw);
 }
 
-const LIST_PREFIX_PATTERN = /^\s*((?:[-+*])|(?:\d+\.))\s+/;
+const LIST_PREFIX_PATTERN = /^\s*([-+*]|\d+\.)\s+/;
 const LIST_DECORATED_TEXT_PATTERN = /^\s*(?:[-+]\s*|\*\s+|\d+\.\s*)/;
 
 export function extractListPrefix(text: string): string | undefined {
@@ -232,11 +233,11 @@ function collectHtmlCode(source: string): { ranges: TextRange[]; segments: strin
 function normalizeBlockRefText(source: string): string {
   let next = source || "";
   const blockRefWithAliasPattern =
-    /\(\(\s*[0-9]{14}-[a-z0-9]{7,}\s+(?:"([^"]+)"|'([^']+)')\s*\)\)/gi;
+    /\(\(\s*\d{14}-[a-z0-9]{7,}\s+(?:"([^"]+)"|'([^']+)')\s*\)\)/gi;
   next = next.replace(blockRefWithAliasPattern, (_all, doubleQuoted, singleQuoted) => {
     return cleanInlineText(doubleQuoted || singleQuoted || "");
   });
-  const blockRefOnlyIdPattern = /\(\(\s*[0-9]{14}-[a-z0-9]{7,}\s*\)\)/gi;
+  const blockRefOnlyIdPattern = /\(\(\s*\d{14}-[a-z0-9]{7,}\s*\)\)/gi;
   next = next.replace(blockRefOnlyIdPattern, " ");
   return next;
 }
@@ -249,7 +250,7 @@ function unwrapHighlightRaw(source: string): string {
     next = next.replace(/^==([\s\S]*?)==$/g, "$1").trim();
     next = next.replace(/^<mark\b[^>]*>([\s\S]*?)<\/mark>$/gi, "$1").trim();
     next = next
-      .replace(/^<span\b[^>]*data-type=["']mark["'][^>]*>([\s\S]*?)<\/span>$/gi, "$1")
+      .replace(/^<span\b[^>]+data-type=["']mark["'][^>]*>([\s\S]*?)<\/span>$/gi, "$1")
       .trim();
   }
   return next;

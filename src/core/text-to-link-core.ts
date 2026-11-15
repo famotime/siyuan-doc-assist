@@ -29,7 +29,7 @@ export function extractDomainFromUrl(rawUrl: string): string {
   }
 
   let normalized = urlStr;
-  if (!/^(?:[a-z0-9+.-]+:\/\/)/i.test(normalized)) {
+  if (!/^[a-z0-9+.-]+:\/\//i.test(normalized)) {
     normalized = `http://${normalized}`;
   }
 
@@ -59,7 +59,7 @@ const CODE_HOSTING_DOMAINS = new Set([
   "gitcode.com",
   "bitbucket.org",
   "huggingface.co",
-  "hf.co",
+  "hf.co"
 ]);
 
 /**
@@ -80,7 +80,7 @@ export function extractLinkTextFromUrl(rawUrl: string): string {
   }
 
   let normalized = urlStr;
-  if (!/^(?:[a-z0-9+.-]+:\/\/)/i.test(normalized)) {
+  if (!/^[a-z0-9+.-]+:\/\//i.test(normalized)) {
     normalized = `http://${normalized}`;
   }
 
@@ -138,7 +138,7 @@ export function normalizeTargetUrl(originalUrl: string): string {
   }
   // IPv4 地址，默认使用 http://
   if (
-    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?::\d+)?/i.test(
+    /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d{1,2})(?::\d+)?/.test(
       originalUrl
     )
   ) {
@@ -166,14 +166,14 @@ export function sanitizeUrlMatch(rawMatch: string): { url: string; trimmedSuffix
     const openParenCount = (url.match(/\(/g) || []).length;
     const closeParenCount = (url.match(/\)/g) || []).length;
     if (closeParenCount > openParenCount && url.endsWith(")")) {
-      trimmedSuffix = ")" + trimmedSuffix;
+      trimmedSuffix = `)${trimmedSuffix}`;
       url = url.slice(0, -1);
       continue;
     }
     const openBracketCount = (url.match(/\[/g) || []).length;
     const closeBracketCount = (url.match(/\]/g) || []).length;
     if (closeBracketCount > openBracketCount && url.endsWith("]")) {
-      trimmedSuffix = "]" + trimmedSuffix;
+      trimmedSuffix = `]${trimmedSuffix}`;
       url = url.slice(0, -1);
       continue;
     }
@@ -208,13 +208,13 @@ export function maskProtectedRegions(markdown: string): { maskedText: string; ma
 
   // 2. 图片 (Markdown & HTML img)
   text = text.replace(/!\[[^\]]*\]\([^)]+\)/g, (match) => createPlaceholder(match));
-  text = text.replace(/<img\s+[^>]*>/gi, (match) => createPlaceholder(match));
+  text = text.replace(/<img\s[^>]*>/gi, (match) => createPlaceholder(match));
 
   // 3. 已存在的 Markdown 链接 [text](url)
   text = text.replace(/\[[^\]]*\]\([^)]+\)/g, (match) => createPlaceholder(match));
 
   // 4. HTML <a> 标签及其他 HTML 标签 <a ...>...</a>
-  text = text.replace(/<a\s+[^>]*>[\s\S]*?<\/a>/gi, (match) => createPlaceholder(match));
+  text = text.replace(/<a\s[^>]*>[\s\S]*?<\/a>/gi, (match) => createPlaceholder(match));
   text = text.replace(/<[a-z][^>]*>/gi, (match) => createPlaceholder(match));
 
   // 5. 行内代码 `...`
@@ -275,10 +275,10 @@ function extractContextSnippet(fullText: string, targetUrl: string, matchIndexIn
 }
 
 // 识别 URL / Scheme / IPv4 / 裸域名 URL 的正则表达式
-const SCHEME_OR_WWW_URL_REGEX = /(?:(?:[a-z0-9+.-]+:\/\/|mailto:)|www\.)[^\s<>)\]>"',;]+/gi;
-const IPV4_REGEX = /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?::\d+)?(?:\/[^\s<>)\]>"',;\u4e00-\u9fa5]*)?/gi;
+const SCHEME_OR_WWW_URL_REGEX = /(?:[a-z0-9+.-]+:\/\/|mailto:|www\.)[^\s<>)\]"',;]+/gi;
+const IPV4_REGEX = /\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d{1,2})(?::\d+)?(?:\/[^\s<>)\]"',;\u4E00-\u9FA5]*)?/g;
 const BARE_DOMAIN_URL_REGEX =
-  /(?<![\w@/:.-])(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com\.cn|org\.cn|net\.cn|edu\.cn|gov\.cn|co\.uk|org\.uk|ac\.cn|com|org|net|edu|gov|cn|io|ai|dev|app|co|me|cc|tv|info|biz|pro|top|xyz|club|site|online|tech|space|store|vip|link|wiki|moe|hk|tw|jp|kr|uk|us|de|fr|ru|ca|au|sg)\b(?::\d{1,5})?(?:\/[^\s<>)\]>"',;\u4e00-\u9fa5]*)?/gi;
+  /(?<![\w@/:.-])(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com\.cn|org\.cn|net\.cn|edu\.cn|gov\.cn|co\.uk|org\.uk|ac\.cn|com|org|net|edu|gov|cn|io|ai|dev|app|co|me|cc|tv|info|biz|pro|top|xyz|club|site|online|tech|space|store|vip|link|wiki|moe|hk|tw|jp|kr|uk|us|de|fr|ru|ca|au|sg)\b(?::\d{1,5})?(?:\/[^\s<>)\]"',;\u4E00-\u9FA5]*)?/gi;
 
 function findAllMatchesInMaskedText(maskedText: string): Array<{ rawMatch: string; index: number }> {
   const occupiedIntervals: Array<{ start: number; end: number }> = [];
@@ -286,8 +286,7 @@ function findAllMatchesInMaskedText(maskedText: string): Array<{ rawMatch: strin
 
   function addMatches(regex: RegExp) {
     const r = new RegExp(regex.source, regex.flags);
-    let match: RegExpExecArray | null;
-    while ((match = r.exec(maskedText)) !== null) {
+    for (const match of maskedText.matchAll(r)) {
       const start = match.index;
       const end = start + match[0].length;
       const isOverlapping = occupiedIntervals.some(
@@ -354,7 +353,7 @@ export function findCandidatesInMarkdown(
       domain,
       linkText,
       linkMarkdown,
-      contextSnippet: snippet,
+      contextSnippet: snippet
     });
   }
 

@@ -1,14 +1,14 @@
 export type KeyInfoType =
-  | "title"
-  | "bold"
-  | "italic"
-  | "underline"
-  | "highlight"
-  | "code"
-  | "remark"
-  | "tag"
-  | "link"
-  | "ref";
+  | "title" |
+  "bold" |
+  "italic" |
+  "underline" |
+  "highlight" |
+  "code" |
+  "remark" |
+  "tag" |
+  "link" |
+  "ref";
 
 export type KeyInfoFilter = KeyInfoType[];
 
@@ -22,7 +22,7 @@ export const KEY_INFO_TYPES: KeyInfoType[] = [
   "remark",
   "tag",
   "link",
-  "ref",
+  "ref"
 ];
 
 export function isKeyInfoType(value: unknown): value is KeyInfoType {
@@ -69,7 +69,7 @@ export const KEY_INFO_TYPE_PRIORITY: Record<KeyInfoType, number> = {
   link: 7,
   ref: 7,
   tag: 7,
-  title: 8,
+  title: 8
 };
 
 const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
@@ -82,7 +82,7 @@ const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
   remark: "备注",
   tag: "标签",
   link: "链接",
-  ref: "引用",
+  ref: "引用"
 };
 
 export function keyInfoTypeLabel(type: KeyInfoType): string {
@@ -154,7 +154,7 @@ function normalizeInlineText(text: string): string {
   next = next.replace(/<mark>([\s\S]+?)<\/mark>/gi, "$1");
   next = next.replace(/<u\b[^>]*>([\s\S]+?)<\/u>/gi, "$1");
   next = next.replace(/<ins\b[^>]*>([\s\S]+?)<\/ins>/gi, "$1");
-  next = next.replace(/<span\b[^>]*data-type=["'](?:u|underline)["'][^>]*>([\s\S]+?)<\/span>/gi, "$1");
+  next = next.replace(/<span\b[^>]+data-type=["'](?:u|underline)["'][^>]*>([\s\S]+?)<\/span>/gi, "$1");
   next = next.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   next = next.replace(/\[\[([^\]]+)\]\]/g, "$1");
   next = next.replace(/\s+/g, " ").trim();
@@ -187,7 +187,7 @@ function maskCodeBlocks(markdown: string): string {
   let fenceChar = "";
   let fenceLen = 0;
   const masked = lines.map((line) => {
-    const match = line.match(/^\s*(```+|~~~+)/);
+    const match = line.match(/^\s*(`{3,}|~{3,})/);
     if (match) {
       const fence = match[1];
       if (!inFence) {
@@ -251,7 +251,7 @@ function maskInlineCode(markdown: string): string {
   return chars.join("");
 }
 
-const BLOCK_ID_PATTERN = "[0-9]{14}-[a-z0-9]{7,}";
+const BLOCK_ID_PATTERN = "\\d{14}-[a-z0-9]{7,}";
 const BLOCK_REF_PATTERN = new RegExp(
   `\\(\\(\\s*(${BLOCK_ID_PATTERN})(?:\\s+(?:\"((?:\\\\.|[^\"\\\\])*)\"|'((?:\\\\.|[^'\\\\])*)'))?\\s*\\)\\)`,
   "gi"
@@ -304,7 +304,7 @@ function collectRegexMatches(
         type,
         text: cleaned,
         raw: raw.trim(),
-        offset: match.index,
+        offset: match.index
       });
       ranges.push([match.index, match.index + match[0].length]);
     }
@@ -337,7 +337,7 @@ function extractHeadings(
           type: "title",
           text: cleaned,
           raw: raw.trim() || `# ${cleaned}`,
-          offset,
+          offset
         });
       }
       ranges.push([offset, offset + (originalLines[i]?.length ?? 0)]);
@@ -367,7 +367,7 @@ function normalizeTagText(value: string): string {
 
 function extractTags(original: string, masked: string): KeyInfoExtract[] {
   const items: KeyInfoExtract[] = [];
-  const isWordChar = (value: string): boolean => /[A-Za-z0-9_]/.test(value);
+  const isWordChar = (value: string): boolean => /\w/.test(value);
   const isWhitespace = (value: string): boolean => /\s/.test(value);
 
   for (let index = 0; index < masked.length; index += 1) {
@@ -403,7 +403,7 @@ function extractTags(original: string, masked: string): KeyInfoExtract[] {
         type: "tag",
         text: cleaned,
         raw: (rawSlice || `#${cleaned}`).trim(),
-        offset: index,
+        offset: index
       });
     }
 
@@ -419,7 +419,7 @@ function extractTags(original: string, masked: string): KeyInfoExtract[] {
         type: "tag",
         text: cleaned,
         raw: `#${cleaned}`,
-        offset: match.index,
+        offset: match.index
       });
     }
     match = spanPattern.exec(masked);
@@ -444,12 +444,12 @@ function extractLinksAndRefs(
       type,
       text: cleaned,
       raw: cleaned,
-      offset,
+      offset
     });
     ranges.push([offset, offset + length]);
   };
 
-  const markdownLinkPattern = /(?<!!)\[([^\]]+?)\]\(\s*([^)]+?)\s*\)/g;
+  const markdownLinkPattern = /(?<!!)\[([^\]]+)\]\(\s*([^)]+?)\s*\)/g;
   let match = markdownLinkPattern.exec(masked);
   while (match) {
     const raw = original.slice(match.index, match.index + match[0].length) || match[0];
@@ -475,7 +475,7 @@ function extractLinksAndRefs(
     match = autoLinkPattern.exec(masked);
   }
 
-  const htmlLinkPattern = /<a\b[^>]*href=(['"])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
+  const htmlLinkPattern = /<a\b[^>]+href=(['"])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
   match = htmlLinkPattern.exec(masked);
   while (match) {
     const raw = original.slice(match.index, match.index + match[0].length) || match[0];

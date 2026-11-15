@@ -1,14 +1,14 @@
 import {
   FloatingTextConfig,
-  hasImageMarkdown,
+  hasImageMarkdown
 } from "@/core/floating-text-core";
 import { renderMarkdownToHtml } from "@/core/markdown-render-core";
 import {
-  buildFloatingWindowHtml,
+  buildFloatingWindowHtml
 } from "@/ui/floating-text/floating-window-template";
 import {
   loadFloatingTextConfig,
-  saveFloatingTextConfig,
+  saveFloatingTextConfig
 } from "@/services/floating-text/floating-text-storage";
 import { triggerSystemPaste } from "@/services/floating-text/floating-paste-helper";
 import { bindPipWindowEvents } from "@/services/floating-text/floating-window-pip-events";
@@ -116,14 +116,14 @@ export async function openFloatingTextWindow(options: {
   const isDark = isSiYuanDarkTheme();
   const hasImage = hasImageMarkdown(text);
   // 若包含图片内容，自动以 Markdown 模式展示，让用户首屏即可直观看到图片
-  const effectiveConfig: FloatingTextConfig = hasImage
-    ? { ...config, viewMode: "markdown" }
-    : config;
+  const effectiveConfig: FloatingTextConfig = hasImage ?
+      { ...config, viewMode: "markdown" } :
+    config;
   const initialHtml = renderMarkdownToHtml(text);
   const baseUrl =
-    typeof window !== "undefined" && window.location?.origin
-      ? window.location.origin
-      : "";
+    typeof window !== "undefined" && window.location?.origin ?
+      window.location.origin :
+      "";
 
   const remote = getElectronRemote();
   let hostWebContentsId: number | null = null;
@@ -143,7 +143,7 @@ export async function openFloatingTextWindow(options: {
     isDark,
     initialHtml,
     hostWebContentsId,
-    baseUrl,
+    baseUrl
   });
 
   // 1. 方案一：在思源桌面端（Electron 环境），使用 @electron/remote.BrowserWindow
@@ -167,8 +167,8 @@ export async function openFloatingTextWindow(options: {
         webPreferences: {
           nodeIntegration: true,
           contextIsolation: false,
-          webSecurity: false,
-        },
+          webSecurity: false
+        }
       });
 
       if (typeof remote.enable === "function") {
@@ -238,7 +238,7 @@ export async function openFloatingTextWindow(options: {
               triggerSystemPaste(payload?.delayMs ?? 180);
             }
           }
-        },
+        }
       };
 
       // 监听来自置顶子窗口的 IPC 配置持久化、置顶切换与位置移动通知 (双通道监听保障可靠送达)
@@ -279,12 +279,12 @@ export async function openFloatingTextWindow(options: {
                 try {
                   currentElectronWindow.setAlwaysOnTop(true);
                   currentElectronWindow.blur?.();
-                } catch (e) {}
+                } catch {}
                 triggerSystemPaste(payload.delayMs ?? 260);
               } else {
                 try {
                   currentElectronWindow.minimize?.();
-                } catch (minErr) {}
+                } catch {}
                 triggerSystemPaste(payload?.delayMs ?? 180);
               }
             }
@@ -322,12 +322,12 @@ export async function openFloatingTextWindow(options: {
                 try {
                   win.setAlwaysOnTop(true);
                   win.blur?.();
-                } catch (e) {}
+                } catch {}
                 triggerSystemPaste(payload?.delayMs ?? 260);
               } else {
                 try {
                   win.minimize?.();
-                } catch (minErr) {}
+                } catch {}
                 triggerSystemPaste(payload?.delayMs ?? 180);
               }
             }
@@ -375,7 +375,7 @@ export async function openFloatingTextWindow(options: {
             win.loadFile(tempPath);
             loaded = true;
           } else {
-            const fileUrl = "file:///" + tempPath.replace(/\\/g, "/");
+            const fileUrl = `file:///${tempPath.replace(/\\/g, "/")}`;
             win.loadURL(fileUrl);
             loaded = true;
           }
@@ -384,7 +384,7 @@ export async function openFloatingTextWindow(options: {
         }
       }
       if (!loaded) {
-        win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+        win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
       }
 
       win.once("ready-to-show", () => {
@@ -414,7 +414,7 @@ export async function openFloatingTextWindow(options: {
 
       const pipWindow = await (window as any).documentPictureInPicture.requestWindow({
         width: config.width || 420,
-        height: config.height || 320,
+        height: config.height || 320
       });
 
       currentPipWindow = pipWindow;

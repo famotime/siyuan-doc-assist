@@ -6,7 +6,7 @@ export type DocRef = {
   depth?: number;
 };
 
-const BLOCK_ID_PATTERN = "[0-9]{14}-[a-z0-9]{7,}";
+const BLOCK_ID_PATTERN = "\\d{14}-[a-z0-9]{7,}";
 const SIYUAN_DOC_LINK_PATTERN = new RegExp(
   `(?<!!)\\[([^\\]]*)\\]\\(\\s*siyuan://blocks/(${BLOCK_ID_PATTERN})(?:[?#][^)]*)?\\s*\\)`,
   "gi"
@@ -113,9 +113,9 @@ function markInvalidLinks(
 ): InvalidLinkRefMarkResult {
   const sourcePattern = new RegExp(
     SIYUAN_DOC_LINK_PATTERN.source,
-    SIYUAN_DOC_LINK_PATTERN.flags.includes("g")
-      ? SIYUAN_DOC_LINK_PATTERN.flags
-      : `${SIYUAN_DOC_LINK_PATTERN.flags}g`
+    SIYUAN_DOC_LINK_PATTERN.flags.includes("g") ?
+      SIYUAN_DOC_LINK_PATTERN.flags :
+      `${SIYUAN_DOC_LINK_PATTERN.flags}g`
   );
   let markedCount = 0;
   const next = markdown.replace(sourcePattern, (...args: unknown[]) => {
@@ -148,7 +148,7 @@ function markInvalidLinks(
   });
   return {
     markdown: next,
-    markedCount,
+    markedCount
   };
 }
 
@@ -180,7 +180,7 @@ function markInvalidWithPattern(
   });
   return {
     markdown: next,
-    markedCount,
+    markedCount
   };
 }
 
@@ -220,7 +220,7 @@ function convertLinksToRefs(markdown: string): { markdown: string; convertedCoun
   );
   return {
     markdown: next,
-    convertedCount,
+    convertedCount
   };
 }
 
@@ -244,7 +244,7 @@ function convertRefsToLinks(markdown: string): { markdown: string; convertedCoun
   );
   return {
     markdown: wikiRefConverted,
-    convertedCount,
+    convertedCount
   };
 }
 
@@ -258,7 +258,7 @@ export function convertSiyuanLinksAndRefsInMarkdown(
     return {
       markdown: converted.markdown,
       mode: "link-to-ref",
-      convertedCount: converted.convertedCount,
+      convertedCount: converted.convertedCount
     };
   }
   if (preferredMode === "ref-to-link") {
@@ -266,7 +266,7 @@ export function convertSiyuanLinksAndRefsInMarkdown(
     return {
       markdown: converted.markdown,
       mode: "ref-to-link",
-      convertedCount: converted.convertedCount,
+      convertedCount: converted.convertedCount
     };
   }
 
@@ -276,7 +276,7 @@ export function convertSiyuanLinksAndRefsInMarkdown(
     return {
       markdown: converted.markdown,
       mode: "link-to-ref",
-      convertedCount: converted.convertedCount,
+      convertedCount: converted.convertedCount
     };
   }
   const refCount = countMatches(source, BLOCK_REF_PATTERN) + countMatches(source, WIKI_REF_PATTERN);
@@ -285,13 +285,13 @@ export function convertSiyuanLinksAndRefsInMarkdown(
     return {
       markdown: converted.markdown,
       mode: "ref-to-link",
-      convertedCount: converted.convertedCount,
+      convertedCount: converted.convertedCount
     };
   }
   return {
     markdown: source,
     mode: "none",
-    convertedCount: 0,
+    convertedCount: 0
   };
 }
 
@@ -303,32 +303,32 @@ export function markInvalidSiyuanLinkRefsInMarkdown(
   if (!source || !invalidIds.size) {
     return {
       markdown: source,
-      markedCount: 0,
+      markedCount: 0
     };
   }
 
   const rules: InvalidMarkRule[] = [
     markInvalidLinks,
     (text, ids) => markInvalidWithPattern(text, BLOCK_REF_PATTERN, ids, 1),
-    (text, ids) => markInvalidWithPattern(text, WIKI_REF_PATTERN, ids, 1),
+    (text, ids) => markInvalidWithPattern(text, WIKI_REF_PATTERN, ids, 1)
   ];
   const merged = rules.reduce<InvalidLinkRefMarkResult>(
     (current, rule) => {
       const next = rule(current.markdown, invalidIds);
       return {
         markdown: next.markdown,
-        markedCount: current.markedCount + next.markedCount,
+        markedCount: current.markedCount + next.markedCount
       };
     },
     {
       markdown: source,
-      markedCount: 0,
+      markedCount: 0
     }
   );
 
   return {
     markdown: merged.markdown,
-    markedCount: merged.markedCount,
+    markedCount: merged.markedCount
   };
 }
 
@@ -342,7 +342,7 @@ export function extractSiyuanBlockIdsFromMarkdown(markdown: string): string[] {
     // [[block-id]] and [[ block-id "alias" ]]
     new RegExp(`\\[\\[\\s*(${BLOCK_ID_PATTERN})`, "gi"),
     // Fallback for transformed links that still keep '/blocks/<id>'.
-    new RegExp(`blocks/(${BLOCK_ID_PATTERN})`, "gi"),
+    new RegExp(`blocks/(${BLOCK_ID_PATTERN})`, "gi")
   ];
 
   for (const pattern of patterns) {

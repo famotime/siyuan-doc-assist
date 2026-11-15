@@ -4,7 +4,8 @@
 // 2. Extended pictographics with optional variation selectors, skin tone modifiers, and ZWJ compound sequences (e.g. 👨‍👩‍👧‍👦, 👍🏽, ❤️)
 // 3. Common emoji presentation symbols
 export const EMOJI_REGEX =
-  /(?:[\u{1F1E6}-\u{1F1FF}]{2}|(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})(?:[\uFE0E\uFE0F]|[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})(?:[\uFE0E\uFE0F]|[\u{1F3FB}-\u{1F3FF}])?)*)/gu;
+  // eslint-disable-next-line no-misleading-character-class -- 变体选择符与肤色修饰符均为单码点，范围组合是有意为之
+  /(?:[\u{1F1E6}-\u{1F1FF}]{2}|[\p{Extended_Pictographic}\p{Emoji_Presentation}][\uFE0E\uFE0F\u{1F3FB}-\u{1F3FF}]?(?:\u200D[\p{Extended_Pictographic}\p{Emoji_Presentation}][\uFE0E\uFE0F\u{1F3FB}-\u{1F3FF}]?)*)/gu;
 
 /**
  * Checks if a line has meaningful Markdown structural indentation that should be preserved:
@@ -14,7 +15,7 @@ export const EMOJI_REGEX =
  * - Fenced code blocks: "  ```js"
  */
 function shouldPreserveLineIndentation(line: string): boolean {
-  return /^[ \t]*(?:[-*+]|\d+[.)]|>|\||```)/.test(line);
+  return /^[ \t]*(?:[\-*+>|]|\d+[.)]|```)/.test(line);
 }
 
 /**
@@ -52,13 +53,13 @@ export function collapseExtraneousSpaces(text: string): string {
     // Clean up spaces before Chinese punctuation and common English punctuation:
     // e.g., "hello , world" -> "hello, world" or "word !" -> "word!" or "word 。" -> "word。"
     body = body.replace(/[ \t]+([，。！？；、,!?;])/g, "$1");
-    body = body.replace(/[ \t]+([：])/g, "$1");
+    body = body.replace(/[ \t]+(：)/g, "$1");
 
     // Clean up spaces before colon ':' only when preceded by normal text and not part of table alignment "| :" or ":---"
     body = body.replace(/([^\s|:])[ \t]+:(?!\S*-)/g, "$1:");
 
     // Clean up spaces inside inline code backticks: e.g. ` #tag#` -> `#tag#`
-    body = body.replace(/`[ \t]+([^`\n]+?)`/g, "`$1`");
+    body = body.replace(/`[ \t]+([^`\n]+)`/g, "`$1`");
     body = body.replace(/(`[^`\n]+?)[ \t]+`/g, "$1`");
 
     // Clean up spaces before closing bold mark: e.g. **text ** -> **text**

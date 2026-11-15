@@ -1,6 +1,60 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { ActionRunner } from "@/plugin/action-runner";
+import { ACTIONS } from "@/plugin/actions";
+import {
+  resetDocAssistantDebugSetting,
+  setDocAssistantDebugEnabled
+} from "@/core/logger-core";
+import {
+  exportCurrentDocMarkdown,
+  exportDocAndChildDocsAsMarkdownZip,
+  exportDocAndChildKeyInfoAsZip,
+  exportDocIdsAsMarkdownZip
+} from "@/services/exporter";
+import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
+import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
+import {
+  filterDocRefsByExistingLinks,
+  getBacklinkDocs,
+  getChildDocs,
+  getForwardLinkedDocIds,
+  toBacklinkMarkdown,
+  toChildDocMarkdown
+} from "@/services/link-resolver";
+import { moveDocsAsChildren } from "@/services/mover";
+import { convertDocImagesToWebp } from "@/services/image-webp";
+import { convertDocImagesToPng } from "@/services/image-png";
+import { resizeDocImagesToDisplay } from "@/services/image-display-size";
+import { removeDocImageLinks } from "@/services/image-remove";
+import {
+  appendBlock,
+  createDocWithMd,
+  deleteBlocksByIds,
+  deleteBlockById,
+  getBlockDOM,
+  getBlockDOMs,
+  getBlockAttrs,
+  getDocReadonlyState,
+  getBlockKramdowns,
+  getChildBlockRefsByParentId,
+  getChildBlocksByParentId,
+  getDocMetaByID,
+  getRootDocRawMarkdown,
+  insertBlockBefore,
+  setBlockAttrs,
+  updateBlockDom,
+  updateBlockMarkdown
+} from "@/services/kernel";
+import * as aiSummaryService from "@/services/ai-summary";
+import {
+  detectIrrelevantParagraphMarks,
+  detectKeyContentParagraphHighlights
+} from "@/services/ai-slop-marker";
+import { openDedupeDialog } from "@/ui/dialogs";
+import { createTop100LargeDocumentsReport } from "@/services/large-documents-report";
+
 const { getActiveEditorMock, showMessageMock, MockDialog } = vi.hoisted(() => {
   class MockDialog {
     element: HTMLElement;
@@ -8,12 +62,13 @@ const { getActiveEditorMock, showMessageMock, MockDialog } = vi.hoisted(() => {
       this.element = document.createElement("div");
       this.element.innerHTML = options.content || "";
     }
+
     destroy() {}
   }
   return {
     getActiveEditorMock: vi.fn(),
     showMessageMock: vi.fn(),
-    MockDialog,
+    MockDialog
   };
 });
 
@@ -22,7 +77,7 @@ vi.mock(
   () => ({
     getActiveEditor: getActiveEditorMock,
     showMessage: showMessageMock,
-    Dialog: MockDialog,
+    Dialog: MockDialog
   })
 );
 
@@ -30,7 +85,7 @@ vi.mock("@/services/exporter", () => ({
   exportCurrentDocMarkdown: vi.fn(),
   exportDocIdsAsMarkdownZip: vi.fn(),
   exportDocAndChildDocsAsMarkdownZip: vi.fn(),
-  exportDocAndChildKeyInfoAsZip: vi.fn(),
+  exportDocAndChildKeyInfoAsZip: vi.fn()
 }));
 
 vi.mock("@/services/kernel", () => ({
@@ -52,11 +107,11 @@ vi.mock("@/services/kernel", () => ({
   insertBlockBefore: vi.fn(),
   setBlockAttrs: vi.fn(),
   updateBlockDom: vi.fn(),
-  updateBlockMarkdown: vi.fn(),
+  updateBlockMarkdown: vi.fn()
 }));
 
 vi.mock("@/services/block-lineage", () => ({
-  resolveDocDirectChildBlockId: vi.fn(),
+  resolveDocDirectChildBlockId: vi.fn()
 }));
 
 vi.mock("@/services/link-resolver", () => ({
@@ -65,109 +120,52 @@ vi.mock("@/services/link-resolver", () => ({
   getChildDocs: vi.fn().mockResolvedValue([]),
   getForwardLinkedDocIds: vi.fn().mockResolvedValue([]),
   toBacklinkMarkdown: vi.fn(),
-  toChildDocMarkdown: vi.fn(),
+  toChildDocMarkdown: vi.fn()
 }));
 
 vi.mock("@/services/dedupe", () => ({
   deleteDocsByIds: vi.fn(),
-  findDuplicateCandidates: vi.fn(),
+  findDuplicateCandidates: vi.fn()
 }));
 
 vi.mock("@/services/mover", () => ({
-  moveDocsAsChildren: vi.fn(),
+  moveDocsAsChildren: vi.fn()
 }));
 
 vi.mock("@/services/image-webp", () => ({
-  convertDocImagesToWebp: vi.fn(),
+  convertDocImagesToWebp: vi.fn()
 }));
 
 vi.mock("@/services/image-png", () => ({
-  convertDocImagesToPng: vi.fn(),
+  convertDocImagesToPng: vi.fn()
 }));
 
 vi.mock("@/services/image-display-size", () => ({
-  resizeDocImagesToDisplay: vi.fn(),
+  resizeDocImagesToDisplay: vi.fn()
 }));
 
 vi.mock("@/services/image-remove", () => ({
-  removeDocImageLinks: vi.fn(),
+  removeDocImageLinks: vi.fn()
 }));
 
 vi.mock("@/services/ai-summary", () => ({
   generateDocumentSummary: vi.fn(),
-  generateDocumentConceptMap: vi.fn(),
+  generateDocumentConceptMap: vi.fn()
 }));
 
 vi.mock("@/services/ai-slop-marker", () => ({
   detectIrrelevantParagraphIds: vi.fn(),
   detectIrrelevantParagraphMarks: vi.fn(),
-  detectKeyContentParagraphHighlights: vi.fn(),
+  detectKeyContentParagraphHighlights: vi.fn()
 }));
 
 vi.mock("@/ui/dialogs", () => ({
-  openDedupeDialog: vi.fn(),
+  openDedupeDialog: vi.fn()
 }));
 
 vi.mock("@/services/large-documents-report", () => ({
-  createTop100LargeDocumentsReport: vi.fn(),
+  createTop100LargeDocumentsReport: vi.fn()
 }));
-
-import { ActionRunner } from "@/plugin/action-runner";
-import { ACTIONS } from "@/plugin/actions";
-import {
-  resetDocAssistantDebugSetting,
-  setDocAssistantDebugEnabled,
-} from "@/core/logger-core";
-import {
-  exportCurrentDocMarkdown,
-  exportDocAndChildDocsAsMarkdownZip,
-  exportDocAndChildKeyInfoAsZip,
-  exportDocIdsAsMarkdownZip,
-} from "@/services/exporter";
-import { deleteDocsByIds, findDuplicateCandidates } from "@/services/dedupe";
-import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
-import {
-  filterDocRefsByExistingLinks,
-  getBacklinkDocs,
-  getChildDocs,
-  getForwardLinkedDocIds,
-  toBacklinkMarkdown,
-  toChildDocMarkdown,
-} from "@/services/link-resolver";
-import { moveDocsAsChildren } from "@/services/mover";
-import { convertDocImagesToWebp } from "@/services/image-webp";
-import { convertDocImagesToPng } from "@/services/image-png";
-import { resizeDocImagesToDisplay } from "@/services/image-display-size";
-import { removeDocImageLinks } from "@/services/image-remove";
-import {
-  appendBlock,
-  createDocWithMd,
-  deleteBlocksByIds,
-  deleteBlockById,
-  getBlockDOM,
-  getBlockDOMs,
-  getBlockAttrs,
-  getDocReadonlyState,
-  getBlockKramdowns,
-  getChildBlockRefsByParentId,
-  getChildBlocksByParentId,
-  getDocMetaByID,
-  getDocMetasByIDs,
-  getRootDocRawMarkdown,
-  exportMdContent,
-  insertBlockBefore,
-  setBlockAttrs,
-  updateBlockDom,
-  updateBlockMarkdown,
-} from "@/services/kernel";
-import * as aiSummaryService from "@/services/ai-summary";
-import {
-  detectIrrelevantParagraphIds,
-  detectIrrelevantParagraphMarks,
-  detectKeyContentParagraphHighlights,
-} from "@/services/ai-slop-marker";
-import { openDedupeDialog } from "@/ui/dialogs";
-import { createTop100LargeDocumentsReport } from "@/services/large-documents-report";
 
 const exportCurrentDocMarkdownMock = vi.mocked(exportCurrentDocMarkdown);
 const exportDocAndChildDocsAsMarkdownZipMock = vi.mocked(exportDocAndChildDocsAsMarkdownZip);
@@ -209,7 +207,6 @@ const generateDocumentSummaryMock = vi.mocked(aiSummaryService.generateDocumentS
 const generateDocumentConceptMapMock = vi.mocked(
   (aiSummaryService as any).generateDocumentConceptMap
 );
-const detectIrrelevantParagraphIdsMock = vi.mocked(detectIrrelevantParagraphIds);
 const detectIrrelevantParagraphMarksMock = vi.mocked(detectIrrelevantParagraphMarks);
 const detectKeyContentParagraphHighlightsMock = vi.mocked(detectKeyContentParagraphHighlights);
 const createTop100LargeDocumentsReportMock = vi.mocked(createTop100LargeDocumentsReport);
@@ -225,9 +222,9 @@ function createRunner(setBusy?: (busy: boolean) => void, overrides: Record<strin
       baseUrl: "https://api.example.com/v1",
       apiKey: "sk-test",
       model: "gpt-4.1-mini",
-      requestTimeoutSeconds: 45,
+      requestTimeoutSeconds: 45
     }),
-    ...overrides,
+    ...overrides
   } as any);
 }
 
@@ -329,7 +326,7 @@ describe("action-runner loading guard", () => {
     getDocReadonlyStateMock.mockResolvedValue(true);
     exportCurrentDocMarkdownMock.mockResolvedValue({
       mode: "md",
-      fileName: "doc-1.md",
+      fileName: "doc-1.md"
     } as any);
     const runner = createRunner();
 
@@ -344,13 +341,13 @@ describe("action-runner loading guard", () => {
       name: "doc-1-key-info",
       zip: "temp/export/doc-1-key-info.zip",
       docCount: 3,
-      itemCount: 8,
+      itemCount: 8
     } as any);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
       askConfirm: async () => true,
-      getKeyInfoFilter: () => ["bold", "highlight"],
+      getKeyInfoFilter: () => ["bold", "highlight"]
     } as any);
 
     await runner.runAction("export-child-key-info-zip" as any);
@@ -359,7 +356,7 @@ describe("action-runner loading guard", () => {
     expect(exportDocAndChildKeyInfoAsZipMock).toHaveBeenCalledWith({
       docId: "doc-1",
       filter: ["bold", "highlight"],
-      protyle: undefined,
+      protyle: undefined
     });
     expect(showMessageMock).toHaveBeenCalledWith(
       "导出完成：3 篇文档，8 条关键内容",
@@ -372,7 +369,7 @@ describe("action-runner loading guard", () => {
     exportDocAndChildDocsAsMarkdownZipMock.mockResolvedValue({
       name: "主文档",
       zip: "temp/export/doc-1-children.zip",
-      docCount: 3,
+      docCount: 3
     } as any);
     const runner = createRunner();
 
@@ -380,7 +377,7 @@ describe("action-runner loading guard", () => {
 
     expect(exportDocAndChildDocsAsMarkdownZipMock).toHaveBeenCalledTimes(1);
     expect(exportDocAndChildDocsAsMarkdownZipMock).toHaveBeenCalledWith({
-      docId: "doc-1",
+      docId: "doc-1"
     });
     expect(showMessageMock).toHaveBeenCalledWith(
       "导出完成：3 篇文档（主文档）",
@@ -392,15 +389,15 @@ describe("action-runner loading guard", () => {
   test("exports backlinks zip including current doc", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     getBacklinkDocsMock.mockResolvedValue([
       { id: "back-1" } as any,
-      { id: "back-2" } as any,
+      { id: "back-2" } as any
     ]);
     exportDocIdsAsMarkdownZipMock.mockResolvedValue({
       name: "当前文档",
-      zip: "temp/export/current-backlinks.zip",
+      zip: "temp/export/current-backlinks.zip"
     } as any);
     const runner = createRunner();
 
@@ -421,12 +418,12 @@ describe("action-runner loading guard", () => {
   test("exports forward zip with current doc even when no forward docs exist", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     getForwardLinkedDocIdsMock.mockResolvedValue([]);
     exportDocIdsAsMarkdownZipMock.mockResolvedValue({
       name: "当前文档",
-      zip: "temp/export/current-forward.zip",
+      zip: "temp/export/current-forward.zip"
     } as any);
     const runner = createRunner();
 
@@ -444,20 +441,20 @@ describe("action-runner loading guard", () => {
   test("exports related docs zip including current, forward, backlink, and child docs", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     getForwardLinkedDocIdsMock.mockResolvedValue(["shared-1", "forward-1"]);
     getBacklinkDocsMock.mockResolvedValue([
       { id: "back-1" } as any,
-      { id: "shared-1" } as any,
+      { id: "shared-1" } as any
     ]);
     getChildDocsMock.mockResolvedValue([
       { id: "child-1" } as any,
-      { id: "back-1" } as any,
+      { id: "back-1" } as any
     ]);
     exportDocIdsAsMarkdownZipMock.mockResolvedValue({
       name: "当前文档",
-      zip: "temp/export/current-related.zip",
+      zip: "temp/export/current-related.zip"
     } as any);
     const runner = createRunner();
 
@@ -487,14 +484,14 @@ describe("action-runner loading guard", () => {
         })
     );
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "a", type: "p", content: "", markdown: "", resolved: true } as any,
+      { id: "a", type: "p", content: "", markdown: "", resolved: true } as any
     ]);
     const setBusy = vi.fn();
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
       askConfirm,
-      setBusy,
+      setBusy
     });
 
     const pending = runner.runAction("remove-extra-blank-lines");
@@ -515,11 +512,11 @@ describe("action-runner loading guard", () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", content: "", markdown: "", resolved: true } as any,
       { id: "b", type: "p", content: "正文", markdown: "正文", resolved: true } as any,
-      { id: "c", type: "p", content: "", markdown: "", resolved: true } as any,
+      { id: "c", type: "p", content: "", markdown: "", resolved: true } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({
       deletedCount: 2,
-      failedIds: [],
+      failedIds: []
     });
     const runner = createRunner();
 
@@ -534,7 +531,7 @@ describe("action-runner loading guard", () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "h1", type: "h", content: "标题1", markdown: "# 标题1", resolved: true } as any,
       { id: "p1", type: "p", content: "正文1", markdown: "正文1", resolved: true } as any,
-      { id: "h2", type: "h", content: "标题2", markdown: "## 标题2", resolved: true } as any,
+      { id: "h2", type: "h", content: "标题2", markdown: "## 标题2", resolved: true } as any
     ]);
     const runner = createRunner();
 
@@ -548,12 +545,12 @@ describe("action-runner loading guard", () => {
   test("inserts filtered backlinks and reports skipped existing links", async () => {
     getBacklinkDocsMock.mockResolvedValue([
       { id: "doc-a", title: "A" } as any,
-      { id: "doc-b", title: "B" } as any,
+      { id: "doc-b", title: "B" } as any
     ]);
     filterDocRefsByExistingLinksMock.mockResolvedValue({
       items: [{ id: "doc-a", title: "A" } as any],
       skipped: [{ id: "doc-b", title: "B" } as any],
-      existingIds: ["doc-b"],
+      existingIds: ["doc-b"]
     });
     toBacklinkMarkdownMock.mockReturnValue("- [A](siyuan://blocks/doc-a)");
     const runner = createRunner();
@@ -569,7 +566,7 @@ describe("action-runner loading guard", () => {
     filterDocRefsByExistingLinksMock.mockResolvedValue({
       items: [],
       skipped: [{ id: "doc-a", title: "A" } as any],
-      existingIds: ["doc-a"],
+      existingIds: ["doc-a"]
     });
     const runner = createRunner();
 
@@ -582,12 +579,12 @@ describe("action-runner loading guard", () => {
   test("inserts child doc links after filtering existing links", async () => {
     getChildDocsMock.mockResolvedValue([
       { id: "child-a", title: "Child A" } as any,
-      { id: "child-b", title: "Child B" } as any,
+      { id: "child-b", title: "Child B" } as any
     ]);
     filterDocRefsByExistingLinksMock.mockResolvedValue({
       items: [{ id: "child-b", title: "Child B" } as any],
       skipped: [{ id: "child-a", title: "Child A" } as any],
-      existingIds: ["child-a"],
+      existingIds: ["child-a"]
     });
     toChildDocMarkdownMock.mockReturnValue("- [Child B](siyuan://blocks/child-b)");
     const runner = createRunner();
@@ -603,7 +600,7 @@ describe("action-runner loading guard", () => {
       id: "report-doc",
       title: "Top100大文件清单-20260427-153015",
       path: "/daily/2026/04/Top100大文件清单-20260427-153015",
-      docCount: 100,
+      docCount: 100
     });
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     const runner = createRunner();
@@ -611,7 +608,7 @@ describe("action-runner loading guard", () => {
     await runner.runAction("create-top100-large-documents-report" as any);
 
     expect(createTop100LargeDocumentsReportMock).toHaveBeenCalledWith({
-      currentDocId: "doc-1",
+      currentDocId: "doc-1"
     });
     expect(openSpy).toHaveBeenCalledWith("siyuan://blocks/report-doc");
     expect(showMessageMock).toHaveBeenCalledWith(
@@ -637,7 +634,7 @@ describe("action-runner loading guard", () => {
     );
     exportCurrentDocMarkdownMock.mockResolvedValue({
       mode: "md",
-      fileName: "doc-1.md",
+      fileName: "doc-1.md"
     } as any);
     const setBusy = vi.fn();
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
@@ -661,7 +658,7 @@ describe("action-runner loading guard", () => {
       id: "report-doc",
       title: "Top100大文件清单-20260427-153015",
       path: "/daily/2026/04/Top100大文件清单-20260427-153015",
-      docCount: 100,
+      docCount: 100
     });
     await flushMicrotasks();
     expect(openSpy).toHaveBeenCalledWith("siyuan://blocks/report-doc");
@@ -674,12 +671,12 @@ describe("action-runner loading guard", () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
       title: "示例文档",
-      updated: "20260403150208",
+      updated: "20260403150208"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "h1", type: "h", markdown: "# 标题", resolved: true } as any,
       { id: "p1", type: "p", markdown: "第一段正文", resolved: true } as any,
-      { id: "p2", type: "p", markdown: "第二段正文", resolved: true } as any,
+      { id: "p2", type: "p", markdown: "第二段正文", resolved: true } as any
     ]);
     generateDocumentSummaryMock.mockResolvedValue("这是 AI 生成的摘要。");
     const runner = createRunner();
@@ -691,13 +688,13 @@ describe("action-runner loading guard", () => {
       expect.objectContaining({
         config: expect.objectContaining({
           enabled: true,
-          baseUrl: "https://api.example.com/v1",
+          baseUrl: "https://api.example.com/v1"
         }),
         documentId: "doc-1",
         loadFreshDocumentSummary: expect.any(Function),
         documentMarkdown: "# 标题\n\n第一段正文\n\n第二段正文",
         documentUpdatedAt: "20260403150208",
-        documentTitle: "示例文档",
+        documentTitle: "示例文档"
       })
     );
     expect(insertBlockBeforeMock).toHaveBeenCalledWith(
@@ -713,7 +710,7 @@ describe("action-runner loading guard", () => {
     getRootDocRawMarkdownMock.mockResolvedValue("[[导航文档]]\n\n第二段正文");
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "p1", type: "p", markdown: "[[导航文档]]", resolved: true } as any,
-      { id: "p2", type: "p", markdown: "第二段正文", resolved: true } as any,
+      { id: "p2", type: "p", markdown: "第二段正文", resolved: true } as any
     ]);
     generateDocumentSummaryMock.mockResolvedValue("这是 AI 生成的摘要。");
     const runner = createRunner();
@@ -733,7 +730,7 @@ describe("action-runner loading guard", () => {
     getRootDocRawMarkdownMock.mockResolvedValue("# 标题\n\n正文第一段");
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "h1", type: "h", markdown: "# 标题", resolved: true } as any,
-      { id: "p1", type: "p", markdown: "正文第一段", resolved: true } as any,
+      { id: "p1", type: "p", markdown: "正文第一段", resolved: true } as any
     ]);
     generateDocumentSummaryMock.mockResolvedValue("这是 AI 生成的摘要。");
     const setBusy = vi.fn();
@@ -750,7 +747,7 @@ describe("action-runner loading guard", () => {
   test("marks legacy whole-paragraph slop results only when the whole paragraph is short", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "示例文档",
+      title: "示例文档"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "h1", type: "h", markdown: "# 标题", resolved: true } as any,
@@ -758,23 +755,23 @@ describe("action-runner loading guard", () => {
         id: "p1",
         type: "p",
         markdown: "栏目说明：以下内容整理自公开资料，仅供快速浏览。",
-        resolved: true,
+        resolved: true
       } as any,
       { id: "p2", type: "p", markdown: "这里是核心正文。", resolved: true } as any,
       {
         id: "p3",
         type: "p",
         markdown: "关注公众号“示例”，回复关键词领取资料。\n{: id=\"20260517120000-p3\"}",
-        resolved: true,
+        resolved: true
       } as any,
       { id: "p4", type: "p", markdown: "~~已标记段落~~", resolved: true } as any,
-      { id: "i1", type: "i", markdown: "- 列表项", resolved: true } as any,
+      { id: "i1", type: "i", markdown: "- 列表项", resolved: true } as any
     ]);
     detectIrrelevantParagraphMarksMock.mockResolvedValue([
       { paragraphId: "p1", segments: [] },
       { paragraphId: "p3", segments: [] },
       { paragraphId: "missing", segments: [] },
-      { paragraphId: "p4", segments: [] },
+      { paragraphId: "p4", segments: [] }
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
@@ -787,8 +784,8 @@ describe("action-runner loading guard", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
-      }),
+        requestTimeoutSeconds: 45
+      })
     } as any);
 
     await runner.runAction("mark-irrelevant-paragraphs" as any);
@@ -796,29 +793,29 @@ describe("action-runner loading guard", () => {
     expect(detectIrrelevantParagraphMarksMock).toHaveBeenCalledWith({
       config: expect.objectContaining({
         enabled: true,
-        baseUrl: "https://api.example.com/v1",
+        baseUrl: "https://api.example.com/v1"
       }),
       documentTitle: "示例文档",
       paragraphs: [
         {
           id: "p1",
-          markdown: "栏目说明：以下内容整理自公开资料，仅供快速浏览。",
+          markdown: "栏目说明：以下内容整理自公开资料，仅供快速浏览。"
         },
         {
           id: "p2",
-          markdown: "这里是核心正文。",
+          markdown: "这里是核心正文。"
         },
         {
           id: "p3",
-          markdown: "关注公众号“示例”，回复关键词领取资料。\n{: id=\"20260517120000-p3\"}",
-        },
-      ],
+          markdown: "关注公众号“示例”，回复关键词领取资料。\n{: id=\"20260517120000-p3\"}"
+        }
+      ]
     });
     expect(askConfirm).toHaveBeenCalledTimes(1);
     expect(String(askConfirm.mock.calls[0]?.[1] || "")).toContain("AI 判定可标记 2 处，涉及 2 个块");
     expect(askConfirm.mock.calls[0]?.[2]).toEqual([
       { label: "栏目说明：以下内容整理自公开资料，仅供快速浏览。" },
-      { label: "关注公众号“示例”，回复关键词领取资料。" },
+      { label: "关注公众号“示例”，回复关键词领取资料。" }
     ]);
     expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
@@ -849,29 +846,29 @@ describe("action-runner loading guard", () => {
             reason: "同属 AI 主题",
             tagSuggestions: [
               { tag: "AI", source: "existing", reason: "主题匹配" },
-              { tag: "知识管理", source: "new", reason: "内容相关" },
-            ],
+              { tag: "知识管理", source: "new", reason: "内容相关" }
+            ]
           },
           {
             targetDocumentId: "target-2",
             targetTitle: "机器学习",
             confidence: "medium",
             reason: "概念相邻",
-            tagSuggestions: [{ tag: "AI", source: "existing" }],
-          },
-        ],
-      },
+            tagSuggestions: [{ tag: "AI", source: "existing" }]
+          }
+        ]
+      }
     }));
     const runner = createRunner(undefined, {
       askConfirm,
       resolveNetworkLensPlugin: () => ({
         getWikiCommandIntegration: () => ({
-          invokeCommand,
-        }),
-      }),
+          invokeCommand
+        })
+      })
     });
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "first-block", type: "p", content: "正文", markdown: "正文" },
+      { id: "first-block", type: "p", content: "正文", markdown: "正文" }
     ]);
     getBlockAttrsMock.mockResolvedValue({ tags: "已有标签" });
 
@@ -881,14 +878,14 @@ describe("action-runner loading guard", () => {
     expect(invokeCommand).toHaveBeenCalledWith("suggest-orphan-links-and-tags", {
       trigger: "manual",
       sourcePlugin: "siyuan-doc-assist",
-      themeDocumentId: "doc-1",
+      themeDocumentId: "doc-1"
     });
     expect(askConfirm).toHaveBeenCalledWith(
       "确认添加相关链接和标签",
       expect.stringContaining("建议补充 2 个关联文档和 2 个标签"),
       expect.arrayContaining([
         expect.objectContaining({ label: "链接：AI 索引", description: "同属 AI 主题" }),
-        expect.objectContaining({ label: "标签：知识管理", description: "内容相关" }),
+        expect.objectContaining({ label: "标签：知识管理", description: "内容相关" })
       ])
     );
     expect(insertBlockBeforeMock).toHaveBeenCalledWith(
@@ -897,7 +894,7 @@ describe("action-runner loading guard", () => {
       "doc-1"
     );
     expect(setBlockAttrsMock).toHaveBeenCalledWith("doc-1", {
-      tags: "已有标签,AI,知识管理",
+      tags: "已有标签,AI,知识管理"
     });
     expect(showMessageMock).toHaveBeenCalledWith(
       "已添加相关链接 2 个、标签 2 个",
@@ -922,27 +919,27 @@ describe("action-runner loading guard", () => {
             targetDocumentId: "target-1",
             targetTitle: "AI 索引",
             reason: "同属 AI 主题",
-            tagSuggestions: [{ tag: "AI", source: "existing" }],
+            tagSuggestions: [{ tag: "AI", source: "existing" }]
           },
           {
             targetDocumentId: "target-2",
             targetTitle: "机器学习",
             reason: "概念相邻",
-            tagSuggestions: [{ tag: "知识管理", source: "new" }],
-          },
-        ],
-      },
+            tagSuggestions: [{ tag: "知识管理", source: "new" }]
+          }
+        ]
+      }
     }));
     const runner = createRunner(undefined, {
       askConfirm,
       resolveNetworkLensPlugin: () => ({
         getWikiCommandIntegration: () => ({
-          invokeCommand,
-        }),
-      }),
+          invokeCommand
+        })
+      })
     });
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "first-block", type: "p", content: "正文", markdown: "正文" },
+      { id: "first-block", type: "p", content: "正文", markdown: "正文" }
     ]);
     getBlockAttrsMock.mockResolvedValue({ tags: "已有标签" });
 
@@ -955,7 +952,7 @@ describe("action-runner loading guard", () => {
       "doc-1"
     );
     expect(setBlockAttrsMock).toHaveBeenCalledWith("doc-1", {
-      tags: "已有标签,知识管理",
+      tags: "已有标签,知识管理"
     });
     expect(showMessageMock).toHaveBeenCalledWith(
       "已添加相关链接 1 个、标签 1 个",
@@ -971,7 +968,7 @@ describe("action-runner loading guard", () => {
         return {
           ok: false,
           errorCode: "execution-failed" as const,
-          message: "AI 补链请求失败",
+          message: "AI 补链请求失败"
         };
       }
       return {
@@ -979,9 +976,9 @@ describe("action-runner loading guard", () => {
         data: {
           tagSuggestions: [
             { tag: "降级标签1", source: "fallback", reason: "推荐标签" },
-            { tag: "降级标签2", source: "fallback", reason: "推荐标签" },
-          ],
-        },
+            { tag: "降级标签2", source: "fallback", reason: "推荐标签" }
+          ]
+        }
       };
     });
 
@@ -990,9 +987,9 @@ describe("action-runner loading guard", () => {
       resolveNetworkLensPlugin: () => ({
         getWikiCommandIntegration: () => ({
           listCommands: () => [{ id: "suggest-orphan-tags", title: "建议标签" }],
-          invokeCommand,
-        }),
-      }),
+          invokeCommand
+        })
+      })
     });
     getBlockAttrsMock.mockResolvedValue({ tags: "原标签" });
 
@@ -1004,11 +1001,11 @@ describe("action-runner loading guard", () => {
       expect.stringContaining("（补链提示：AI 补链请求失败）"),
       expect.arrayContaining([
         expect.objectContaining({ label: "标签：降级标签1" }),
-        expect.objectContaining({ label: "标签：降级标签2" }),
+        expect.objectContaining({ label: "标签：降级标签2" })
       ])
     );
     expect(setBlockAttrsMock).toHaveBeenCalledWith("doc-1", {
-      tags: "原标签,降级标签1,降级标签2",
+      tags: "原标签,降级标签1,降级标签2"
     });
     expect(showMessageMock).toHaveBeenCalledWith(
       "已添加相关标签 2 个",
@@ -1020,7 +1017,7 @@ describe("action-runner loading guard", () => {
   test("runs add-related-links-and-tags in background without masking page", async () => {
     const invokeCommand = vi.fn(async () => ({
       ok: true,
-      data: { tagSuggestions: [{ tag: "后台标签" }] },
+      data: { tagSuggestions: [{ tag: "后台标签" }] }
     }));
     const setBusy = vi.fn();
     const setBackgroundActionRunning = vi.fn();
@@ -1031,9 +1028,9 @@ describe("action-runner loading guard", () => {
       askConfirm: async () => true,
       resolveNetworkLensPlugin: () => ({
         getWikiCommandIntegration: () => ({
-          invokeCommand,
-        }),
-      }),
+          invokeCommand
+        })
+      })
     });
     getBlockAttrsMock.mockResolvedValue({ tags: "" });
 
@@ -1051,7 +1048,7 @@ describe("action-runner loading guard", () => {
   test("does not restore setBusy(true) when user cancels the preview dialog in background or foreground action", async () => {
     const invokeCommand = vi.fn(async () => ({
       ok: true,
-      data: { tagSuggestions: [{ tag: "取消标签" }] },
+      data: { tagSuggestions: [{ tag: "取消标签" }] }
     }));
     const setBusy = vi.fn();
     const askConfirm = vi.fn(async () => false); // User clicks Cancel
@@ -1061,9 +1058,9 @@ describe("action-runner loading guard", () => {
       askConfirm,
       resolveNetworkLensPlugin: () => ({
         getWikiCommandIntegration: () => ({
-          invokeCommand,
-        }),
-      }),
+          invokeCommand
+        })
+      })
     });
 
     await runner.runAction("add-related-links-and-tags" as any);
@@ -1077,21 +1074,21 @@ describe("action-runner loading guard", () => {
   test("skips full-paragraph segments when a paragraph contains multiple sentences", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "示例文档",
+      title: "示例文档"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       {
         id: "p1",
         type: "p",
         markdown: "这里是核心正文。关注公众号“示例”，回复关键词领取资料。后续继续说明正文重点。",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     detectIrrelevantParagraphMarksMock.mockResolvedValue([
       {
         paragraphId: "p1",
-        segments: ["这里是核心正文。关注公众号“示例”，回复关键词领取资料。后续继续说明正文重点。"],
-      },
+        segments: ["这里是核心正文。关注公众号“示例”，回复关键词领取资料。后续继续说明正文重点。"]
+      }
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
@@ -1104,8 +1101,8 @@ describe("action-runner loading guard", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
-      }),
+        requestTimeoutSeconds: 45
+      })
     } as any);
 
     await runner.runAction("mark-irrelevant-paragraphs" as any);
@@ -1118,7 +1115,7 @@ describe("action-runner loading guard", () => {
   test("only sends paragraphs after front-matter separator within first ten paragraphs to AI", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "示例文档",
+      title: "示例文档"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "p1", type: "p", markdown: "文档说明", resolved: true } as any,
@@ -1126,12 +1123,12 @@ describe("action-runner loading guard", () => {
       { id: "p3", type: "tb", markdown: "---", resolved: true } as any,
       { id: "p4", type: "p", markdown: "栏目说明：这里是无关导语。", resolved: true } as any,
       { id: "p5", type: "p", markdown: "这里是正文重点。", resolved: true } as any,
-      { id: "p6", type: "p", markdown: "文末广告：欢迎关注公众号。", resolved: true } as any,
+      { id: "p6", type: "p", markdown: "文末广告：欢迎关注公众号。", resolved: true } as any
     ]);
     detectIrrelevantParagraphMarksMock.mockResolvedValue([
       { paragraphId: "p1", segments: [] },
       { paragraphId: "p4", segments: [] },
-      { paragraphId: "p6", segments: [] },
+      { paragraphId: "p6", segments: [] }
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
@@ -1143,14 +1140,14 @@ describe("action-runner loading guard", () => {
     expect(detectIrrelevantParagraphMarksMock).toHaveBeenCalledWith({
       config: expect.objectContaining({
         enabled: true,
-        baseUrl: "https://api.example.com/v1",
+        baseUrl: "https://api.example.com/v1"
       }),
       documentTitle: "示例文档",
       paragraphs: [
         { id: "p4", markdown: "栏目说明：这里是无关导语。" },
         { id: "p5", markdown: "这里是正文重点。" },
-        { id: "p6", markdown: "文末广告：欢迎关注公众号。" },
-      ],
+        { id: "p6", markdown: "文末广告：欢迎关注公众号。" }
+      ]
     });
     expect(updateBlockMarkdownMock).toHaveBeenCalledTimes(2);
     expect(updateBlockMarkdownMock).toHaveBeenNthCalledWith(
@@ -1168,31 +1165,31 @@ describe("action-runner loading guard", () => {
   test("marks AI-identified irrelevant sentence fragments with strikethrough", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "示例文档",
+      title: "示例文档"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       {
         id: "p1",
         type: "p",
         markdown: "这里是核心正文。关注公众号“示例”，回复关键词领取资料。后续继续说明正文重点。",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "p2",
         type: "p",
         markdown: "欢迎加入交流群。欢迎加入交流群。\n{: id=\"20260517121000-p2\"}",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     detectIrrelevantParagraphMarksMock.mockResolvedValue([
       {
         paragraphId: "p1",
-        segments: ["关注公众号“示例”，回复关键词领取资料。"],
+        segments: ["关注公众号“示例”，回复关键词领取资料。"]
       },
       {
         paragraphId: "p2",
-        segments: ["欢迎加入交流群。", "欢迎加入交流群。"],
-      },
+        segments: ["欢迎加入交流群。", "欢迎加入交流群。"]
+      }
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
@@ -1205,8 +1202,8 @@ describe("action-runner loading guard", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
-      }),
+        requestTimeoutSeconds: 45
+      })
     } as any);
 
     await runner.runAction("mark-irrelevant-paragraphs" as any);
@@ -1226,7 +1223,7 @@ describe("action-runner loading guard", () => {
     expect(askConfirm.mock.calls[0]?.[2]).toEqual([
       { label: "关注公众号“示例”，回复关键词领取资料。" },
       { label: "欢迎加入交流群。" },
-      { label: "欢迎加入交流群。" },
+      { label: "欢迎加入交流群。" }
     ]);
     expect(showMessageMock).toHaveBeenCalledWith("已标记口水内容 3 处，共更新 2 个块", 5000, "info");
   });
@@ -1234,21 +1231,21 @@ describe("action-runner loading guard", () => {
   test("shows plain text details for markdown-formatted irrelevant segments", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "示例文档",
+      title: "示例文档"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       {
         id: "p1",
         type: "p",
         markdown: "**关注公众号“示例”**，回复关键词领取资料。这里是正文。",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     detectIrrelevantParagraphMarksMock.mockResolvedValue([
       {
         paragraphId: "p1",
-        segments: ["**关注公众号“示例”**，回复关键词领取资料。"],
-      },
+        segments: ["**关注公众号“示例”**，回复关键词领取资料。"]
+      }
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
@@ -1261,8 +1258,8 @@ describe("action-runner loading guard", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
-      }),
+        requestTimeoutSeconds: 45
+      })
     } as any);
 
     await runner.runAction("mark-irrelevant-paragraphs" as any);
@@ -1272,14 +1269,14 @@ describe("action-runner loading guard", () => {
       "~~**关注公众号“示例”**，回复关键词领取资料。~~这里是正文。"
     );
     expect(askConfirm.mock.calls[0]?.[2]).toEqual([
-      { label: "关注公众号“示例”，回复关键词领取资料。" },
+      { label: "关注公众号“示例”，回复关键词领取资料。" }
     ]);
   });
 
   test("marks AI-identified key content within paragraphs using bold", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "示例文档",
+      title: "示例文档"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "p1", type: "p", markdown: "文档说明", resolved: true } as any,
@@ -1288,38 +1285,38 @@ describe("action-runner loading guard", () => {
         id: "p3",
         type: "p",
         markdown: "作者提出要用检索增强生成提升准确率，并强调评测闭环。",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "p4",
         type: "p",
         markdown: "最后建议先做小范围试点，再逐步扩展。",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "p5",
         type: "p",
         markdown: "这段已经有 **现有加粗** 内容。",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     detectKeyContentParagraphHighlightsMock.mockResolvedValue([
       {
         paragraphId: "p3",
-        highlights: ["检索增强生成", "评测闭环"],
+        highlights: ["检索增强生成", "评测闭环"]
       },
       {
         paragraphId: "p4",
-        highlights: ["小范围试点"],
+        highlights: ["小范围试点"]
       },
       {
         paragraphId: "p5",
-        highlights: ["现有加粗"],
+        highlights: ["现有加粗"]
       },
       {
         paragraphId: "missing",
-        highlights: ["忽略片段"],
-      },
+        highlights: ["忽略片段"]
+      }
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
@@ -1332,8 +1329,8 @@ describe("action-runner loading guard", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
-      }),
+        requestTimeoutSeconds: 45
+      })
     } as any);
 
     await runner.runAction("mark-key-content" as any);
@@ -1341,23 +1338,23 @@ describe("action-runner loading guard", () => {
     expect(detectKeyContentParagraphHighlightsMock).toHaveBeenCalledWith({
       config: expect.objectContaining({
         enabled: true,
-        baseUrl: "https://api.example.com/v1",
+        baseUrl: "https://api.example.com/v1"
       }),
       documentTitle: "示例文档",
       paragraphs: [
         {
           id: "p3",
-          markdown: "作者提出要用检索增强生成提升准确率，并强调评测闭环。",
+          markdown: "作者提出要用检索增强生成提升准确率，并强调评测闭环。"
         },
         {
           id: "p4",
-          markdown: "最后建议先做小范围试点，再逐步扩展。",
+          markdown: "最后建议先做小范围试点，再逐步扩展。"
         },
         {
           id: "p5",
-          markdown: "这段已经有 **现有加粗** 内容。",
-        },
-      ],
+          markdown: "这段已经有 **现有加粗** 内容。"
+        }
+      ]
     });
     expect(askConfirm).toHaveBeenCalledTimes(1);
     expect(String(askConfirm.mock.calls[0]?.[1] || "")).toContain("AI 判定可标记 2 段关键内容");
@@ -1378,21 +1375,21 @@ describe("action-runner loading guard", () => {
   test("shows key-content detail items from highlighted fragments", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "示例文档",
+      title: "示例文档"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       {
         id: "p1",
         type: "p",
         markdown: "作者提出要用检索增强生成提升准确率，并强调评测闭环。普通背景介绍。",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     detectKeyContentParagraphHighlightsMock.mockResolvedValue([
       {
         paragraphId: "p1",
-        highlights: ["检索增强生成", "评测闭环"],
-      },
+        highlights: ["检索增强生成", "评测闭环"]
+      }
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
@@ -1405,8 +1402,8 @@ describe("action-runner loading guard", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
-      }),
+        requestTimeoutSeconds: 45
+      })
     } as any);
 
     await runner.runAction("mark-key-content" as any);
@@ -1417,14 +1414,14 @@ describe("action-runner loading guard", () => {
     );
     expect(askConfirm.mock.calls[0]?.[2]).toEqual([
       { label: "检索增强生成" },
-      { label: "评测闭环" },
+      { label: "评测闭环" }
     ]);
   });
 
   test("matches key-content fragments when AI output differs only by spacing", async () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
-      title: "示例文档",
+      title: "示例文档"
     } as any);
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "p1", type: "tb", markdown: "---", resolved: true } as any,
@@ -1432,14 +1429,14 @@ describe("action-runner loading guard", () => {
         id: "p2",
         type: "p",
         markdown: "最后建议先做小范围试点，再逐步扩展。",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     detectKeyContentParagraphHighlightsMock.mockResolvedValue([
       {
         paragraphId: "p2",
-        highlights: ["小范围 试点"],
-      },
+        highlights: ["小范围 试点"]
+      }
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
@@ -1452,8 +1449,8 @@ describe("action-runner loading guard", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
-      }),
+        requestTimeoutSeconds: 45
+      })
     } as any);
 
     await runner.runAction("mark-key-content" as any);
@@ -1472,7 +1469,7 @@ describe("action-runner loading guard", () => {
       id: "doc-1",
       box: "notebook-1",
       hPath: "/项目/当前文档",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     createDocWithMdMock.mockResolvedValue("summary-doc");
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
@@ -1487,30 +1484,30 @@ describe("action-runner loading guard", () => {
                   title: "当前文档",
                   model: {
                     notebookId: "notebook-1",
-                    rootId: "doc-1",
-                  },
+                    rootId: "doc-1"
+                  }
                 },
                 {
                   pin: true,
                   title: "已钉住文档",
                   model: {
                     notebookId: "notebook-1",
-                    rootId: "doc-pinned",
-                  },
+                    rootId: "doc-pinned"
+                  }
                 },
                 {
                   pin: false,
                   title: "资料页",
                   model: {
                     notebookId: "notebook-1",
-                    rootId: "doc-2",
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      },
+                    rootId: "doc-2"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
     };
     const runner = createRunner();
 
@@ -1536,7 +1533,7 @@ describe("action-runner loading guard", () => {
       id: "doc-1",
       box: "notebook-1",
       hPath: "/项目/当前文档",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     generateDocumentConceptMapMock.mockResolvedValue(
       "- 核心主题：概括当前文档主题。\n  - 关键概念：补充主要概念间关系。"
@@ -1554,11 +1551,11 @@ describe("action-runner loading guard", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentTitle: "当前文档",
       documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
-      relatedDocuments: [],
+      relatedDocuments: []
     });
     expect(createDocWithMdMock).toHaveBeenCalledWith(
       "notebook-1",
@@ -1581,7 +1578,7 @@ describe("action-runner loading guard", () => {
       id: "doc-1",
       box: "notebook-1",
       hPath: "/项目/当前文档",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     generateDocumentConceptMapMock.mockResolvedValue("- 核心主题：概括当前文档主题。");
     createDocWithMdMock.mockResolvedValue("concept-doc");
@@ -1611,7 +1608,7 @@ describe("action-runner loading guard", () => {
       id: "doc-1",
       box: "notebook-1",
       hPath: "/项目/当前文档",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     generateDocumentConceptMapMock.mockResolvedValue("- 核心主题：概括当前文档主题。");
     createDocWithMdMock.mockResolvedValue("concept-doc");
@@ -1636,14 +1633,14 @@ describe("action-runner loading guard", () => {
         id: "a",
         type: "p",
         markdown: "- [Doc A](siyuan://blocks/20260101101010-abcdef1)",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "b",
         type: "p",
         markdown: '- ((20260202121212-bcdefg2 "Doc B"))',
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     const runner = createRunner();
 
@@ -1663,14 +1660,14 @@ describe("action-runner loading guard", () => {
         id: "a",
         type: "p",
         markdown: "- [Doc A](siyuan://blocks/20260101101010-abcdef1)",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(false);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-links-refs" as any);
@@ -1686,14 +1683,14 @@ describe("action-runner loading guard", () => {
         id: "a",
         type: "p",
         markdown: '- ((20260101101010-abcdef1 "Doc A"))',
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "b",
         type: "p",
         markdown: "- ((20260202121212-bcdefg2))",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     const runner = createRunner();
 
@@ -1719,27 +1716,27 @@ describe("action-runner loading guard", () => {
         id: "a",
         type: "p",
         markdown: "正文 <sup>1</sup> ^^ [外链](https://example.com/a)",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "b",
         type: "p",
         markdown: "| col1 | [官网](https://example.com) |",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "c",
         type: "p",
         markdown: "保留 [Doc](siyuan://blocks/20260101101010-abcdef1)",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-ai-output" as any);
@@ -1769,14 +1766,14 @@ describe("action-runner loading guard", () => {
         id: "a",
         type: "p",
         markdown: "正文\n---",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "b",
         type: "b",
         markdown: "---",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
@@ -1784,7 +1781,7 @@ describe("action-runner loading guard", () => {
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-ai-output" as any);
@@ -1808,14 +1805,14 @@ describe("action-runner loading guard", () => {
         id: "a",
         type: "p",
         markdown: "正文 <sup>1</sup> ^^ [外链](https://example.com/a)",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(false);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-ai-output" as any);
@@ -1832,15 +1829,15 @@ describe("action-runner loading guard", () => {
         type: "p",
         markdown:
           "- [Invalid Link](siyuan://blocks/20260101101010-abcdef1)\n- [Valid Link](siyuan://blocks/20260202121212-bcdefg2)",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "b",
         type: "p",
         markdown:
           "- ((20260303131313-cdefgh3))\n- [[20260404141414-defghi4]]",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     getDocMetaByIDMock.mockImplementation(async (id: string) => {
       if (id === "20260202121212-bcdefg2") {
@@ -1852,7 +1849,7 @@ describe("action-runner loading guard", () => {
           path: "/x.sy",
           hPath: "/Valid",
           updated: "2026-01-01",
-          title: "Valid",
+          title: "Valid"
         } as any;
       }
       return null;
@@ -1889,7 +1886,7 @@ describe("action-runner loading guard", () => {
       failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
-      totalSavedBytes: 2048,
+      totalSavedBytes: 2048
     });
     const runner = createRunner();
 
@@ -1930,7 +1927,7 @@ describe("action-runner loading guard", () => {
       failedBlockCount: 0,
       replacedLinkCount: 1,
       updatedBlockCount: 1,
-      totalSavedBytes: 1024,
+      totalSavedBytes: 1024
     });
     await flushMicrotasks();
 
@@ -1951,7 +1948,7 @@ describe("action-runner loading guard", () => {
       failedBlockCount: 0,
       replacedLinkCount: 2,
       updatedBlockCount: 1,
-      totalSavedBytes: 0,
+      totalSavedBytes: 0
     });
     const runner = createRunner();
 
@@ -1974,7 +1971,7 @@ describe("action-runner loading guard", () => {
       failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
-      totalSavedBytes: 1536,
+      totalSavedBytes: 1536
     });
     const runner = createRunner();
 
@@ -1998,7 +1995,7 @@ describe("action-runner loading guard", () => {
       failedBlockCount: 0,
       replacedLinkCount: 79,
       updatedBlockCount: 66,
-      totalSavedBytes: 158293504,
+      totalSavedBytes: 158293504
     });
     const runner = createRunner();
 
@@ -2021,7 +2018,7 @@ describe("action-runner loading guard", () => {
       failedBlockCount: 1,
       replacedLinkCount: 2,
       updatedBlockCount: 1,
-      totalSavedBytes: 2048,
+      totalSavedBytes: 2048
     });
     const runner = createRunner();
 
@@ -2043,7 +2040,7 @@ describe("action-runner loading guard", () => {
       failedBlockCount: 1,
       replacedLinkCount: 2,
       updatedBlockCount: 1,
-      totalSavedBytes: 0,
+      totalSavedBytes: 0
     });
     const runner = createRunner();
 
@@ -2065,7 +2062,7 @@ describe("action-runner loading guard", () => {
       failedBlockCount: 1,
       replacedLinkCount: 2,
       updatedBlockCount: 1,
-      totalSavedBytes: 1536,
+      totalSavedBytes: 1536
     });
     const runner = createRunner();
 
@@ -2083,7 +2080,7 @@ describe("action-runner loading guard", () => {
       scannedImageLinkCount: 3,
       removedLinkCount: 3,
       updatedBlockCount: 2,
-      failedBlockCount: 0,
+      failedBlockCount: 0
     });
     const runner = createRunner();
 
@@ -2105,7 +2102,7 @@ describe("action-runner loading guard", () => {
       isMobile: () => false,
       resolveDocId: () => "doc-1",
       askConfirm,
-      setBusy,
+      setBusy
     } as any);
 
     await runner.runAction("move-backlinks");
@@ -2118,13 +2115,13 @@ describe("action-runner loading guard", () => {
     getBacklinkDocsMock.mockResolvedValue([
       { id: "doc-a", title: "A" } as any,
       { id: "doc-b", title: "B" } as any,
-      { id: "doc-c", title: "C" } as any,
+      { id: "doc-c", title: "C" } as any
     ]);
     moveDocsAsChildrenMock.mockResolvedValue({
       successIds: ["doc-a"],
       skippedIds: ["doc-c"],
       renamed: [{ id: "doc-a", title: "A(1)" }],
-      failed: [{ id: "doc-b", error: "locked" }],
+      failed: [{ id: "doc-b", error: "locked" }]
     });
     const runner = createRunner();
 
@@ -2142,7 +2139,7 @@ describe("action-runner loading guard", () => {
       isMobile: () => false,
       resolveDocId: () => "doc-1",
       askConfirm,
-      setBusy,
+      setBusy
     } as any);
 
     await runner.runAction("move-forward-links");
@@ -2157,7 +2154,7 @@ describe("action-runner loading guard", () => {
       successIds: ["doc-a"],
       skippedIds: ["doc-c"],
       renamed: [{ id: "doc-a", title: "A(1)" }],
-      failed: [{ id: "doc-b", error: "locked" }],
+      failed: [{ id: "doc-b", error: "locked" }]
     });
     const runner = createRunner();
 
@@ -2176,9 +2173,9 @@ describe("action-runner loading guard", () => {
         score: 0.95,
         docs: [
           { id: "doc-a", title: "A", updated: "2026-02-25", hPath: "/A" },
-          { id: "doc-b", title: "B", updated: "2026-02-24", hPath: "/B" },
-        ],
-      } as any,
+          { id: "doc-b", title: "B", updated: "2026-02-24", hPath: "/B" }
+        ]
+      } as any
     ]);
     const runner = createRunner();
 
@@ -2192,7 +2189,7 @@ describe("action-runner loading guard", () => {
     dialogArgs.onOpenAll([
       { id: "doc-a", title: "A" },
       { id: "doc-a", title: "A (dup)" },
-      { id: "doc-b", title: "B" },
+      { id: "doc-b", title: "B" }
     ]);
     vi.runAllTimers();
     expect(openSpy).toHaveBeenCalledTimes(2);
@@ -2201,7 +2198,7 @@ describe("action-runner loading guard", () => {
     await dialogArgs.onInsertLinks([
       { id: "doc-a", title: "A" },
       { id: "doc-a", title: "A (dup)" },
-      { id: "doc-b", title: "B" },
+      { id: "doc-b", title: "B" }
     ]);
     expect(appendBlockMock).toHaveBeenCalledWith(
       "## 重复候选文档\n\n- [A](siyuan://blocks/doc-a)\n- [B](siyuan://blocks/doc-b)",
@@ -2218,7 +2215,7 @@ describe("action-runner loading guard", () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", markdown: "hello  \nworld\t", resolved: true } as any,
       { id: "b", type: "p", markdown: "clean", resolved: true } as any,
-      { id: "c", type: "p", markdown: "skip", resolved: false } as any,
+      { id: "c", type: "p", markdown: "skip", resolved: false } as any
     ]);
     const runner = createRunner();
 
@@ -2232,7 +2229,7 @@ describe("action-runner loading guard", () => {
   test("shows no-op message when no trailing whitespace exists", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any,
-      { id: "b", type: "h", markdown: "## title", resolved: true } as any,
+      { id: "b", type: "h", markdown: "## title", resolved: true } as any
     ]);
     const runner = createRunner();
 
@@ -2245,7 +2242,7 @@ describe("action-runner loading guard", () => {
 
   test("trims trailing whitespace from kramdown when sql markdown is normalized", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any,
+      { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any
     ]);
     getBlockKramdownsMock
       .mockResolvedValueOnce([{ id: "a", kramdown: "hello  \nworld\t" } as any])
@@ -2265,20 +2262,20 @@ describe("action-runner loading guard", () => {
         id: "a",
         type: "p",
         markdown: "原文<sup>（备注内容）</sup>   ",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     getBlockKramdownsMock.mockResolvedValueOnce([
       {
         id: "a",
-        kramdown: "原文<sup>（备注内容）</sup>   \n{: id=\"20260224194151-abc1234\"}",
-      } as any,
+        kramdown: "原文<sup>（备注内容）</sup>   \n{: id=\"20260224194151-abc1234\"}"
+      } as any
     ]);
     getBlockDOMsMock.mockResolvedValueOnce([
       {
         id: "a",
-        dom: '<div data-node-id="a" data-type="NodeParagraph" class="p"><div contenteditable="true" spellcheck="false">原文<span data-type="inline-memo" data-inline-memo-content="备注内容">内容</span>   </div><div class="protyle-attr" contenteditable="false"></div></div>',
-      } as any,
+        dom: '<div data-node-id="a" data-type="NodeParagraph" class="p"><div contenteditable="true" spellcheck="false">原文<span data-type="inline-memo" data-inline-memo-content="备注内容">内容</span>   </div><div class="protyle-attr" contenteditable="false"></div></div>'
+      } as any
     ]);
     const runner = createRunner();
 
@@ -2296,7 +2293,7 @@ describe("action-runner loading guard", () => {
 
   test("keeps leading spaces from sql markdown when kramdown is normalized", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "a", type: "p", markdown: "  hello  \n    world\t", resolved: true } as any,
+      { id: "a", type: "p", markdown: "  hello  \n    world\t", resolved: true } as any
     ]);
     getBlockKramdownsMock
       .mockResolvedValueOnce([{ id: "a", kramdown: "hello  \nworld\t" } as any])
@@ -2312,10 +2309,10 @@ describe("action-runner loading guard", () => {
 
   test("does not trigger verification reads when batch source has no trailing whitespace", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any,
+      { id: "a", type: "p", markdown: "hello\nworld", resolved: true } as any
     ]);
     getBlockKramdownsMock.mockResolvedValue([
-      { id: "a", kramdown: "hello\nworld" } as any,
+      { id: "a", kramdown: "hello\nworld" } as any
     ]);
     const runner = createRunner();
 
@@ -2329,7 +2326,7 @@ describe("action-runner loading guard", () => {
 
   test("retries update when batch verification still finds trailing whitespace", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "a", type: "p", markdown: "text", resolved: true } as any,
+      { id: "a", type: "p", markdown: "text", resolved: true } as any
     ]);
     getBlockKramdownsMock
       .mockResolvedValueOnce([{ id: "a", kramdown: "text\\t{: style=\"white-space:pre\"}" } as any])
@@ -2348,10 +2345,10 @@ describe("action-runner loading guard", () => {
     setDocAssistantDebugEnabled(true);
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "a", type: "p", markdown: "text", resolved: true } as any,
+      { id: "a", type: "p", markdown: "text", resolved: true } as any
     ]);
     getBlockKramdownsMock.mockResolvedValue([
-      { id: "a", kramdown: "text\\t{: style=\"white-space:pre\"}" } as any,
+      { id: "a", kramdown: "text\\t{: style=\"white-space:pre\"}" } as any
     ]);
     const runner = createRunner();
 
@@ -2370,7 +2367,7 @@ describe("action-runner loading guard", () => {
 
   test("preserves block-level IAL (memo) when cleaning trailing whitespace", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "a", type: "p", markdown: "hello", resolved: true } as any,
+      { id: "a", type: "p", markdown: "hello", resolved: true } as any
     ]);
     getBlockKramdownsMock
       .mockResolvedValueOnce([{ id: "a", kramdown: 'hello   \n{: id="20260224194151-abc1234" memo="my note"}' } as any])
@@ -2393,11 +2390,11 @@ describe("action-runner loading guard", () => {
         id: "a",
         type: "p",
         markdown: '((20260224194151-abc1234)){: style="white-space:pre"}text  ',
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     getBlockKramdownsMock.mockResolvedValueOnce([
-      { id: "a", kramdown: '((20260224194151-abc1234)){: style="white-space:pre"}text  ' } as any,
+      { id: "a", kramdown: '((20260224194151-abc1234)){: style="white-space:pre"}text  ' } as any
     ]);
     const runner = createRunner();
 
@@ -2411,7 +2408,7 @@ describe("action-runner loading guard", () => {
     getChildBlockRefsByParentIdMock.mockResolvedValue([
       { id: "a", type: "p" } as any,
       { id: "b", type: "p" } as any,
-      { id: "c", type: "h" } as any,
+      { id: "c", type: "h" } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({ deletedCount: 2, failedIds: [] });
     const runner = createRunner();
@@ -2429,11 +2426,11 @@ describe("action-runner loading guard", () => {
     getChildBlockRefsByParentIdMock.mockResolvedValue([
       { id: "a", type: "p" } as any,
       { id: "b", type: "p" } as any,
-      { id: "c", type: "p" } as any,
+      { id: "c", type: "p" } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({ deletedCount: 2, failedIds: [] });
     getActiveEditorMock.mockReturnValue({
-      protyle: { block: { id: "b" } },
+      protyle: { block: { id: "b" } }
     });
     const runner = createRunner();
 
@@ -2446,7 +2443,7 @@ describe("action-runner loading guard", () => {
     getChildBlockRefsByParentIdMock.mockResolvedValue([
       { id: "a", type: "p" } as any,
       { id: "b", type: "l" } as any,
-      { id: "c", type: "p" } as any,
+      { id: "c", type: "p" } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({ deletedCount: 2, failedIds: [] });
     resolveDocDirectChildBlockIdMock.mockResolvedValue("b");
@@ -2463,11 +2460,11 @@ describe("action-runner loading guard", () => {
     getChildBlockRefsByParentIdMock.mockResolvedValue([
       { id: "a", type: "p" } as any,
       { id: "b", type: "p" } as any,
-      { id: "c", type: "p" } as any,
+      { id: "c", type: "p" } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({ deletedCount: 2, failedIds: [] });
     getActiveEditorMock.mockReturnValue({
-      protyle: { block: { id: "b" } },
+      protyle: { block: { id: "b" } }
     });
     const runner = createRunner();
     const protyle = { block: { rootID: "doc-1", id: "doc-1" } } as any;
@@ -2480,10 +2477,10 @@ describe("action-runner loading guard", () => {
   test("shows locate error when both provided and active ids are doc id", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", content: "A", markdown: "A", resolved: true } as any,
-      { id: "b", type: "p", content: "B", markdown: "B", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "B", resolved: true } as any
     ]);
     getActiveEditorMock.mockReturnValue({
-      protyle: { block: { id: "doc-1" } },
+      protyle: { block: { id: "doc-1" } }
     });
     const runner = createRunner();
     const protyle = { block: { rootID: "doc-1", id: "doc-1" } } as any;
@@ -2503,7 +2500,7 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
       { id: "a", kramdown: "Hello" } as any,
-      { id: "b", kramdown: "# Title {: id=\"b\"}" } as any,
+      { id: "b", kramdown: "# Title {: id=\"b\"}" } as any
     ]);
     const runner = createRunner();
 
@@ -2521,13 +2518,13 @@ describe("action-runner loading guard", () => {
     `;
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
-      { id: "a", kramdown: "Hello" } as any,
+      { id: "a", kramdown: "Hello" } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(false);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
@@ -2546,13 +2543,13 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
       { id: "a", kramdown: "Hello" } as any,
-      { id: "b", kramdown: "**World**" } as any,
+      { id: "b", kramdown: "**World**" } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("bold-selected-blocks" as any, undefined, protyle);
@@ -2571,14 +2568,14 @@ describe("action-runner loading guard", () => {
       { id: "h1", type: "h", markdown: "# **标题一**", resolved: true } as any,
       { id: "p1", type: "p", markdown: "正文", resolved: true } as any,
       { id: "h2", type: "h", markdown: "## 普通 **标题二**", resolved: true } as any,
-      { id: "h3", type: "h", markdown: "### 标题三", resolved: true } as any,
+      { id: "h3", type: "h", markdown: "### 标题三", resolved: true } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-heading-bold" as any);
@@ -2598,14 +2595,14 @@ describe("action-runner loading guard", () => {
   test("adds bold to all heading blocks when none of them are bold", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "h1", type: "h", markdown: "# 标题一", resolved: true } as any,
-      { id: "h2", type: "h", markdown: "## 标题二 {: id=\"h2\"}", resolved: true } as any,
+      { id: "h2", type: "h", markdown: "## 标题二 {: id=\"h2\"}", resolved: true } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-heading-bold" as any);
@@ -2624,7 +2621,7 @@ describe("action-runner loading guard", () => {
     `;
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
-      { id: "a", kramdown: "Hello **World**" } as any,
+      { id: "a", kramdown: "Hello **World**" } as any
     ]);
     const runner = createRunner();
 
@@ -2643,7 +2640,7 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
       { id: "a", kramdown: "**Hello**" } as any,
-      { id: "b", kramdown: "# **Title** {: id=\"b\"}" } as any,
+      { id: "b", kramdown: "# **Title** {: id=\"b\"}" } as any
     ]);
     const runner = createRunner();
 
@@ -2670,15 +2667,15 @@ describe("action-runner loading guard", () => {
         type: "NodeList",
         content: "C",
         markdown: "- 第三项\n  1. 第四项\n    第四项说明",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("merge-selected-list-blocks" as any, undefined, protyle);
@@ -2706,13 +2703,13 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", content: "A", markdown: "第一段", resolved: true } as any,
-      { id: "b", type: "p", content: "B", markdown: "第二段", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "第二段", resolved: true } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(false);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("merge-selected-list-blocks" as any, undefined, protyle);
@@ -2732,8 +2729,8 @@ describe("action-runner loading guard", () => {
     getBlockKramdownsMock.mockResolvedValue([
       {
         id: "g",
-        kramdown: '补充对应测试。 {: id="20260225233926-3sosz6b" updated="20260225233926"}',
-      } as any,
+        kramdown: '补充对应测试。 {: id="20260225233926-3sosz6b" updated="20260225233926"}'
+      } as any
     ]);
     const runner = createRunner();
 
@@ -2750,7 +2747,7 @@ describe("action-runner loading guard", () => {
     `;
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
-      { id: "c", kramdown: "- item" } as any,
+      { id: "c", kramdown: "- item" } as any
     ]);
     const runner = createRunner();
 
@@ -2767,7 +2764,7 @@ describe("action-runner loading guard", () => {
     `;
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
-      { id: "c", kramdown: "==item==" } as any,
+      { id: "c", kramdown: "==item==" } as any
     ]);
     const runner = createRunner();
 
@@ -2786,13 +2783,13 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
       { id: "a", kramdown: "item" } as any,
-      { id: "b", kramdown: "==kept==" } as any,
+      { id: "b", kramdown: "==kept==" } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("highlight-selected-blocks" as any, undefined, protyle);
@@ -2934,7 +2931,7 @@ describe("action-runner loading guard", () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "b1", markdown: "标题 🚀", type: "p" } as any,
       { id: "b2", markdown: "普通段落", type: "p" } as any,
-      { id: "b3", markdown: "完成 ✅", type: "p" } as any,
+      { id: "b3", markdown: "完成 ✅", type: "p" } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
 
@@ -3025,7 +3022,7 @@ describe("action-runner loading guard", () => {
     `;
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
-      { id: "d", kramdown: "Text" } as any,
+      { id: "d", kramdown: "Text" } as any
     ]);
     const runner = createRunner();
 
@@ -3058,7 +3055,7 @@ describe("action-runner loading guard", () => {
     `;
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getBlockKramdownsMock.mockResolvedValue([
-      { id: "f", kramdown: "hello" } as any,
+      { id: "f", kramdown: "hello" } as any
     ]);
     updateBlockMarkdownMock.mockRejectedValue(new Error("readonly mode"));
     const runner = createRunner();
@@ -3078,14 +3075,14 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", content: "A", markdown: "第一行\n第二行", resolved: true } as any,
-      { id: "b", type: "p", content: "B", markdown: "保持不变", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "保持不变", resolved: true } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-linebreaks-paragraphs" as any, undefined, protyle);
@@ -3106,13 +3103,13 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", content: "A", markdown: "第一行\n第二行", resolved: true } as any,
-      { id: "b", type: "p", content: "B", markdown: "第二段", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "第二段", resolved: true } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-linebreaks-paragraphs" as any, undefined, protyle);
@@ -3135,13 +3132,13 @@ describe("action-runner loading guard", () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", content: "A", markdown: "第一段", resolved: true } as any,
       { id: "b", type: "p", content: "B", markdown: "第二段", resolved: true } as any,
-      { id: "c", type: "h", content: "C", markdown: "# 标题", resolved: true } as any,
+      { id: "c", type: "h", content: "C", markdown: "# 标题", resolved: true } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-linebreaks-paragraphs" as any, undefined, protyle);
@@ -3163,13 +3160,13 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "NodeParagraph", content: "A", markdown: "第一段", resolved: false } as any,
-      { id: "b", type: "NodeParagraph", content: "B", markdown: "第二段", resolved: false } as any,
+      { id: "b", type: "NodeParagraph", content: "B", markdown: "第二段", resolved: false } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-linebreaks-paragraphs" as any, undefined, protyle);
@@ -3191,13 +3188,13 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "i", content: "A", markdown: "- 第一项", resolved: true } as any,
-      { id: "b", type: "i", content: "B", markdown: "- 第二项", resolved: true } as any,
+      { id: "b", type: "i", content: "B", markdown: "- 第二项", resolved: true } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-linebreaks-paragraphs" as any, undefined, protyle);
@@ -3219,13 +3216,13 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "NodeListItem", content: "A", markdown: "1. 第一项", resolved: false } as any,
-      { id: "b", type: "NodeListItem", content: "B", markdown: "2. 第二项", resolved: false } as any,
+      { id: "b", type: "NodeListItem", content: "B", markdown: "2. 第二项", resolved: false } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-linebreaks-paragraphs" as any, undefined, protyle);
@@ -3245,15 +3242,15 @@ describe("action-runner loading guard", () => {
         type: "l",
         content: "",
         markdown: "- • 第一项\n- • 第二项",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-clipped-list-prefixes" as any);
@@ -3271,15 +3268,15 @@ describe("action-runner loading guard", () => {
         type: "l",
         content: "",
         markdown: "1. 1. 第一项\n2. 2. 第二项",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-clipped-list-prefixes" as any);
@@ -3297,26 +3294,26 @@ describe("action-runner loading guard", () => {
         type: "p",
         content: "-",
         markdown: "- ",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "content-1",
         type: "p",
         content: "第一项内容",
         markdown: "第一项内容",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({
       deletedCount: 1,
-      failedIds: [],
+      failedIds: []
     });
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-clipped-list-prefixes" as any);
@@ -3335,26 +3332,26 @@ describe("action-runner loading guard", () => {
         type: "p",
         content: "•",
         markdown: "•",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "content-1",
         type: "p",
         content: "第一项内容",
         markdown: "第一项内容 ",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({
       deletedCount: 1,
-      failedIds: [],
+      failedIds: []
     });
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-clipped-list-prefixes" as any);
@@ -3370,15 +3367,15 @@ describe("action-runner loading guard", () => {
         type: "p",
         content: "",
         markdown: "Thank you for the donation you have made recently! We are truly grateful for your support, and without your help it wouldn't be possible to develop the project. We hope that our library can become something greater for you than just a resource with files.感谢您最近的捐赠！我们由衷感激您的支持，没有您的帮助，这个项目就无法开展。我们希望我们的图书馆对您而言，不仅仅是一个文件资源库，还能成为更有价值的存在。",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "b",
         type: "p",
         content: "",
         markdown: "下一段",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     insertBlockBeforeMock.mockResolvedValue(undefined);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
@@ -3386,7 +3383,7 @@ describe("action-runner loading guard", () => {
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-clipped-list-prefixes" as any);
@@ -3417,8 +3414,8 @@ describe("action-runner loading guard", () => {
         type: "p",
         content: "",
         markdown: "Thank you for the donation you have made recently! We are truly grateful for your support.感谢您最近的捐赠！我们由衷感激您的支持。",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     appendBlockMock.mockResolvedValue(undefined);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
@@ -3426,7 +3423,7 @@ describe("action-runner loading guard", () => {
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-clipped-list-prefixes" as any);
@@ -3448,37 +3445,37 @@ describe("action-runner loading guard", () => {
         id: "q1",
         type: "b",
         markdown: "> 引用的第一段",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "blank1",
         type: "p",
         markdown: "",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "q2",
         type: "b",
         markdown: "> 引用的第二段",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "code1",
         type: "c",
         markdown: "```js\n```",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({
       deletedCount: 3,
-      failedIds: [],
+      failedIds: []
     });
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-clipped-list-prefixes" as any);
@@ -3489,7 +3486,7 @@ describe("action-runner loading guard", () => {
       expect.stringContaining("合并连续引用 1 处 删除无内容代码块 1 个 是否继续？"),
       expect.arrayContaining([
         expect.objectContaining({ id: "quote-merge", label: "合并连续引用 1 处", selectable: true, selected: true }),
-        expect.objectContaining({ id: "empty-code", label: "删除无内容代码块 1 个", selectable: true, selected: true }),
+        expect.objectContaining({ id: "empty-code", label: "删除无内容代码块 1 个", selectable: true, selected: true })
       ])
     );
     expect(updateBlockMarkdownMock).toHaveBeenCalledWith(
@@ -3510,30 +3507,30 @@ describe("action-runner loading guard", () => {
         id: "q1",
         type: "b",
         markdown: "> 引用的第一段",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "blank1",
         type: "p",
         markdown: "",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "q2",
         type: "b",
         markdown: "> 引用的第二段",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "code1",
         type: "c",
         markdown: "```js\n```",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     deleteBlocksByIdsMock.mockResolvedValue({
       deletedCount: 1,
-      failedIds: [],
+      failedIds: []
     });
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     // User unchecks quote-merge and only keeps empty-code checked
@@ -3550,7 +3547,7 @@ describe("action-runner loading guard", () => {
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("clean-clipped-list-prefixes" as any);
@@ -3571,29 +3568,29 @@ describe("action-runner loading guard", () => {
         type: "p",
         content: "",
         markdown: "保留前文 ~~删除这里~~ 保留后文",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "b",
         type: "p",
         content: "",
         markdown: "没有删除线",
-        resolved: true,
+        resolved: true
       } as any,
       {
         id: "c",
         type: "p",
         content: "",
         markdown: "- 列表 ~~去掉~~ 项",
-        resolved: true,
-      } as any,
+        resolved: true
+      } as any
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("remove-strikethrough-marked-content" as any);
@@ -3615,13 +3612,13 @@ describe("action-runner loading guard", () => {
     const protyle = { block: { rootID: "doc-1" }, wysiwyg: { element: root } } as any;
     getChildBlocksByParentIdMock.mockResolvedValue([
       { id: "a", type: "p", content: "A", markdown: "第一段", resolved: true } as any,
-      { id: "b", type: "p", content: "B", markdown: "第二段", resolved: true } as any,
+      { id: "b", type: "p", content: "B", markdown: "第二段", resolved: true } as any
     ]);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     await runner.runAction("toggle-linebreaks-paragraphs" as any, undefined, protyle);
@@ -3634,14 +3631,14 @@ describe("action-runner loading guard", () => {
 
   test("skips confirmation dialog when context provides skipConfirm or confirmed true", async () => {
     getChildBlocksByParentIdMock.mockResolvedValue([
-      { id: "a", type: "p", markdown: "段落 1 ~~待删~~ 结束", resolved: true } as any,
+      { id: "a", type: "p", markdown: "段落 1 ~~待删~~ 结束", resolved: true } as any
     ]);
     updateBlockMarkdownMock.mockResolvedValue(undefined);
     const askConfirm = vi.fn().mockResolvedValue(true);
     const runner = new ActionRunner({
       isMobile: () => false,
       resolveDocId: () => "doc-1",
-      askConfirm,
+      askConfirm
     } as any);
 
     // 1. skipConfirm: true 时跳过弹窗确认
@@ -3649,7 +3646,7 @@ describe("action-runner loading guard", () => {
       trigger: "button-click",
       sourcePlugin: "siyuan-mate",
       docId: "doc-1",
-      skipConfirm: true,
+      skipConfirm: true
     });
 
     expect(askConfirm).not.toHaveBeenCalled();
@@ -3660,7 +3657,7 @@ describe("action-runner loading guard", () => {
       trigger: "button-click",
       sourcePlugin: "siyuan-mate",
       docId: "doc-1",
-      confirmed: true,
+      confirmed: true
     });
 
     expect(askConfirm).not.toHaveBeenCalled();

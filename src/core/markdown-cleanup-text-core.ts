@@ -96,7 +96,7 @@ export function removeTrailingWhitespaceFromMarkdown(
     return {
       markdown: "",
       changedLines: 0,
-      removedChars: 0,
+      removedChars: 0
     };
   }
 
@@ -105,7 +105,7 @@ export function removeTrailingWhitespaceFromMarkdown(
   let changedLines = 0;
   let removedChars = 0;
   const trailingWhitespaceSpanIalPattern =
-    /<span\b[^>\n]*\bstyle=(["'])[^"'\n]*white-space\s*:\s*pre\b[^"'\n]*\1[^>\n]*>((?:[^\S\r\n]|\\t|\\u0009|\\x09)*)<\/span>\s*\{:[^}\n]*white-space\s*:\s*pre\b[^}\n]*\}(?=(?:[^\S\r\n]*\{:[^}\n]*\})*[^\S\r\n]*$)/giu;
+    /<span\b[^>\n]+\bstyle=(["'])[^"'\n]*white-space\s*:\s*pre\b[^"'\n]*\1[^>\n]*>((?:[^\S\r\n]|\\t|\\u0009|\\x09)*)<\/span>\s*\{:[^}\n]*white-space\s*:\s*pre\b[^}\n]*\}(?=(?:[^\S\r\n]*\{:[^}\n]*\})*[^\S\r\n]*$)/giu;
   const trailingWhitespaceIalPattern =
     /((?:[^\S\r\n]|\\t|\\u0009|\\x09)*)\{:[^}\n]*white-space\s*:\s*pre\b[^}\n]*\}(?=(?:[^\S\r\n]*\{:[^}\n]*\})*[^\S\r\n]*$)/giu;
   const trailingHorizontalWhitespacePattern = /[^\S\r\n]+$/u;
@@ -172,7 +172,7 @@ export function removeTrailingWhitespaceFromMarkdown(
   return {
     markdown: output.join("\n"),
     changedLines,
-    removedChars,
+    removedChars
   };
 }
 
@@ -192,17 +192,17 @@ export function removeTrailingWhitespaceFromDom(dom: string): TrailingWhitespace
     return {
       dom: "",
       changedLines: 0,
-      removedChars: 0,
+      removedChars: 0
     };
   }
 
-  const editablePattern = /(<div\b[^>]*\bcontenteditable=(["'])true\2[^>]*>)([\s\S]*?)(<\/div>)/iu;
+  const editablePattern = /(<div\b[^>]+\bcontenteditable=(["'])true\2[^>]*>)([\s\S]*?)(<\/div>)/iu;
   const editableMatch = editablePattern.exec(dom);
   if (!editableMatch || editableMatch.index < 0) {
     return {
       dom,
       changedLines: 0,
-      removedChars: 0,
+      removedChars: 0
     };
   }
 
@@ -213,7 +213,7 @@ export function removeTrailingWhitespaceFromDom(dom: string): TrailingWhitespace
   let removedChars = 0;
   const trailingWhitespaceTokenPattern = /(?:[^\S\r\n]|&nbsp;|&#160;|&#xA0;)+$/iu;
   const trailingPreSpanPattern =
-    /<span\b[^>\n]*\bstyle=(["'])[^"'\n]*white-space\s*:\s*pre\b[^"'\n]*\1[^>\n]*>((?:[^\S\r\n]|&nbsp;|&#160;|&#xA0;)*)<\/span>((?:[^\S\r\n]|&nbsp;|&#160;|&#xA0;)*)$/iu;
+    /<span\b[^>\n]+\bstyle=(["'])[^"'\n]*white-space\s*:\s*pre\b[^"'\n]*\1[^>\n]*>((?:[^\S\r\n]|&nbsp;|&#160;|&#xA0;)*)<\/span>((?:[^\S\r\n]|&nbsp;|&#160;|&#xA0;)*)$/iu;
 
   let removedSpan = false;
   do {
@@ -239,7 +239,7 @@ export function removeTrailingWhitespaceFromDom(dom: string): TrailingWhitespace
     return {
       dom,
       changedLines: 0,
-      removedChars: 0,
+      removedChars: 0
     };
   }
 
@@ -248,7 +248,7 @@ export function removeTrailingWhitespaceFromDom(dom: string): TrailingWhitespace
   return {
     dom: `${head}${openTag}${nextInner}${closeTag}${tail}`,
     changedLines: 1,
-    removedChars,
+    removedChars
   };
 }
 
@@ -279,7 +279,7 @@ type SentenceChunkMeta = {
 const MARKDOWN_LINK_PATTERN = /!?\[([^\]]*)\]\([^)]+\)/g;
 const INLINE_MARKUP_PATTERN = /[*_~#>]+/g;
 const HTML_TAG_PATTERN = /<[^>]+>/g;
-const LATIN_LETTER_PATTERN = /[A-Za-z]/g;
+const LATIN_LETTER_PATTERN = /[A-Z]/gi;
 const HAN_CHAR_PATTERN = /\p{Script=Han}/gu;
 const BILINGUAL_SKIP_PATTERN = /`|https?:\/\/|www\./iu;
 const SENTENCE_END_CHARS = new Set([".", "!", "?", ";", "。", "！", "？", "；"]);
@@ -376,7 +376,7 @@ export function removeStrikethroughMarkedContentFromMarkdown(
   if (!markdown) {
     return {
       markdown: "",
-      removedCount: 0,
+      removedCount: 0
     };
   }
 
@@ -416,7 +416,7 @@ export function removeStrikethroughMarkedContentFromMarkdown(
 
   return {
     markdown: output.join("\n"),
-    removedCount,
+    removedCount
   };
 }
 
@@ -560,7 +560,7 @@ export function removeClippedListPrefixesFromMarkdown(
 
     // SQL markdown for clipped unordered lists is flattened to `- • text`.
     const flatUnorderedMatch = line.match(
-      new RegExp(`^(\\s*(?:[-*+]))\\s+(${bulletChars})\\s*(.*)$`)
+      new RegExp(`^(\\s*[-*+])\\s+(${bulletChars})\\s*(.*)$`)
     );
     if (flatUnorderedMatch) {
       out.push(`${flatUnorderedMatch[1]} ${flatUnorderedMatch[3]}`);
@@ -572,7 +572,7 @@ export function removeClippedListPrefixesFromMarkdown(
     // ── Case 1: unordered bullet duplicate ────────────────────────────────
     // Pattern: `(indent)(- )(IAL)(bullet_char)(optional_space)(rest)`
     const unorderedMatch = line.match(
-      new RegExp(`^(\\s*(?:[-*+]) \\{:[^}]*\\})\\s*(${bulletChars})\\s*(.*)$`)
+      new RegExp(`^(\\s*[-*+] \\{:[^}]*\\})\\s*(${bulletChars})\\s*(.*)$`)
     );
     if (unorderedMatch) {
       out.push(`${unorderedMatch[1]}${unorderedMatch[3]}`);
@@ -595,11 +595,11 @@ export function removeClippedListPrefixesFromMarkdown(
     // ── Case 2: ordered list — empty outer item wrapping a numbered sub-item
     // Outer: `(indent)(N. )(IAL)` with no trailing content
     // Next lines: `(indent+3)(N. )(IAL)(content)` then `(indent+6)(IAL)` then `(indent+3)(IAL)`
-    const orderedOuterMatch = line.match(/^(\s*)(\d+)[.)]{1} \{:[^}]*\}\s*$/);
+    const orderedOuterMatch = line.match(/^(\s*)(\d+)[.)] \{:[^}]*\}\s*$/);
     if (orderedOuterMatch) {
       const baseIndent = orderedOuterMatch[1];
       const outerNum = orderedOuterMatch[2];
-      const innerIndent = baseIndent + "   ";
+      const innerIndent = `${baseIndent}   `;
 
       // Peek ahead: next non-attr line should be the inner item
       let j = i + 1;
@@ -622,7 +622,7 @@ export function removeClippedListPrefixesFromMarkdown(
         removedCount += 1;
         i = j + 1; // skip outer header line + inner item line
 
-        const deeperIndent = innerIndent + "   ";
+        const deeperIndent = `${innerIndent}   `;
         // Copy continuation lines of the inner item (dedented by 3 spaces).
         // Stop before the outer item's trailing IAL (at innerIndent but not deeperIndent).
         while (i < lines.length) {

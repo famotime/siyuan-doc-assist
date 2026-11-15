@@ -3,7 +3,8 @@
  * 负责微信原文链接抽取、网页元数据解析、正文清理与 DOM 转 Markdown
  */
 
-import { sanitizeDocTitle, type WebArticleMeta } from "./web-clip-shared-core";
+import { sanitizeDocTitle } from "./web-clip-shared-core";
+import type { WebArticleMeta } from "./web-clip-shared-core";
 import { extractXFirstParagraphTitle, isXPostUrl } from "./x-post-core";
 
 /**
@@ -15,9 +16,9 @@ export function extractWechatOriginalLink(htmlContent: string): string | null {
   }
 
   const patterns = [
-    /原文链接\s*[：:]\s*(https:\/\/mp\.weixin\.qq\.com\/s\/[A-Za-z0-9_-]+)/i,
+    /原文链接\s*[：:]\s*(https:\/\/mp\.weixin\.qq\.com\/s\/[\w-]+)/i,
     /原文链接\s*[：:]\s*(https:\/\/mp\.weixin\.qq\.com\/s\?[^"'\s<>]+)/i,
-    /https:\/\/mp\.weixin\.qq\.com\/s\/[A-Za-z0-9_-]+/i,
+    /https:\/\/mp\.weixin\.qq\.com\/s\/[\w-]+/i
   ];
 
   for (const pattern of patterns) {
@@ -38,7 +39,6 @@ function getDocument(html: string): Document {
   if (typeof DOMParser !== "undefined") {
     return new DOMParser().parseFromString(html, "text/html");
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { JSDOM } = require("jsdom");
   return new JSDOM(html).window.document;
 }
@@ -140,7 +140,7 @@ export function extractWebMetadataFromHtml(html: string, pageUrl: string): WebAr
     description: description || undefined,
     author: author || undefined,
     publishTime: publishTime || undefined,
-    url: pageUrl,
+    url: pageUrl
   };
 }
 
@@ -169,7 +169,7 @@ export function cleanAndConvertHtmlToMarkdown(html: string, pageUrl: string): st
       ".article_content",
       ".article",
       "#article",
-      "#content",
+      "#content"
     ];
     for (const selector of contentSelectors) {
       const found = doc.querySelector(selector);
@@ -202,7 +202,7 @@ export function cleanAndConvertHtmlToMarkdown(html: string, pageUrl: string): st
     ".share-box",
     ".sidebar",
     ".comment-list",
-    ".comments",
+    ".comments"
   ];
   for (const sel of removeSelectors) {
     container.querySelectorAll(sel).forEach((el) => el.remove());
@@ -426,7 +426,7 @@ export function domNodeToMarkdown(node: Node): string {
 
           // 第一行后补充表头分割线
           if (rIndex === 0) {
-            const sep = Array(cells.length).fill("---").join(" | ");
+            const sep = Array.from({ length: cells.length }).fill("---").join(" | ");
             tableLines.push(`| ${sep} |`);
           }
         });

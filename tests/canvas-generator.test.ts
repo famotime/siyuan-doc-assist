@@ -15,12 +15,8 @@ function makeItem(
     blockSort: partial.blockSort ?? 0,
     order: partial.order ?? 0,
     listItem: partial.listItem,
-    listPrefix: partial.listPrefix,
+    listPrefix: partial.listPrefix
   };
-}
-
-function findRootNode(result: { nodes: Array<{ text: string }> }) {
-  return result.nodes.find((n) => n.text.startsWith("**")) ?? result.nodes[0];
 }
 
 describe("buildCanvasFromKeyInfoItems", () => {
@@ -33,7 +29,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
 
   test("single heading becomes child of root", () => {
     const items = [
-      makeItem({ type: "title", text: "Introduction", raw: "## Introduction", blockSort: 0, order: 0 }),
+      makeItem({ type: "title", text: "Introduction", raw: "## Introduction", blockSort: 0, order: 0 })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "Doc");
     expect(result.nodes).toHaveLength(2);
@@ -48,7 +44,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
     const items = [
       makeItem({ type: "title", text: "Chapter 1", raw: "# Chapter 1", blockSort: 0, order: 0 }),
       makeItem({ type: "bold", text: "Key point", raw: "**Key point**", blockSort: 1, order: 1 }),
-      makeItem({ type: "highlight", text: "Important", raw: "==Important==", blockSort: 2, order: 2 }),
+      makeItem({ type: "highlight", text: "Important", raw: "==Important==", blockSort: 2, order: 2 })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "Book");
     expect(result.nodes).toHaveLength(2);
@@ -62,7 +58,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
     const items = [
       makeItem({ type: "title", text: "H1", raw: "# H1", blockSort: 0, order: 0 }),
       makeItem({ type: "title", text: "H2a", raw: "## H2a", blockSort: 1, order: 1 }),
-      makeItem({ type: "title", text: "H2b", raw: "## H2b", blockSort: 2, order: 2 }),
+      makeItem({ type: "title", text: "H2b", raw: "## H2b", blockSort: 2, order: 2 })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "Doc");
     expect(result.nodes).toHaveLength(4);
@@ -75,7 +71,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
       expect.arrayContaining([
         expect.objectContaining({ fromNode: root.id, toNode: h1Node!.id }),
         expect.objectContaining({ fromNode: h1Node!.id, toNode: h2aNode!.id }),
-        expect.objectContaining({ fromNode: h1Node!.id, toNode: h2bNode!.id }),
+        expect.objectContaining({ fromNode: h1Node!.id, toNode: h2bNode!.id })
       ])
     );
   });
@@ -83,7 +79,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
   test("skips child node when first H1 matches docTitle to avoid duplication", () => {
     const items = [
       makeItem({ type: "title", text: "My Doc", raw: "# My Doc", blockSort: 0, order: 0 }),
-      makeItem({ type: "title", text: "Section", raw: "## Section", blockSort: 1, order: 1 }),
+      makeItem({ type: "title", text: "Section", raw: "## Section", blockSort: 1, order: 1 })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "My Doc");
     // root node only — no duplicate H1 child node
@@ -99,7 +95,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
     const items = [
       makeItem({ type: "title", text: "My Doc", raw: "# My Doc", blockSort: 0, order: 0 }),
       makeItem({ type: "bold", text: "Summary", raw: "**Summary**", blockSort: 1, order: 1 }),
-      makeItem({ type: "title", text: "Details", raw: "## Details", blockSort: 2, order: 2 }),
+      makeItem({ type: "title", text: "Details", raw: "## Details", blockSort: 2, order: 2 })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "My Doc");
     const root = result.nodes[0];
@@ -110,7 +106,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
 
   test("does not skip H1 that does not match docTitle", () => {
     const items = [
-      makeItem({ type: "title", text: "Introduction", raw: "# Introduction", blockSort: 0, order: 0 }),
+      makeItem({ type: "title", text: "Introduction", raw: "# Introduction", blockSort: 0, order: 0 })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "My Doc");
     expect(result.nodes).toHaveLength(2);
@@ -121,7 +117,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
   test("content before first heading goes to root", () => {
     const items = [
       makeItem({ type: "bold", text: "Preamble", raw: "**Preamble**", blockSort: 0, order: 0 }),
-      makeItem({ type: "title", text: "Section", raw: "## Section", blockSort: 1, order: 1 }),
+      makeItem({ type: "title", text: "Section", raw: "## Section", blockSort: 1, order: 1 })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "Doc");
     const root = result.nodes[0];
@@ -139,8 +135,8 @@ describe("buildCanvasFromKeyInfoItems", () => {
         blockSort: 1,
         order: 1,
         listItem: true,
-        listPrefix: "- ",
-      }),
+        listPrefix: "- "
+      })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "Doc");
     const listNode = result.nodes.find((n) => n.text.includes("## List"));
@@ -151,7 +147,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
     const items = [
       makeItem({ type: "title", text: "L1", raw: "# L1", blockSort: 0, order: 0 }),
       makeItem({ type: "title", text: "L2", raw: "## L2", blockSort: 1, order: 1 }),
-      makeItem({ type: "title", text: "L3", raw: "### L3", blockSort: 2, order: 2 }),
+      makeItem({ type: "title", text: "L3", raw: "### L3", blockSort: 2, order: 2 })
     ];
     const result = buildCanvasFromKeyInfoItems(items, "Doc");
     expect(result.nodes).toHaveLength(4);
@@ -164,7 +160,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
       expect.arrayContaining([
         expect.objectContaining({ fromNode: root.id, toNode: l1!.id }),
         expect.objectContaining({ fromNode: l1!.id, toNode: l2!.id }),
-        expect.objectContaining({ fromNode: l2!.id, toNode: l3!.id }),
+        expect.objectContaining({ fromNode: l2!.id, toNode: l3!.id })
       ])
     );
   });
@@ -173,7 +169,7 @@ describe("buildCanvasFromKeyInfoItems", () => {
 describe("preprocessItemsForCanvas", () => {
   test("inserts H1 doc title when first item is not an H1 matching the title", () => {
     const items = [
-      makeItem({ type: "bold", text: "Key point", raw: "**Key point**", blockSort: 0, order: 0 }),
+      makeItem({ type: "bold", text: "Key point", raw: "**Key point**", blockSort: 0, order: 0 })
     ];
     const result = preprocessItemsForCanvas(items, "My Document");
     expect(result).toHaveLength(2);
@@ -186,7 +182,7 @@ describe("preprocessItemsForCanvas", () => {
   test("does not insert H1 when first item already is an H1 with matching title", () => {
     const items = [
       makeItem({ type: "title", text: "My Document", raw: "# My Document", blockSort: 0, order: 0 }),
-      makeItem({ type: "bold", text: "Detail", raw: "**Detail**", blockSort: 1, order: 1 }),
+      makeItem({ type: "bold", text: "Detail", raw: "**Detail**", blockSort: 1, order: 1 })
     ];
     const result = preprocessItemsForCanvas(items, "My Document");
     expect(result).toHaveLength(2);
@@ -197,7 +193,7 @@ describe("preprocessItemsForCanvas", () => {
 
   test("inserts H1 when first item is an H2 (not H1)", () => {
     const items = [
-      makeItem({ type: "title", text: "Section", raw: "## Section", blockSort: 0, order: 0 }),
+      makeItem({ type: "title", text: "Section", raw: "## Section", blockSort: 0, order: 0 })
     ];
     const result = preprocessItemsForCanvas(items, "Section");
     expect(result).toHaveLength(2);
@@ -207,7 +203,7 @@ describe("preprocessItemsForCanvas", () => {
 
   test("inserts H1 when first item is H1 but text does not match title", () => {
     const items = [
-      makeItem({ type: "title", text: "Introduction", raw: "# Introduction", blockSort: 0, order: 0 }),
+      makeItem({ type: "title", text: "Introduction", raw: "# Introduction", blockSort: 0, order: 0 })
     ];
     const result = preprocessItemsForCanvas(items, "My Document");
     expect(result).toHaveLength(2);
@@ -224,7 +220,7 @@ describe("preprocessItemsForCanvas", () => {
 
   test("trims whitespace when comparing title text", () => {
     const items = [
-      makeItem({ type: "title", text: "  My Doc  ", raw: "# My Doc", blockSort: 0, order: 0 }),
+      makeItem({ type: "title", text: "  My Doc  ", raw: "# My Doc", blockSort: 0, order: 0 })
     ];
     const result = preprocessItemsForCanvas(items, "My Doc");
     expect(result).toHaveLength(1);

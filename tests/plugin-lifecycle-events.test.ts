@@ -1,17 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, vi, test } from "vitest";
 import {
   bindPluginLifecycleEvents,
-  unbindPluginLifecycleEvents,
+  unbindPluginLifecycleEvents
 } from "@/plugin/plugin-lifecycle-events";
 
 describe("plugin-lifecycle-events", () => {
-  it("binds click-blockicon handler to event bus", () => {
-    const onMap: Record<string, Function> = {};
+  test("binds click-blockicon handler to event bus", () => {
+    const onMap: Record<string, (...args: unknown[]) => void> = {};
     const mockBus = {
       on: vi.fn((name: string, handler: any) => {
         onMap[name] = handler;
       }),
-      off: vi.fn(),
+      off: vi.fn()
     };
 
     const handlers = {
@@ -19,7 +19,7 @@ describe("plugin-lifecycle-events", () => {
       onEditorTitleMenu: vi.fn(),
       onContentMenu: vi.fn(),
       onDocTreeMenu: vi.fn(),
-      onBlockIconMenu: vi.fn(),
+      onBlockIconMenu: vi.fn()
     };
 
     bindPluginLifecycleEvents(mockBus, handlers);
@@ -31,10 +31,10 @@ describe("plugin-lifecycle-events", () => {
     expect(mockBus.on).toHaveBeenCalledWith("click-blockicon", handlers.onBlockIconMenu);
   });
 
-  it("unbinds click-blockicon handler from event bus", () => {
+  test("unbinds click-blockicon handler from event bus", () => {
     const mockBus = {
       on: vi.fn(),
-      off: vi.fn(),
+      off: vi.fn()
     };
 
     const handlers = {
@@ -42,7 +42,7 @@ describe("plugin-lifecycle-events", () => {
       onEditorTitleMenu: vi.fn(),
       onContentMenu: vi.fn(),
       onDocTreeMenu: vi.fn(),
-      onBlockIconMenu: vi.fn(),
+      onBlockIconMenu: vi.fn()
     };
 
     unbindPluginLifecycleEvents(mockBus, handlers);

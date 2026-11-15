@@ -11,7 +11,7 @@ const LOCAL_IMAGE_EXTENSIONS = new Set([
   "bmp",
   "tif",
   "tiff",
-  "svg",
+  "svg"
 ]);
 
 const CONVERTIBLE_TO_WEBP_EXTENSIONS = new Set([
@@ -20,7 +20,7 @@ const CONVERTIBLE_TO_WEBP_EXTENSIONS = new Set([
   "jpeg",
   "bmp",
   "tif",
-  "tiff",
+  "tiff"
 ]);
 
 const CONVERTIBLE_TO_PNG_EXTENSIONS = new Set([
@@ -29,7 +29,7 @@ const CONVERTIBLE_TO_PNG_EXTENSIONS = new Set([
   "webp",
   "bmp",
   "tif",
-  "tiff",
+  "tiff"
 ]);
 
 export type ImageTargetFormat = "webp" | "png";
@@ -43,12 +43,12 @@ function unwrapTarget(target: string): { value: string; wrapped: boolean } {
   if (trimmed.startsWith("<") && trimmed.endsWith(">")) {
     return {
       value: trimmed.slice(1, -1),
-      wrapped: true,
+      wrapped: true
     };
   }
   return {
     value: trimmed,
-    wrapped: false,
+    wrapped: false
   };
 }
 
@@ -68,7 +68,7 @@ function splitSuffix(target: string): { base: string; suffix: string } {
   }
   return {
     base: target.slice(0, match.index),
-    suffix: target.slice(match.index),
+    suffix: target.slice(match.index)
   };
 }
 
@@ -83,8 +83,8 @@ function isImageTarget(target: string): boolean {
 
 function collectImageTargets(markdown: string): string[] {
   const targets: string[] = [];
-  const markdownImagePattern = /!\[[^\]]*?\]\(([^)\s]+)\)/g;
-  const htmlImagePattern = /<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi;
+  const markdownImagePattern = /!\[[^\]]*\]\(([^)\s]+)\)/g;
+  const htmlImagePattern = /<img\b[^>]+?\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi;
 
   let mdMatch: RegExpExecArray | null = markdownImagePattern.exec(markdown);
   while (mdMatch) {
@@ -104,11 +104,11 @@ function collectImageTargets(markdown: string): string[] {
 export function normalizeLocalImageAssetPath(target: string): string | null {
   const { value } = unwrapTarget(target);
   const stripped = stripQueryAndHash(value);
-  const normalized = stripped.startsWith("/assets/")
-    ? stripped
-    : stripped.startsWith("assets/")
-      ? `/${stripped}`
-      : "";
+  const normalized = stripped.startsWith("/assets/") ?
+    stripped :
+    stripped.startsWith("assets/") ?
+      `/${stripped}` :
+      "";
   if (!normalized) {
     return null;
   }
@@ -132,12 +132,12 @@ export function isConvertibleImageAssetPath(
 
 export function toWebpAssetPath(assetPath: string): string {
   const normalized = normalizeLocalImageAssetPath(assetPath) || assetPath;
-  return stripQueryAndHash(normalized).replace(/\.[^.\/]+$/i, ".webp");
+  return stripQueryAndHash(normalized).replace(/\.[^./]+$/, ".webp");
 }
 
 export function toPngAssetPath(assetPath: string): string {
   const normalized = normalizeLocalImageAssetPath(assetPath) || assetPath;
-  return stripQueryAndHash(normalized).replace(/\.[^.\/]+$/i, ".png");
+  return stripQueryAndHash(normalized).replace(/\.[^./]+$/, ".png");
 }
 
 export function collectLocalImageAssetPathsFromMarkdown(markdown: string): string[] {
@@ -165,14 +165,14 @@ export function rewriteMarkdownImageAssetLinks(
     if (!normalized) {
       return {
         next: target,
-        replaced: false,
+        replaced: false
       };
     }
     const replacement = replacements[normalized];
     if (!replacement) {
       return {
         next: target,
-        replaced: false,
+        replaced: false
       };
     }
     const { base, suffix } = splitSuffix(value);
@@ -180,13 +180,13 @@ export function rewriteMarkdownImageAssetLinks(
     const nextValue = `${nextBase}${suffix}`;
     return {
       next: wrapped ? `<${nextValue}>` : nextValue,
-      replaced: nextValue !== value,
+      replaced: nextValue !== value
     };
   };
 
   let replacedCount = 0;
-  const markdownImagePattern = /(!\[[^\]]*?\]\()([^) \t]+)(\))/g;
-  const htmlImagePattern = /(<img\b[^>]*?\bsrc\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
+  const markdownImagePattern = /(!\[[^\]]*\]\()([^) \t]+)(\))/g;
+  const htmlImagePattern = /(<img\b[^>]+?\bsrc\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
 
   let next = markdown.replace(markdownImagePattern, (full, prefix, target, suffix) => {
     const result = replaceTarget(target);
@@ -208,7 +208,7 @@ export function rewriteMarkdownImageAssetLinks(
 
   return {
     markdown: next,
-    replacedCount,
+    replacedCount
   };
 }
 
@@ -218,8 +218,8 @@ export function removeMarkdownImageAssetLinks(markdown: string): {
 } {
   let removedCount = 0;
 
-  const markdownImagePattern = /(!\[[^\]]*?\]\()([^) \t]+)(\))/g;
-  const htmlImagePattern = /(<img\b[^>]*?\bsrc\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
+  const markdownImagePattern = /(!\[[^\]]*\]\()([^) \t]+)(\))/g;
+  const htmlImagePattern = /(<img\b[^>]+?\bsrc\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
 
   let next = markdown.replace(markdownImagePattern, (full, _prefix, target) => {
     if (!isImageTarget(target)) return full;
@@ -235,6 +235,6 @@ export function removeMarkdownImageAssetLinks(markdown: string): {
 
   return {
     markdown: next,
-    removedCount,
+    removedCount
   };
 }

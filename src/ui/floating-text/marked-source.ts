@@ -1,3 +1,4 @@
+/* eslint-disable no-template-curly-in-string -- 固化的 marked UMD 源码字符串，内容不可修改 */
 /**
  * 悬浮窗口内置 marked 引擎 UMD 源码
  * 由构建/依赖固化提供，确保独立子窗口脱离主窗口或在任何异常下均具备 100% 完整的标准 Markdown 渲染能力
