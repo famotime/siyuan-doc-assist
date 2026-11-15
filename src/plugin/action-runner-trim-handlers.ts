@@ -1,4 +1,5 @@
 import { showMessage } from "siyuan";
+import { ACTION_CANCELLED } from "@/plugin/action-runner-dispatcher";
 import {
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown
@@ -176,7 +177,7 @@ export async function handleTrimTrailingWhitespace(
     `将更新 ${updates.length} 个块，清理 ${affectedLineCount} 行行尾空格，是否继续？`
   );
   if (!ok) {
-    return;
+    return ACTION_CANCELLED;
   }
   deps.setBusy?.(true);
 

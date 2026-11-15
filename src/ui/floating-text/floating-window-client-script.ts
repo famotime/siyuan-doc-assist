@@ -959,9 +959,12 @@ const CLIENT_SCRIPT_BODY_PART1 = `          window.__docAssistantFloatingClientA
             }
 
             if ((e.altKey && (e.key === "p" || e.key === "P")) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "p" || e.key === "P"))) {
-              e.preventDefault();
-              togglePinState();
-              return;
+              // PiP/popup 无置顶按钮（无法真正置顶），快捷键同步隐藏，避免假状态机
+              if (pinBtn) {
+                e.preventDefault();
+                togglePinState();
+                return;
+              }
             }
 
             if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {

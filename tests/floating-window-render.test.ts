@@ -228,6 +228,26 @@ describe("floating-window-render", () => {
       expect(html).toContain("pointer-events: none;");
     });
 
+    test("keeps pin control by default and hides it when pinControlDisabled (audit low-risk)", () => {
+      const withPin = buildFloatingWindowHtml({
+        title: "置顶测试",
+        text: "测试内容",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        isDark: false
+      });
+      expect(withPin).toContain('id="ft-btn-pin"');
+
+      const withoutPin = buildFloatingWindowHtml({
+        title: "置顶测试",
+        text: "测试内容",
+        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        isDark: false,
+        pinControlDisabled: true
+      });
+      expect(withoutPin).not.toContain('id="ft-btn-pin"');
+      expect(withoutPin).not.toContain('id="ft-pin-tooltip"');
+    });
+
     test("embeds mouse drag event listener script for fallback window movement", () => {
       const html = buildFloatingWindowHtml({
         title: "拖拽测试",

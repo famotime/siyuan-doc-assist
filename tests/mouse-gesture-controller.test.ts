@@ -62,6 +62,11 @@ function dispatchMouse(
   return event;
 }
 
+// 手势轨迹的显示路径已按 rAF 节流：在 mouseup 前驱动一帧，
+// 让划动中的 drawGestureTrail 提示真正入列（mouseup 会取消待绘帧）。
+const flushGestureFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
 describe("mouse gesture controller", () => {
   let editorArea: HTMLElement;
   let elsewhere: HTMLElement;
@@ -122,6 +127,7 @@ describe("mouse gesture controller", () => {
     const controller = createBoundController();
     dispatchMouse("mousedown", { x: 300, y: 300, button: 2, target: editorArea.firstElementChild as HTMLElement });
     dispatchMouse("mousemove", { x: 200, y: 302, button: 2, target: editorArea });
+    await flushGestureFrame();
     dispatchMouse("mouseup", { x: 190, y: 302, button: 2, target: editorArea });
 
     await vi.waitFor(() => expect(openDocTabMock).toHaveBeenCalled());
@@ -160,6 +166,7 @@ describe("mouse gesture controller", () => {
     dispatchMouse("mousedown", { x: 300, y: 300, button: 2, target: editorArea.firstElementChild as HTMLElement });
     dispatchMouse("mousemove", { x: 300, y: 360, button: 2, target: editorArea });
     dispatchMouse("mousemove", { x: 360, y: 365, button: 2, target: editorArea });
+    await flushGestureFrame();
     dispatchMouse("mouseup", { x: 370, y: 366, button: 2, target: editorArea });
 
     await vi.waitFor(() => expect(closeDocTabMock).toHaveBeenCalled());

@@ -16,7 +16,7 @@ import { AiServiceConfig, isAiServiceConfigComplete, normalizeAiServiceConfig } 
 import { generateDocumentTagSuggestions } from "@/services/ai-summary";
 import { loadFreshNetworkLensDocumentSummary } from "@/services/network-lens-ai-index";
 import { getBlockAttrs, getChildBlocksByParentId, insertBlockBefore, appendBlock, setBlockAttrs, getDocMetaByID, getRootDocRawMarkdown } from "@/services/kernel";
-import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { ACTION_CANCELLED, PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { CreateAiActionHandlersOptions } from "@/plugin/action-runner-ai-types";
 import { ConfirmDetailItem } from "@/plugin/action-runner";
 
@@ -132,7 +132,7 @@ export function createAiRelatedActionHandlers(
         true;
       if (!ok) {
         aiRelatedLogger.debug("用户取消了确认对话框");
-        return;
+        return ACTION_CANCELLED;
       }
 
       const selectedIds = new Set(

@@ -1,5 +1,7 @@
 import { describe, expect, vi, test } from "vitest";
 
+import { ACTION_CANCELLED } from "@/plugin/action-runner-dispatcher";
+
 vi.mock("siyuan", () => ({
   showMessage: vi.fn()
 }));
@@ -45,15 +47,16 @@ vi.mock("@/plugin/action-runner-organize-handlers", () => ({
 
 // Background handler factory: the handler itself mimics a busy-driving background task.
 let aiDeps: { setBusy?: (busy: boolean) => void } | undefined;
+let aiBackgroundHandlerImpl: () => Promise<unknown> = async () => {
+  aiDeps?.setBusy?.(true);
+  aiDeps?.setBusy?.(false);
+  return {};
+};
 vi.mock("@/plugin/action-runner-ai-handlers", () => ({
   createAiActionHandlers: (deps: { setBusy?: (busy: boolean) => void }) => {
     aiDeps = deps;
     return {
-      "generate-better-titles": async () => {
-        aiDeps?.setBusy?.(true);
-        aiDeps?.setBusy?.(false);
-        return {};
-      }
+      "generate-better-titles": async () => aiBackgroundHandlerImpl()
     };
   }
 }));
@@ -196,5 +199,91 @@ describe("actionRunner busy overlay counter", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(setBusy.mock.calls.map((call) => call[0])).toEqual([]);
+  });
+});
+
+describe("background task key sweep (audit 2.1)", () => {
+  test("a hung handler blocks the same action+doc until the stale key is swept", async () => {
+    const runner = await createRunner();
+    const realNow = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(realNow);
+    aiBackgroundHandlerImpl = () => new Promise(() => undefined);
+
+    try {
+      await runner.runAction("generate-better-titles");
+      const blocked = await runner.runAction("generate-better-titles");
+      expect(blocked.ok).toBe(false);
+      if (!blocked.ok) {
+        expect(blocked.message).toContain("正在后台处理中");
+      }
+
+      // 推进到清扫阈值（10 分钟）之后，入口清扫应回收悬挂键并放行新任务
+      nowSpy.mockReturnValue(realNow + 11 * 60 * 1000);
+      const afterSweep = await runner.runAction("generate-better-titles");
+      expect(afterSweep.ok).toBe(true);
+    } finally {
+      nowSpy.mockRestore();
+      aiBackgroundHandlerImpl = async () => ({});
+    }
+  });
+
+  test("keys deleted in task finally are not double-swept", async () => {
+    const runner = await createRunner();
+    aiBackgroundHandlerImpl = async () => ({});
+    await runner.runAction("generate-better-titles");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 11 * 60 * 1000);
+    try {
+      const again = await runner.runAction("generate-better-titles");
+      expect(again.ok).toBe(true);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+});
+
+describe("cancelled result contract (audit 2.3, incremental)", () => {
+  test("maps handler ACTION_CANCELLED to ok:false errorCode cancelled", async () => {
+    const runner = await createRunner();
+    organizeHandlerImpl = async () => ACTION_CANCELLED;
+
+    const result = await runner.runAction("split-doc-by-headings");
+
+    expect(result).toEqual({
+      ok: false,
+      errorCode: "cancelled",
+      message: "已取消操作",
+      alreadyNotified: true
+    });
+  });
+
+  test("confirm decline through the sentinel surfaces cancelled instead of ok:true", async () => {
+    const askConfirm = vi.fn(async () => false);
+    const runner = await createRunner({ askConfirm });
+    organizeHandlerImpl = async () => {
+      const ok = await organizeDeps.askConfirmWithVisibleDialog("确认", "内容");
+      if (!ok) {
+        return ACTION_CANCELLED;
+      }
+      return {};
+    };
+
+    const result = await runner.runAction("split-doc-by-headings");
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errorCode).toBe("cancelled");
+    }
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  test("undefined handler result keeps the legacy ok:true contract", async () => {
+    const runner = await createRunner();
+    organizeHandlerImpl = async () => undefined;
+
+    const result = await runner.runAction("split-doc-by-headings");
+
+    expect(result).toEqual({ ok: true, alreadyNotified: true });
   });
 });

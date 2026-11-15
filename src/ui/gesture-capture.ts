@@ -24,6 +24,9 @@ export type GestureCaptureCallbacks = {
   onStrokeCancel?: () => void;
 };
 
+/** 轨迹点上限：超出后丢弃最旧的采样点，保证重绘开销有界 */
+const MAX_GESTURE_TRAIL_POINTS = 600;
+
 /**
  * 通用右键手势捕获：document 捕获阶段监听鼠标事件，驱动方向序列识别，
  * 并在识别出划动手势时抑制随后的原生右键菜单；未划动的普通右键不受影响。
@@ -35,6 +38,10 @@ export function createGestureCapture(callbacks: GestureCaptureCallbacks) {
   let points: GesturePoint[] = [];
   let startTarget: HTMLElement | null = null;
   let bound = false;
+  // 显示路径节流（审计低危项）：mousemove 每次都喂识别器保证方向识别精度，
+  // 但轨迹采样与重绘合并到每帧一次；配合点数上限消除超长划动的 O(n²) 卡顿。
+  let pendingPoint: GesturePoint | null = null;
+  let trailFrameId: number | null = null;
 
   const buildState = (): GestureStrokeState => ({
     points: [...points],
@@ -42,6 +49,48 @@ export function createGestureCapture(callbacks: GestureCaptureCallbacks) {
     moved: recognizer.isMoved(),
     startTarget
   });
+
+  const appendPendingPoint = (): boolean => {
+    if (!pendingPoint) {
+      return false;
+    }
+    points.push(pendingPoint);
+    pendingPoint = null;
+    if (points.length > MAX_GESTURE_TRAIL_POINTS) {
+      points.shift();
+    }
+    return true;
+  };
+
+  const flushTrailFrame = () => {
+    trailFrameId = null;
+    if (!dragging) {
+      return;
+    }
+    if (appendPendingPoint()) {
+      callbacks.onStrokeMove?.(buildState());
+    }
+  };
+
+  const scheduleTrailFlush = () => {
+    if (typeof requestAnimationFrame === "function") {
+      if (trailFrameId === null) {
+        trailFrameId = requestAnimationFrame(flushTrailFrame);
+      }
+      return;
+    }
+    // 无 rAF 的环境（如测试）退化为同步节流
+    if (dragging && appendPendingPoint()) {
+      callbacks.onStrokeMove?.(buildState());
+    }
+  };
+
+  const cancelTrailFrame = () => {
+    if (trailFrameId !== null && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(trailFrameId);
+    }
+    trailFrameId = null;
+  };
 
   const handleMouseDown = (event: MouseEvent) => {
     suppressNextContextMenu = false;
@@ -62,8 +111,8 @@ export function createGestureCapture(callbacks: GestureCaptureCallbacks) {
       return;
     }
     recognizer.feed(event.clientX, event.clientY);
-    points.push({ x: event.clientX, y: event.clientY });
-    callbacks.onStrokeMove?.(buildState());
+    pendingPoint = { x: event.clientX, y: event.clientY };
+    scheduleTrailFlush();
   };
 
   const finishDrag = (commit: boolean) => {
@@ -71,6 +120,9 @@ export function createGestureCapture(callbacks: GestureCaptureCallbacks) {
       return;
     }
     dragging = false;
+    // 最终状态必须包含最后一帧尚未绘制的采样点
+    cancelTrailFrame();
+    appendPendingPoint();
     const state = buildState();
     if (commit && state.moved) {
       suppressNextContextMenu = true;

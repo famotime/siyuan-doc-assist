@@ -1,6 +1,7 @@
 import { showMessage } from "siyuan";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
 import { KeyInfoFilter } from "@/core/key-info-core";
+import { createDocAssistantLogger } from "@/core/logger-core";
 import { getDocReadonlyState } from "@/services/kernel";
 import { ActionConfig, ActionKey, ACTIONS } from "@/plugin/actions";
 import { createAiActionHandlers } from "@/plugin/action-runner-ai-handlers";
@@ -8,7 +9,7 @@ import { CanvasPluginLike } from "@/services/canvas-plugin-resolver";
 import { createCleanupActionHandlers } from "@/plugin/action-runner-cleanup-handlers";
 import { createDeleteRangeActionHandlers } from "@/plugin/action-runner-delete-range-handlers";
 import { createSelectRangeActionHandlers } from "@/plugin/action-runner-select-range-handlers";
-import { dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { ACTION_CANCELLED, dispatchAction, ActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { createExportActionHandlers } from "@/plugin/action-runner-export-handlers";
 import { createInsertActionHandlers } from "@/plugin/action-runner-insert-handlers";
 import { createMediaActionHandlers } from "@/plugin/action-runner-media-handlers";
@@ -27,7 +28,7 @@ export type ActionRunResult =
   } |
   {
     ok: false;
-    errorCode: "context-unavailable" | "not-supported" | "execution-failed";
+    errorCode: "context-unavailable" | "not-supported" | "execution-failed" | "cancelled";
     message: string;
     alreadyNotified: true;
   };
@@ -60,10 +61,17 @@ type ActionRunInput =
   PowerButtonsInvokeContext |
   undefined;
 
+const actionRunnerLogger = createDocAssistantLogger("ActionRunner");
+
+// 后台任务键残留阈值：超过即视为 handler 悬挂（finally 未执行），入口处清扫，
+// 避免「动作+文档」组合被永久拒绝（审计遗留项 2.1）。
+const STALE_BACKGROUND_TASK_MS = 10 * 60 * 1000;
+
 export class ActionRunner {
   private isRunning = false;
   private busyDepth = 0;
-  private readonly backgroundTaskKeys = new Set<string>();
+  // key -> 启动时间戳；任务 finally 删除，入口按阈值清扫悬挂残留。
+  private readonly backgroundTaskKeys = new Map<string, number>();
 
   constructor(private readonly deps: ActionRunnerDeps) {}
 
@@ -152,6 +160,7 @@ export class ActionRunner {
   }
 
   async runAction(action: ActionKey, explicitIdOrContext?: ActionRunInput, protyle?: ProtyleLike): Promise<ActionRunResult> {
+    this.sweepStaleBackgroundTasks();
     const invokeContext = this.normalizeInvokeContext(explicitIdOrContext);
     const explicitId = typeof explicitIdOrContext === "string" ?
       explicitIdOrContext :
@@ -206,6 +215,14 @@ export class ActionRunner {
         protyle,
         this.buildActionHandlers(invokeContext, true)
       );
+      if (handlerRes === ACTION_CANCELLED) {
+        return {
+          ok: false,
+          errorCode: "cancelled",
+          message: "已取消操作",
+          alreadyNotified: true
+        };
+      }
       if (handlerRes && typeof handlerRes === "object") {
         if (handlerRes.ok === false) {
           return {
@@ -296,6 +313,16 @@ export class ActionRunner {
     return false;
   }
 
+  // handler 悬挂时其 finally 永远不会执行，残留键只能靠入口清扫回收。
+  private sweepStaleBackgroundTasks(now: number = Date.now()): void {
+    for (const [key, startedAt] of this.backgroundTaskKeys) {
+      if (now - startedAt >= STALE_BACKGROUND_TASK_MS) {
+        this.backgroundTaskKeys.delete(key);
+        actionRunnerLogger.warn("stale background task key swept", { key, startedAt });
+      }
+    }
+  }
+
   private runActionInBackground(
     action: ActionKey,
     docId: string,
@@ -313,7 +340,7 @@ export class ActionRunner {
       );
     }
 
-    this.backgroundTaskKeys.add(taskKey);
+    this.backgroundTaskKeys.set(taskKey, Date.now());
     this.deps.setBackgroundActionRunning?.(action, docId, true);
     showMessage(`已开始在后台执行“${config.commandText}”`, 3000, "info");
 
@@ -326,6 +353,10 @@ export class ActionRunner {
           protyle,
           this.buildActionHandlers(invokeContext, false)
         );
+        if (handlerRes === ACTION_CANCELLED) {
+          // 后台任务没有调用方可接收结果；取消即静默结束，仅回收状态（finally 统一处理）。
+          return;
+        }
         if (handlerRes && typeof handlerRes === "object") {
           if (handlerRes.ok === false) {
             return {

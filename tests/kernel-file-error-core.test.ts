@@ -12,6 +12,7 @@ describe("kernelFileErrorCore", () => {
     expect(isMissingFileMessage("系统找不到指定的路径。")).toBe(true);
     expect(isMissingFileMessage("no such file or directory")).toBe(true);
     expect(isMissingFileMessage("The system cannot find the specified file.")).toBe(true);
+    expect(isMissingFileMessage("The system cannot find the path specified.")).toBe(true);
     expect(isMissingFileMessage("file not exist")).toBe(true);
     expect(isMissingFileMessage("asset not found")).toBe(true);
     expect(isMissingFileMessage("文件不存在")).toBe(true);
@@ -30,6 +31,14 @@ describe("kernelFileErrorCore", () => {
     const other = createFileAccessError("权限不足", 403);
     expect(other.fileErrorCode).toBeUndefined();
     expect(other.status).toBe(403);
+  });
+
+  test("envelope body code 404 classifies as missing regardless of message text (audit 4.3)", () => {
+    const fromEnvelope = createFileAccessError("未知的内核错误文本", undefined, 404);
+    expect(fromEnvelope.fileErrorCode).toBe(FILE_ACCESS_ERROR_CODE_MISSING);
+
+    const nonMissingEnvelope = createFileAccessError("权限不足", undefined, 403);
+    expect(nonMissingEnvelope.fileErrorCode).toBeUndefined();
   });
 
   test("isMissingFileError trusts the structural code before message matching", () => {

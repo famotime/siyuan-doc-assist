@@ -7,6 +7,17 @@ describe("parseTagsFromAiResponse", () => {
       .toEqual(["卡车司机", "自由与代价", "阶层固化"]);
   });
 
+  test("truncates JSON-array strategy to 5 tags like the other strategies (audit low-risk)", () => {
+    const aiText = '["主题一", "主题二", "主题三", "主题四", "主题五", "主题六", "主题七"]';
+    expect(parseTagsFromAiResponse(aiText)).toEqual([
+      "主题一",
+      "主题二",
+      "主题三",
+      "主题四",
+      "主题五"
+    ]);
+  });
+
   test("parses JSON array wrapped in markdown code fence", () => {
     const aiText = "```json\n[\"卡车司机\", \"自由与代价\"]\n```";
     expect(parseTagsFromAiResponse(aiText)).toEqual(["卡车司机", "自由与代价"]);

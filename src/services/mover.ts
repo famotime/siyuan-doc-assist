@@ -69,6 +69,7 @@ export async function moveDocsAsChildren(
       continue;
     }
 
+    let renamedTitle: string | null = null;
     try {
       const movePlan = planMoveWithConflictHandling({
         sourceDoc: {
@@ -89,17 +90,29 @@ export async function moveDocsAsChildren(
       if (movePlan.action === "rename-and-move") {
         await renameDocByID(docId, movePlan.newTitle);
         titleForTarget = movePlan.newTitle;
-        report.renamed.push({ id: docId, title: movePlan.newTitle });
+        renamedTitle = movePlan.newTitle;
       }
 
       await moveDocsByID([docId], currentDocId);
       existingChildTitles.add(titleForTarget);
+      // 重命名只在 rename+move 都成功后计入报告，避免「已重命名却出现在失败列表」的矛盾报告
+      if (renamedTitle) {
+        report.renamed.push({ id: docId, title: renamedTitle });
+      }
       report.successIds.push(docId);
     } catch (error: any) {
-      report.failed.push({
-        id: docId,
-        error: error?.message || String(error)
-      });
+      const message = error?.message || String(error);
+      // rename 已成功但 move 失败时，新标题已实际存在，必须加入占用集合，
+      // 否则后续同名文档会被规划出重复的 newTitle（审计 2.5）
+      if (renamedTitle) {
+        existingChildTitles.add(renamedTitle);
+        report.failed.push({
+          id: docId,
+          error: `已重命名为“${renamedTitle}”，但移动失败：${message}`
+        });
+      } else {
+        report.failed.push({ id: docId, error: message });
+      }
     }
   }
 

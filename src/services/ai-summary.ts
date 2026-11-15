@@ -447,7 +447,8 @@ export function parseTagsFromAiResponse(text: string): string[] {
           .map((item) => sanitizeTagItem(item))
           .filter((tag) => !isMetaThinkingNoise(tag));
         if (items.length) {
-          return Array.from(new Set(items));
+          // 与策略 2/3 对齐：统一截断到 5 个标签（审计低危项）
+          return Array.from(new Set(items)).slice(0, 5);
         }
       }
     }

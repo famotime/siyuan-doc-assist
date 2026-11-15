@@ -32,7 +32,7 @@ import {
   updateBlockMarkdown
 } from "@/services/kernel";
 import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
-import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { ACTION_CANCELLED, PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { IOperation, runProtyleTransaction } from "@/plugin/transaction-runner";
 import { ProtyleLike } from "@/plugin/doc-context";
 
@@ -75,7 +75,7 @@ export function createCleanupActionHandlers(
       `将删除 ${result.removedCount} 个空段落，是否继续？`
     );
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
     deps.setBusy?.(true);
 
@@ -150,7 +150,7 @@ export function createCleanupActionHandlers(
       `将为 ${result.insertCount} 个标题前插入空段落，是否继续？`
     );
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
     deps.setBusy?.(true);
 
@@ -195,7 +195,7 @@ export function createCleanupActionHandlers(
       ].join("\n")
     );
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
     deps.setBusy?.(true);
 
@@ -329,7 +329,7 @@ export function createCleanupActionHandlers(
     }
     const ok = await deps.askConfirmWithVisibleDialog("确认清理AI输出内容", confirmLines.join("\n"));
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
     deps.setBusy?.(true);
 
@@ -512,7 +512,7 @@ export function createCleanupActionHandlers(
     const confirmText = `${detailItems.map((item) => item.label).join(" ")} 是否继续？`;
     const ok = await deps.askConfirmWithVisibleDialog("确认清理剪藏内容", confirmText, detailItems);
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
 
     const isSelected = (id: string) => {
@@ -670,7 +670,7 @@ export function createCleanupActionHandlers(
     }
     const ok = await deps.askConfirmWithVisibleDialog("确认清理预删除内容", confirmLines.join("\n"));
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
     deps.setBusy?.(true);
 
@@ -772,7 +772,7 @@ export function createCleanupActionHandlers(
     confirmLines.push("是否继续？");
     const ok = await deps.askConfirmWithVisibleDialog("确认链接/引用互转", confirmLines.join("\n"));
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
     deps.setBusy?.(true);
 

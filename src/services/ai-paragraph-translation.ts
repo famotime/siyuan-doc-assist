@@ -6,6 +6,7 @@ import {
   normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import { normalizeAiSummaryText } from "@/core/ai-summary-core";
+import { DEFAULT_MAP_CONCURRENCY, mapWithConcurrency } from "@/core/map-with-concurrency";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse } from "@/services/kernel";
 import { requestApi } from "@/services/request";
@@ -25,6 +26,8 @@ export type TranslateDocParagraphsOptions = {
   docId: string;
   forwardProxy?: ForwardProxyFn;
   onProgress?: (current: number, total: number, blockId: string) => void;
+  /** 并发请求数上限，缺省 {@link DEFAULT_MAP_CONCURRENCY}（审计遗留项 2.4） */
+  concurrency?: number;
 };
 
 export type TranslateDocParagraphsReport = {
@@ -91,22 +94,23 @@ export async function translateDocParagraphs(
   }
 
   const proxyFn = options.forwardProxy || forwardProxy;
-  let completedRequests = 0;
-  const translationPromises = translatableItems.map(async (item) => {
-    try {
-      return await requestParagraphTranslation(proxyFn, config, item.markdown);
-    } catch {
-      return null;
-    }
-  });
+  // Bounded concurrency; results stay in input order for the insert loop below.
   // Progress reflects completed requests instead of request starts.
-  translationPromises.forEach((promise, index) => {
-    void promise.then(() => {
-      completedRequests += 1;
-      options.onProgress?.(completedRequests, translatableItems.length, translatableItems[index].blockId);
-    });
-  });
-  const translationResults = await Promise.all(translationPromises);
+  let completedRequests = 0;
+  const translationResults = await mapWithConcurrency(
+    translatableItems,
+    options.concurrency ?? DEFAULT_MAP_CONCURRENCY,
+    async (item) => {
+      try {
+        return await requestParagraphTranslation(proxyFn, config, item.markdown);
+      } catch {
+        return null;
+      } finally {
+        completedRequests += 1;
+        options.onProgress?.(completedRequests, translatableItems.length, item.blockId);
+      }
+    }
+  );
 
   let translatedCount = 0;
   let failedCount = 0;

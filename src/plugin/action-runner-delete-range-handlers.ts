@@ -12,7 +12,7 @@ import {
   getChildBlockRefsByParentId
 } from "@/services/kernel";
 import { resolveCurrentBlockId } from "@/plugin/action-runner-context";
-import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { ACTION_CANCELLED, PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { ProtyleLike } from "@/plugin/doc-context";
 import { IOperation, runProtyleTransaction } from "@/plugin/transaction-runner";
 
@@ -85,7 +85,7 @@ async function handleDeleteFromCurrentToEnd(
     `将删除 ${result.deleteCount} 个段落（含当前段），是否继续？`
   );
   if (!ok) {
-    return;
+    return ACTION_CANCELLED;
   }
   if (protyle) {
     const doOperations: IOperation[] = [];
@@ -186,7 +186,7 @@ async function handleDeleteFromStartToCurrent(
     `将删除 ${result.deleteCount} 个段落（含当前段，已跳过文首分隔线前的概要内容），是否继续？`
   );
   if (!ok) {
-    return;
+    return ACTION_CANCELLED;
   }
   if (protyle) {
     const doOperations: IOperation[] = [];

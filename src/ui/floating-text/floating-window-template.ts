@@ -20,8 +20,11 @@ export function buildFloatingWindowHtml(options: {
   hostWebContentsId?: number | null;
   baseUrl?: string;
   isDialogFallback?: boolean;
+  /** 置顶按钮开关：PiP/popup 环境实际无法置顶，隐藏假状态机按钮（审计低危项） */
+  pinControlDisabled?: boolean;
 }): string {
-  const { title, text, config, isDark, initialHtml, hostWebContentsId, baseUrl, isDialogFallback } = options;
+  const { title, text, config, isDark, initialHtml, hostWebContentsId, baseUrl, isDialogFallback, pinControlDisabled } = options;
+  const showPinControl = !isDialogFallback && !pinControlDisabled;
   const safeTitle = escapeHtml(title || "悬浮文本");
   const markdownHtml =
     typeof initialHtml === "string" && initialHtml.trim() ?
@@ -137,15 +140,15 @@ export function buildFloatingWindowHtml(options: {
           </div>
 
           <div class="ft-actions" style="-webkit-app-region: no-drag;">
-            ${isDialogFallback ?
-              "" :
+            ${showPinControl ?
               `<!-- 置顶状态切换 -->
             <div class="ft-tooltip-wrapper">
               <button id="ft-btn-pin" class="ft-btn ft-btn-active ft-btn-pinned" aria-label="取消置顶">
                 <svg class="ft-icon" id="ft-pin-icon"><use href="#ft-icon-pin"></use></svg>
               </button>
               <div class="ft-tooltip" id="ft-pin-tooltip">取消置顶 <kbd>Alt+P</kbd></div>
-            </div>`}
+            </div>` :
+              ""}
 
             <!-- 搜索操作 -->
             <div class="ft-tooltip-wrapper">

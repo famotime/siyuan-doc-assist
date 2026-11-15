@@ -89,7 +89,7 @@ export async function getFileBlob(path: string): Promise<Blob> {
 
     const json = parseJsonOrNull(text);
     if (isFileErrorEnvelope(json)) {
-      throw createFileAccessError(json.msg || "读取文件失败");
+      throw createFileAccessError(json.msg || "读取文件失败", undefined, json.code);
     }
     if (isFileSuccessEnvelope(json)) {
       return toBlobFromSuccessData(json.data);
@@ -178,7 +178,7 @@ export async function getFileTextAllowJson(path: string): Promise<string> {
   }
   if (isFileErrorEnvelope(parsed)) {
     const message = (parsed.msg || "").trim();
-    throw createFileAccessError(message || `读取文件失败：${parsed.code}`);
+    throw createFileAccessError(message || `读取文件失败：${parsed.code}`, undefined, parsed.code);
   }
   if (isFileSuccessEnvelope(parsed)) {
     const data = parsed.data;

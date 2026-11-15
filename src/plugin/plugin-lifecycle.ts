@@ -21,7 +21,7 @@ import {
   getHiddenActionKeys,
   getHiddenPluginSettingKeys
 } from "@/plugin/alpha-feature-config";
-import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
+import { getProtyleDocId, ProtyleLike, resolvePairedCursorDocId } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
 import { setTransactionDebugLogEnabled } from "@/plugin/transaction-runner";
 import { setDocAssistantDebugEnabled } from "@/core/logger-core";
@@ -138,7 +138,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
   private readonly keyInfoController: KeyInfoController = new KeyInfoController({
     isMobile: () => this.isMobile,
-    getCurrentDocId: () => this.currentDocId,
+    // 成对消费入口做游标重同步：显式 docId 更新与 protyle 失步时以 protyle 为准（审计 2.2）
+    getCurrentDocId: () => this.syncPairedCursor(),
     getCurrentProtyle: () => this.currentProtyle,
     getKeyInfoFilter: () => this.keyInfoFilterState,
     setKeyInfoFilter: (filter) => this.setKeyInfoFilter(filter),
@@ -327,6 +328,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   onunload() {
+    // 自兜底：旧版前端卸载插件时不会强制关闭已打开的设置对话框（2026-09 起官方
+    // loader 才加入 plugin.setting?.close()），主动关闭以覆盖旧版内核（审计 4.2）。
+    try {
+      this.setting?.close();
+    } catch {
+      // 对话框未打开或已销毁时忽略
+    }
     if (this.apiSwitchReadyListener) {
       window.removeEventListener("siyuan-api-switch:ready", this.apiSwitchReadyListener);
       this.apiSwitchReadyListener = undefined;
@@ -386,6 +394,16 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
   public getPowerButtonsIntegration(): PowerButtonsCommandProvider {
     return this.powerButtonsProvider;
+  }
+
+  // 游标成对校验：不一致时以 protyle 为准写回 docId（审计遗留项 2.2）。
+  // resolveDocId 的写入副作用保持不变（现有流程隐式依赖，测试锁定其调用契约）。
+  private syncPairedCursor(): string {
+    const paired = resolvePairedCursorDocId(this.currentDocId, this.currentProtyle);
+    if (paired !== this.currentDocId) {
+      this.currentDocId = paired;
+    }
+    return paired;
   }
 
   private resolveDocId(explicitId?: string, protyle?: ProtyleLike): string {

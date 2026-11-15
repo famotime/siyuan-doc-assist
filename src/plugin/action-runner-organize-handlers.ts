@@ -5,7 +5,7 @@ import { getBacklinkDocs, getForwardLinkedDocIds } from "@/services/link-resolve
 import { createTop100LargeDocumentsReport } from "@/services/large-documents-report";
 import { moveDocsAsChildren } from "@/services/mover";
 import { createOpenedDocsSummaryDoc } from "@/services/open-doc-summary";
-import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { ACTION_CANCELLED, PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { openDedupeDialog } from "@/ui/dialogs";
 import { splitDocByHeadings } from "@/services/split-doc-by-headings";
 import { splitDocByHeadingsCore } from "@/core/split-doc-by-headings-core";
@@ -94,7 +94,7 @@ export function createOrganizeActionHandlers(
         `将尝试把 ${backlinks.length} 篇反链文档移动为当前文档子文档，是否继续？`
       );
       if (!ok) {
-        return;
+        return ACTION_CANCELLED;
       }
       options.setBusy?.(true);
 
@@ -121,7 +121,7 @@ export function createOrganizeActionHandlers(
         `将尝试把 ${forwardLinkedIds.length} 篇正链文档移动为当前文档子文档，是否继续？`
       );
       if (!ok) {
-        return;
+        return ACTION_CANCELLED;
       }
       options.setBusy?.(true);
 
@@ -181,17 +181,27 @@ export function createOrganizeActionHandlers(
         `将按最高级标题拆分为 ${sections.length} 个子文档，原文档中对应内容将被删除，是否继续？`
       );
       if (!ok) {
-        return;
+        return ACTION_CANCELLED;
       }
 
       options.setBusy?.(true);
       try {
         const report = await splitDocByHeadings(docId);
-        showMessage(
-          `拆分完成：已创建 ${report.sectionCount} 个子文档，从原文档删除 ${report.deletedBlockCount} 个块`,
-          9000,
-          "info"
-        );
+        if (report.failedSectionTitles.length > 0) {
+          showMessage(
+            `拆分部分完成：已创建 ${report.createdDocIds.length}/${report.sectionCount} 个子文档，` +
+            `${report.failedSectionTitles.length} 个失败（${report.failedSectionTitles.join("、")}）。` +
+            "原文档已保留，未删除任何内容",
+            9000,
+            "error"
+          );
+        } else {
+          showMessage(
+            `拆分完成：已创建 ${report.createdDocIds.length} 个子文档，从原文档删除 ${report.deletedBlockCount} 个块`,
+            9000,
+            "info"
+          );
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         showMessage(`拆分失败：${msg}`, 9000, "error");

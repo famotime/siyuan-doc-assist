@@ -18,7 +18,7 @@ import {
   getDocMetaByID,
   updateBlockMarkdown
 } from "@/services/kernel";
-import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { ACTION_CANCELLED, PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import type { ConfirmDetailItem } from "@/plugin/action-runner";
 import { CreateAiActionHandlersOptions } from "@/plugin/action-runner-ai-types";
 
@@ -94,7 +94,7 @@ export function createAiMarkerActionHandlers(
           ) :
         true;
       if (!ok) {
-        return;
+        return ACTION_CANCELLED;
       }
       options.setBusy?.(true);
 
@@ -182,7 +182,7 @@ export function createAiMarkerActionHandlers(
           ) :
         true;
       if (!ok) {
-        return;
+        return ACTION_CANCELLED;
       }
       options.setBusy?.(true);
 

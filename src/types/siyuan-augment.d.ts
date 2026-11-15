@@ -106,6 +106,7 @@ declare module "siyuan" {
         createActionElement?: () => HTMLElement;
       }) => void;
       open: (name: string) => void;
+      close: () => void;
     };
   };
 }

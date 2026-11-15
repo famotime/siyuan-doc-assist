@@ -81,8 +81,45 @@ describe("splitDocByHeadings", () => {
     expect(report).toEqual({
       sectionCount: 2,
       createdDocIds: ["new-doc-1", "new-doc-2"],
-      deletedBlockCount: 4
+      deletedBlockCount: 4,
+      failedSectionTitles: []
     });
+  });
+
+  test("keeps the original doc and reports partial failure when some creates fail (audit 2.5)", async () => {
+    mockGetDocMeta.mockResolvedValue(testDocMeta);
+    mockGetChildBlocks.mockResolvedValue([
+      block("b1", "h", "## Alpha"),
+      block("b2", "p", "content A"),
+      block("b3", "h", "## Beta"),
+      block("b4", "p", "content B")
+    ]);
+    mockCreateDoc
+      .mockResolvedValueOnce("new-doc-1")
+      .mockRejectedValueOnce(new Error("hPath conflict"));
+    mockDeleteBlocks.mockResolvedValue({ deletedCount: 4, failedIds: [] });
+
+    const report = await splitDocByHeadings("doc-1");
+
+    expect(report.createdDocIds).toEqual(["new-doc-1"]);
+    expect(report.failedSectionTitles).toEqual(["Beta"]);
+    expect(report.firstErrorMessage).toBe("hPath conflict");
+    expect(report.deletedBlockCount).toBe(0);
+    expect(mockDeleteBlocks).not.toHaveBeenCalled();
+  });
+
+  test("throws the first create error when every create fails", async () => {
+    mockGetDocMeta.mockResolvedValue(testDocMeta);
+    mockGetChildBlocks.mockResolvedValue([
+      block("b1", "h", "## Alpha"),
+      block("b2", "p", "content A"),
+      block("b3", "h", "## Beta"),
+      block("b4", "p", "content B")
+    ]);
+    mockCreateDoc.mockRejectedValue(new Error("doc is readonly"));
+
+    await expect(splitDocByHeadings("doc-1")).rejects.toThrow("doc is readonly");
+    expect(mockDeleteBlocks).not.toHaveBeenCalled();
   });
 
   test("does not delete pre-heading blocks", async () => {

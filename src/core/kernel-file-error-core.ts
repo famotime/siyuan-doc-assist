@@ -16,6 +16,8 @@ const MISSING_FILE_MESSAGE_PATTERNS = [
   "no such file",
   "cannot find the specified file",
   "cannot find the file",
+  // Windows 目录级变体："The system cannot find the path specified."
+  "cannot find the path",
   "找不到指定的文件",
   "找不到指定的路径",
   "不存在",
@@ -30,9 +32,15 @@ export function isMissingFileMessage(message: string): boolean {
   return MISSING_FILE_MESSAGE_PATTERNS.some((pattern) => normalized.includes(pattern));
 }
 
-export function createFileAccessError(message: string, status?: number): FileAccessError {
+export function createFileAccessError(
+  message: string,
+  status?: number,
+  envelopeCode?: number
+): FileAccessError {
   const error: FileAccessError = new Error(message);
-  if (status === 404 || isMissingFileMessage(message)) {
+  // 结构性判据优先：内核 getFile 的错误信封 body 携带 code=404（HTTP 层恒为 202），
+  // 以此免疫未来错误文案改动（审计 4.3）
+  if (status === 404 || envelopeCode === 404 || isMissingFileMessage(message)) {
     error.fileErrorCode = FILE_ACCESS_ERROR_CODE_MISSING;
   }
   if (typeof status === "number") {

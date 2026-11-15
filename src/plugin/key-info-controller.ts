@@ -73,6 +73,11 @@ export class KeyInfoController {
         }
       },
       init: (dock: { element: HTMLElement }) => {
+        // 自卫：官方流程保证 destroy 先于再 init，但若宿主未来出现
+        // 「不销毁直接重建」路径，先清理旧实例防监听泄漏（审计 4.1）。
+        if (this.keyInfoDock) {
+          this.destroy();
+        }
         const startupDocProcessTabEnabled = Boolean(
           this.deps.getStartupDocProcessTabEnabled?.()
         );

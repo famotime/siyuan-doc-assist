@@ -18,7 +18,8 @@ type PowerButtonsInvokeErrorCode =
   "provider-unavailable" |
   "context-unavailable" |
   "not-supported" |
-  "execution-failed";
+  "execution-failed" |
+  "cancelled";
 
 export type PowerButtonsInvokeResult =
   | {

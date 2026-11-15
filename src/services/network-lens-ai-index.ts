@@ -1,4 +1,7 @@
 import type { WikiCommandProvider } from "@/plugin/wiki-command-provider-types";
+import { createDocAssistantLogger } from "@/core/logger-core";
+
+const networkLensIndexLogger = createDocAssistantLogger("NetworkLensIndex");
 
 export type NetworkLensPluginLike = {
   loadData?: (storageName: string) => Promise<any>;
@@ -28,24 +31,42 @@ export async function loadFreshNetworkLensDocumentSummary(params: {
   networkLensPlugin: NetworkLensPluginLike | null | undefined;
   documentId: string;
   documentUpdatedAt: string;
+  /**
+   * 调用方能拿到的当前内容哈希（可选）。与缓存中的 sourceHash 都非空且不一致时，
+   * 即使 sourceUpdatedAt 相同（同一秒内多次保存）也视为过期（审计遗留项 2.6）。
+   * 注意：当前调用方无法复现脉络镜的哈希算法，暂无人传入；比较能力先就位。
+   */
+  expectedSourceHash?: string;
 }): Promise<NetworkLensDocumentSummary | null> {
+  const expectedHash = (params.expectedSourceHash || "").trim();
   const snapshot = await params.networkLensPlugin?.loadData?.("ai-document-index.json");
   if (snapshot && typeof snapshot.schemaVersion === "number" && snapshot.schemaVersion >= 3) {
     const v3Profile = snapshot?.documentProfiles?.[params.documentId];
     if (v3Profile && v3Profile.sourceUpdatedAt === params.documentUpdatedAt && v3Profile.positioning?.trim()) {
-      const positioning = v3Profile.positioning.trim();
-      const primaryBlocks = parseJsonStringArray(v3Profile.primarySourceBlocksJson);
-      const snippets = Array.isArray(primaryBlocks) ?
-          (primaryBlocks as any[]).map((item) => (typeof item === "object" && item?.text ? item.text : String(item))) :
-          [];
-      return {
-        summaryShort: positioning,
-        summaryMedium: positioning,
-        keywords: parseJsonStringArray(v3Profile.keywordsJson),
-        evidenceSnippets: snippets,
-        indexedAt: v3Profile.generatedAt || "",
-        sourceHash: v3Profile.sourceHash || ""
-      };
+      const storedHash = (v3Profile.sourceHash || "").trim();
+      if (expectedHash && storedHash && expectedHash !== storedHash) {
+        networkLensIndexLogger.warn("cached v3 summary source hash mismatch, treat as stale", {
+          documentId: params.documentId
+        });
+      } else {
+        const positioning = v3Profile.positioning.trim();
+        const primaryBlocks = parseJsonStringArray(v3Profile.primarySourceBlocksJson);
+        const snippets = Array.isArray(primaryBlocks) ?
+            (primaryBlocks as any[]).map((item) => (typeof item === "object" && item?.text ? item.text : String(item))) :
+            [];
+        // v3 命中路径的 medium 恒等于 short（脉络镜仅存 positioning），降级不再是静默的
+        networkLensIndexLogger.debug("v3 cached summary hit; medium falls back to short positioning", {
+          documentId: params.documentId
+        });
+        return {
+          summaryShort: positioning,
+          summaryMedium: positioning,
+          keywords: parseJsonStringArray(v3Profile.keywordsJson),
+          evidenceSnippets: snippets,
+          indexedAt: v3Profile.generatedAt || "",
+          sourceHash: v3Profile.sourceHash || ""
+        };
+      }
     }
   }
 
@@ -57,6 +78,14 @@ export async function loadFreshNetworkLensDocumentSummary(params: {
     return null;
   }
   if ((profile.sourceUpdatedAt || "") !== params.documentUpdatedAt) {
+    return null;
+  }
+
+  const legacyStoredHash = (profile.sourceHash || "").trim();
+  if (expectedHash && legacyStoredHash && expectedHash !== legacyStoredHash) {
+    networkLensIndexLogger.warn("cached legacy summary source hash mismatch, treat as stale", {
+      documentId: params.documentId
+    });
     return null;
   }
 

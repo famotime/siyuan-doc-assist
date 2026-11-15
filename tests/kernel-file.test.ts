@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { getFileBlob } from "@/services/kernel-file";
+import { isMissingFileError } from "@/core/kernel-file-error-core";
 
 describe("kernel file", () => {
   const originalFetch = globalThis.fetch;
@@ -55,5 +56,28 @@ describe("kernel file", () => {
 
     expect(blob.size).toBe(rawContent.length);
     expect(await blob.text()).toBe(rawContent);
+  });
+
+  test("classifies json error envelope body code 404 as missing even with unknown text (audit 4.3)", async () => {
+    // 内核 getFile：HTTP 202 + body {code:404, msg:<os.Stat 原始错误>}
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({ code: 404, msg: "some future unknown wording", data: null }),
+        {
+          status: 202,
+          headers: { "content-type": "application/json" }
+        }
+      );
+    }) as any;
+
+    let thrown: unknown;
+    try {
+      await getFileBlob("/data/nb-1/missing.sy");
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect(isMissingFileError(thrown)).toBe(true);
   });
 });

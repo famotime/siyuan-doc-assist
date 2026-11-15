@@ -204,6 +204,18 @@ export async function openFloatingTextWindow(options: {
     hostWebContentsId,
     baseUrl
   });
+  // Web 环境（Document PiP / window.open）无法真正置顶：pin 按钮是假状态机，
+  // 单独构建隐藏 pin 的 HTML（审计低危项）。
+  const webWindowHtml = buildFloatingWindowHtml({
+    title,
+    text,
+    config: effectiveConfig,
+    isDark,
+    initialHtml,
+    hostWebContentsId,
+    baseUrl,
+    pinControlDisabled: true
+  });
 
   // 1. 方案一：在思源桌面端（Electron 环境），使用 @electron/remote.BrowserWindow
   //    创建无边框（frame: false）、真实透明（transparent: true）、全局置顶（alwaysOnTop: true）的原生顶层窗口
@@ -495,7 +507,7 @@ export async function openFloatingTextWindow(options: {
 
       // 写入完整 HTML
       pipWindow.document.open();
-      pipWindow.document.write(html);
+      pipWindow.document.write(webWindowHtml);
       pipWindow.document.close();
 
       // 挂载交互事件
@@ -520,7 +532,7 @@ export async function openFloatingTextWindow(options: {
         currentPopupWindow = popup;
         currentPipWindow = null;
         popup.document.open();
-        popup.document.write(html);
+        popup.document.write(webWindowHtml);
         popup.document.close();
         popup.focus();
         bindPipWindowEvents(popup, text, effectiveConfig);

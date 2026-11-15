@@ -87,4 +87,85 @@ describe("network lens ai index", () => {
 
     expect(result).toBeNull();
   });
+
+  test("treats cache as stale when expectedSourceHash mismatches the stored hash (audit 2.6)", async () => {
+    const networkLensPlugin = {
+      loadData: async () => ({
+        schemaVersion: 3,
+        documentProfiles: {
+          "doc-1": {
+            sourceUpdatedAt: "20260403150208",
+            sourceHash: "hash-old",
+            positioning: "定位摘要",
+            keywordsJson: "[\"AI\"]"
+          }
+        },
+        semanticProfiles: {}
+      })
+    };
+
+    const stale = await loadFreshNetworkLensDocumentSummary({
+      networkLensPlugin,
+      documentId: "doc-1",
+      documentUpdatedAt: "20260403150208",
+      expectedSourceHash: "hash-new"
+    });
+    expect(stale).toBeNull();
+
+    const fresh = await loadFreshNetworkLensDocumentSummary({
+      networkLensPlugin,
+      documentId: "doc-1",
+      documentUpdatedAt: "20260403150208",
+      expectedSourceHash: "hash-old"
+    });
+    expect(fresh?.summaryShort).toBe("定位摘要");
+    expect(fresh?.sourceHash).toBe("hash-old");
+  });
+
+  test("legacy profile also honors expectedSourceHash mismatch", async () => {
+    const networkLensPlugin = {
+      loadData: async () => ({
+        schemaVersion: 2,
+        semanticProfiles: {
+          "doc-1": {
+            documentId: "doc-1",
+            sourceUpdatedAt: "20260403150208",
+            sourceHash: "h123",
+            documentSummaryShort: "这是短摘要。"
+          }
+        }
+      })
+    };
+
+    const result = await loadFreshNetworkLensDocumentSummary({
+      networkLensPlugin,
+      documentId: "doc-1",
+      documentUpdatedAt: "20260403150208",
+      expectedSourceHash: "h999"
+    });
+
+    expect(result).toBeNull();
+  });
+
+  test("absent expectedSourceHash keeps updatedAt-only invalidation", async () => {
+    const networkLensPlugin = {
+      loadData: async () => ({
+        schemaVersion: 3,
+        documentProfiles: {
+          "doc-1": {
+            sourceUpdatedAt: "20260403150208",
+            sourceHash: "hash-old",
+            positioning: "定位摘要"
+          }
+        }
+      })
+    };
+
+    const result = await loadFreshNetworkLensDocumentSummary({
+      networkLensPlugin,
+      documentId: "doc-1",
+      documentUpdatedAt: "20260403150208"
+    });
+    expect(result?.summaryShort).toBe("定位摘要");
+  });
 });

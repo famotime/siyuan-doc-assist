@@ -105,6 +105,37 @@ describe("mover service", () => {
     expect(moveDocsByIDMock).not.toHaveBeenCalled();
     expect(result.successIds).toEqual([]);
     expect(result.failed).toEqual([{ id: "doc-a", error: "readonly mode" }]);
+    expect(result.renamed).toEqual([]);
+  });
+
+  test("move failure after successful rename reports partial state and occupies the new title (audit 2.5)", async () => {
+    getChildDocTitlesMock.mockResolvedValue(["标题A"]);
+    getDocMetasByIDsMock.mockResolvedValue([
+      {
+        id: "doc-a",
+        title: "标题A",
+        parentId: "other-parent"
+      },
+      {
+        id: "doc-b",
+        title: "标题A",
+        parentId: "other-parent"
+      }
+    ] as any);
+    moveDocsByIDMock.mockRejectedValueOnce(new Error("move failed"));
+
+    const result = await moveDocsAsChildren("parent-doc", ["doc-a", "doc-b"]);
+
+    // rename 成功 + move 失败：不再计入 renamed（避免矛盾报告），failed 说明已改名
+    expect(result.successIds).toEqual(["doc-b"]);
+    expect(result.renamed).toEqual([{ id: "doc-b", title: "标题A (2)" }]);
+    expect(result.failed).toHaveLength(1);
+    expect(result.failed[0].id).toBe("doc-a");
+    expect(result.failed[0].error).toContain("标题A (1)");
+    expect(result.failed[0].error).toContain("移动失败");
+    // 失败 rename 的新标题进入占用集合：后续同名文档规划避开 "标题A (1)"
+    expect(renameDocByIDMock).toHaveBeenNthCalledWith(1, "doc-a", "标题A (1)");
+    expect(renameDocByIDMock).toHaveBeenNthCalledWith(2, "doc-b", "标题A (2)");
   });
 
   test("skips docs that are already descendants of current document", async () => {

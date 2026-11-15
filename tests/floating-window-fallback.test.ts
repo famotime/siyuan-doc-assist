@@ -92,11 +92,44 @@ describe("openInAppFloatingFallback", () => {
     expectDialogClosed();
   });
 
-  test("closes the dialog on Escape keydown", () => {
+  test("does not close on Escape and does not swallow it (Esc handled by SiYuan natively)", () => {
     openInAppFloatingFallback("标题", "正文", defaultConfig, false);
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    expectDialogClosed();
+    const event = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    document.dispatchEvent(event);
+    // 插件不再自实现 Esc 关闭：思源全局 keydown 按「一次 Esc 关栈顶一个 Dialog」处理，
+    // 插件侧只保证不吞事件、不叠加关闭
+    expect(document.querySelectorAll(".b3-dialog")).toHaveLength(1);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  test("coexisting fallback dialogs are not closed by our own Esc handling (audit low-risk)", () => {
+    openInAppFloatingFallback("旧窗", "正文", defaultConfig, false);
+    openInAppFloatingFallback("新窗", "正文", defaultConfig, false);
+    expect(dialogInstances).toHaveLength(2);
+
+    const first = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    document.dispatchEvent(first);
+    const second = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    document.dispatchEvent(second);
+
+    // 两个窗都保留：真正的「一次 Esc 关一个」由思源全局 keydown 完成
+    expect(document.querySelectorAll(".b3-dialog")).toHaveLength(2);
+    expect(first.defaultPrevented).toBe(false);
+    expect(second.defaultPrevented).toBe(false);
+  });
+
+  test("inner close button closes only its own dialog", () => {
+    openInAppFloatingFallback("旧窗", "正文", defaultConfig, false);
+    openInAppFloatingFallback("新窗", "正文", defaultConfig, false);
+
+    // jsdom 怪癖：querySelector("#id") 对文档级重复 id 走全局 id-map 快路径，
+    // 只有第一个（旧窗）的关闭按钮会被 fallback 代码实际绑定（真实浏览器无此问题）。
+    const oldestDialogClose = document.querySelector("#ft-btn-close");
+    expect(oldestDialogClose).not.toBeNull();
+    oldestDialogClose!.dispatchEvent(new Event("click"));
+    // 只关旧窗，新窗不受影响
+    expect(document.querySelectorAll(".b3-dialog")).toHaveLength(1);
   });
 
   test("responds to the floating close custom event once and ignores repeated cleanup", () => {

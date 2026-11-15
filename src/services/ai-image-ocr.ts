@@ -12,6 +12,7 @@ import {
   normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import { normalizeAiSummaryText } from "@/core/ai-summary-core";
+import { DEFAULT_MAP_CONCURRENCY, mapWithConcurrency } from "@/core/map-with-concurrency";
 import {
   collectLocalImageAssetPathsFromMarkdown,
   normalizeLocalImageAssetPath
@@ -38,6 +39,8 @@ export type RecognizeDocImagesOptions = {
   targetAssetPaths?: string[];
   forwardProxy?: ForwardProxyFn;
   onProgress?: (current: number, total: number, assetPath: string) => void;
+  /** 并发请求数上限，缺省 {@link DEFAULT_MAP_CONCURRENCY}（审计遗留项 2.4） */
+  concurrency?: number;
 };
 
 export type RecognizeDocImagesReport = {
@@ -145,34 +148,35 @@ export async function recognizeDocImages(
     }
   }
 
-  // Phase 1: concurrent OCR requests (order doesn't matter yet)
+  // Phase 1: bounded-concurrency OCR requests; results stay in input order
+  // so Phase 2 can insert by document order. Progress reflects completed
+  // requests instead of request starts.
   let completedRequests = 0;
-  const ocrPromises = imageItems.map(async (item) => {
-    try {
-      const imageBase64List = await readAssetAsBase64List(item.assetPath);
-      if (!imageBase64List.length) {
+  const ocrResults = await mapWithConcurrency(
+    imageItems,
+    options.concurrency ?? DEFAULT_MAP_CONCURRENCY,
+    async (item) => {
+      try {
+        const imageBase64List = await readAssetAsBase64List(item.assetPath);
+        if (!imageBase64List.length) {
+          return null;
+        }
+        if (imageBase64List.length === 1) {
+          return await requestVisionOcr(proxyFn, config, imageBase64List[0]);
+        }
+        // 多切片并行请求 OCR
+        const sliceResults = await Promise.all(
+          imageBase64List.map((base64) => requestVisionOcr(proxyFn, config, base64))
+        );
+        return mergeOcrResults(sliceResults);
+      } catch {
         return null;
+      } finally {
+        completedRequests += 1;
+        options.onProgress?.(completedRequests, imageItems.length, item.assetPath);
       }
-      if (imageBase64List.length === 1) {
-        return await requestVisionOcr(proxyFn, config, imageBase64List[0]);
-      }
-      // 多切片并行请求 OCR
-      const sliceResults = await Promise.all(
-        imageBase64List.map((base64) => requestVisionOcr(proxyFn, config, base64))
-      );
-      return mergeOcrResults(sliceResults);
-    } catch {
-      return null;
     }
-  });
-  // Progress reflects completed requests instead of request starts.
-  ocrPromises.forEach((promise, index) => {
-    void promise.then(() => {
-      completedRequests += 1;
-      options.onProgress?.(completedRequests, imageItems.length, imageItems[index].assetPath);
-    });
-  });
-  const ocrResults = await Promise.all(ocrPromises);
+  );
 
   // Phase 2: sequential insertion in original image order
   let recognizedCount = 0;

@@ -60,11 +60,13 @@ export function openInAppFloatingFallback(
   }
 
   // 2. 统一关闭逻辑与生命周期销毁
+  // Esc 不由本插件处理：思源全局 keydown（window 级）本身按「一次 Esc 关闭自己
+  // 栈顶的一个 Dialog」处理（app/src/boot/globalEvent/keydown.ts），插件自实现会与之
+  // 叠加成一次关多个；旧的 document 捕获监听还会吞掉页面所有 Esc（2026-11-15 实机复核）。
   let isCleanedUp = false;
   const cleanup = () => {
     if (isCleanedUp) return;
     isCleanedUp = true;
-    document.removeEventListener("keydown", onKeyDown, true);
     document.removeEventListener("doc-assistant-floating-close", onCloseEvent);
   };
 
@@ -73,21 +75,14 @@ export function openInAppFloatingFallback(
     dialog.destroy();
   };
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      closeDialog();
-    }
-  };
-
   const onCloseEvent = (e: Event) => {
     e.preventDefault();
     e.stopPropagation();
     closeDialog();
   };
 
-  document.addEventListener("keydown", onKeyDown, true);
+  // doc-assistant-floating-close 是 client script 的显式关闭 API（仅在脚本可执行的
+  // 环境派发；降级 Dialog 中脚本不执行），保留在 document 上作为程序化关闭兜底。
   document.addEventListener("doc-assistant-floating-close", onCloseEvent);
 
   // 监听内层自定义关闭按钮点击 (捕获阶段，阻止向外冒泡)

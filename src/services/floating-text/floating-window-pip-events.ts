@@ -306,9 +306,12 @@ export function bindPipWindowEvents(
       return;
     }
     if ((e.altKey && (e.key === "p" || e.key === "P")) || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "p" || e.key === "P"))) {
-      e.preventDefault();
-      togglePin();
-      return;
+      // pin 按钮已隐藏（PiP/popup 无法真正置顶）时快捷键一并停用
+      if (pinBtn) {
+        e.preventDefault();
+        togglePin();
+        return;
+      }
     }
     if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
       const selected = getSelectedText();

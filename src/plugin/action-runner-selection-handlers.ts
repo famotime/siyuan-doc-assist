@@ -34,7 +34,7 @@ import {
   getExplicitlySelectedBlockIds,
   getSelectedBlockIds
 } from "@/plugin/action-runner-context";
-import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
+import { ACTION_CANCELLED, PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { ProtyleLike } from "@/plugin/doc-context";
 
 type CreateSelectionActionHandlersDeps = {
@@ -235,7 +235,7 @@ export function createSelectionActionHandlers(
       confirmLines.push("是否继续？");
       const ok = await deps.askConfirmWithVisibleDialog("确认批量样式处理", confirmLines.join("\n"));
       if (!ok) {
-        return;
+        return ACTION_CANCELLED;
       }
       deps.setBusy?.(true);
     }
@@ -492,7 +492,7 @@ export function createSelectionActionHandlers(
     ];
     const ok = await deps.askConfirmWithVisibleDialog("确认清理整篇文档 Emoji 表情", confirmLines.join("\n"));
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
 
     deps.setBusy?.(true);
@@ -631,7 +631,7 @@ export function createSelectionActionHandlers(
       ];
       const ok = await deps.askConfirmWithVisibleDialog("确认执行换行-分段互转", confirmLines.join("\n"));
       if (!ok) {
-        return;
+        return ACTION_CANCELLED;
       }
       deps.setBusy?.(true);
 
@@ -691,7 +691,7 @@ export function createSelectionActionHandlers(
     ];
     const ok = await deps.askConfirmWithVisibleDialog("确认执行换行-分段互转", confirmLines.join("\n"));
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
     deps.setBusy?.(true);
 
@@ -761,7 +761,7 @@ export function createSelectionActionHandlers(
 
     const ok = await deps.askConfirmWithVisibleDialog("确认合并列表块", confirmLines.join("\n"));
     if (!ok) {
-      return;
+      return ACTION_CANCELLED;
     }
     deps.setBusy?.(true);
 

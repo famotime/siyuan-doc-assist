@@ -16,6 +16,16 @@ export type IrrelevantParagraphMark = {
   segments: string[];
 };
 
+/** 解析诊断：AI 返回内容与原文校验未命中的明细（审计低危项） */
+export type SlopMarkerParseDiagnostics = {
+  unknownParagraphIds: string[];
+  droppedSegments: Array<{ paragraphId: string; segment: string }>;
+};
+
+function createParseDiagnostics(): SlopMarkerParseDiagnostics {
+  return { unknownParagraphIds: [], droppedSegments: [] };
+}
+
 export function extractIrrelevantParagraphIds(
   payload: any,
   paragraphs: IrrelevantParagraphCandidate[]
@@ -26,7 +36,8 @@ export function extractIrrelevantParagraphIds(
 export function extractIrrelevantParagraphMarks(
   payload: any,
   paragraphs: IrrelevantParagraphCandidate[],
-  segmentCandidates: IrrelevantSegmentCandidate[] = []
+  segmentCandidates: IrrelevantSegmentCandidate[] = [],
+  diagnostics?: SlopMarkerParseDiagnostics
 ): IrrelevantParagraphMark[] {
   const content = extractMessageContent(payload);
   if (!content) {
@@ -43,6 +54,8 @@ export function extractIrrelevantParagraphMarks(
     return segmentIdMarks;
   }
 
+  const parseDiagnostics = diagnostics ?? createParseDiagnostics();
+
   const entries = resolveIrrelevantParagraphEntries(parsed);
   if (entries.length > 0) {
     const marks: IrrelevantParagraphMark[] = [];
@@ -54,6 +67,9 @@ export function extractIrrelevantParagraphMarks(
           "";
       const paragraph = paragraphId ? paragraphMap.get(paragraphId) : undefined;
       if (!paragraph) {
+        if (paragraphId) {
+          parseDiagnostics.unknownParagraphIds.push(paragraphId);
+        }
         continue;
       }
 
@@ -61,7 +77,12 @@ export function extractIrrelevantParagraphMarks(
       const segments: string[] = [];
       for (const value of rawSegments) {
         const segment = typeof value === "string" ? value.trim() : "";
-        if (!segment || segments.includes(segment) || !paragraph.markdown.includes(segment)) {
+        if (!segment || segments.includes(segment)) {
+          continue;
+        }
+        if (!paragraph.markdown.includes(segment)) {
+          // AI 改写了原文导致 includes 未命中：计数并记录，不再静默丢弃
+          parseDiagnostics.droppedSegments.push({ paragraphId, segment });
           continue;
         }
         segments.push(segment);
@@ -69,6 +90,12 @@ export function extractIrrelevantParagraphMarks(
       if (segments.length > 0) {
         marks.push({ paragraphId, segments });
       }
+    }
+    if (parseDiagnostics.unknownParagraphIds.length > 0 || parseDiagnostics.droppedSegments.length > 0) {
+      parserLogger.warn("AI slop marker parse dropped unmatched entries", {
+        unknownParagraphIds: parseDiagnostics.unknownParagraphIds,
+        droppedSegments: parseDiagnostics.droppedSegments
+      });
     }
     return marks;
   }
