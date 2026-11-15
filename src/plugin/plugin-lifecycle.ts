@@ -30,6 +30,10 @@ import {
   unbindPluginLifecycleEvents,
 } from "@/plugin/plugin-lifecycle-events";
 import {
+  addFloatDocTreeMenuItem,
+  addFloatSelectedTextBlockMenuItem,
+  addFloatSelectedTextContentMenuItem,
+  isFloatSelectedTextHidden,
   populateEditorTitleMenu,
   registerPluginCommands,
 } from "@/plugin/plugin-lifecycle-menu";
@@ -73,7 +77,6 @@ import { createPowerButtonsProvider } from "@/plugin/power-buttons-provider";
 import type { PowerButtonsCommandProvider } from "@/plugin/power-buttons-provider-types";
 import { askConfirmWithDetail } from "@/ui/confirm-detail-dialog";
 import { floatingTextService } from "@/services/floating-text/floating-text-service";
-import { extractFloatingMarkdownFromSelection } from "@/services/floating-text/floating-selection-helper";
 
 export default class DocLinkToolkitPlugin extends Plugin {
   declare displayName: string;
@@ -204,34 +207,22 @@ export default class DocLinkToolkitPlugin extends Plugin {
     protyle?: ProtyleLike;
   }>) => {
     const detail = event.detail;
-    const menu = detail?.menu;
-    if (!menu) {
+    if (!detail?.menu) {
       return;
     }
     if (
-      getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG).has("float-selected-text") ||
-      this.docActionEnabledState?.["float-selected-text"] === false
+      isFloatSelectedTextHidden(
+        getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG),
+        this.docActionEnabledState
+      )
     ) {
       return;
     }
-    const selectedText = detail.range
-      ? detail.range.toString()
-      : typeof window !== "undefined"
-      ? window.getSelection()?.toString() || ""
-      : "";
-    if (!selectedText.trim()) {
-      return;
-    }
-
-    const capturedRange = detail.range ? detail.range.cloneRange() : null;
-
-    menu.addItem({
-      icon: "iconPin",
-      label: "悬浮选中文本",
-      click: async () => {
-        const text = await extractFloatingMarkdownFromSelection(detail.protyle, capturedRange);
-        void floatingTextService.openFloatingText(text || selectedText);
-      },
+    addFloatSelectedTextContentMenuItem({
+      menu: detail.menu,
+      protyle: detail.protyle,
+      range: detail.range,
+      openFloatingText: (text) => void floatingTextService.openFloatingText(text),
     });
   };
 
@@ -244,41 +235,27 @@ export default class DocLinkToolkitPlugin extends Plugin {
     blockElements?: HTMLElement[];
   }>) => {
     const detail = event.detail;
-    const menu = detail?.menu;
-    if (!menu) {
+    if (!detail?.menu) {
       return;
     }
     if (
-      getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG).has("float-selected-text") ||
-      this.docActionEnabledState?.["float-selected-text"] === false
+      isFloatSelectedTextHidden(
+        getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG),
+        this.docActionEnabledState
+      )
     ) {
       return;
     }
 
     const protyle = detail.protyle;
-    const toolbarRange = (protyle as any)?.toolbar?.range;
-    const capturedRange = toolbarRange && typeof toolbarRange.cloneRange === "function"
-      ? toolbarRange.cloneRange()
-      : typeof window !== "undefined" && window.getSelection()?.rangeCount
-      ? window.getSelection()!.getRangeAt(0).cloneRange()
-      : null;
-    const blockElements = detail.blockElements ? [...detail.blockElements] : [];
-
-    menu.addItem({
-      icon: "iconPin",
-      label: "悬浮选中文本",
-      click: async () => {
-        const text = await extractFloatingMarkdownFromSelection(
-          protyle,
-          capturedRange,
-          blockElements
-        );
-        if (text) {
-          void floatingTextService.openFloatingText(text);
-        } else {
-          const docId = getProtyleDocId(protyle as ProtyleLike) || this.currentDocId;
-          void this.actionRunner.runAction("float-selected-text", docId, protyle as ProtyleLike);
-        }
+    addFloatSelectedTextBlockMenuItem({
+      menu: detail.menu,
+      protyle,
+      blockElements: detail.blockElements,
+      openFloatingText: (text) => void floatingTextService.openFloatingText(text),
+      runFloatActionFallback: () => {
+        const docId = getProtyleDocId(protyle as ProtyleLike) || this.currentDocId;
+        void this.actionRunner.runAction("float-selected-text", docId, protyle as ProtyleLike);
       },
     });
   };
@@ -291,22 +268,11 @@ export default class DocLinkToolkitPlugin extends Plugin {
     type?: string;
   }>) => {
     const detail = event.detail;
-    const menu = detail?.menu;
-    if (!menu || detail.type !== "doc" || !detail.elements || !detail.elements.length) {
-      return;
-    }
-    const targetEl = detail.elements[0];
-    const docId = targetEl.getAttribute("data-node-id");
-    if (!docId) {
-      return;
-    }
-
-    menu.addItem({
-      icon: "iconPin",
-      label: "悬浮整篇文档",
-      click: () => {
-        void floatingTextService.openFloatingDoc(docId);
-      },
+    addFloatDocTreeMenuItem({
+      menu: detail?.menu,
+      elements: detail?.elements,
+      eventType: detail?.type,
+      openFloatingDoc: (docId) => void floatingTextService.openFloatingDoc(docId),
     });
   };
 

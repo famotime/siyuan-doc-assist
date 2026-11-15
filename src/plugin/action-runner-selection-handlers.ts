@@ -6,7 +6,6 @@ import { BlockStyle } from "@/core/markdown-style-core";
 import {
   convertChineseEnglishPunctuation,
   detectPunctuationToggleMode,
-  PunctuationToggleMode,
 } from "@/core/punctuation-toggle-core";
 import { buildSelectedBlockStyleTogglePreview } from "@/core/selected-block-style-toggle-core";
 import {
@@ -17,6 +16,12 @@ import {
   normalizeLineEndings,
   removeSpaceLikeChars,
 } from "@/core/selection-text-transform-core";
+import {
+  applyTextTransformToPartialSelection,
+  applyTextTransformToSelectedBlocks,
+  collectSelectedBlockElements,
+  filterOutNestedSelectedBlockIds,
+} from "@/core/selection-dom-cleanup-core";
 import {
   deleteBlocksByIds,
   getBlocksByIds,
@@ -48,84 +53,6 @@ type StyleFailureDetail = {
 const styleLogger = createDocAssistantLogger("Style");
 const DELETE_BLOCK_CONCURRENCY = 6;
 
-function findBlockElementById(root: HTMLElement, blockId: string): HTMLElement | null {
-  const nodes = root.querySelectorAll<HTMLElement>("[data-node-id]");
-  for (const node of nodes) {
-    const id = node.dataset.nodeId || node.getAttribute("data-node-id") || "";
-    if (id === blockId) {
-      return node;
-    }
-  }
-  return null;
-}
-
-function isComplexStructuralBlock(block: HTMLElement): boolean {
-  const type = (block.getAttribute("data-type") || "").trim().toLowerCase();
-  return (
-    type === "nodetable" ||
-    type === "table" ||
-    type === "nodelist" ||
-    type === "list" ||
-    type === "nodelistitem" ||
-    type === "nodeblockquote" ||
-    type === "nodesuperblock" ||
-    block.querySelector("table") !== null
-  );
-}
-
-function resolveEditableForRange(range: Range, blockElement: HTMLElement): HTMLElement | null {
-  let current: Node | null = range.startContainer;
-  while (current && current !== blockElement) {
-    if (current.nodeType === Node.ELEMENT_NODE) {
-      const el = current as HTMLElement;
-      if (el.tagName === "TH" || el.tagName === "TD") {
-        return el;
-      }
-      if (el.getAttribute("contenteditable") === "true" && el.tagName !== "TABLE") {
-        return el;
-      }
-    }
-    current = current.parentElement;
-  }
-  const editable = blockElement.querySelector('[contenteditable="true"]') as HTMLElement | null;
-  if (editable && editable.tagName === "TABLE") {
-    return null;
-  }
-  return editable || blockElement;
-}
-
-function filterOutNestedSelectedBlockIds(
-  root: HTMLElement | undefined,
-  selectedIds: string[]
-): string[] {
-  if (!root || selectedIds.length <= 1) {
-    return selectedIds;
-  }
-  const idSet = new Set(selectedIds);
-  const topIds: string[] = [];
-  for (const id of selectedIds) {
-    const el = findBlockElementById(root, id);
-    if (!el) {
-      topIds.push(id);
-      continue;
-    }
-    let ancestor = el.parentElement;
-    let hasAncestorInSet = false;
-    while (ancestor && ancestor !== root) {
-      const ancestorId = ancestor.getAttribute("data-node-id");
-      if (ancestorId && idSet.has(ancestorId)) {
-        hasAncestorInSet = true;
-        break;
-      }
-      ancestor = ancestor.parentElement;
-    }
-    if (!hasAncestorInSet) {
-      topIds.push(id);
-    }
-  }
-  return topIds;
-}
-
 function isHighRiskForMarkdownWrite(value: string): boolean {
   if (!value) {
     return false;
@@ -137,72 +64,6 @@ function isHighRiskForMarkdownWrite(value: string): boolean {
     /data-memo=/i.test(value) ||
     /\(\([^)]+\)\)\{:/.test(value)
   );
-}
-
-function resolveRangeBoundaryBlockId(root: HTMLElement, container: Node): string {
-  const baseElement =
-    container.nodeType === Node.ELEMENT_NODE
-      ? (container as Element)
-      : container.parentElement;
-  if (!baseElement) {
-    return "";
-  }
-  const blockElement = baseElement.closest?.("[data-node-id]") as HTMLElement | null;
-  if (!blockElement || !root.contains(blockElement)) {
-    return "";
-  }
-  return (blockElement.dataset.nodeId || blockElement.getAttribute("data-node-id") || "").trim();
-}
-
-function removeSpaceLikeCharsInTextNodes(root: HTMLElement): number {
-  let removedCount = 0;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let current = walker.nextNode();
-  while (current) {
-    const textNode = current as Text;
-    const source = textNode.nodeValue || "";
-    const cleaned = removeSpaceLikeChars(source);
-    if (cleaned.removedCount > 0) {
-      textNode.nodeValue = cleaned.next;
-      removedCount += cleaned.removedCount;
-    }
-    current = walker.nextNode();
-  }
-  return removedCount;
-}
-
-function removeEmojiInTextNodes(root: HTMLElement): number {
-  let removedCount = 0;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let current = walker.nextNode();
-  while (current) {
-    const textNode = current as Text;
-    const source = textNode.nodeValue || "";
-    const cleaned = removeEmojiFromText(source);
-    if (cleaned.removedCount > 0) {
-      textNode.nodeValue = cleaned.next;
-      removedCount += cleaned.removedCount;
-    }
-    current = walker.nextNode();
-  }
-  return removedCount;
-}
-
-function convertPunctuationInTextNodes(root: HTMLElement, mode: PunctuationToggleMode): number {
-  let changedCount = 0;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let current = walker.nextNode();
-  while (current) {
-    const textNode = current as Text;
-    const source = textNode.nodeValue || "";
-    const converted = convertChineseEnglishPunctuation(source, mode);
-    if (converted.changedCount > 0) {
-      textNode.nodeValue = converted.next;
-      changedCount += converted.changedCount;
-    }
-    current = walker.nextNode();
-  }
-  return changedCount;
 }
 
 function summarizeStyleFailures(failures: StyleFailureDetail[]): string {
@@ -233,83 +94,33 @@ function describeSelectedBlockStyleOperation(style: BlockStyle, mode: "add-style
   return `${styleLabel}所有选中块`;
 }
 
+function toTextTransform(
+  clean: (source: string) => { next: string; removedCount: number }
+): (source: string) => { next: string; changedCount: number } {
+  return (source) => {
+    const cleaned = clean(source);
+    return { next: cleaned.next, changedCount: cleaned.removedCount };
+  };
+}
+
 function applySelectedBlocksSpacingCleanupFromDom(
   protyle: ProtyleLike | undefined,
   selectedIds: string[]
 ): { cleanedBlockCount: number; removedCount: number } | null {
   const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  if (!root || !selectedIds.length) {
+  const result = applyTextTransformToSelectedBlocks(root, selectedIds, toTextTransform(removeSpaceLikeChars));
+  if (!result) {
     return null;
   }
-
-  const blockElements: HTMLElement[] = [];
-  for (const id of selectedIds) {
-    const block = findBlockElementById(root, id);
-    if (!block || isComplexStructuralBlock(block)) {
-      return null;
-    }
-    blockElements.push(block);
-  }
-
-  let cleanedBlockCount = 0;
-  let removedCount = 0;
-  for (const block of blockElements) {
-    const editable =
-      (block.querySelector('[contenteditable="true"]') as HTMLElement | null) || block;
-    const removedInBlock = removeSpaceLikeCharsInTextNodes(editable);
-    if (removedInBlock > 0) {
-      cleanedBlockCount += 1;
-      removedCount += removedInBlock;
-      editable.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-  }
-  return { cleanedBlockCount, removedCount };
+  return { cleanedBlockCount: result.changedBlockCount, removedCount: result.changedCount };
 }
 
 function applyPartialSelectionSpacingCleanup(
   protyle?: ProtyleLike
 ): { handled: boolean; removedCount: number } {
-  if (typeof window === "undefined") {
-    return { handled: false, removedCount: 0 };
-  }
-
   const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  if (!root) {
-    return { handled: false, removedCount: 0 };
-  }
-  const selection = window.getSelection?.();
-  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-    return { handled: false, removedCount: 0 };
-  }
-
-  const range = selection.getRangeAt(0);
-  const startBlockId = resolveRangeBoundaryBlockId(root, range.startContainer);
-  const endBlockId = resolveRangeBoundaryBlockId(root, range.endContainer);
-  if (!startBlockId || !endBlockId || startBlockId !== endBlockId) {
-    return { handled: false, removedCount: 0 };
-  }
-
-  const blockElement = findBlockElementById(root, startBlockId);
-  if (!blockElement) {
-    return { handled: false, removedCount: 0 };
-  }
-
-  const editable = resolveEditableForRange(range, blockElement);
-  if (!editable) {
-    return { handled: false, removedCount: 0 };
-  }
-
-  const selectedText = range.toString();
-  const cleaned = removeSpaceLikeChars(selectedText);
-  const removedCount = cleaned.removedCount;
-
-  if (removedCount > 0) {
-    range.deleteContents();
-    range.insertNode(document.createTextNode(cleaned.next));
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-  selection.removeAllRanges();
-  return { handled: true, removedCount };
+  const result = applyTextTransformToPartialSelection(root, toTextTransform(removeSpaceLikeChars));
+  return { handled: result.handled, removedCount: result.changedCount };
 }
 
 function applySelectedBlocksEmojiCleanupFromDom(
@@ -317,78 +128,19 @@ function applySelectedBlocksEmojiCleanupFromDom(
   selectedIds: string[]
 ): { cleanedBlockCount: number; removedCount: number } | null {
   const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  if (!root || !selectedIds.length) {
+  const result = applyTextTransformToSelectedBlocks(root, selectedIds, toTextTransform(removeEmojiFromText));
+  if (!result) {
     return null;
   }
-
-  const blockElements: HTMLElement[] = [];
-  for (const id of selectedIds) {
-    const block = findBlockElementById(root, id);
-    if (!block || isComplexStructuralBlock(block)) {
-      return null;
-    }
-    blockElements.push(block);
-  }
-
-  let cleanedBlockCount = 0;
-  let removedCount = 0;
-  for (const block of blockElements) {
-    const editable =
-      (block.querySelector('[contenteditable="true"]') as HTMLElement | null) || block;
-    const removedInBlock = removeEmojiInTextNodes(editable);
-    if (removedInBlock > 0) {
-      cleanedBlockCount += 1;
-      removedCount += removedInBlock;
-      editable.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-  }
-  return { cleanedBlockCount, removedCount };
+  return { cleanedBlockCount: result.changedBlockCount, removedCount: result.changedCount };
 }
 
 function applyPartialSelectionEmojiCleanup(
   protyle?: ProtyleLike
 ): { handled: boolean; removedCount: number } {
-  if (typeof window === "undefined") {
-    return { handled: false, removedCount: 0 };
-  }
-
   const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  if (!root) {
-    return { handled: false, removedCount: 0 };
-  }
-  const selection = window.getSelection?.();
-  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-    return { handled: false, removedCount: 0 };
-  }
-
-  const range = selection.getRangeAt(0);
-  const startBlockId = resolveRangeBoundaryBlockId(root, range.startContainer);
-  const endBlockId = resolveRangeBoundaryBlockId(root, range.endContainer);
-  if (!startBlockId || !endBlockId || startBlockId !== endBlockId) {
-    return { handled: false, removedCount: 0 };
-  }
-
-  const blockElement = findBlockElementById(root, startBlockId);
-  if (!blockElement) {
-    return { handled: false, removedCount: 0 };
-  }
-
-  const editable = resolveEditableForRange(range, blockElement);
-  if (!editable) {
-    return { handled: false, removedCount: 0 };
-  }
-
-  const selectedText = range.toString();
-  const cleaned = removeEmojiFromText(selectedText);
-  const removedCount = cleaned.removedCount;
-
-  if (removedCount > 0) {
-    range.deleteContents();
-    range.insertNode(document.createTextNode(cleaned.next));
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-  selection.removeAllRanges();
-  return { handled: true, removedCount };
+  const result = applyTextTransformToPartialSelection(root, toTextTransform(removeEmojiFromText));
+  return { handled: result.handled, removedCount: result.changedCount };
 }
 
 function applySelectedBlocksPunctuationToggleFromDom(
@@ -396,17 +148,9 @@ function applySelectedBlocksPunctuationToggleFromDom(
   selectedIds: string[]
 ): { changedBlockCount: number; changedCount: number } | null {
   const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  if (!root || !selectedIds.length) {
+  const blockElements = collectSelectedBlockElements(root, selectedIds);
+  if (!blockElements) {
     return null;
-  }
-
-  const blockElements: HTMLElement[] = [];
-  for (const id of selectedIds) {
-    const block = findBlockElementById(root, id);
-    if (!block || isComplexStructuralBlock(block)) {
-      return null;
-    }
-    blockElements.push(block);
   }
 
   let source = "";
@@ -414,66 +158,18 @@ function applySelectedBlocksPunctuationToggleFromDom(
     source += `${block.textContent || ""}\n`;
   }
   const mode = detectPunctuationToggleMode(source);
-  let changedBlockCount = 0;
-  let changedCount = 0;
-  for (const block of blockElements) {
-    const editable =
-      (block.querySelector('[contenteditable="true"]') as HTMLElement | null) || block;
-    const nextChanged = convertPunctuationInTextNodes(editable, mode);
-    if (nextChanged > 0) {
-      changedBlockCount += 1;
-      changedCount += nextChanged;
-      editable.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-  }
-  return { changedBlockCount, changedCount };
+  return applyTextTransformToSelectedBlocks(root, selectedIds, (text) =>
+    convertChineseEnglishPunctuation(text, mode)
+  );
 }
 
 function applyPartialSelectionPunctuationToggle(
   protyle?: ProtyleLike
 ): { handled: boolean; changedCount: number } {
-  if (typeof window === "undefined") {
-    return { handled: false, changedCount: 0 };
-  }
-
   const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  if (!root) {
-    return { handled: false, changedCount: 0 };
-  }
-  const selection = window.getSelection?.();
-  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-    return { handled: false, changedCount: 0 };
-  }
-
-  const range = selection.getRangeAt(0);
-  const startBlockId = resolveRangeBoundaryBlockId(root, range.startContainer);
-  const endBlockId = resolveRangeBoundaryBlockId(root, range.endContainer);
-  if (!startBlockId || !endBlockId || startBlockId !== endBlockId) {
-    return { handled: false, changedCount: 0 };
-  }
-
-  const blockElement = findBlockElementById(root, startBlockId);
-  if (!blockElement) {
-    return { handled: false, changedCount: 0 };
-  }
-
-  const editable = resolveEditableForRange(range, blockElement);
-  if (!editable) {
-    return { handled: false, changedCount: 0 };
-  }
-
-  const selectedText = range.toString();
-  const mode = detectPunctuationToggleMode(selectedText);
-  const converted = convertChineseEnglishPunctuation(selectedText, mode);
-  const changedCount = converted.changedCount;
-
-  if (changedCount > 0) {
-    range.deleteContents();
-    range.insertNode(document.createTextNode(converted.next));
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-  selection.removeAllRanges();
-  return { handled: true, changedCount };
+  return applyTextTransformToPartialSelection(root, (text) =>
+    convertChineseEnglishPunctuation(text, detectPunctuationToggleMode(text))
+  );
 }
 
 export function createSelectionActionHandlers(

@@ -1,4 +1,10 @@
 import { showMessage } from "siyuan";
+import {
+  isHighRiskForMarkdownWrite,
+  isThematicBreakBlock,
+  previewAiOutputCleanup,
+  previewStrikethroughCleanup,
+} from "@/core/cleanup-preview-core";
 import { buildHeadingBoldTogglePreview } from "@/core/heading-bold-toggle-core";
 import {
   convertSiyuanLinksAndRefsInMarkdown,
@@ -41,126 +47,11 @@ type CreateCleanupActionHandlersDeps = {
   setBusy?: (busy: boolean) => void;
 };
 
-type AiOutputCleanupPreview = {
-  cleanableBlockCount: number;
-  riskyPendingBlockCount: number;
-  removedSupCount: number;
-  removedCaretCount: number;
-  removedInternetLinkCount: number;
-  removedHiddenSpanCount: number;
-  removedRefCount: number;
-  removedDividerCount: number;
-};
-
-type StrikethroughCleanupPreview = {
-  cleanableBlockCount: number;
-  riskyPendingBlockCount: number;
-  removedCount: number;
-};
-
 const DELETE_BLOCK_CONCURRENCY = 6;
-
-function isHighRiskForMarkdownWrite(value: string): boolean {
-  if (!value) {
-    return false;
-  }
-  return (
-    /inline-memo/i.test(value) ||
-    /data-inline-memo-content/i.test(value) ||
-    /data-memo-content/i.test(value) ||
-    /data-memo=/i.test(value) ||
-    /\(\([^)]+\)\)\{:/.test(value)
-  );
-}
-
-function isThematicBreakBlock(block: { type?: string; markdown?: string }): boolean {
-  const type = (block.type || "").trim().toLowerCase();
-  if (type === "b" || type === "tb" || type === "thematicbreak" || type === "nodethematicbreak") {
-    return true;
-  }
-  const source = (block.markdown || "").trim();
-  return /^(?:(?:\-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(source);
-}
 
 function isSafeBilingualSplitBlockType(type: string): boolean {
   const normalized = (type || "").trim().toLowerCase();
   return normalized === "p" || normalized === "paragraph" || normalized === "nodeparagraph";
-}
-
-function previewAiOutputCleanup(
-  blocks: Array<{ id: string; type?: string; markdown?: string }>
-): AiOutputCleanupPreview {
-  const preview: AiOutputCleanupPreview = {
-    cleanableBlockCount: 0,
-    riskyPendingBlockCount: 0,
-    removedSupCount: 0,
-    removedCaretCount: 0,
-    removedInternetLinkCount: 0,
-    removedHiddenSpanCount: 0,
-    removedRefCount: 0,
-    removedDividerCount: 0,
-  };
-
-  for (const block of blocks) {
-    const source = block.markdown || "";
-    const isDivider = isThematicBreakBlock(block);
-    if (!source && !isDivider) {
-      continue;
-    }
-    const cleaned = cleanupAiOutputArtifactsInMarkdown(source);
-    if (isDivider && cleaned.removedDividerCount === 0) {
-      cleaned.removedDividerCount = 1;
-      cleaned.removedCount += 1;
-      cleaned.markdown = "";
-    }
-    const hasChanges = cleaned.removedCount > 0 && (cleaned.markdown !== source || isDivider);
-    if (!hasChanges) {
-      continue;
-    }
-    if (isHighRiskForMarkdownWrite(source)) {
-      preview.riskyPendingBlockCount += 1;
-      continue;
-    }
-    preview.cleanableBlockCount += 1;
-    preview.removedSupCount += cleaned.removedSupCount;
-    preview.removedCaretCount += cleaned.removedCaretCount;
-    preview.removedInternetLinkCount += cleaned.removedInternetLinkCount;
-    preview.removedHiddenSpanCount += cleaned.removedHiddenSpanCount;
-    preview.removedRefCount += cleaned.removedRefCount;
-    preview.removedDividerCount += cleaned.removedDividerCount;
-  }
-
-  return preview;
-}
-
-function previewStrikethroughCleanup(
-  blocks: Array<{ id: string; markdown?: string }>
-): StrikethroughCleanupPreview {
-  const preview: StrikethroughCleanupPreview = {
-    cleanableBlockCount: 0,
-    riskyPendingBlockCount: 0,
-    removedCount: 0,
-  };
-
-  for (const block of blocks) {
-    const source = block.markdown || "";
-    if (!source) {
-      continue;
-    }
-    const cleaned = removeStrikethroughMarkedContentFromMarkdown(source);
-    const hasChanges = cleaned.removedCount > 0 && cleaned.markdown !== source;
-    if (!hasChanges) {
-      continue;
-    }
-    if (isHighRiskForMarkdownWrite(source)) {
-      preview.riskyPendingBlockCount += 1;
-      continue;
-    }
-    preview.cleanableBlockCount += 1;
-    preview.removedCount += cleaned.removedCount;
-  }
-
-  return preview;
 }
 
 export function createCleanupActionHandlers(

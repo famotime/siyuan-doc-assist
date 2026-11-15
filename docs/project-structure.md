@@ -1,28 +1,26 @@
 # siyuan-doc-assist 项目结构（详细版）
 
-更新时间：`2026-05-19`
+更新时间：`2026-11-15`
 
 ## 1. 快照范围与统计
 
-- 仓库根目录：`/home/quincyzou/projects/siyuan-doc-assist`
-- 当前插件版本：`1.5.5`（来自 `package.json` 与 `plugin.json`）
+- 仓库根目录：`D:\MyCodingProjects\siyuan-doc-assist`（Windows 开发机）
+- 当前插件版本：`1.6.5`（来自 `package.json` 与 `plugin.json`）
 - 统计口径：以当前工作区实际文件为准（不含 `.git` 内部对象）
 
 | 目录 | 文件数 | 说明 |
 | --- | ---: | --- |
-| `src/` | 137 | 插件源码 |
-| `src/core/` | 35 | 纯逻辑与转换规则 |
-| `src/plugin/` | 37 | 生命周期、动作编排、控制器 |
-| `src/services/` | 47 | Kernel / 文件系统 / AI / 导出服务 |
-| `src/ui/` | 13 | Dock、Dialog、Setting 面板 UI |
+| `src/` | 168 | 插件源码（TS + SCSS） |
+| `src/core/` | 49 | 纯逻辑与转换规则 |
+| `src/plugin/` | 39 | 生命周期、动作编排、控制器 |
+| `src/services/` | 51 | Kernel / 文件系统 / AI / 导出服务 |
+| `src/services/floating-text/` | 7 | 悬浮文字窗口集成服务 |
+| `src/ui/` | 18 | Dock、Dialog、Setting 面板 UI |
+| `src/ui/floating-text/` | 4 | 悬浮文字窗口模板资源 |
+| `src/styles/` | 11 | SCSS 功能 partial |
 | `src/types/` | 4 | 类型声明 |
 | `src/i18n/` | 2 | 国际化文案 |
-| `tests/` | 96 | Vitest 用例与 mocks |
-| `assets/` | 2 | README 截图资源 |
-| `docs/` | 10 | 结构文档、重构计划、变更记录与 superpowers 计划/设计文档 |
-| `developer_docs/` | 26 | 本地 SiYuan 开发参考 |
-| `reference_docs/` | 26 | 归档参考资料 |
-| `plugin-sample-vite-vue/` | 35 | 模板参考工程 |
+| `tests/` | 122 | Vitest 用例与 mocks |
 
 ## 2. 根目录结构
 
@@ -31,15 +29,13 @@
 | `.github/` | 目录 | CI 与发布工作流 |
 | `.vscode/` | 目录 | 工作区编辑器配置 |
 | `assets/` | 目录 | README 使用的截图资源 |
-| `developer_docs/` | 目录 | 本地开发参考与 API 资料 |
+| `developer_docs/` | 目录 | 本地开发参考与 API 资料（不入库） |
 | `dist/` | 目录 | `pnpm build` 产物 |
 | `docs/` | 目录 | 内部结构文档、重构计划、changelog |
 | `plugin-sample-vite-vue/` | 目录 | 模板参考工程，不参与主插件运行 |
-| `reference_docs/` | 目录 | 额外归档的 SiYuan 参考资料 |
-| `skills/` | 目录 | 本地协作技能脚本与说明 |
 | `src/` | 目录 | 主插件源码 |
-| `tests/` | 目录 | Vitest 测试与 mocks |
 | `src/styles/` | 目录 | SCSS 功能 partial |
+| `tests/` | 目录 | Vitest 测试与 mocks |
 | `tmp/` | 目录 | 临时文件目录 |
 
 ## 3. 根目录关键文件
@@ -48,6 +44,8 @@
 | --- | --- |
 | `.env.example` | 本地环境变量模板，包含 `VITE_SIYUAN_WORKSPACE_PATH` |
 | `AGENTS.md` | 仓库协作与开发约定 |
+| `CHANGELOG.md` | 用户可见变更记录 |
+| `GLOSSARY.md` | 领域术语表（文档导航/鼠标手势等子域语言约定） |
 | `eslint.config.mjs` | ESLint 基线配置 |
 | `package.json` | 脚本、依赖、版本信息 |
 | `plugin.json` | SiYuan 插件清单 |
@@ -75,23 +73,30 @@
 | `src/index.ts` | 加载全局样式并导出 `plugin-lifecycle` |
 | `src/index.scss` | 样式入口，聚合 `src/styles/` 下的功能 partial |
 
-### 4.3 `src/core/`（29 个文件）
+### 4.3 `src/core/`（49 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
 | `src/core/action-default-config.ts` | 插件命令初始启用状态与菜单注册状态配置 |
-| `src/core/ai-service-config-core.ts` | AI 服务配置默认值、规范化与完整性判定 |
-| `src/core/ai-summary-core.ts` | AI 摘要文本清理、内部链接识别与插入位置 |
+| `src/core/ai-better-titles-core.ts` | AI 起标题的响应解析与标题清单整理 |
 | `src/core/ai-concept-map-core.ts` | 概念地图文档标题与子文档路径拼接 |
+| `src/core/ai-image-ocr-core.ts` | 图片 OCR 结果的 Markdown 组装 |
 | `src/core/ai-marker-action-core.ts` | AI 口水内容/关键内容标记与确认详情文本处理 |
 | `src/core/ai-related-suggestions-core.ts` | AI 相关链接与标签建议归一化、去重与合并 |
+| `src/core/ai-service-config-core.ts` | AI 服务配置默认值、规范化与完整性判定 |
+| `src/core/ai-summary-core.ts` | AI 摘要文本清理、内部链接识别与插入位置 |
+| `src/core/byte-format-core.ts` | 字节数人性化格式化 |
+| `src/core/cleanup-preview-core.ts` | 清理动作确认弹窗预览：AI 产物/删除线预览统计、高风险写入判定、分割线块识别 |
 | `src/core/dedupe-core.ts` | 重复标题归一化、分组与保留建议 |
 | `src/core/doc-menu-registration-core.ts` | 命令启用与菜单注册状态、排序与标准化 |
 | `src/core/doc-navigation-core.ts` | 兄弟文档选取（含循环绕回）与父级路径计算 |
-| `src/core/dock-doc-action-order-core.ts` | Dock 文档动作排序与拖拽检查 |
 | `src/core/dock-doc-action-drag-core.ts` | Dock 文档动作拖拽几何判断与收藏重排 |
+| `src/core/dock-doc-action-order-core.ts` | Dock 文档动作排序与拖拽检查 |
 | `src/core/dock-panel-core.ts` | Dock 标签页与动作面板模型构建 |
+| `src/core/emoji-cleanup-core.ts` | Emoji 表情清理规则 |
 | `src/core/export-media-core.ts` | 导出时媒体路径提取、文件名规范化、链接改写 |
+| `src/core/floating-text-core.ts` | 悬浮文字配置默认值、复制文本解析与配置合并 |
+| `src/core/floating-text-search-core.ts` | 悬浮文字窗口内搜索模型 |
 | `src/core/gesture-recognition-core.ts` | 鼠标手势八方向序列识别、绑定匹配与手势绑定标准化 |
 | `src/core/heading-bold-toggle-core.ts` | 标题加粗切换预览与更新计划 |
 | `src/core/image-display-size-core.ts` | 图片显示尺寸解析与 Markdown 改写 |
@@ -101,26 +106,32 @@
 | `src/core/key-info-scroll-lock-core.ts` | 编程滚动与用户滚动锁协调 |
 | `src/core/large-documents-report-core.ts` | Top100 大文件清单的排序、字节格式化与 Markdown 表格生成 |
 | `src/core/link-core.ts` | 链接/引用互转、失效标记、块 ID 提取 |
+| `src/core/link-to-doc-core.ts` | 网页链接转文档聚合出口：链接抽取/清洗、剪藏文档组装与兄弟路径计算；re-export `web-clip-shared-core`、`x-post-core`、`web-article-html-core` |
 | `src/core/list-block-merge-core.ts` | 多个段落/列表块合并为单列表块的预览与拼装 |
 | `src/core/logger-core.ts` | 作用域日志封装 |
 | `src/core/markdown-cleanup-ai-core.ts` | AI 输出清理规则与清理指标 |
 | `src/core/markdown-cleanup-block-core.ts` | 空段落、标题前空行、删除范围分析 |
 | `src/core/markdown-cleanup-core.ts` | Markdown 清理公共出口 |
 | `src/core/markdown-cleanup-text-core.ts` | 文本空行、行尾空格清理 |
+| `src/core/markdown-render-core.ts` | 轻量 Markdown → HTML 渲染（悬浮窗等内部场景） |
 | `src/core/markdown-style-core.ts` | 选中块加粗/高亮转换 |
-| `src/core/monthly-diary-core.ts` | 本月日记默认模板、日期变量渲染与月度内容拼装 |
 | `src/core/move-core.ts` | 文档移动冲突策略 |
-| `src/core/pinned-tab-placement-core.ts` | 新打开页签在钉住页签后的放置策略 |
 | `src/core/punctuation-toggle-core.ts` | 中英文标点检测与互转 |
-| `src/core/selection-text-transform-core.ts` | 选区换行/标点/空格处理计划与批量更新辅助 |
 | `src/core/selected-block-style-toggle-core.ts` | 选中块加粗/高亮切换的公共分析与批量计划 |
+| `src/core/selection-dom-cleanup-core.ts` | 选区 DOM 清理公共骨架：文本节点遍历变换、选中块收集、单块选区解析与选区替换 |
+| `src/core/selection-text-transform-core.ts` | 选区换行/标点/空格处理计划与批量更新辅助 |
 | `src/core/split-doc-by-headings-core.ts` | 按标题拆分文档的标题解析、拆分计划与 Markdown 拼装 |
+| `src/core/text-to-link-core.ts` | 文本转链接的选择匹配与改写计划 |
+| `src/core/web-article-html-core.ts` | 网页 HTML 采集：微信原文链接、网页元数据解析、HTML 清洗与 DOM→Markdown |
+| `src/core/web-clip-shared-core.ts` | 网页剪藏共享纯逻辑：安全文档标题清洗与元数据类型 |
 | `src/core/workspace-path-core.ts` | 工作区路径标准化与 `/api/file/getFile` 请求构造 |
+| `src/core/x-post-core.ts` | X (Twitter) 帖子解析与渲染：链接识别、VxTwitter/FxTwitter 响应解析合并、Article 长文渲染 |
 
-### 4.4 `src/plugin/`（25 个文件）
+### 4.4 `src/plugin/`（39 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
+| `src/plugin/action-definitions.ts` | 按分组维护动作静态定义、tooltip 文案和 Dock 图标文本映射 |
 | `src/plugin/action-runner-ai-handlers.ts` | AI 动作聚合入口 |
 | `src/plugin/action-runner-ai-summary-handlers.ts` | AI 摘要、概念地图动作处理器 |
 | `src/plugin/action-runner-ai-marker-handlers.ts` | AI 口水内容与关键内容标记处理器 |
@@ -130,20 +141,20 @@
 | `src/plugin/action-runner-ai-types.ts` | AI handler 依赖类型定义 |
 | `src/plugin/action-runner-ai-shared.ts` | AI handler 共享工具 |
 | `src/plugin/action-runner-block-transform.ts` | 文档级 Markdown 批量改写执行器，负责高风险跳过与结果汇总 |
-| `src/plugin/action-runner-cleanup-handlers.ts` | 文档清理类动作处理器，如空段落、标题空行、链接清理、AI 输出清理 |
+| `src/plugin/action-runner-cleanup-handlers.ts` | 文档清理类动作处理器（空段落、标题空行、链接清理、AI 输出清理等）；预览纯逻辑已下沉 `core/cleanup-preview-core` |
 | `src/plugin/action-runner-context.ts` | 当前文档、当前块、选中块上下文解析 |
+| `src/plugin/action-runner-delete-range-handlers.ts` | 从当前到末尾/从文首到当前删除执行器 |
 | `src/plugin/action-runner-dispatcher.ts` | `ActionKey -> handler` 分发表与类型定义 |
 | `src/plugin/action-runner-export-handlers.ts` | 导出动作处理器 |
 | `src/plugin/action-runner-insert-handlers.ts` | 插入反链/子文档列表、本月日记创建等动作处理器 |
 | `src/plugin/action-runner-media-handlers.ts` | 图片转换、移除等媒体动作处理器 |
 | `src/plugin/action-runner-organize-handlers.ts` | 去重、移动、打开汇总页与大文件清单等整理类动作处理器 |
-| `src/plugin/action-runner-selection-handlers.ts` | 选区/选中块动作处理器，如加粗、高亮、空格清理、标点互转、列表块合并 |
+| `src/plugin/action-runner-select-range-handlers.ts` | 范围选择类动作处理器 |
+| `src/plugin/action-runner-selection-handlers.ts` | 选区/选中块动作处理器（加粗、高亮、空格/表情清理、标点互转、列表块合并）；DOM 清理骨架已下沉 `core/selection-dom-cleanup-core` |
 | `src/plugin/action-runner-trim-handlers.ts` | 行尾空格清理执行器 |
-| `src/plugin/action-runner-delete-range-handlers.ts` | 从当前到末尾/从文首到当前删除执行器 |
-| `src/plugin/action-runner.ts` | 动作执行壳，负责运行态守卫、只读校验、确认对话框、忙碌态与剩余少量主流程 |
-| `src/plugin/action-definitions.ts` | 按分组维护动作静态定义、tooltip 文案和 Dock 图标文本映射 |
-| `src/plugin/alpha-feature-config.ts` | Alpha 功能隐藏配置、隐藏动作过滤与动作到设置项的联动隐藏规则 |
+| `src/plugin/action-runner.ts` | 动作执行壳，负责运行态守卫、只读校验、确认对话框、忙碌态与 handler 聚合 |
 | `src/plugin/actions.ts` | 动作元数据聚合出口；基于 grouped definitions 生成 `ACTIONS`、key map 与兼容 helper |
+| `src/plugin/alpha-feature-config.ts` | Alpha 功能隐藏配置、隐藏动作过滤与动作到设置项的联动隐藏规则 |
 | `src/plugin/doc-context.ts` | Protyle 兼容类型与文档 ID 提取 |
 | `src/plugin/key-info-controller-dock.ts` | Key-info Dock 回调桥接与文档动作状态投影 |
 | `src/plugin/key-info-controller-refresh.ts` | Key-info 刷新过程中的 Dock 状态投影与只读态跳过判断 |
@@ -151,24 +162,30 @@
 | `src/plugin/key-info-navigation.ts` | Key-info 条目点击后的块内定位、协议跳转节流与高亮闪烁 |
 | `src/plugin/key-info-state.ts` | 关键内容列表合并策略 |
 | `src/plugin/mouse-gesture-controller.ts` | 鼠标手势控制器：编辑区右键划动捕获、轨迹反馈与手势动作分发 |
-| `src/plugin/plugin-pinned-tab-manager.ts` | 新页签在钉住页签后的放置协调、已知页签追踪与重试调度 |
 | `src/plugin/plugin-lifecycle-events.ts` | 生命周期事件绑定与解绑辅助 |
-| `src/plugin/plugin-lifecycle-menu.ts` | 标题菜单注册、命令注册与菜单刷新 |
-| `src/plugin/plugin-lifecycle-state.ts` | 插件设置状态默认值、标准化、序列化与持久化，含 AI 与月记模板配置 |
+| `src/plugin/plugin-lifecycle-menu.ts` | 标题菜单注册、命令注册、悬浮菜单项工厂（内容/块图标/文档树菜单）与隐藏判定 |
+| `src/plugin/plugin-lifecycle-state.ts` | 插件设置状态默认值、标准化、序列化与持久化，含 AI、手势与月记模板配置 |
 | `src/plugin/plugin-lifecycle.ts` | 插件主类与组合根，负责生命周期入口、状态变更协调，并暴露 `power-buttons` 集成 provider |
-| `src/plugin/plugin-lifecycle.ts` | 插件主类与组合根，负责生命周期入口、状态变更协调，并暴露 `power-buttons` 集成 provider |
+| `src/plugin/plugin-pinned-tab-manager.ts` | 新页签在钉住页签后的放置协调、已知页签追踪与重试调度 |
 | `src/plugin/power-buttons-provider-types.ts` | 面向 `power-buttons` 的跨插件 provider 协议类型 |
 | `src/plugin/power-buttons-provider.ts` | `power-buttons` 白名单 provider；负责公开命令列表与 `runAction` 路由 |
+| `src/plugin/transaction-runner.ts` | Protyle 事务执行封装与调试日志开关 |
+| `src/plugin/wiki-command-provider-types.ts` | wiki 命令跨插件 provider 协议类型 |
 
-### 4.5 `src/services/`（43 个文件）
+### 4.5 `src/services/`（51 个文件）与 `src/services/floating-text/`（7 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
+| `src/services/ai-better-titles.ts` | AI 起标题服务请求封装 |
+| `src/services/ai-image-ocr.ts` | 图片 OCR 服务请求 |
+| `src/services/ai-paragraph-translation.ts` | 逐段翻译服务请求 |
 | `src/services/ai-slop-marker-parser.ts` | AI 段落筛选/高亮响应解析，兼容多种 JSON shape 与代码块包裹 |
 | `src/services/ai-slop-marker-prompts.ts` | AI 段落筛选与关键内容高亮的 prompt 构造、段落入参标准化 |
 | `src/services/ai-slop-marker.ts` | AI 标注服务外观，负责配置校验、请求发送与调用 parser/prompt helper |
 | `src/services/ai-summary.ts` | AI 文档摘要请求封装与响应提取 |
 | `src/services/block-lineage.ts` | 将嵌套块映射到直系子块，供删除后续段落等流程使用 |
+| `src/services/canvas-generator.ts` | 无界画布插件 Canvas 概念导图 JSON 生成与注入 |
+| `src/services/canvas-plugin-resolver.ts` | 无界画布插件可用性探测 |
 | `src/services/dedupe.ts` | 重复文档候选查询、默认删除建议与批量删除 |
 | `src/services/doc-navigation.ts` | 鼠标手势文档导航：兄弟文档查询、打开/关闭标签页与 protyle 反查 |
 | `src/services/exporter-download.ts` | 文本下载、工作区文件下载、导出路由 GET 下载与文件名解析 |
@@ -195,26 +212,35 @@
 | `src/services/key-info-inline.ts` | DOM/spans 内联标记抽取 |
 | `src/services/key-info-merge.ts` | 多来源内联项去重与优先级合并 |
 | `src/services/key-info-model.ts` | 关键内容 SQL 行模型聚合与公共出口 |
-| `src/services/key-info-text-normalize.ts` | 关键内容可见文本归一化、链接/标记剥离 |
-| `src/services/key-info-span-format.ts` | span 类型与 IAL 推断 |
-| `src/services/key-info-remark-model.ts` | 备注/内联 memo 解析与格式化 |
 | `src/services/key-info-order.ts` | 关键内容顺序解析 |
 | `src/services/key-info-pipeline.ts` | 关键内容归一化、补标题与按锚点排序 |
 | `src/services/key-info-query.ts` | blocks/spans 查询、root ID 解析、kramdown map 构建 |
+| `src/services/key-info-remark-model.ts` | 备注/内联 memo 解析与格式化 |
+| `src/services/key-info-span-format.ts` | span 类型与 IAL 推断 |
+| `src/services/key-info-text-normalize.ts` | 关键内容可见文本归一化、链接/标记剥离 |
 | `src/services/key-info.ts` | 关键内容总装配服务 |
 | `src/services/large-documents-report.ts` | 统计当前笔记本文档与资源大小并创建 Top100 大文件清单 |
 | `src/services/link-resolver.ts` | 反链/正链/子文档解析与 Markdown 列表生成 |
+| `src/services/link-to-doc-service.ts` | 网页剪藏编排：网络代理抓取、并发取标题、剪藏文档创建 |
 | `src/services/mover.ts` | 文档移动执行器 |
-| `src/services/monthly-diary.ts` | 基于当前笔记本 Daily Note 路径创建本月月记文档 |
 | `src/services/network-lens-ai-index.ts` | 已打开文档汇总页的索引与内容整理服务 |
 | `src/services/open-doc-summary.ts` | 已打开文档汇总页生成与写入 |
 | `src/services/request.ts` | `fetchSyncPost` 二次封装与统一错误抛出 |
+| `src/services/split-doc-by-headings.ts` | 按标题拆分文档执行器 |
+| `src/services/floating-text/floating-paste-helper.ts` | 悬浮窗自动粘贴触发辅助 |
+| `src/services/floating-text/floating-selection-helper.ts` | 从选区/块选区提取悬浮 Markdown |
+| `src/services/floating-text/floating-text-service.ts` | 悬浮文字服务外观：文本/文档悬浮入口 |
+| `src/services/floating-text/floating-text-storage.ts` | 悬浮文字配置持久化 |
+| `src/services/floating-text/floating-window-adapter.ts` | 悬浮窗打开编排：electron 置顶窗、文档画中画、window.open 与降级调度 |
+| `src/services/floating-text/floating-window-fallback.ts` | 应用内降级方案：思源 Dialog 悬浮窗与生命周期清理 |
+| `src/services/floating-text/floating-window-pip-events.ts` | PiP / window.open 窗口事件桥接（按钮、快捷键、外观、拖拽、尺寸记忆） |
 
-### 4.6 `src/ui/`（12 个文件）
+### 4.6 `src/ui/`（18 个文件）与 `src/ui/floating-text/`（4 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
 | `src/ui/action-processing-overlay.ts` | 动作执行中的忙碌遮罩 |
+| `src/ui/better-titles-dialog.ts` | AI 起标题结果选择对话框 |
 | `src/ui/confirm-detail-dialog.ts` | 带详情/可选项的确认弹窗 UI helper |
 | `src/ui/dialogs.ts` | 去重对话框渲染与事件桥接 |
 | `src/ui/gesture-capture.ts` | 右键手势捕获 glue：document 捕获监听、方向识别驱动与原生菜单抑制 |
@@ -223,15 +249,34 @@
 | `src/ui/key-info-dock-doc-actions.ts` | Dock 文档动作区域渲染与交互 |
 | `src/ui/key-info-dock-state.ts` | Dock 渲染标志与筛选状态投影 |
 | `src/ui/key-info-dock.ts` | Key-info Dock 列表渲染、局部刷新与滚动管理 |
+| `src/ui/link-to-doc-dialog.ts` | 网页链接转文档的选择对话框 |
 | `src/ui/plugin-settings-ai.ts` | AI 设置面板 DOM 组装与状态同步 |
-| `src/ui/plugin-settings-diary.ts` | 本月日记模板设置面板 |
 | `src/ui/plugin-settings-gesture.ts` | 鼠标手势设置面板：总开关、手势录制、冲突校验与恢复默认 |
 | `src/ui/plugin-settings-host.ts` | SiYuan `Setting` 宿主节点修正与面板归一化 |
 | `src/ui/plugin-settings-menu.ts` | 文档标题菜单注册分组面板与开关联动 |
 | `src/ui/plugin-settings-shared.ts` | Setting 面板通用 DOM 原语：checkbox、input、textarea、collapse button、field row |
-| `src/ui/plugin-settings.ts` | 插件设置页装配层，串联钉住页签、AI 面板、月记模板面板、菜单注册面板，并支持按隐藏配置裁剪设置项 |
+| `src/ui/plugin-settings.ts` | 插件设置页装配层，串联钉住页签、AI 面板、手势面板、月记模板面板、菜单注册面板，并支持按隐藏配置裁剪设置项 |
+| `src/ui/text-to-link-dialog.ts` | 文本转链接的选择对话框 |
+| `src/ui/floating-text/floating-window-client-script.ts` | 悬浮窗内置浏览器端脚本：注入初始状态的声明区（参数化）与无插值脚本主体 |
+| `src/ui/floating-text/floating-window-styles.ts` | 悬浮窗内置样式表（CSS 字符串） |
+| `src/ui/floating-text/floating-window-template.ts` | 悬浮窗 HTML 组装（`buildFloatingWindowHtml`）与 marked 沙箱初始化脚本 |
+| `src/ui/floating-text/marked-source.ts` | 内置轻量 marked UMD 源码字符串 |
 
-### 4.7 `src/types/` 与 `src/i18n/`
+### 4.7 `src/styles/`
+
+| 文件 | 说明 |
+| --- | --- |
+| `_action-processing.scss` / `_action-processing-enhanced.scss` | 动作处理遮罩样式 |
+| `_better-titles-dialog.scss` | AI 起标题对话框样式 |
+| `_confirm-detail.scss` | 确认详情弹窗样式 |
+| `_dedupe.scss` | 去重对话框样式 |
+| `_gesture.scss` | 鼠标手势轨迹覆盖层样式 |
+| `_key-info.scss` / `_key-info-enhanced.scss` | Key-info Dock 样式 |
+| `_link-to-doc-dialog.scss` | 网页剪藏对话框样式 |
+| `_settings.scss` | 设置页样式 |
+| `_text-to-link-dialog.scss` | 文本转链接对话框样式 |
+
+### 4.8 `src/types/` 与 `src/i18n/`
 
 | 文件 | 职责 |
 | --- | --- |
@@ -246,32 +291,58 @@
 
 ### 5.1 覆盖重点
 
-- `core`：纯逻辑、Markdown 转换、菜单注册、排序、移动冲突等。
-- `services`：Kernel 适配、导出、图片处理、AI 服务、链接解析。
-- `plugin/ui`：ActionRunner、设置页、菜单注册、Dock 状态与控制器。
+- `core`：纯逻辑、Markdown 转换、网页剪藏、X 帖子解析、选区 DOM 清理骨架、菜单注册、排序、移动冲突等。
+- `services`：Kernel 适配、导出、图片处理、AI 服务、链接解析、悬浮窗事件桥接与降级方案。
+- `plugin/ui`：ActionRunner、设置页、菜单注册与悬浮菜单工厂、Dock 状态与控制器。
 - `tests/mocks/siyuan.ts`：SiYuan API mock。
 
-### 5.2 全量测试文件列表（96）
+### 5.2 全量测试文件列表（121）
 
 ```text
 tests/action-definitions.test.ts
+tests/action-processing-overlay.test.ts
 tests/action-runner-block-transform.test.ts
+tests/action-runner-context.test.ts
+tests/action-runner-link-to-doc.test.ts
 tests/action-runner-loading.test.ts
+tests/action-runner-workflow-context.test.ts
 tests/actions-grouping.test.ts
+tests/ai-better-titles-core.test.ts
+tests/ai-better-titles-service.test.ts
+tests/ai-image-ocr-core.test.ts
+tests/ai-image-ocr-service.test.ts
+tests/ai-marker-action-core.test.ts
+tests/ai-paragraph-translation-service.test.ts
+tests/ai-related-suggestions-core.test.ts
 tests/ai-service-config-core.test.ts
 tests/ai-slop-marker-service.test.ts
 tests/ai-summary-service.test.ts
+tests/ai-summary-tag-parser.test.ts
 tests/alpha-feature-config.test.ts
 tests/block-lineage.test.ts
+tests/byte-format-core.test.ts
+tests/canvas-generator.test.ts
+tests/cleanup-preview-core.test.ts
 tests/dedupe-core.test.ts
 tests/dedupe-dialog.test.ts
 tests/dedupe-service.test.ts
 tests/doc-menu-registration-core.test.ts
+tests/doc-navigation-core.test.ts
+tests/dock-doc-action-drag-core.test.ts
 tests/dock-doc-action-order-core.test.ts
 tests/dock-panel-core.test.ts
+tests/emoji-cleanup-core.test.ts
 tests/export-media-core.test.ts
 tests/exporter-current.test.ts
 tests/exporter-zip-download.test.ts
+tests/floating-selection-helper.test.ts
+tests/floating-text-core.test.ts
+tests/floating-text-search-core.test.ts
+tests/floating-text-service.test.ts
+tests/floating-window-fallback.test.ts
+tests/floating-window-pip-events.test.ts
+tests/floating-window-render.test.ts
+tests/gesture-recognition-core.test.ts
 tests/image-display-size-service.test.ts
 tests/image-png-service.test.ts
 tests/image-remove-service.test.ts
@@ -287,9 +358,11 @@ tests/kernel-kramdown-compat.test.ts
 tests/kernel-list-docs-subtree.test.ts
 tests/kernel-list-notebook-docs.test.ts
 tests/kernel-map-root.test.ts
+tests/kernel-render-block-dom.test.ts
 tests/kernel-sy-order.test.ts
 tests/key-info-collectors.test.ts
 tests/key-info-controller-doc-action.test.ts
+tests/key-info-controller-export.test.ts
 tests/key-info-controller-refresh.test.ts
 tests/key-info-controller-state.test.ts
 tests/key-info-core.test.ts
@@ -299,47 +372,55 @@ tests/key-info-dock-scroll-interaction.test.ts
 tests/key-info-dock-state.test.ts
 tests/key-info-inline.test.ts
 tests/key-info-merge.test.ts
+tests/key-info-model.test.ts
 tests/key-info-navigation.test.ts
 tests/key-info-pipeline.test.ts
 tests/key-info-scroll-core.test.ts
 tests/key-info-scroll-lock-core.test.ts
 tests/key-info-service-heading-inline.test.ts
 tests/key-info-service-list-prefix.test.ts
+tests/large-documents-report-core.test.ts
+tests/large-documents-report-service.test.ts
 tests/link-core.test.ts
 tests/link-resolver-backlink.test.ts
 tests/link-resolver-child.test.ts
 tests/link-resolver-forward.test.ts
+tests/link-to-doc-core.test.ts
+tests/link-to-doc-dialog.test.ts
+tests/link-to-doc-service.test.ts
 tests/list-block-merge-core.test.ts
 tests/logger-core.test.ts
 tests/markdown-cleanup-bilingual.test.ts
 tests/markdown-cleanup-blocks.test.ts
 tests/markdown-cleanup-clipped-list.test.ts
 tests/markdown-cleanup-core.test.ts
+tests/markdown-render-core.test.ts
 tests/markdown-style-core.test.ts
-tests/monthly-diary-core.test.ts
-tests/monthly-diary-service.test.ts
-tests/large-documents-report-core.test.ts
-tests/large-documents-report-service.test.ts
-tests/mocks/siyuan.ts
+tests/mouse-gesture-controller.test.ts
 tests/move-core.test.ts
 tests/mover.test.ts
 tests/network-lens-ai-index.test.ts
 tests/open-doc-summary.test.ts
-tests/pinned-tab-placement-core.test.ts
 tests/plugin-actions.test.ts
+tests/plugin-confirm-detail-dialog.test.ts
 tests/plugin-doc-context.test.ts
+tests/plugin-lifecycle-events.test.ts
+tests/plugin-lifecycle-menu.test.ts
 tests/plugin-lifecycle-state.test.ts
 tests/plugin-menu-registration.test.ts
-tests/plugin-pinned-tab-manager.test.ts
 tests/plugin-settings.test.ts
-tests/plugin-tab-placement.test.ts
 tests/power-buttons-provider.test.ts
 tests/punctuation-toggle-core.test.ts
 tests/request.test.ts
 tests/selected-block-style-toggle-core.test.ts
+tests/selection-dom-cleanup-core.test.ts
+tests/selection-text-transform-core.test.ts
 tests/split-doc-by-headings-core.test.ts
 tests/split-doc-by-headings-service.test.ts
+tests/web-article-html-core.test.ts
 tests/workspace-path-core.test.ts
+tests/x-post-core.test.ts
+tests/mocks/siyuan.ts（mock，非用例文件）
 ```
 
 ## 6. 其他目录说明
@@ -358,11 +439,11 @@ tests/workspace-path-core.test.ts
 | `docs/changelog.md` | 项目变更记录 |
 | `docs/project-structure.md` | 本文档，记录当前仓库结构与职责映射 |
 | `docs/refactor-plan.md` | 当前重构计划与执行进度 |
+| 其他中文专题文档 | 功能预览、工作流实践与分析笔记 |
 
 ### 6.3 参考目录
 
-- `developer_docs/`：当前主要使用的本地 SiYuan 开发参考。
-- `reference_docs/`：归档参考资料，包含官方索引、Kernel API、块模型等。
+- `developer_docs/`：当前主要使用的本地 SiYuan 开发参考（不入库）。
 - `plugin-sample-vite-vue/`：模板参考工程，不参与当前插件构建。
 
 ## 7. 构建、测试与发布链路
