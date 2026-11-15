@@ -578,7 +578,8 @@ const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
             if (!text) return "";
             if (!keywords || keywords.length === 0) return escapeHtmlText(text);
             var escapedKws = [];
-            var specialChars = [".", "*", "+", "?", "^", "$", "{", "}", "(", ")", "|", "[", "]", "\\\\"];
+            // 反斜杠必须最先转义，否则先转义产生的 "\." 会被二次转义破坏（见 floating-window-search-parity 测试）
+            var specialChars = ["\\\\", ".", "*", "+", "?", "^", "$", "{", "}", "(", ")", "|", "[", "]"];
             for (var i = 0; i < keywords.length; i++) {
               var curKw = keywords[i];
               for (var sc = 0; sc < specialChars.length; sc++) {
@@ -774,7 +775,7 @@ const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
 
             var curText = getCurrentText() || originalText;
             var allCandidates = parseCandidates(curText);
-            var keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
+            var keywords = query.toLowerCase().split(/\\s+/).filter(Boolean);
 
             var matched = allCandidates.filter(function(item) {
               var target = (item.cleanText || item.displayText || item.rawText).toLowerCase();

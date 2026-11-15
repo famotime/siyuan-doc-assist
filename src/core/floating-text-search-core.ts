@@ -37,7 +37,7 @@ export function stripFloatingPrefixMarkers(raw: string): string {
     guard++;
 
     // 清除开头的空格、Tab 等空白字符
-    str = str.replace(/^[\s\t]+/, "");
+    str = str.replace(/^\s+/, "");
 
     // 匹配并剥离引用符号（支持多层 >）
     const quoteMatch = str.match(/^>+\s*/);
@@ -54,7 +54,7 @@ export function stripFloatingPrefixMarkers(raw: string): string {
     }
 
     // 匹配并剥离待办复选框（如 - [ ] 、* [x] 、+ [X] 、[ ] ）
-    const todoMatch = str.match(/^(?:[-*+]\s+)?\[([ xX])\]\s*/);
+    const todoMatch = str.match(/^(?:[-*+]\s+)?\[([ x])\]\s*/i);
     if (todoMatch) {
       str = str.slice(todoMatch[0].length);
       continue;
@@ -68,7 +68,7 @@ export function stripFloatingPrefixMarkers(raw: string): string {
     }
 
     // 匹配并剥离有序列表编号（如 1. 、2) 、3、）
-    const orderedMatch = str.match(/^\d+[\.\)､、]\s*/);
+    const orderedMatch = str.match(/^\d+[.)､、]\s*/);
     if (orderedMatch) {
       str = str.slice(orderedMatch[0].length);
       continue;
@@ -87,7 +87,8 @@ export function splitFloatingTextCandidates(text: string): FloatingSearchCandida
     return [];
   }
 
-  const lines = text.split(/\r?\n/);
+  // 与悬浮窗 client script 的 parseCandidates 保持一致：CRLF、LF 与孤立 CR 均视为换行
+  const lines = text.split(/\r\n|\r|\n/);
   const candidates: FloatingSearchCandidate[] = [];
   let idCounter = 1;
 
@@ -102,7 +103,7 @@ export function splitFloatingTextCandidates(text: string): FloatingSearchCandida
       line: i + 1,
       rawText: rawLine,
       displayText: cleaned,
-      cleanText: cleaned,
+      cleanText: cleaned
     });
   }
 
