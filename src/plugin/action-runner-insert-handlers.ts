@@ -6,6 +6,7 @@ import {
   renameDocByID,
   updateBlockMarkdown
 } from "@/services/kernel";
+import { escapeSqlLiteral, sqlPaged } from "@/services/kernel-shared";
 import {
   filterDocRefsByExistingLinks,
   getBacklinkDocs,
@@ -112,6 +113,7 @@ function resolveTextFromProtyle(docId: string, protyle?: ProtyleLike): string | 
 
 export function createInsertActionHandlers(deps?: {
   shouldAutoConfirm?: () => boolean;
+  isFullDocScope?: () => boolean;
 }): PartialActionHandlerMap {
   return {
     "set-selection-as-title": async (docId, protyle) => {
@@ -156,23 +158,46 @@ export function createInsertActionHandlers(deps?: {
       showMessage(`已插入 ${filtered.items.length} 个子文档链接${skipSuffix}`, 5000, "info");
     },
     "convert-text-to-link": async (docId, protyle) => {
-      const selectedBlockIds = getSelectedBlockIds(protyle);
+      const isFullDoc = deps?.isFullDocScope?.();
+      const selectedBlockIds = isFullDoc ? [] : getSelectedBlockIds(protyle);
       let targetBlocks: Array<{ id: string; markdown: string }> = [];
 
       if (selectedBlockIds.length > 0) {
         const kramdowns = await getBlockKramdowns(selectedBlockIds);
         targetBlocks = kramdowns.map((k) => ({ id: k.id, markdown: k.kramdown }));
       } else {
-        const childBlocks = await getChildBlocksByParentId(docId);
-        if (!childBlocks.length) {
-          const emptyDocMsg = "当前文档没有可处理的段落";
-          showMessage(emptyDocMsg, 4000, "info");
-          return { ok: false, errorCode: "execution-failed", message: emptyDocMsg };
-          return;
+        // 全文档范围：优先通过 SQL 查询整篇文档的所有段落和标题（全面覆盖普通段落、各级标题、列表内段落、引述内段落与超级块内段落）
+        let queriedBlocks: Array<{ id: string; markdown: string }> = [];
+        try {
+          const rows = await sqlPaged<{ id: string; markdown: string }>(
+            `select id, markdown
+             from blocks
+             where root_id='${escapeSqlLiteral(docId)}'
+               and type in ('p', 'h')
+             order by sort asc`
+          );
+          if (rows && rows.length > 0) {
+            queriedBlocks = rows
+              .filter((row) => row?.id && typeof row.markdown === "string")
+              .map((row) => ({ id: row.id, markdown: row.markdown }));
+          }
+        } catch {
+          // SQL 查询失败时降级走 getChildBlocksByParentId
         }
-        const ids = childBlocks.map((b) => b.id);
-        const kramdowns = await getBlockKramdowns(ids);
-        targetBlocks = kramdowns.map((k) => ({ id: k.id, markdown: k.kramdown }));
+
+        if (queriedBlocks.length > 0) {
+          targetBlocks = queriedBlocks;
+        } else {
+          const childBlocks = await getChildBlocksByParentId(docId);
+          if (!childBlocks.length) {
+            const emptyDocMsg = "当前文档没有可处理的段落";
+            showMessage(emptyDocMsg, 4000, "info");
+            return { ok: false, errorCode: "execution-failed", message: emptyDocMsg };
+          }
+          const ids = childBlocks.map((b) => b.id);
+          const kramdowns = await getBlockKramdowns(ids);
+          targetBlocks = kramdowns.map((k) => ({ id: k.id, markdown: k.kramdown }));
+        }
       }
 
       const allCandidates: TextToLinkCandidate[] = [];

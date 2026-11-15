@@ -64,6 +64,7 @@ import {
   bindPluginFloatingPersistence,
   setCachedFloatingTextConfig
 } from "@/services/floating-text/floating-text-storage";
+import { disposeFloatingWindowHostGlobals } from "@/services/floating-text/floating-window-adapter";
 import { FloatingTextConfig } from "@/core/floating-text-core";
 import { createPluginSettings } from "@/ui/plugin-settings";
 import {
@@ -108,6 +109,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   };
 
   private managedAiConfig: AiServiceConfig | null = null;
+  private apiSwitchReadyListener?: () => void;
 
   private readonly mouseGestureController = createMouseGestureController({
     getApp: () => this.app,
@@ -117,7 +119,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
     pluginVersion: pluginInfo.version,
-    runAction: (action, context) => this.actionRunner.runAction(action, context)
+    runAction: (action, context) => this.actionRunner.runAction(action, context, this.currentProtyle)
   });
 
   private readonly actionRunner: ActionRunner = new ActionRunner({
@@ -325,7 +327,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   onunload() {
+    if (this.apiSwitchReadyListener) {
+      window.removeEventListener("siyuan-api-switch:ready", this.apiSwitchReadyListener);
+      this.apiSwitchReadyListener = undefined;
+    }
     bindPluginFloatingPersistence(null);
+    disposeFloatingWindowHostGlobals();
     if (window.siyuanApiSwitch) {
       window.siyuanApiSwitch.unregister(this.name);
     }
@@ -495,11 +502,14 @@ export default class DocLinkToolkitPlugin extends Plugin {
     if (window.siyuanApiSwitch) {
       window.siyuanApiSwitch.register(this.name, this.displayName, sync, local);
     } else {
-      window.addEventListener("siyuan-api-switch:ready", () => {
+      // Keep the listener reference so onunload can remove it; an orphaned
+      // listener would register a dead plugin instance when api-switch loads later.
+      this.apiSwitchReadyListener = () => {
         if (window.siyuanApiSwitch) {
           window.siyuanApiSwitch.register(this.name, this.displayName, sync, local);
         }
-      }, { once: true });
+      };
+      window.addEventListener("siyuan-api-switch:ready", this.apiSwitchReadyListener, { once: true });
     }
   }
 
@@ -515,10 +525,17 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   private async persistDocMenuRegistrationState() {
-    await this.saveData(
-      this.docMenuRegistrationStorageName,
-      serializePluginDocMenuState(this.snapshotDocMenuState())
-    );
+    try {
+      await this.saveData(
+        this.docMenuRegistrationStorageName,
+        serializePluginDocMenuState(this.snapshotDocMenuState())
+      );
+    } catch (error: unknown) {
+      // A failed save previously produced an unhandled rejection and silently
+      // forked the in-memory state from disk; surface it like load failures do.
+      const message = error instanceof Error ? error.message : String(error);
+      showMessage(`保存插件配置失败：${message}`, 5000, "error");
+    }
   }
 
   private getOrderedActions() {

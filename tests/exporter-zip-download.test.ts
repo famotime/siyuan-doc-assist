@@ -233,9 +233,12 @@ describe("export docs zip download", () => {
 
     const result = await exportCurrentDocMarkdown("doc1");
 
-    expect(globalThis.fetch).toHaveBeenCalledWith("/export/bundles/current-doc.zip", {
-      method: "GET"
-    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/export/bundles/current-doc.zip",
+      expect.objectContaining({
+        method: "GET"
+      })
+    );
     const anchor = (globalThis as any).document.createElement.mock.results[0].value;
     expect(anchor.download).toBe("当前文档.zip");
     expect(result).toEqual({

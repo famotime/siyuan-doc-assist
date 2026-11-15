@@ -62,49 +62,62 @@ type ActionRunInput =
 
 export class ActionRunner {
   private isRunning = false;
+  private busyDepth = 0;
   private readonly backgroundTaskKeys = new Set<string>();
-  private currentInvokeContext?: PowerButtonsInvokeContext;
 
-  private readonly actionHandlers: ActionHandlerMap;
+  constructor(private readonly deps: ActionRunnerDeps) {}
 
-  constructor(private readonly deps: ActionRunnerDeps) {
-    this.actionHandlers = {
+  // Handler maps are built per invocation so the invoke context travels with each
+  // dispatch instead of living in a shared instance slot that concurrent calls overwrite.
+  private buildActionHandlers(
+    invokeContext: PowerButtonsInvokeContext | undefined,
+    includeGlobalBusy: boolean
+  ): ActionHandlerMap {
+    const setBusy = includeGlobalBusy ?
+      (busy: boolean) => this.trackBusy(busy) :
+      undefined;
+    return {
       ...createExportActionHandlers({
         getKeyInfoFilter: this.deps.getKeyInfoFilter
       }),
       ...createAiActionHandlers({
         getAiSummaryConfig: this.deps.getAiSummaryConfig,
         askConfirmWithVisibleDialog: (title, text, detailItems) =>
-          this.askConfirmWithVisibleDialog(title, text, detailItems),
+          this.askConfirmWithVisibleDialog(title, text, detailItems, invokeContext),
         resolveNetworkLensPlugin: this.deps.resolveNetworkLensPlugin,
         resolveCanvasPlugin: this.deps.resolveCanvasPlugin,
-        setBusy: this.deps.setBusy
+        setBusy
       }),
       ...createInsertActionHandlers({
-        shouldAutoConfirm: () => this.shouldAutoConfirm()
+        shouldAutoConfirm: () => this.shouldAutoConfirm(invokeContext),
+        isFullDocScope: () => invokeContext?.scope === "full-doc"
       }),
       ...createOrganizeActionHandlers({
-        askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
+        askConfirmWithVisibleDialog: (title, text) =>
+          this.askConfirmWithVisibleDialog(title, text, undefined, invokeContext),
         ensureDocWritable: (docId, actionLabel) => this.ensureDocWritable(docId, actionLabel),
-        setBusy: this.deps.setBusy
+        setBusy
       }),
       ...createMediaActionHandlers(),
       ...createSelectionActionHandlers({
-        askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
-        setBusy: this.deps.setBusy
+        askConfirmWithVisibleDialog: (title, text) =>
+          this.askConfirmWithVisibleDialog(title, text, undefined, invokeContext),
+        setBusy
       }),
       ...createCleanupActionHandlers({
         askConfirmWithVisibleDialog: (title, text, detailItems) =>
-          this.askConfirmWithVisibleDialog(title, text, detailItems),
-        setBusy: this.deps.setBusy
+          this.askConfirmWithVisibleDialog(title, text, detailItems, invokeContext),
+        setBusy
       }),
       "trim-trailing-whitespace": async (docId, protyle) => handleTrimTrailingWhitespace({
-        askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
-        setBusy: this.deps.setBusy
+        askConfirmWithVisibleDialog: (title, text) =>
+          this.askConfirmWithVisibleDialog(title, text, undefined, invokeContext),
+        setBusy
       }, docId, protyle),
       ...createDeleteRangeActionHandlers({
-        askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
-        setBusy: this.deps.setBusy
+        askConfirmWithVisibleDialog: (title, text) =>
+          this.askConfirmWithVisibleDialog(title, text, undefined, invokeContext),
+        setBusy
       }),
       ...createSelectRangeActionHandlers()
     } as ActionHandlerMap;
@@ -113,13 +126,14 @@ export class ActionRunner {
   private async askConfirmWithVisibleDialog(
     title: string,
     text: string,
-    detailItems?: ConfirmDetailItem[]
+    detailItems?: ConfirmDetailItem[],
+    invokeContext?: PowerButtonsInvokeContext
   ): Promise<boolean> {
-    if (this.shouldAutoConfirm()) {
+    if (this.shouldAutoConfirm(invokeContext)) {
       return true;
     }
-    const wasBusy = this.isRunning;
-    this.deps.setBusy?.(false);
+    const wasBusy = this.busyDepth > 0;
+    this.trackBusy(false);
     try {
       const ok = detailItems?.length ?
           await this.deps.askConfirm(title, text, detailItems) :
@@ -128,12 +142,12 @@ export class ActionRunner {
         return false;
       }
       if (wasBusy) {
-        this.deps.setBusy?.(true);
+        this.trackBusy(true);
       }
       return true;
     } catch (error) {
       if (wasBusy) {
-        this.deps.setBusy?.(true);
+        this.trackBusy(true);
       }
       throw error;
     }
@@ -148,39 +162,52 @@ export class ActionRunner {
     if (!config) {
       return this.createNotifiedFailure("execution-failed", "未找到对应动作", 4000, "error");
     }
-    this.currentInvokeContext = invokeContext;
     const docId = config.noDocRequired ? "" : this.deps.resolveDocId(explicitId, protyle);
     if (!docId && !config.noDocRequired) {
-      this.currentInvokeContext = undefined;
-      return this.createNotifiedFailure("context-unavailable", "未找到当前文档", 4000, "error");
+      return this.createNotifiedFailure("context-unavailable", "未找到当前文档", 4000, "info");
     }
     if (config.desktopOnly && this.deps.isMobile()) {
-      this.currentInvokeContext = undefined;
       return this.createNotifiedFailure("not-supported", "当前设备不支持此命令", 4000, "info");
     }
-    if (config.requiresWritableDoc) {
-      const writable = await this.ensureDocWritable(docId, config.commandText);
-      if (!writable) {
-        this.currentInvokeContext = undefined;
-        return {
-          ok: false,
-          errorCode: "context-unavailable",
-          message: this.getReadonlyDocMessage(config.commandText),
-          alreadyNotified: true
-        };
-      }
-    }
     if (config.runInBackground) {
-      return this.runActionInBackground(action, docId, protyle, config);
+      if (config.requiresWritableDoc) {
+        const writable = await this.ensureDocWritable(docId, config.commandText);
+        if (!writable) {
+          return {
+            ok: false,
+            errorCode: "context-unavailable",
+            message: this.getReadonlyDocMessage(config.commandText),
+            alreadyNotified: true
+          };
+        }
+      }
+      return this.runActionInBackground(action, docId, protyle, config, invokeContext);
     }
     if (this.isRunning) {
       return this.createNotifiedFailure("not-supported", "正在处理中，请等待当前任务完成", 4000, "info");
     }
 
+    // Acquire the foreground mutex before the first await so check-then-act stays atomic.
+    this.isRunning = true;
+    this.trackBusy(true);
     try {
-      this.isRunning = true;
-      this.deps.setBusy?.(true);
-      const handlerRes = await dispatchAction(action, docId, protyle, this.actionHandlers);
+      if (config.requiresWritableDoc) {
+        const writable = await this.ensureDocWritable(docId, config.commandText);
+        if (!writable) {
+          return {
+            ok: false,
+            errorCode: "context-unavailable",
+            message: this.getReadonlyDocMessage(config.commandText),
+            alreadyNotified: true
+          };
+        }
+      }
+      const handlerRes = await dispatchAction(
+        action,
+        docId,
+        protyle,
+        this.buildActionHandlers(invokeContext, true)
+      );
       if (handlerRes && typeof handlerRes === "object") {
         if (handlerRes.ok === false) {
           return {
@@ -209,9 +236,32 @@ export class ActionRunner {
       };
     } finally {
       this.isRunning = false;
-      this.deps.setBusy?.(false);
-      this.currentInvokeContext = undefined;
+      this.resetBusy();
     }
+  }
+
+  // Busy state is a counter: nested phases each raise/lower it and the overlay only
+  // follows the 0 <-> 1 boundary, so concurrent phases cannot hide each other's state.
+  private trackBusy(busy: boolean) {
+    if (busy) {
+      this.busyDepth += 1;
+      if (this.busyDepth === 1) {
+        this.deps.setBusy?.(true);
+      }
+      return;
+    }
+    this.busyDepth = Math.max(0, this.busyDepth - 1);
+    if (this.busyDepth === 0) {
+      this.deps.setBusy?.(false);
+    }
+  }
+
+  private resetBusy() {
+    if (this.busyDepth === 0) {
+      return;
+    }
+    this.busyDepth = 0;
+    this.deps.setBusy?.(false);
   }
 
   private normalizeInvokeContext(input?: ActionRunInput): PowerButtonsInvokeContext | undefined {
@@ -221,11 +271,11 @@ export class ActionRunner {
     return input;
   }
 
-  private shouldAutoConfirm(): boolean {
-    if (this.currentInvokeContext?.skipConfirm === true || this.currentInvokeContext?.confirmed === true) {
+  private shouldAutoConfirm(invokeContext?: PowerButtonsInvokeContext): boolean {
+    if (invokeContext?.skipConfirm === true || invokeContext?.confirmed === true) {
       return true;
     }
-    return this.currentInvokeContext?.trigger === "workflow-step";
+    return invokeContext?.trigger === "workflow-step";
   }
 
   registerCommands(register: (config: ActionConfig, run: () => void) => void) {
@@ -252,7 +302,8 @@ export class ActionRunner {
     action: ActionKey,
     docId: string,
     protyle: ProtyleLike | undefined,
-    config: ActionConfig
+    config: ActionConfig,
+    invokeContext?: PowerButtonsInvokeContext
   ): ActionRunResult {
     const taskKey = `${action}:${docId}`;
     if (this.backgroundTaskKeys.has(taskKey)) {
@@ -270,7 +321,13 @@ export class ActionRunner {
 
     void (async () => {
       try {
-        const handlerRes = await dispatchAction(action, docId, protyle, this.actionHandlers);
+        // Background tasks never drive the global blocking overlay.
+        const handlerRes = await dispatchAction(
+          action,
+          docId,
+          protyle,
+          this.buildActionHandlers(invokeContext, false)
+        );
         if (handlerRes && typeof handlerRes === "object") {
           if (handlerRes.ok === false) {
             return {
