@@ -26,7 +26,7 @@ type CreateGestureSettingsPanelOptions = {
 
 export function createGestureSettingsPanel(
   options: CreateGestureSettingsPanelOptions
-): HTMLDivElement {
+): { panel: HTMLDivElement; destroy: () => void } {
   let enabled = options.enabled;
   let bindings: GestureBindings = { ...options.bindings };
   let recording: MouseGestureActionKey | null = null;
@@ -227,5 +227,15 @@ export function createGestureSettingsPanel(
   syncDisabledState();
 
   panel.append(switchRow, fields, footer);
-  return panel;
+  return {
+    panel,
+    // If the settings dialog closes mid-recording (X/scrim), the recording capture,
+    // its Esc handler and the suspended main gesture capture would otherwise leak
+    // and turn the next unrelated stroke into a "recording result".
+    destroy: () => {
+      if (recording) {
+        finishRecording();
+      }
+    }
+  };
 }

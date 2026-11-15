@@ -247,10 +247,12 @@ describe("action-runner loading guard", () => {
 
   test("defines a handler for every registered action", () => {
     const runner = createRunner() as any;
-    const handlerKeys = Object.keys(runner.actionHandlers).sort();
+    // Handler maps are built per invocation; the coverage contract is unchanged.
+    const handlers = runner.buildActionHandlers(undefined, true);
+    const handlerKeys = Object.keys(handlers).sort();
 
     expect(handlerKeys).toEqual(ACTIONS.map((item) => item.key).sort());
-    expect(handlerKeys.every((key) => typeof runner.actionHandlers[key] === "function")).toBe(true);
+    expect(handlerKeys.every((key) => typeof handlers[key] === "function")).toBe(true);
   });
 
   test("toggles busy flag around action execution", async () => {

@@ -111,6 +111,11 @@ export function createMouseGestureController(options: MouseGestureControllerOpti
         return;
       }
       void executeAction(action, state);
+    },
+    // Cancelled strokes (window blur / wrong-button release) must still clean
+    // up the trail overlay, otherwise the ink stays on screen until the next stroke.
+    onStrokeCancel: () => {
+      hideGestureTrail();
     }
   });
 

@@ -77,7 +77,13 @@ function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
 }
 
 export function createPluginSettings(options: CreatePluginSettingsOptions) {
-  const setting = new Setting({ width: "640px" });
+  const panelDestroyCallbacks: Array<() => void> = [];
+  const setting = new Setting({
+    width: "640px",
+    destroyCallback: () => {
+      panelDestroyCallbacks.forEach((callback) => callback());
+    }
+  });
   const hiddenSettingKeys = new Set(options.hiddenSettingKeys || []);
   const hostNormalizedPanels: HTMLElement[] = [];
   const hostNormalizedRows: Array<{
@@ -156,9 +162,10 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       direction: "row",
       description:
         "开启后可在文档编辑器中按住鼠标右键划动手势：← 切换上一个文档，→ 切换下一个文档，↓→ 关闭当前文档。手势可自定义，切换为移动式（打开目标文档并关闭当前标签页）。",
-      actionElement: gesturePanel
+      actionElement: gesturePanel.panel
     });
-    hostNormalizedPanels.push(gesturePanel);
+    hostNormalizedPanels.push(gesturePanel.panel);
+    panelDestroyCallbacks.push(gesturePanel.destroy);
   }
 
   const menuRegistrationPanel = createMenuRegistrationPanel({
@@ -231,9 +238,10 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
 
   installSettingHostNormalizer(setting, hostNormalizedPanels, hostNormalizedRows);
 
-  // 注入 updateManagedConfig 方法供外部实时同步
+  // 注入 updateManagedConfig 方法供外部实时同步。
+  // SiYuan Setting 实例的面板 DOM 挂在其 dialog.element 上（无 element 属性）。
   (setting as any).updateManagedConfig = (managed: any | null) => {
-    const el = (setting as any).element as HTMLElement | undefined;
+    const el = (setting as any).dialog?.element as HTMLElement | undefined;
     if (!el) return;
 
     const aiPanel = el.querySelector(".doc-assistant-settings__ai-panel") as HTMLElement;

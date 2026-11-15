@@ -1,6 +1,9 @@
 import {
   escapeHtml,
   FloatingTextConfig,
+  MAX_FONT_SIZE,
+  MIN_FONT_SIZE,
+  MIN_OPACITY,
   simpleMarkdownToHtml
 } from "@/core/floating-text-core";
 import { MARKED_UMD_SOURCE } from "./marked-source";
@@ -218,7 +221,7 @@ export function buildFloatingWindowHtml(options: {
               <span id="ft-opacity-label" class="ft-badge">${Math.round(config.opacity * 100)}%</span>
             </div>
             <div class="ft-slider-row">
-              <input type="range" id="ft-opacity-slider" class="ft-slider" min="15" max="100" value="${Math.round(config.opacity * 100)}" />
+              <input type="range" id="ft-opacity-slider" class="ft-slider" min="${Math.round(MIN_OPACITY * 100)}" max="100" value="${Math.round(config.opacity * 100)}" />
             </div>
           </div>
 
@@ -270,6 +273,8 @@ ${buildFloatingWindowClientScript({
   hostWebContentsId,
   fontSize: config.fontSize,
   opacity: config.opacity,
+  fontSizeMin: MIN_FONT_SIZE,
+  fontSizeMax: MAX_FONT_SIZE,
   isMarkdownView: config.viewMode === "markdown",
   autoPasteOnSelect: Boolean(config.autoPasteOnSelect),
   isDialogFallback: Boolean(isDialogFallback),

@@ -4,6 +4,7 @@ import {
   toPngAssetPath
 } from "@/core/image-webp-core";
 import { getFileBlob, putBlobFile } from "@/services/kernel";
+import { decodeImageSource } from "@/services/image-source-loader";
 
 export type ImagePngConvertSkipReason = "unsupported-format" | "already-png";
 
@@ -30,37 +31,7 @@ async function loadImageSource(blob: Blob): Promise<{
   height: number;
   cleanup: () => void;
 }> {
-  if (typeof createImageBitmap === "function") {
-    const bitmap = await createImageBitmap(blob);
-    return {
-      source: bitmap,
-      width: bitmap.width,
-      height: bitmap.height,
-      cleanup: () => {
-        bitmap.close?.();
-      }
-    };
-  }
-
-  if (typeof Image === "undefined" || typeof URL === "undefined") {
-    throw new TypeError("当前环境不支持图片转码");
-  }
-
-  const objectUrl = URL.createObjectURL(blob);
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const element = new Image();
-    element.onload = () => resolve(element);
-    element.onerror = () => reject(new Error("图片解码失败"));
-    element.src = objectUrl;
-  });
-  return {
-    source: image,
-    width: image.naturalWidth || image.width,
-    height: image.naturalHeight || image.height,
-    cleanup: () => {
-      URL.revokeObjectURL(objectUrl);
-    }
-  };
+  return decodeImageSource(blob, "当前环境不支持图片转码");
 }
 
 async function encodeCanvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {

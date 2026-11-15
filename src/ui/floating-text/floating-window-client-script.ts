@@ -9,6 +9,8 @@ export type FloatingWindowClientScriptParams = {
   hostWebContentsId?: number | null;
   fontSize: number;
   opacity: number;
+  fontSizeMin: number;
+  fontSizeMax: number;
   /** 等价于 config.viewMode === "markdown" */
   isMarkdownView: boolean;
   autoPasteOnSelect: boolean;
@@ -16,7 +18,8 @@ export type FloatingWindowClientScriptParams = {
   rememberSize: boolean;
 };
 
-const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
+const CLIENT_SCRIPT_BODY_PART1 = `          window.__docAssistantFloatingClientActive = true;
+          function closeFloatingWindow() {
             if (isDialogFallback) {
               try {
                 const evt = new CustomEvent("doc-assistant-floating-close", { bubbles: true, composed: true });
@@ -212,11 +215,15 @@ const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
                 const electronModule = req("electron");
                 const ipc = electronModule && electronModule.ipcRenderer;
                 if (ipc && typeof ipc.send === "function") {
-                  ipc.send("siyuan-doc-assist-save-floating-config", patch);
+                  // 单通道投递：sendTo 与 send 同时发会被宿主双路接收，导致配置双写。
                   if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
                     try {
                       ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-save-floating-config", patch);
-                    } catch (e) {}
+                    } catch (e) {
+                      ipc.send("siyuan-doc-assist-save-floating-config", patch);
+                    }
+                  } else {
+                    ipc.send("siyuan-doc-assist-save-floating-config", patch);
                   }
                 }
               }
@@ -290,11 +297,13 @@ const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
             }
           }
 
+          let toastTimer = null;
           function showToast(msg) {
             if (!toast) return;
+            if (toastTimer) clearTimeout(toastTimer);
             toast.textContent = msg;
             toast.classList.add("ft-toast-show");
-            setTimeout(function() {
+            toastTimer = setTimeout(function() {
               toast.classList.remove("ft-toast-show");
             }, 1500);
           }
@@ -376,11 +385,14 @@ const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
                 const electronModule = req("electron");
                 const ipc = electronModule && electronModule.ipcRenderer;
                 if (ipc && typeof ipc.send === "function") {
-                  ipc.send("siyuan-doc-assist-set-always-on-top", isPinned);
                   if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
                     try {
                       ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-set-always-on-top", isPinned);
-                    } catch (e) {}
+                    } catch (e) {
+                      ipc.send("siyuan-doc-assist-set-always-on-top", isPinned);
+                    }
+                  } else {
+                    ipc.send("siyuan-doc-assist-set-always-on-top", isPinned);
                   }
                 }
               }
@@ -394,7 +406,7 @@ const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
           }
 
           function updateFontSize(size) {
-            size = Math.max(11, Math.min(42, size));
+            size = Math.max(fontSizeMin, Math.min(fontSizeMax, size));
             currentFontSize = size;
             if (appEl) appEl.style.setProperty("--ft-font-size", size + "px");
             if (fontLabel) fontLabel.textContent = size + "px";
@@ -402,7 +414,6 @@ const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
           }
 
           function updateOpacity(op) {
-            currentOpacity = op;
             if (appEl) appEl.style.setProperty("--ft-opacity", String(op));
             if (opacityLabel) opacityLabel.textContent = Math.round(op * 100) + "%";
             saveConfig({ opacity: op });
@@ -687,11 +698,14 @@ const CLIENT_SCRIPT_BODY_PART1 = `          function closeFloatingWindow() {
                   const elMod = req("electron");
                   const ipc = elMod && elMod.ipcRenderer;
                   if (ipc && typeof ipc.send === "function") {
-                    ipc.send("siyuan-doc-assist-minimize-and-paste", pastePayload);
                     if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
                       try {
                         ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-minimize-and-paste", pastePayload);
-                      } catch (e) {}
+                      } catch (e) {
+                        ipc.send("siyuan-doc-assist-minimize-and-paste", pastePayload);
+                      }
+                    } else {
+                      ipc.send("siyuan-doc-assist-minimize-and-paste", pastePayload);
                     }
                     handled = true;
                   }
@@ -1287,9 +1301,10 @@ const CLIENT_SCRIPT_BODY_PART2 = `          let resizeTimer = null;
                     const elMod = req("electron");
                     const ipc = elMod && elMod.ipcRenderer;
                     if (ipc && typeof ipc.send === "function") {
-                      ipc.send("siyuan-doc-assist-move-window", { x: rx, y: ry });
                       if (typeof targetHostWebContentsId === "number" && typeof ipc.sendTo === "function") {
                         ipc.sendTo(targetHostWebContentsId, "siyuan-doc-assist-move-window", { x: rx, y: ry });
+                      } else {
+                        ipc.send("siyuan-doc-assist-move-window", { x: rx, y: ry });
                       }
                       moved = true;
                     }
@@ -1353,6 +1368,16 @@ const CLIENT_SCRIPT_BODY_PART2 = `          let resizeTimer = null;
               document.addEventListener("mousemove", onMouseMove, true);
               document.addEventListener("mouseup", onMouseUp, true);
             });
+
+            // 异常出口：窗口失焦（拖到窗外松键、Alt+Tab）时鼠标可能收不到 mouseup，
+            // 不复位会让 isDragging 永久卡住，鼠标再进入窗口后未按键也会拖走窗口。
+            window.addEventListener("blur", function() {
+              if (!isDragging) return;
+              isDragging = false;
+              document.removeEventListener("mousemove", onMouseMove, true);
+              document.removeEventListener("mouseup", onMouseUp, true);
+              if (appEl) appEl.classList.remove("is-dragging");
+            });
           }
         })();`;
 export function buildFloatingWindowClientScript(params: FloatingWindowClientScriptParams): string {
@@ -1361,7 +1386,8 @@ export function buildFloatingWindowClientScript(params: FloatingWindowClientScri
           let lastRenderedText = ${JSON.stringify(params.text)};
           const targetHostWebContentsId = ${typeof params.hostWebContentsId === "number" ? params.hostWebContentsId : "null"};
           let currentFontSize = ${params.fontSize};
-          let currentOpacity = ${params.opacity};
+          const fontSizeMin = ${params.fontSizeMin};
+          const fontSizeMax = ${params.fontSizeMax};
           let isMarkdown = ${params.isMarkdownView};
           const autoPasteOnSelect = ${Boolean(params.autoPasteOnSelect)};
           const isDialogFallback = ${Boolean(params.isDialogFallback)};

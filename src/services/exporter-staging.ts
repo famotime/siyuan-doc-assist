@@ -1,4 +1,5 @@
 import { assetPathBasename, normalizeUploadFileName } from "@/core/export-media-core";
+import { isMissingFileError } from "@/core/kernel-file-error-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { getFileBlob, putBlobFile } from "@/services/kernel";
 
@@ -12,15 +13,8 @@ function toErrorMessage(error: unknown): string {
 }
 
 function isMissingItemError(error: unknown): boolean {
-  const message = toErrorMessage(error);
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes("file not exist") ||
-    normalized.includes("not exist") ||
-    normalized.includes("not found") ||
-    normalized.includes("does not exist") ||
-    /不存在|未找到/.test(message)
-  );
+  // Structural error code first (kernel-file), legacy message matching as fallback.
+  return isMissingFileError(error);
 }
 
 export function randomId(): string {

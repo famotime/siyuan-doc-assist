@@ -19,6 +19,12 @@ export function bindPipWindowEvents(
   text: string,
   initialConfig: FloatingTextConfig
 ) {
+  // The HTML written into this window embeds the full client script; if it
+  // already took over, binding here too would double-fire every toggle,
+  // copy, toast and drag session.
+  if ((pipWindow as any).__docAssistantFloatingClientActive) {
+    return;
+  }
   const doc = pipWindow.document;
   const appEl = doc.getElementById("ft-app");
   const popoverEl = doc.getElementById("ft-popover");
@@ -67,11 +73,13 @@ export function bindPipWindowEvents(
     showToast(isPinned ? "已恢复置顶" : "已取消置顶");
   };
 
+  let toastTimer: any = null;
   const showToast = (msg: string) => {
     if (!toast) return;
+    if (toastTimer) pipWindow.clearTimeout(toastTimer);
     toast.textContent = msg;
     toast.classList.add("ft-toast-show");
-    pipWindow.setTimeout(() => {
+    toastTimer = pipWindow.setTimeout(() => {
       toast.classList.remove("ft-toast-show");
     }, 1500);
   };
@@ -454,6 +462,15 @@ export function bindPipWindowEvents(
       startWinY = typeof pipWindow.screenY === "number" ? pipWindow.screenY : 0;
       doc.addEventListener("mousemove", onMouseMove, true);
       doc.addEventListener("mouseup", onMouseUp, true);
+    });
+
+    // 异常出口：窗口失焦时鼠标可能收不到 mouseup，不复位会让 isDragging 永久卡住。
+    pipWindow.addEventListener("blur", () => {
+      if (!isDragging) return;
+      isDragging = false;
+      doc.removeEventListener("mousemove", onMouseMove, true);
+      doc.removeEventListener("mouseup", onMouseUp, true);
+      appEl?.classList.remove("is-dragging");
     });
   }
 }

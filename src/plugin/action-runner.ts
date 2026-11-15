@@ -73,9 +73,7 @@ export class ActionRunner {
     invokeContext: PowerButtonsInvokeContext | undefined,
     includeGlobalBusy: boolean
   ): ActionHandlerMap {
-    const setBusy = includeGlobalBusy ?
-      (busy: boolean) => this.trackBusy(busy) :
-      undefined;
+    const setBusy = includeGlobalBusy ? (busy: boolean) => this.trackBusy(busy) : undefined;
     return {
       ...createExportActionHandlers({
         getKeyInfoFilter: this.deps.getKeyInfoFilter

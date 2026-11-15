@@ -91,13 +91,20 @@ export async function translateDocParagraphs(
   }
 
   const proxyFn = options.forwardProxy || forwardProxy;
-  const translationPromises = translatableItems.map(async (item, index) => {
-    options.onProgress?.(index + 1, translatableItems.length, item.blockId);
+  let completedRequests = 0;
+  const translationPromises = translatableItems.map(async (item) => {
     try {
       return await requestParagraphTranslation(proxyFn, config, item.markdown);
     } catch {
       return null;
     }
+  });
+  // Progress reflects completed requests instead of request starts.
+  translationPromises.forEach((promise, index) => {
+    void promise.then(() => {
+      completedRequests += 1;
+      options.onProgress?.(completedRequests, translatableItems.length, translatableItems[index].blockId);
+    });
   });
   const translationResults = await Promise.all(translationPromises);
 
@@ -116,14 +123,22 @@ export async function translateDocParagraphs(
     }
 
     translatedCount += 1;
-    await requestApi("/api/block/insertBlock", {
-      dataType: "markdown",
-      data: translation,
-      nextID: "",
-      previousID: translatableItems[i].blockId,
-      parentID: ""
-    });
-    insertedCount += 1;
+    try {
+      await requestApi("/api/block/insertBlock", {
+        dataType: "markdown",
+        data: translation,
+        nextID: "",
+        previousID: translatableItems[i].blockId,
+        parentID: ""
+      });
+      insertedCount += 1;
+    } catch (error) {
+      failedCount += 1;
+      aiParagraphTranslationLogger.warn("insert translation failed", {
+        blockId: translatableItems[i].blockId,
+        error
+      });
+    }
   }
 
   return {

@@ -10,17 +10,17 @@
 
 | 目录 | 文件数 | 说明 |
 | --- | ---: | --- |
-| `src/` | 188 | 插件源码（TS + SCSS，含悬浮窗 HTML 与 i18n JSON） |
-| `src/core/` | 49 | 纯逻辑与转换规则 |
+| `src/` | 190 | 插件源码（TS + SCSS，含悬浮窗 HTML 与 i18n JSON） |
+| `src/core/` | 51 | 纯逻辑与转换规则 |
 | `src/plugin/` | 39 | 生命周期、动作编排、控制器 |
-| `src/services/` | 51 | Kernel / 文件系统 / AI / 导出服务 |
+| `src/services/` | 52 | Kernel / 文件系统 / AI / 导出服务 |
 | `src/services/floating-text/` | 7 | 悬浮文字窗口集成服务 |
 | `src/ui/` | 18 | Dock、Dialog、Setting 面板 UI |
-| `src/ui/floating-text/` | 5 | 悬浮文字窗口模板资源 |
+| `src/ui/floating-text/` | 4 | 悬浮文字窗口模板资源 |
 | `src/styles/` | 11 | SCSS 功能 partial |
 | `src/types/` | 4 | 类型声明 |
 | `src/i18n/` | 2 | 国际化文案 |
-| `tests/` | 124 | Vitest 用例与 mocks |
+| `tests/` | 133 | Vitest 用例与 mocks |
 
 ## 2. 根目录结构
 
@@ -74,7 +74,7 @@
 | `src/index.ts` | 加载全局样式并导出 `plugin-lifecycle` |
 | `src/index.scss` | 样式入口，聚合 `src/styles/` 下的功能 partial |
 
-### 4.3 `src/core/`（49 个文件）
+### 4.3 `src/core/`（51 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -98,6 +98,7 @@
 | `src/core/export-media-core.ts` | 导出时媒体路径提取、文件名规范化、链接改写 |
 | `src/core/floating-text-core.ts` | 悬浮文字配置默认值、复制文本解析与配置合并 |
 | `src/core/floating-text-search-core.ts` | 悬浮文字窗口内搜索模型 |
+| `src/core/generation-guard-core.ts` | 请求代际守卫（latest-wins token），key-info 刷新/只读同步与销毁失效共用 |
 | `src/core/gesture-recognition-core.ts` | 鼠标手势八方向序列识别、绑定匹配与手势绑定标准化 |
 | `src/core/heading-bold-toggle-core.ts` | 标题加粗切换预览与更新计划 |
 | `src/core/image-display-size-core.ts` | 图片显示尺寸解析与 Markdown 改写 |
@@ -105,6 +106,7 @@
 | `src/core/key-info-core.ts` | 关键内容类型、提取辅助与 Markdown 渲染 |
 | `src/core/key-info-scroll-core.ts` | 关键内容滚动状态与渲染后动作 |
 | `src/core/key-info-scroll-lock-core.ts` | 编程滚动与用户滚动锁协调 |
+| `src/core/kernel-file-error-core.ts` | Kernel 文件读取错误的结构化分类（missing-file 判定与错误码挂载） |
 | `src/core/large-documents-report-core.ts` | Top100 大文件清单的排序、字节格式化与 Markdown 表格生成 |
 | `src/core/link-core.ts` | 链接/引用互转、失效标记、块 ID 提取 |
 | `src/core/link-to-doc-core.ts` | 网页链接转文档聚合出口：链接抽取/清洗、剪藏文档组装与兄弟路径计算；re-export `web-clip-shared-core`、`x-post-core`、`web-article-html-core` |
@@ -167,13 +169,12 @@
 | `src/plugin/plugin-lifecycle-menu.ts` | 标题菜单注册、命令注册、悬浮菜单项工厂（内容/块图标/文档树菜单）与隐藏判定 |
 | `src/plugin/plugin-lifecycle-state.ts` | 插件设置状态默认值、标准化、序列化与持久化，含 AI、手势与月记模板配置 |
 | `src/plugin/plugin-lifecycle.ts` | 插件主类与组合根，负责生命周期入口、状态变更协调，并暴露 `power-buttons` 集成 provider |
-| `src/plugin/plugin-pinned-tab-manager.ts` | 新页签在钉住页签后的放置协调、已知页签追踪与重试调度 |
 | `src/plugin/power-buttons-provider-types.ts` | 面向 `power-buttons` 的跨插件 provider 协议类型 |
 | `src/plugin/power-buttons-provider.ts` | `power-buttons` 白名单 provider；负责公开命令列表与 `runAction` 路由 |
 | `src/plugin/transaction-runner.ts` | Protyle 事务执行封装与调试日志开关 |
 | `src/plugin/wiki-command-provider-types.ts` | wiki 命令跨插件 provider 协议类型 |
 
-### 4.5 `src/services/`（51 个文件）与 `src/services/floating-text/`（7 个文件）
+### 4.5 `src/services/`（52 个文件）与 `src/services/floating-text/`（7 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -197,6 +198,7 @@
 | `src/services/image-png-converter.ts` | 单图片转 PNG |
 | `src/services/image-png.ts` | 当前文档图片批量转 PNG 与回写 |
 | `src/services/image-remove.ts` | 当前文档图片链接删除 |
+| `src/services/image-source-loader.ts` | 共享图片解码装载器（createImageBitmap 优先、Image/objectURL 降级，失败路径资源回收） |
 | `src/services/image-webp-converter.ts` | 单图片转 WebP |
 | `src/services/image-webp.ts` | 当前文档图片批量转 WebP 与回写 |
 | `src/services/kernel-adapter-core.ts` | Kernel 批量结果解析与单条 fallback 读取 |
@@ -236,7 +238,7 @@
 | `src/services/floating-text/floating-window-fallback.ts` | 应用内降级方案：思源 Dialog 悬浮窗与生命周期清理 |
 | `src/services/floating-text/floating-window-pip-events.ts` | PiP / window.open 窗口事件桥接（按钮、快捷键、外观、拖拽、尺寸记忆） |
 
-### 4.6 `src/ui/`（18 个文件）与 `src/ui/floating-text/`（5 个文件）
+### 4.6 `src/ui/`（18 个文件）与 `src/ui/floating-text/`（4 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -261,7 +263,6 @@
 | `src/ui/floating-text/floating-window-client-script.ts` | 悬浮窗内置浏览器端脚本：注入初始状态的声明区（参数化）与无插值脚本主体 |
 | `src/ui/floating-text/floating-window-styles.ts` | 悬浮窗内置样式表（CSS 字符串） |
 | `src/ui/floating-text/floating-window-template.ts` | 悬浮窗 HTML 组装（`buildFloatingWindowHtml`）与 marked 沙箱初始化脚本 |
-| `src/ui/floating-text/floating.html` | 悬浮窗独立窗口页面模板（vite 静态复制到包根） |
 | `src/ui/floating-text/marked-source.ts` | 内置轻量 marked UMD 源码字符串 |
 
 ### 4.7 `src/styles/`
@@ -293,17 +294,18 @@
 
 ### 5.1 覆盖重点
 
-- `core`：纯逻辑、Markdown 转换、网页剪藏、X 帖子解析、选区 DOM 清理骨架、菜单注册、排序、移动冲突等。
+- `core`：纯逻辑、Markdown 转换、网页剪藏、X 帖子解析、选区 DOM 清理骨架、菜单注册、排序、移动冲突、代际守卫与文件错误分类等。
 - `services`：Kernel 适配、导出、图片处理、AI 服务、链接解析、悬浮窗事件桥接与降级方案。
-- `plugin/ui`：ActionRunner、设置页、菜单注册与悬浮菜单工厂、Dock 状态与控制器。
+- `plugin/ui`：ActionRunner（含并发互斥/overlay 计数/上下文污染回归）、设置页、菜单注册与悬浮菜单工厂、Dock 状态与控制器（含跨文档 token 竞态回归）、确认框销毁终态、手势录制生命周期。
 - `tests/mocks/siyuan.ts`：SiYuan API mock。
 
-### 5.2 全量测试文件列表（121）
+### 5.2 全量测试文件列表（133）
 
 ```text
 tests/action-definitions.test.ts
 tests/action-processing-overlay.test.ts
 tests/action-runner-block-transform.test.ts
+tests/action-runner-concurrency.test.ts
 tests/action-runner-context.test.ts
 tests/action-runner-link-to-doc.test.ts
 tests/action-runner-loading.test.ts
@@ -325,6 +327,9 @@ tests/block-lineage.test.ts
 tests/byte-format-core.test.ts
 tests/canvas-generator.test.ts
 tests/cleanup-preview-core.test.ts
+tests/confirm-detail-dialog.test.ts
+tests/core/markdown-cleanup-block-selection.test.ts
+tests/core/text-to-link-core.test.ts
 tests/dedupe-core.test.ts
 tests/dedupe-dialog.test.ts
 tests/dedupe-service.test.ts
@@ -336,6 +341,7 @@ tests/dock-panel-core.test.ts
 tests/emoji-cleanup-core.test.ts
 tests/export-media-core.test.ts
 tests/exporter-current.test.ts
+tests/exporter-staging-classification.test.ts
 tests/exporter-zip-download.test.ts
 tests/floating-selection-helper.test.ts
 tests/floating-text-core.test.ts
@@ -344,10 +350,13 @@ tests/floating-text-service.test.ts
 tests/floating-window-fallback.test.ts
 tests/floating-window-pip-events.test.ts
 tests/floating-window-render.test.ts
+tests/floating-window-search-parity.test.ts
+tests/generation-guard-core.test.ts
 tests/gesture-recognition-core.test.ts
 tests/image-display-size-service.test.ts
 tests/image-png-service.test.ts
 tests/image-remove-service.test.ts
+tests/image-source-loader.test.ts
 tests/image-webp-core.test.ts
 tests/image-webp-service.test.ts
 tests/kernel-adapter-core.test.ts
@@ -355,6 +364,7 @@ tests/kernel-child-blocks.test.ts
 tests/kernel-child-docs.test.ts
 tests/kernel-conf.test.ts
 tests/kernel-doc-query-service.test.ts
+tests/kernel-file-error-core.test.ts
 tests/kernel-file.test.ts
 tests/kernel-kramdown-compat.test.ts
 tests/kernel-list-docs-subtree.test.ts
@@ -365,6 +375,7 @@ tests/kernel-sy-order.test.ts
 tests/key-info-collectors.test.ts
 tests/key-info-controller-doc-action.test.ts
 tests/key-info-controller-export.test.ts
+tests/key-info-controller-race.test.ts
 tests/key-info-controller-refresh.test.ts
 tests/key-info-controller-state.test.ts
 tests/key-info-core.test.ts
@@ -410,9 +421,11 @@ tests/plugin-lifecycle-events.test.ts
 tests/plugin-lifecycle-menu.test.ts
 tests/plugin-lifecycle-state.test.ts
 tests/plugin-menu-registration.test.ts
+tests/plugin-settings-gesture-recording.test.ts
 tests/plugin-settings.test.ts
 tests/power-buttons-provider.test.ts
 tests/punctuation-toggle-core.test.ts
+tests/request-api-timeout.test.ts
 tests/request.test.ts
 tests/selected-block-style-toggle-core.test.ts
 tests/selection-dom-cleanup-core.test.ts
@@ -441,6 +454,7 @@ tests/mocks/siyuan.ts（mock，非用例文件）
 | `docs/changelog.md` | 项目变更记录 |
 | `docs/project-structure.md` | 本文档，记录当前仓库结构与职责映射 |
 | `docs/refactor-plan.md` | 当前重构计划与执行进度 |
+| `docs/state-machine-audit-followups.md` | 隐式状态机审计的遗留项、低危备忘与未确认事项 |
 | 其他中文专题文档 | 功能预览、工作流实践与分析笔记 |
 
 ### 6.3 参考目录

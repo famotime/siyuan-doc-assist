@@ -26,6 +26,15 @@ export function askConfirmWithDetail(
   }
 
   return new Promise((resolve) => {
+    let settled = false;
+    const settle = (value: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(value);
+    };
+
     const listHtml = detailItems
       .map((item, index) => {
         const desc = item.description ?
@@ -59,7 +68,8 @@ export function askConfirmWithDetail(
     const dialog = new Dialog({
       title,
       content,
-      width: "520px"
+      width: "520px",
+      destroyCallback: () => settle(false)
     });
 
     const root = dialog.element.querySelector(".doc-assistant-confirm-detail") as HTMLElement;
@@ -82,12 +92,13 @@ export function askConfirmWithDetail(
           detailItems[index].selected = checkbox.checked;
         }
       });
+      // Settle before destroy so the destroyCallback fallback cannot flip the result.
+      settle(true);
       dialog.destroy();
-      resolve(true);
     });
     cancelBtn.addEventListener("click", () => {
+      settle(false);
       dialog.destroy();
-      resolve(false);
     });
   });
 }

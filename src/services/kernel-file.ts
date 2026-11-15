@@ -1,3 +1,4 @@
+import { createFileAccessError } from "@/core/kernel-file-error-core";
 import { requestApi } from "@/services/request";
 
 type FileErrorRes = {
@@ -76,7 +77,7 @@ export async function getFileBlob(path: string): Promise<Blob> {
     body: JSON.stringify({ path })
   });
   if (!response.ok) {
-    throw new Error(`读取文件失败：${response.status}`);
+    throw createFileAccessError(`读取文件失败：${response.status}`, response.status);
   }
 
   const contentType = response.headers.get("content-type") || "";
@@ -88,7 +89,7 @@ export async function getFileBlob(path: string): Promise<Blob> {
 
     const json = parseJsonOrNull(text);
     if (isFileErrorEnvelope(json)) {
-      throw new Error(json.msg || "读取文件失败");
+      throw createFileAccessError(json.msg || "读取文件失败");
     }
     if (isFileSuccessEnvelope(json)) {
       return toBlobFromSuccessData(json.data);
@@ -156,7 +157,7 @@ export async function getFileTextAllowJson(path: string): Promise<string> {
     body: JSON.stringify({ path })
   });
   if (!response.ok) {
-    throw new Error(`读取文件失败：${response.status}`);
+    throw createFileAccessError(`读取文件失败：${response.status}`, response.status);
   }
 
   const contentType = response.headers.get("content-type") || "";
@@ -177,7 +178,7 @@ export async function getFileTextAllowJson(path: string): Promise<string> {
   }
   if (isFileErrorEnvelope(parsed)) {
     const message = (parsed.msg || "").trim();
-    throw new Error(message || `读取文件失败：${parsed.code}`);
+    throw createFileAccessError(message || `读取文件失败：${parsed.code}`);
   }
   if (isFileSuccessEnvelope(parsed)) {
     const data = parsed.data;

@@ -3,6 +3,7 @@ import {
   getExportResourceAssetPaths,
   rewriteMarkdownAssetLinksToBasename
 } from "@/core/export-media-core";
+import { isMissingFileError } from "@/core/kernel-file-error-core";
 import { buildKeyInfoMarkdown, filterKeyInfoItems, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { getDocKeyInfo } from "@/services/key-info";
@@ -74,15 +75,8 @@ function toErrorMessage(error: unknown): string {
 }
 
 function isMissingItemError(error: unknown): boolean {
-  const message = toErrorMessage(error);
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes("file not exist") ||
-    normalized.includes("not exist") ||
-    normalized.includes("not found") ||
-    normalized.includes("does not exist") ||
-    /不存在|未找到/.test(message)
-  );
+  // Structural error code first (kernel-file), legacy message matching as fallback.
+  return isMissingFileError(error);
 }
 
 export type ExportCurrentDocResult = {
@@ -137,10 +131,12 @@ export async function exportCurrentDocMarkdown(
   const tempMarkdownName = buildSafeMarkdownFileName(title, docId);
   const tempMarkdownPath = `${tempDir}/${tempMarkdownName}`;
   const rewrittenMarkdown = rewriteMarkdownAssetLinksToBasename(content, "assets");
-  await putFile(tempMarkdownPath, rewrittenMarkdown);
-  const assetStageResult = await stageAssetsToTempDir(assetPaths, tempAssetsDir);
 
   try {
+    // Staging writes live inside try so a failure still cleans up the temp dir.
+    await putFile(tempMarkdownPath, rewrittenMarkdown);
+    const assetStageResult = await stageAssetsToTempDir(assetPaths, tempAssetsDir);
+
     const zipName = sanitizeArchiveBaseName(title || docId);
     const packPaths = [tempMarkdownPath];
     if (assetStageResult.stagedCount > 0) {
@@ -180,70 +176,70 @@ export async function exportDocIdsAsMarkdownZip(
   let docCount = 0;
   let skippedDocCount = 0;
 
-  const uniqueDocIds = [...new Set(docIds.filter(Boolean))];
-  for (const docId of uniqueDocIds) {
-    let res: Awaited<ReturnType<typeof exportMdContent>>;
-    try {
-      res = await exportMdContent(docId, EXPORT_MD_OPTIONS);
-    } catch (error) {
-      if (!isMissingItemError(error)) {
-        throw error;
-      }
-      skippedDocCount += 1;
-      exporterLogger.warn("skip missing export doc", {
-        docId,
-        reason: toErrorMessage(error)
-      });
-      continue;
-    }
-    const title = getExportedDocTitle(res.hPath, docId);
-    if (!inferredZipBaseName) {
-      inferredZipBaseName = sanitizeArchiveBaseName(title || docId);
-    }
-    const safeBase = sanitizePathSegment(title) || docId;
-    const markdownName = normalizeUploadFileName(`${safeBase}.md`, `${docId}.md`);
-    let uniqueName = markdownName;
-    let suffix = 2;
-    while (usedDocNames.has(uniqueName)) {
-      uniqueName = normalizeUploadFileName(`${safeBase}-${suffix}.md`, `${docId}-${suffix}.md`);
-      suffix += 1;
-    }
-    usedDocNames.add(uniqueName);
-
-    const rawContent = res.content || "";
-    const content = prependDocTitleToMarkdown(rawContent, title);
-    const rewrittenMarkdown = rewriteMarkdownAssetLinksToBasename(content, "assets");
-    const markdownPath = `${tempDir}/${uniqueName}`;
-    try {
-      await putFile(markdownPath, rewrittenMarkdown);
-    } catch (error: any) {
-      const detail = error?.message || String(error);
-      throw new Error(`导出临时文件写入失败（${markdownPath}）：${detail}`);
-    }
-    packPathSet.add(markdownPath);
-    docCount += 1;
-
-    const assetPaths = getExportResourceAssetPaths(rawContent);
-    for (const assetPath of assetPaths) {
-      assetPathSet.add(assetPath);
-    }
-  }
-
-  if (!docCount) {
-    throw new Error("未找到可导出的文档");
-  }
-
-  let skippedAssetCount = 0;
-  if (assetPathSet.size) {
-    const assetStageResult = await stageAssetsToTempDir([...assetPathSet], tempAssetsDir);
-    skippedAssetCount = assetStageResult.skippedAssetCount;
-    if (assetStageResult.stagedCount > 0) {
-      packPathSet.add(tempAssetsDir);
-    }
-  }
-
-  const zipBaseName = inferredZipBaseName || "export";
   try {
+    const uniqueDocIds = [...new Set(docIds.filter(Boolean))];
+    for (const docId of uniqueDocIds) {
+      let res: Awaited<ReturnType<typeof exportMdContent>>;
+      try {
+        res = await exportMdContent(docId, EXPORT_MD_OPTIONS);
+      } catch (error) {
+        if (!isMissingItemError(error)) {
+          throw error;
+        }
+        skippedDocCount += 1;
+        exporterLogger.warn("skip missing export doc", {
+          docId,
+          reason: toErrorMessage(error)
+        });
+        continue;
+      }
+      const title = getExportedDocTitle(res.hPath, docId);
+      if (!inferredZipBaseName) {
+        inferredZipBaseName = sanitizeArchiveBaseName(title || docId);
+      }
+      const safeBase = sanitizePathSegment(title) || docId;
+      const markdownName = normalizeUploadFileName(`${safeBase}.md`, `${docId}.md`);
+      let uniqueName = markdownName;
+      let suffix = 2;
+      while (usedDocNames.has(uniqueName)) {
+        uniqueName = normalizeUploadFileName(`${safeBase}-${suffix}.md`, `${docId}-${suffix}.md`);
+        suffix += 1;
+      }
+      usedDocNames.add(uniqueName);
+
+      const rawContent = res.content || "";
+      const content = prependDocTitleToMarkdown(rawContent, title);
+      const rewrittenMarkdown = rewriteMarkdownAssetLinksToBasename(content, "assets");
+      const markdownPath = `${tempDir}/${uniqueName}`;
+      try {
+        await putFile(markdownPath, rewrittenMarkdown);
+      } catch (error: any) {
+        const detail = error?.message || String(error);
+        throw new Error(`导出临时文件写入失败（${markdownPath}）：${detail}`);
+      }
+      packPathSet.add(markdownPath);
+      docCount += 1;
+
+      const assetPaths = getExportResourceAssetPaths(rawContent);
+      for (const assetPath of assetPaths) {
+        assetPathSet.add(assetPath);
+      }
+    }
+
+    if (!docCount) {
+      throw new Error("未找到可导出的文档");
+    }
+
+    let skippedAssetCount = 0;
+    if (assetPathSet.size) {
+      const assetStageResult = await stageAssetsToTempDir([...assetPathSet], tempAssetsDir);
+      skippedAssetCount = assetStageResult.skippedAssetCount;
+      if (assetStageResult.stagedCount > 0) {
+        packPathSet.add(tempAssetsDir);
+      }
+    }
+
+    const zipBaseName = inferredZipBaseName || "export";
     const packPaths = [...packPathSet];
     const zip = await exportResources(packPaths, zipBaseName);
     const derivedName = basenameFromWorkspacePath(zip.path) || withZipExtension(zipBaseName);
@@ -305,54 +301,54 @@ export async function exportDocAndChildKeyInfoAsZip(options: {
   let docCount = 0;
   let skippedDocCount = 0;
 
-  for (let index = 0; index < docIds.length; index += 1) {
-    const id = docIds[index];
-    let data: Awaited<ReturnType<typeof getDocKeyInfo>>;
-    try {
-      data = await getDocKeyInfo(id, index === 0 ? options.protyle : undefined);
-    } catch (error) {
-      if (!isMissingItemError(error)) {
-        throw error;
-      }
-      skippedDocCount += 1;
-      exporterLogger.warn("skip missing key-info doc", {
-        docId: id,
-        reason: toErrorMessage(error)
-      });
-      continue;
-    }
-    if (!preferredTitle) {
-      preferredTitle = data.docTitle || id;
-    }
-    const filteredItems = filterKeyInfoItemsByFilter(data.items || [], options.filter);
-    exportedItemCount += filteredItems.length;
-    const markdown = buildKeyInfoMarkdown(filteredItems);
-
-    const title = data.docTitle || id;
-    const safeBase = sanitizePathSegment(title) || id;
-    const baseName = normalizeUploadFileName(`${safeBase}-key-info.md`, `${id}-key-info.md`);
-    let uniqueName = baseName;
-    let suffix = 2;
-    while (usedDocNames.has(uniqueName)) {
-      uniqueName = normalizeUploadFileName(`${safeBase}-key-info-${suffix}.md`, `${id}-key-info-${suffix}.md`);
-      suffix += 1;
-    }
-    usedDocNames.add(uniqueName);
-    const markdownPath = `${tempDir}/${uniqueName}`;
-    await putFile(markdownPath, markdown);
-    packPaths.push(markdownPath);
-    docCount += 1;
-  }
-
-  if (!docCount) {
-    throw new Error("未找到可导出的文档");
-  }
-
-  const preferredDownloadBaseName = (options.preferredDownloadBaseName || "").trim();
-  const zipBaseName = preferredDownloadBaseName ?
-      sanitizeArchiveBaseName(preferredDownloadBaseName) :
-      sanitizeArchiveBaseName(`${preferredTitle || docId}-key-info`);
   try {
+    for (let index = 0; index < docIds.length; index += 1) {
+      const id = docIds[index];
+      let data: Awaited<ReturnType<typeof getDocKeyInfo>>;
+      try {
+        data = await getDocKeyInfo(id, index === 0 ? options.protyle : undefined);
+      } catch (error) {
+        if (!isMissingItemError(error)) {
+          throw error;
+        }
+        skippedDocCount += 1;
+        exporterLogger.warn("skip missing key-info doc", {
+          docId: id,
+          reason: toErrorMessage(error)
+        });
+        continue;
+      }
+      if (!preferredTitle) {
+        preferredTitle = data.docTitle || id;
+      }
+      const filteredItems = filterKeyInfoItemsByFilter(data.items || [], options.filter);
+      exportedItemCount += filteredItems.length;
+      const markdown = buildKeyInfoMarkdown(filteredItems);
+
+      const title = data.docTitle || id;
+      const safeBase = sanitizePathSegment(title) || id;
+      const baseName = normalizeUploadFileName(`${safeBase}-key-info.md`, `${id}-key-info.md`);
+      let uniqueName = baseName;
+      let suffix = 2;
+      while (usedDocNames.has(uniqueName)) {
+        uniqueName = normalizeUploadFileName(`${safeBase}-key-info-${suffix}.md`, `${id}-key-info-${suffix}.md`);
+        suffix += 1;
+      }
+      usedDocNames.add(uniqueName);
+      const markdownPath = `${tempDir}/${uniqueName}`;
+      await putFile(markdownPath, markdown);
+      packPaths.push(markdownPath);
+      docCount += 1;
+    }
+
+    if (!docCount) {
+      throw new Error("未找到可导出的文档");
+    }
+
+    const preferredDownloadBaseName = (options.preferredDownloadBaseName || "").trim();
+    const zipBaseName = preferredDownloadBaseName ?
+        sanitizeArchiveBaseName(preferredDownloadBaseName) :
+        sanitizeArchiveBaseName(`${preferredTitle || docId}-key-info`);
     const zip = await exportResources(packPaths, zipBaseName);
     await triggerWorkspaceFileDownload(zip.path, withZipExtension(zipBaseName));
     return {

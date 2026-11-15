@@ -28,6 +28,25 @@ const collapsedDocActionGroupsByContainer = new WeakMap<
   Set<string>
 >();
 const actionSearchKeywordsByContainer = new WeakMap<HTMLDivElement, string>();
+// Drag state lives per container so a re-render while a drag is in flight
+// (e.g. a background task finishing) keeps the drag working instead of
+// silently resetting the gesture.
+const dragStateByContainer = new WeakMap<
+  HTMLDivElement,
+  { draggingKey: string; draggingFavoriteKey: string }
+>();
+
+function getDragState(container: HTMLDivElement): {
+  draggingKey: string;
+  draggingFavoriteKey: string;
+} {
+  let existing = dragStateByContainer.get(container);
+  if (!existing) {
+    existing = { draggingKey: "", draggingFavoriteKey: "" };
+    dragStateByContainer.set(container, existing);
+  }
+  return existing;
+}
 
 function resolveActionIconText(action: DockDocAction): string {
   const preset = action.dockIconText || getActionDockIconTextByKey(action.key);
@@ -189,6 +208,7 @@ export function renderKeyInfoDockDocActions({
   const favoriteActionSet = new Set(favoriteActionKeys);
   const runningActionSet = new Set(runningActionKeys);
   const collapsedGroups = getCollapsedDocActionGroups(container);
+  const dragState = getDragState(container);
   const toggleGroup = (groupKey: string) => {
     if (collapsedGroups.has(groupKey)) {
       collapsedGroups.delete(groupKey);
@@ -200,6 +220,7 @@ export function renderKeyInfoDockDocActions({
       actions,
       favoriteActionKeys,
       onDocActionClick,
+      runningActionKeys,
       onDocActionFavoriteToggle,
       onFavoriteActionsReorder,
       onDocActionsReorder,
@@ -214,14 +235,12 @@ export function renderKeyInfoDockDocActions({
     onDocActionsReorder?.(next);
   };
 
-  let draggingKey = "";
-  let draggingFavoriteKey = "";
   const resolveSourceKey = (event: DragEvent) =>
-    draggingKey ||
+    dragState.draggingKey ||
     (event.dataTransfer?.getData("text/plain") || "").trim();
   const resolveFavoriteSourceKey = (event: DragEvent) => {
-    if (draggingFavoriteKey) {
-      return draggingFavoriteKey;
+    if (dragState.draggingFavoriteKey) {
+      return dragState.draggingFavoriteKey;
     }
     const raw = (event.dataTransfer?.getData("text/plain") || "").trim();
     if (!raw.startsWith("favorite:")) {
@@ -340,7 +359,7 @@ export function renderKeyInfoDockDocActions({
       dragHandle.setAttribute("aria-hidden", "true");
 
       row.addEventListener("dragstart", (event) => {
-        draggingFavoriteKey = action.key;
+        dragState.draggingFavoriteKey = action.key;
         row.classList.add("is-dragging");
         if (event.dataTransfer) {
           event.dataTransfer.effectAllowed = "move";
@@ -349,7 +368,7 @@ export function renderKeyInfoDockDocActions({
       });
 
       row.addEventListener("dragend", () => {
-        draggingFavoriteKey = "";
+        dragState.draggingFavoriteKey = "";
         row.classList.remove("is-dragging");
         clearDropIndicator();
       });
@@ -406,7 +425,7 @@ export function renderKeyInfoDockDocActions({
     dragHandle.setAttribute("aria-hidden", "true");
 
     row.addEventListener("dragstart", (event) => {
-      draggingKey = action.key;
+      dragState.draggingKey = action.key;
       row.classList.add("is-dragging");
       if (event.dataTransfer) {
         event.dataTransfer.effectAllowed = "move";
@@ -415,7 +434,7 @@ export function renderKeyInfoDockDocActions({
     });
 
     row.addEventListener("dragend", () => {
-      draggingKey = "";
+      dragState.draggingKey = "";
       row.classList.remove("is-dragging");
       clearDropIndicator();
     });
@@ -519,6 +538,7 @@ export function renderKeyInfoDockDocActions({
         actions,
         favoriteActionKeys,
         onDocActionClick,
+        runningActionKeys,
         onDocActionFavoriteToggle,
         onFavoriteActionsReorder,
         onDocActionsReorder,
@@ -551,6 +571,7 @@ export function renderKeyInfoDockDocActions({
           actions,
           favoriteActionKeys,
           onDocActionClick,
+          runningActionKeys,
           onDocActionFavoriteToggle,
           onFavoriteActionsReorder,
           onDocActionsReorder,
@@ -652,7 +673,7 @@ export function renderKeyInfoDockDocActions({
   }
 
   container.ondragover = (event) => {
-    if (!draggingKey) {
+    if (!dragState.draggingKey) {
       return;
     }
     event.preventDefault();

@@ -244,7 +244,6 @@ export function createAiSummaryActionHandlers(
       const preparedContent = prepareBetterTitlesInputText(contentToUse, isFullDoc);
 
       showMessage("正在生成候选标题...", 3000, "info");
-      options.setBusy?.(true);
 
       let initialResult: BetterTitlesResult;
       try {
@@ -256,8 +255,6 @@ export function createAiSummaryActionHandlers(
       } catch (err: any) {
         showMessage(err?.message || "生成候选标题失败", 5000, "error");
         return;
-      } finally {
-        options.setBusy?.(false);
       }
 
       openBetterTitlesDialog({

@@ -15,6 +15,7 @@ import { bindPipWindowEvents } from "@/services/floating-text/floating-window-pi
 import { openInAppFloatingFallback } from "@/services/floating-text/floating-window-fallback";
 
 let currentPipWindow: Window | null = null;
+let currentPopupWindow: Window | null = null;
 
 function isElectron(): boolean {
   return typeof window !== "undefined" && Boolean((window as any).require?.("electron"));
@@ -56,6 +57,16 @@ function isSiYuanDarkTheme(): boolean {
   return document.body?.classList.contains("body--dark") || false;
 }
 
+function closeWebFallbackWindows(...windows: Array<Window | null>): void {
+  for (const candidate of windows) {
+    if (candidate && !candidate.closed) {
+      try {
+        candidate.close();
+      } catch {}
+    }
+  }
+}
+
 if (typeof window !== "undefined") {
   (window as any).__saveDocAssistantFloatingConfig = (patch: Partial<FloatingTextConfig>) => {
     return saveFloatingTextConfig(patch);
@@ -68,7 +79,55 @@ if (typeof window !== "undefined") {
           saveFloatingTextConfig(event.data.patch);
         }
       };
+      (window as any).__docAssistantFloatingBroadcastChannel = bc;
     } catch {}
+  }
+}
+
+/**
+ * 插件卸载时移除模块级全局绑定并关闭存活的悬浮窗口，避免禁用插件后
+ * 子窗口的 IPC/BroadcastChannel 消息仍驱动配置写盘（僵尸态）。
+ */
+export function disposeFloatingWindowHostGlobals(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    delete (window as any).__saveDocAssistantFloatingConfig;
+  } catch {
+    (window as any).__saveDocAssistantFloatingConfig = undefined;
+  }
+  const bc = (window as any).__docAssistantFloatingBroadcastChannel;
+  if (bc && typeof bc.close === "function") {
+    try {
+      bc.close();
+    } catch {}
+  }
+  (window as any).__docAssistantFloatingBroadcastChannel = undefined;
+
+  if (currentElectronWindow) {
+    try {
+      if (!currentElectronWindow.isDestroyed?.()) {
+        currentElectronWindow.close();
+      }
+    } catch {}
+    currentElectronWindow = null;
+  }
+  if (currentPipWindow) {
+    try {
+      if (!currentPipWindow.closed) {
+        currentPipWindow.close();
+      }
+    } catch {}
+    currentPipWindow = null;
+  }
+  if (currentPopupWindow) {
+    try {
+      if (!currentPopupWindow.closed) {
+        currentPopupWindow.close();
+      }
+    } catch {}
+    currentPopupWindow = null;
   }
 }
 
@@ -151,9 +210,8 @@ export async function openFloatingTextWindow(options: {
   //    彻底避免 siyuan-open-window 内部 windowNavigate 拦截导致的空白白屏
   if (remote?.BrowserWindow) {
     try {
-      if (currentElectronWindow && !currentElectronWindow.isDestroyed()) {
-        currentElectronWindow.close();
-      }
+      // 先建后关：旧窗口在新窗口就绪后才关闭；创建失败时不会丢失现有悬浮窗。
+      const previousWindow = currentElectronWindow;
 
       const win = new remote.BrowserWindow({
         width: config.width || 420,
@@ -366,13 +424,28 @@ export async function openFloatingTextWindow(options: {
 
       currentElectronWindow = win;
 
+      const closePreviousWindow = () => {
+        if (
+          previousWindow &&
+          previousWindow !== win &&
+          typeof previousWindow.isDestroyed === "function" &&
+          !previousWindow.isDestroyed()
+        ) {
+          try {
+            previousWindow.close();
+          } catch {}
+        }
+      };
+
       // 优先通过本地临时 HTML 文件加载，彻底消除长文档 data URL 超限崩溃
       const tempPath = writeFloatingHtmlToTempFile(html);
       let loaded = false;
       if (tempPath) {
         try {
           if (typeof win.loadFile === "function") {
-            win.loadFile(tempPath);
+            win.loadFile(tempPath).catch((loadErr: unknown) => {
+              console.warn("[DocAssistant][FloatingText] loadFile rejected:", loadErr);
+            });
             loaded = true;
           } else {
             const fileUrl = `file:///${tempPath.replace(/\\/g, "/")}`;
@@ -392,12 +465,14 @@ export async function openFloatingTextWindow(options: {
           win.show();
           win.focus();
         }
+        closePreviousWindow();
       });
       setTimeout(() => {
         if (!win.isDestroyed()) {
           win.show();
           win.focus();
         }
+        closePreviousWindow();
       }, 60);
       return;
     } catch (remoteErr) {
@@ -408,9 +483,7 @@ export async function openFloatingTextWindow(options: {
   // 2. 方案二：在现代标准浏览器中（Web 端 Chrome/Edge），使用 Document Picture-in-Picture API
   if (isDocPipSupported()) {
     try {
-      if (currentPipWindow && !currentPipWindow.closed) {
-        currentPipWindow.close();
-      }
+      closeWebFallbackWindows(currentPipWindow, currentPopupWindow);
 
       const pipWindow = await (window as any).documentPictureInPicture.requestWindow({
         width: config.width || 420,
@@ -418,6 +491,7 @@ export async function openFloatingTextWindow(options: {
       });
 
       currentPipWindow = pipWindow;
+      currentPopupWindow = null;
 
       // 写入完整 HTML
       pipWindow.document.open();
@@ -435,12 +509,16 @@ export async function openFloatingTextWindow(options: {
   // 3. 方案三：在普通 Web 浏览器环境中，尝试标准 window.open 弹出窗口
   if (typeof window !== "undefined" && typeof window.open === "function") {
     try {
+      closeWebFallbackWindows(currentPopupWindow, currentPipWindow);
+
       const popup = window.open(
         "",
         "siyuan-doc-assist-floating",
         `width=${effectiveConfig.width || 420},height=${effectiveConfig.height || 320},menubar=no,toolbar=no,location=no,status=no`
       );
       if (popup) {
+        currentPopupWindow = popup;
+        currentPipWindow = null;
         popup.document.open();
         popup.document.write(html);
         popup.document.close();

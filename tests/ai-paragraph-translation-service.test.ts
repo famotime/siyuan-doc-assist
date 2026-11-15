@@ -122,4 +122,66 @@ describe("ai paragraph translation service", () => {
     expect(promptText).toContain("不要添加说明");
     expect(promptText).toContain("This is a source paragraph.");
   });
+
+  test("continues inserting when one insertBlock call fails and counts it as failed", async () => {
+    sqlPagedMock.mockResolvedValueOnce([
+      { id: "p1", type: "p", markdown: "First paragraph in English." },
+      { id: "p2", type: "p", markdown: "Second paragraph in English." }
+    ] as any);
+
+    const forwardProxy = vi.fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ choices: [{ message: { content: "第一段。" } }] })
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ choices: [{ message: { content: "第二段。" } }] })
+      });
+    requestApiMock
+      .mockRejectedValueOnce(new Error("insert failed"))
+      .mockResolvedValue({});
+
+    const report = await translateDocParagraphs({
+      docId: "doc-1",
+      config: aiConfig,
+      forwardProxy
+    });
+
+    expect(report.translatedCount).toBe(2);
+    expect(report.failedCount).toBe(1);
+    expect(report.insertedCount).toBe(1);
+    expect(requestApiMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("reports progress as translation requests complete", async () => {
+    sqlPagedMock.mockResolvedValueOnce([
+      { id: "p1", type: "p", markdown: "One." },
+      { id: "p2", type: "p", markdown: "Two." }
+    ] as any);
+
+    const forwardProxy = vi.fn((..._args: unknown[]) =>
+      new Promise((resolve) => setTimeout(() => resolve({
+        status: 200,
+        body: JSON.stringify({ choices: [{ message: { content: "译文。" } }] })
+      }), 5))
+    );
+    const onProgress = vi.fn();
+
+    const reportPromise = translateDocParagraphs({
+      docId: "doc-1",
+      config: aiConfig,
+      forwardProxy,
+      onProgress
+    });
+    await vi.waitFor(() => {
+      expect(onProgress).toHaveBeenCalledTimes(2);
+    });
+    // Progress reflects completed requests, never a jump straight to N/N.
+    expect(onProgress).toHaveBeenNthCalledWith(1, 1, 2, expect.any(String));
+    expect(onProgress).toHaveBeenNthCalledWith(2, 2, 2, expect.any(String));
+
+    const report = await reportPromise;
+    expect(report.insertedCount).toBe(2);
+  });
 });

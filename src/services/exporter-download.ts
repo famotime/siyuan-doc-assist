@@ -1,5 +1,22 @@
 import { buildGetFileRequest, decodeURIComponentSafe } from "@/core/workspace-path-core";
 
+const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`下载超时（${DOWNLOAD_TIMEOUT_MS}ms）`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function triggerTextDownload(fileName: string, content: string) {
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -29,10 +46,10 @@ export async function triggerWorkspaceFileDownload(relativePath: string, downloa
   const normalized = normalizeFileDownloadPath(relativePath);
   let response: Response;
   if (isExportRoutePath(normalized)) {
-    response = await fetch(normalized, { method: "GET" });
+    response = await fetchWithTimeout(normalized, { method: "GET" });
   } else {
     const request = buildGetFileRequest(normalized);
-    response = await fetch(request.url, {
+    response = await fetchWithTimeout(request.url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

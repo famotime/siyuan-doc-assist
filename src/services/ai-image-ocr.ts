@@ -19,6 +19,7 @@ import {
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse, getFileBlob } from "@/services/kernel";
 import { escapeSqlLiteral, sqlPaged } from "@/services/kernel-shared";
+import { decodeImageSource } from "@/services/image-source-loader";
 import { requestApi } from "@/services/request";
 
 type ForwardProxyFn = (
@@ -145,8 +146,8 @@ export async function recognizeDocImages(
   }
 
   // Phase 1: concurrent OCR requests (order doesn't matter yet)
-  const ocrPromises = imageItems.map(async (item, index) => {
-    options.onProgress?.(index + 1, imageItems.length, item.assetPath);
+  let completedRequests = 0;
+  const ocrPromises = imageItems.map(async (item) => {
     try {
       const imageBase64List = await readAssetAsBase64List(item.assetPath);
       if (!imageBase64List.length) {
@@ -164,12 +165,21 @@ export async function recognizeDocImages(
       return null;
     }
   });
+  // Progress reflects completed requests instead of request starts.
+  ocrPromises.forEach((promise, index) => {
+    void promise.then(() => {
+      completedRequests += 1;
+      options.onProgress?.(completedRequests, imageItems.length, imageItems[index].assetPath);
+    });
+  });
   const ocrResults = await Promise.all(ocrPromises);
 
   // Phase 2: sequential insertion in original image order
   let recognizedCount = 0;
   let failedCount = 0;
   let insertedCount = 0;
+  let lastInsertedBlockId = "";
+  let lastInsertedSourceBlockId = "";
 
   for (let i = 0; i < imageItems.length; i += 1) {
     const ocrText = ocrResults[i];
@@ -183,14 +193,30 @@ export async function recognizeDocImages(
 
     recognizedCount += 1;
     const ocrMarkdown = buildOcrQuoteMarkdown(ocrText);
-    await requestApi("/api/block/insertBlock", {
-      dataType: "markdown",
-      data: ocrMarkdown,
-      nextID: "",
-      previousID: imageItems[i].blockId,
-      parentID: ""
-    });
-    insertedCount += 1;
+    const sourceBlockId = imageItems[i].blockId;
+    // Chain inserts within the same source block so multiple images on one
+    // block keep document order instead of stacking in reverse.
+    const anchor = lastInsertedSourceBlockId === sourceBlockId ?
+      lastInsertedBlockId :
+      sourceBlockId;
+    try {
+      const operations = await requestApi<any>("/api/block/insertBlock", {
+        dataType: "markdown",
+        data: ocrMarkdown,
+        nextID: "",
+        previousID: anchor,
+        parentID: ""
+      });
+      const newBlockId = Array.isArray(operations) ? operations[0]?.id : undefined;
+      if (newBlockId) {
+        lastInsertedBlockId = newBlockId;
+        lastInsertedSourceBlockId = sourceBlockId;
+      }
+      insertedCount += 1;
+    } catch (error) {
+      failedCount += 1;
+      aiOcrLogger.warn("insert OCR result failed", { sourceBlockId, error });
+    }
   }
 
   return {
@@ -296,37 +322,7 @@ async function loadImageSource(blob: Blob): Promise<{
   height: number;
   cleanup: () => void;
 }> {
-  if (typeof createImageBitmap === "function") {
-    const bitmap = await createImageBitmap(blob);
-    return {
-      source: bitmap,
-      width: bitmap.width,
-      height: bitmap.height,
-      cleanup: () => {
-        bitmap.close?.();
-      }
-    };
-  }
-
-  if (typeof Image === "undefined" || typeof URL === "undefined") {
-    throw new TypeError("当前环境不支持图片解码");
-  }
-
-  const objectUrl = URL.createObjectURL(blob);
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const element = new Image();
-    element.onload = () => resolve(element);
-    element.onerror = () => reject(new Error("图片解码失败"));
-    element.src = objectUrl;
-  });
-  return {
-    source: image,
-    width: image.naturalWidth || image.width,
-    height: image.naturalHeight || image.height,
-    cleanup: () => {
-      URL.revokeObjectURL(objectUrl);
-    }
-  };
+  return decodeImageSource(blob, "当前环境不支持图片解码");
 }
 
 function blobToBase64(blob: Blob): Promise<string> {

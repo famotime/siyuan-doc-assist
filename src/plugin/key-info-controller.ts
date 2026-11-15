@@ -1,6 +1,7 @@
 import { getActiveEditor, showMessage } from "siyuan";
 import { DocMenuRegistrationState } from "@/core/doc-menu-registration-core";
 import { DockTabKey } from "@/core/dock-panel-core";
+import { createGenerationGuard } from "@/core/generation-guard-core";
 import { buildKeyInfoMarkdown, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
 import {
   buildKeyInfoControllerDockActionState,
@@ -46,8 +47,11 @@ type KeyInfoControllerDeps = {
 
 export class KeyInfoController {
   private keyInfoDock?: KeyInfoDockHandle;
-  private keyInfoRequestId = 0;
-  private docReadonlyRequestId = 0;
+  // Refresh and readonly-sync each get their own guard: a completed refresh also
+  // invalidates in-flight readonly syncs so a stale sync can never describe the
+  // previous document after the dock has moved on.
+  private readonly refreshGuard = createGenerationGuard();
+  private readonly readonlySyncGuard = createGenerationGuard();
   private keyInfoDocId = "";
   private currentDocReadonly = false;
   private readonly runningDocActionKeys = new Set<ActionKey>();
@@ -123,7 +127,8 @@ export class KeyInfoController {
   }
 
   destroy() {
-    this.docReadonlyRequestId += 1;
+    this.refreshGuard.invalidateAll();
+    this.readonlySyncGuard.invalidateAll();
     this.keyInfoDock?.destroy();
     this.keyInfoDock = undefined;
   }
@@ -167,11 +172,18 @@ export class KeyInfoController {
     }
     const docId = this.deps.resolveDocId(explicitId, protyle);
     if (!docId) {
+      // No document context: clear document-scoped state so the dock does not
+      // keep showing the previous document's readonly-derived action states.
+      this.keyInfoDocId = "";
+      this.currentDocReadonly = false;
       this.keyInfoDock.setState(buildKeyInfoUnavailableState());
+      this.syncDocActions();
       return;
     }
 
-    const requestId = ++this.keyInfoRequestId;
+    // Any readonly sync still in flight for the previous document is now stale.
+    this.readonlySyncGuard.invalidateAll();
+    const requestId = this.refreshGuard.begin();
     const currentState = this.keyInfoDock.getState();
     const currentDocId = this.keyInfoDocId;
     this.keyInfoDock.setState(
@@ -187,7 +199,7 @@ export class KeyInfoController {
       const readonlyPromise = getDocReadonlyState(docId).catch(() => false);
       const data = await getDocKeyInfo(docId, activeProtyle);
       const isReadonly = await readonlyPromise;
-      if (requestId !== this.keyInfoRequestId || !this.keyInfoDock) {
+      if (!this.refreshGuard.isCurrent(requestId) || !this.keyInfoDock) {
         return;
       }
       this.currentDocReadonly = isReadonly;
@@ -203,11 +215,11 @@ export class KeyInfoController {
         })
       );
     } catch (error: unknown) {
-      if (requestId !== this.keyInfoRequestId || !this.keyInfoDock) {
+      if (!this.refreshGuard.isCurrent(requestId) || !this.keyInfoDock) {
         return;
       }
       this.currentDocReadonly = await getDocReadonlyState(docId).catch(() => false);
-      if (requestId !== this.keyInfoRequestId || !this.keyInfoDock) {
+      if (!this.refreshGuard.isCurrent(requestId) || !this.keyInfoDock) {
         return;
       }
       this.syncDocActions();
@@ -231,9 +243,9 @@ export class KeyInfoController {
     if (!docId) {
       return;
     }
-    const requestId = ++this.docReadonlyRequestId;
+    const requestId = this.readonlySyncGuard.begin();
     const readonly = await getDocReadonlyState(docId).catch(() => false);
-    if (requestId !== this.docReadonlyRequestId || !this.keyInfoDock) {
+    if (!this.readonlySyncGuard.isCurrent(requestId) || !this.keyInfoDock) {
       return;
     }
     if (shouldSkipReadonlyStateSync({

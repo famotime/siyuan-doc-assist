@@ -177,6 +177,8 @@ export function createKeyInfoDock(
   let scrollLock: KeyInfoListScrollLock | null = null;
   let restoringScroll = false;
   let scrollState = createKeyInfoListScrollState(state.scrollContextKey);
+  const pendingRestoreFrames = new Set<number>();
+  const pendingRestoreTimeouts = new Set<number>();
 
   const lockListScroll = (durationMs = 120) => {
     scrollLock = createKeyInfoListScrollLock(
@@ -200,20 +202,58 @@ export function createKeyInfoDock(
     scrollLock = null;
   };
 
+  const scrollListTo = (top: number, left: number) => {
+    let changed = false;
+    if (list.scrollTop !== top) {
+      list.scrollTop = top;
+      changed = true;
+    }
+    if (list.scrollLeft !== left) {
+      list.scrollLeft = left;
+      changed = true;
+    }
+    if (!changed) {
+      return;
+    }
+    // Mark the upcoming (async) scroll events as self-induced. Scroll events fire
+    // before rAF callbacks in a rendering update, so the rAF fallback below only
+    // releases the guard when no scroll event consumed it.
+    restoringScroll = true;
+    const frame = requestAnimationFrame(() => {
+      pendingRestoreFrames.delete(frame);
+      restoringScroll = false;
+    });
+    pendingRestoreFrames.add(frame);
+  };
+
   const restoreListScroll = () => {
     const lock = getLockedScroll();
-    const targetTop = lock ? lock.top : scrollState.lastKnownTop;
-    const targetLeft = lock ? lock.left : scrollState.lastKnownLeft;
-    if (list.scrollTop !== targetTop) {
-      list.scrollTop = targetTop;
-    }
-    if (list.scrollLeft !== targetLeft) {
-      list.scrollLeft = targetLeft;
-    }
+    scrollListTo(
+      lock ? lock.top : scrollState.lastKnownTop,
+      lock ? lock.left : scrollState.lastKnownLeft
+    );
+  };
+
+  const scheduleRestoreScrollTimeout = (delayMs: number) => {
+    const timer = window.setTimeout(() => {
+      pendingRestoreTimeouts.delete(timer);
+      restoreListScroll();
+    }, delayMs);
+    pendingRestoreTimeouts.add(timer);
+  };
+
+  const scheduleRestoreScrollFrame = () => {
+    const frame = requestAnimationFrame(() => {
+      pendingRestoreFrames.delete(frame);
+      restoreListScroll();
+    });
+    pendingRestoreFrames.add(frame);
   };
 
   list.addEventListener("scroll", () => {
+    // Consume one scroll event caused by a programmatic restore above.
     if (restoringScroll) {
+      restoringScroll = false;
       return;
     }
 
@@ -242,9 +282,7 @@ export function createKeyInfoDock(
       return;
     }
 
-    restoringScroll = true;
     restoreListScroll();
-    restoringScroll = false;
   });
 
   const releaseLockOnUserIntent = () => {
@@ -279,8 +317,8 @@ export function createKeyInfoDock(
       (item: KeyInfoItem) => {
         lockListScroll();
         callbacks.onItemClick?.(item);
-        requestAnimationFrame(restoreListScroll);
-        setTimeout(restoreListScroll, 200);
+        scheduleRestoreScrollFrame();
+        scheduleRestoreScrollTimeout(200);
       } :
     undefined;
 
@@ -328,7 +366,6 @@ export function createKeyInfoDock(
     keyInfoLoadingOverlay.setAttribute("aria-hidden", state.loading ? "false" : "true");
     refreshButton.disabled = state.loading;
     exportButton.disabled = state.loading;
-    canvasButton.disabled = state.loading;
     canvasButton.disabled = state.loading;
   };
 
@@ -431,14 +468,11 @@ export function createKeyInfoDock(
     const postRender = consumeKeyInfoListPostRenderAction(scrollState);
     scrollState = postRender.nextState;
     if (postRender.action.type === "reset") {
-      restoringScroll = true;
-      list.scrollTop = 0;
-      list.scrollLeft = 0;
-      restoringScroll = false;
+      scrollListTo(0, 0);
       return;
     }
-    requestAnimationFrame(restoreListScroll);
-    setTimeout(restoreListScroll, 80);
+    scheduleRestoreScrollFrame();
+    scheduleRestoreScrollTimeout(80);
   };
 
   const renderList = () => {
@@ -449,6 +483,7 @@ export function createKeyInfoDock(
       empty.className = "doc-assistant-keyinfo__empty ft__secondary";
       empty.textContent = "加载中...";
       list.appendChild(empty);
+      rowCache.clear();
       lastRenderIds = [];
       lastRenderFilterSignature = getFilterSignature();
       lastRenderLoading = state.loading;
@@ -462,6 +497,7 @@ export function createKeyInfoDock(
       empty.className = "doc-assistant-keyinfo__empty ft__secondary";
       empty.textContent = state.emptyText || "暂无关键内容";
       list.appendChild(empty);
+      rowCache.clear();
       lastRenderIds = [];
       lastRenderFilterSignature = getFilterSignature();
       lastRenderLoading = state.loading;
@@ -597,6 +633,10 @@ export function createKeyInfoDock(
     getVisibleItems: () => filterKeyInfoDockItems(state.items, state.filter),
     destroy: () => {
       clearTimeout(entryAnimationTimer);
+      pendingRestoreFrames.forEach((frame) => cancelAnimationFrame(frame));
+      pendingRestoreFrames.clear();
+      pendingRestoreTimeouts.forEach((timer) => clearTimeout(timer));
+      pendingRestoreTimeouts.clear();
       element.replaceChildren();
     }
   };
