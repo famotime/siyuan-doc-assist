@@ -10,17 +10,17 @@
 
 | 目录 | 文件数 | 说明 |
 | --- | ---: | --- |
-| `src/` | 168 | 插件源码（TS + SCSS） |
+| `src/` | 188 | 插件源码（TS + SCSS，含悬浮窗 HTML 与 i18n JSON） |
 | `src/core/` | 49 | 纯逻辑与转换规则 |
 | `src/plugin/` | 39 | 生命周期、动作编排、控制器 |
 | `src/services/` | 51 | Kernel / 文件系统 / AI / 导出服务 |
 | `src/services/floating-text/` | 7 | 悬浮文字窗口集成服务 |
 | `src/ui/` | 18 | Dock、Dialog、Setting 面板 UI |
-| `src/ui/floating-text/` | 4 | 悬浮文字窗口模板资源 |
+| `src/ui/floating-text/` | 5 | 悬浮文字窗口模板资源 |
 | `src/styles/` | 11 | SCSS 功能 partial |
 | `src/types/` | 4 | 类型声明 |
 | `src/i18n/` | 2 | 国际化文案 |
-| `tests/` | 122 | Vitest 用例与 mocks |
+| `tests/` | 124 | Vitest 用例与 mocks |
 
 ## 2. 根目录结构
 
@@ -33,6 +33,7 @@
 | `dist/` | 目录 | `pnpm build` 产物 |
 | `docs/` | 目录 | 内部结构文档、重构计划、changelog |
 | `plugin-sample-vite-vue/` | 目录 | 模板参考工程，不参与主插件运行 |
+| `reference_docs/` | 目录 | 思源插件/内核 API 参考资料（入库维护） |
 | `src/` | 目录 | 主插件源码 |
 | `src/styles/` | 目录 | SCSS 功能 partial |
 | `tests/` | 目录 | Vitest 测试与 mocks |
@@ -53,7 +54,7 @@
 | `release.js` | 版本升级、提交与 tag 发布脚本 |
 | `tsconfig.strict.json` | 严格类型检查配置 |
 | `vite.config.ts` | 构建、静态资源复制、zip 打包配置 |
-| `vitest.config.ts` | Vitest 配置 |
+| `vitest.config.mjs` | Vitest 配置 |
 
 ## 4. `src/` 分层与职责
 
@@ -235,7 +236,7 @@
 | `src/services/floating-text/floating-window-fallback.ts` | 应用内降级方案：思源 Dialog 悬浮窗与生命周期清理 |
 | `src/services/floating-text/floating-window-pip-events.ts` | PiP / window.open 窗口事件桥接（按钮、快捷键、外观、拖拽、尺寸记忆） |
 
-### 4.6 `src/ui/`（18 个文件）与 `src/ui/floating-text/`（4 个文件）
+### 4.6 `src/ui/`（18 个文件）与 `src/ui/floating-text/`（5 个文件）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -260,6 +261,7 @@
 | `src/ui/floating-text/floating-window-client-script.ts` | 悬浮窗内置浏览器端脚本：注入初始状态的声明区（参数化）与无插值脚本主体 |
 | `src/ui/floating-text/floating-window-styles.ts` | 悬浮窗内置样式表（CSS 字符串） |
 | `src/ui/floating-text/floating-window-template.ts` | 悬浮窗 HTML 组装（`buildFloatingWindowHtml`）与 marked 沙箱初始化脚本 |
+| `src/ui/floating-text/floating.html` | 悬浮窗独立窗口页面模板（vite 静态复制到包根） |
 | `src/ui/floating-text/marked-source.ts` | 内置轻量 marked UMD 源码字符串 |
 
 ### 4.7 `src/styles/`
@@ -452,7 +454,7 @@ tests/mocks/siyuan.ts（mock，非用例文件）
 | --- | --- | --- |
 | 本地 watch 构建 | `pnpm dev` | `vite.config.ts`, `.env` |
 | 生产构建 | `pnpm build` | `vite.config.ts`, `plugin.json` |
-| 单元测试 | `pnpm test` | `vitest.config.ts`, `tests/*` |
+| 单元测试 | `pnpm test` | `vitest.config.mjs`, `tests/*` |
 | 严格类型检查 | `pnpm typecheck:strict` | `tsconfig.strict.json` |
 | 发布脚本 | `pnpm release:*` | `release.js`, `package.json`, `plugin.json` |
 | GitHub Release | push tag `v*` | `.github/workflows/release.yml` |

@@ -18,8 +18,9 @@
 - `src/i18n/`: localization JSON resources.
 - `tests/`: Vitest suites and `tests/mocks/`.
 - `assets/`: README/doc images.
-- `docs/`: internal docs such as `docs/project-structure.md`, `docs/refactor-plan.md`, and `docs/changelog.md`.
+- `docs/`: internal docs such as `docs/project-structure.md` and `docs/refactor-plan.md`; archived/historical plans live in `docs/reference/`.
 - `developer_docs/`: local SiYuan API and reference materials.
+- `reference_docs/`: committed SiYuan plugin/kernel API reference notes (curated, tracked in git).
 - `plugin-sample-vite-vue/`: template/reference project, not part of the main plugin runtime.
 - `dist/` and `package.zip`: build artifacts.
 - `tmp/`: temporary local files, not release content.
@@ -38,6 +39,7 @@
   - `src/plugin/action-runner-selection-handlers.ts`
   - `src/plugin/action-runner-trim-handlers.ts`
   - `src/plugin/action-runner-delete-range-handlers.ts`
+  - `src/plugin/action-runner-select-range-handlers.ts`
   - `src/plugin/action-runner-block-transform.ts`
 - Key-info sidebar flow is centered on:
   - `src/plugin/key-info-controller.ts`
@@ -46,6 +48,8 @@
   - `src/ui/key-info-dock.ts`
   - `src/core/dock-doc-action-drag-core.ts` for drag/reorder model logic
 - Kernel access is funneled through `src/services/kernel.ts` and related `kernel-*` modules.
+- Floating window (`src/ui/floating-text/`, `src/services/floating-text/`): `floating-window-template.ts` assembles the HTML, `floating-window-client-script.ts` embeds the in-window ES5 script as a template string, `marked-source.ts` vendors the marked UMD bundle.
+- **Dual-implementation rule**: floating-window search logic exists as a typed source of truth in `src/core/floating-text-search-core.ts` AND a hand-ported ES5 copy inside `floating-window-client-script.ts` (the iframe cannot import core modules). Both sides must be changed together; `tests/floating-window-search-parity.test.ts` guards the equivalence and will fail on drift.
 - Global styles enter through `src/index.scss` and are organized as feature partials in `src/styles/`.
 - Prefer keeping logic boundaries sharp:
   - pure transforms in `core/`
@@ -63,6 +67,7 @@ Run from repository root:
 - `pnpm test`: run all Vitest tests once.
 - `pnpm test:watch`: run Vitest in watch mode.
 - `pnpm typecheck:strict`: run strict TypeScript checks with `tsconfig.strict.json`.
+- `pnpm lint`: run ESLint over `src/`, `tests/`, and `scripts/`; must pass with 0 errors (warnings are advisory).
 - `pnpm vitest run tests/<name>.test.ts`: run a single test file.
 - `pnpm release`
 - `pnpm release:patch`
@@ -81,6 +86,7 @@ Release scripts update both `plugin.json` and `package.json`, then create a comm
 ## Coding Conventions
 
 - Use 2-space indentation, no trailing whitespace, and keep a final newline.
+- Code style is double-quoted strings with semicolons; short inline objects stay on one line. `pnpm lint` enforces this — do not hand-reformat against it.
 - Prefer kebab-case file names.
 - Keep pure logic in `core/` when possible so it stays easy to test.
 - Prefer extending existing modules over introducing parallel abstractions unless the current file is clearly overloaded.
@@ -118,6 +124,7 @@ Release scripts update both `plugin.json` and `package.json`, then create a comm
 - Treat `plugin-sample-vite-vue/` and `developer_docs/` as reference material unless the task explicitly targets them.
 - Be careful with document-mutating features: many plugin actions change SiYuan content or document paths and may not be undoable through normal editor undo.
 - When structural changes are made, keep `docs/project-structure.md` and related docs aligned if they are affected by the task.
+- `floating-window-client-script.ts` and `floating-window-template.ts` embed the client script inside template literals: regex escapes must be written with double backslashes (`\\s`, `\\d`) or they collapse at build time (a single `\s` becomes the letter `s` in the built script).
 
 ## Reference Projects
 
