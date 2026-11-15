@@ -1,16 +1,17 @@
 import {
   ACTION_DOCK_ICON_TEXT,
-  BASE_ACTIONS,
-  type ActionConfig,
-  type ActionKey,
+  BASE_ACTIONS
+
+
 } from "@/plugin/action-definitions";
+import type { ActionConfig, ActionKey } from "@/plugin/action-definitions";
 
 export type { ActionConfig, ActionKey } from "@/plugin/action-definitions";
 export { formatActionTooltip } from "@/plugin/action-definitions";
 
 export const ACTIONS: ActionConfig[] = BASE_ACTIONS.map((action) => ({
   ...action,
-  dockIconText: ACTION_DOCK_ICON_TEXT[action.key],
+  dockIconText: ACTION_DOCK_ICON_TEXT[action.key]
 }));
 
 export const ACTION_CONFIG_BY_KEY = new Map<ActionKey, ActionConfig>(

@@ -21,16 +21,16 @@ import { handleTrimTrailingWhitespace } from "@/plugin/action-runner-trim-handle
 
 export type ActionRunResult =
   | {
-      ok: true;
-      message?: string;
-      alreadyNotified: true;
-    }
-  | {
-      ok: false;
-      errorCode: "context-unavailable" | "not-supported" | "execution-failed";
-      message: string;
-      alreadyNotified: true;
-    };
+    ok: true;
+    message?: string;
+    alreadyNotified: true;
+  } |
+  {
+    ok: false;
+    errorCode: "context-unavailable" | "not-supported" | "execution-failed";
+    message: string;
+    alreadyNotified: true;
+  };
 
 type ActionRunErrorCode = Extract<ActionRunResult, { ok: false }>["errorCode"];
 
@@ -56,9 +56,9 @@ type ActionRunnerDeps = {
 };
 
 type ActionRunInput =
-  | string
-  | PowerButtonsInvokeContext
-  | undefined;
+  | string |
+  PowerButtonsInvokeContext |
+  undefined;
 
 export class ActionRunner {
   private isRunning = false;
@@ -70,7 +70,7 @@ export class ActionRunner {
   constructor(private readonly deps: ActionRunnerDeps) {
     this.actionHandlers = {
       ...createExportActionHandlers({
-        getKeyInfoFilter: this.deps.getKeyInfoFilter,
+        getKeyInfoFilter: this.deps.getKeyInfoFilter
       }),
       ...createAiActionHandlers({
         getAiSummaryConfig: this.deps.getAiSummaryConfig,
@@ -78,35 +78,35 @@ export class ActionRunner {
           this.askConfirmWithVisibleDialog(title, text, detailItems),
         resolveNetworkLensPlugin: this.deps.resolveNetworkLensPlugin,
         resolveCanvasPlugin: this.deps.resolveCanvasPlugin,
-        setBusy: this.deps.setBusy,
+        setBusy: this.deps.setBusy
       }),
       ...createInsertActionHandlers({
-        shouldAutoConfirm: () => this.shouldAutoConfirm(),
+        shouldAutoConfirm: () => this.shouldAutoConfirm()
       }),
       ...createOrganizeActionHandlers({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
         ensureDocWritable: (docId, actionLabel) => this.ensureDocWritable(docId, actionLabel),
-        setBusy: this.deps.setBusy,
+        setBusy: this.deps.setBusy
       }),
       ...createMediaActionHandlers(),
       ...createSelectionActionHandlers({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
-        setBusy: this.deps.setBusy,
+        setBusy: this.deps.setBusy
       }),
       ...createCleanupActionHandlers({
         askConfirmWithVisibleDialog: (title, text, detailItems) =>
           this.askConfirmWithVisibleDialog(title, text, detailItems),
-        setBusy: this.deps.setBusy,
+        setBusy: this.deps.setBusy
       }),
       "trim-trailing-whitespace": async (docId, protyle) => handleTrimTrailingWhitespace({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
-        setBusy: this.deps.setBusy,
+        setBusy: this.deps.setBusy
       }, docId, protyle),
       ...createDeleteRangeActionHandlers({
         askConfirmWithVisibleDialog: (title, text) => this.askConfirmWithVisibleDialog(title, text),
-        setBusy: this.deps.setBusy,
+        setBusy: this.deps.setBusy
       }),
-      ...createSelectRangeActionHandlers(),
+      ...createSelectRangeActionHandlers()
     } as ActionHandlerMap;
   }
 
@@ -121,9 +121,9 @@ export class ActionRunner {
     const wasBusy = this.isRunning;
     this.deps.setBusy?.(false);
     try {
-      const ok = detailItems?.length
-        ? await this.deps.askConfirm(title, text, detailItems)
-        : await this.deps.askConfirm(title, text);
+      const ok = detailItems?.length ?
+          await this.deps.askConfirm(title, text, detailItems) :
+          await this.deps.askConfirm(title, text);
       if (!ok) {
         return false;
       }
@@ -141,9 +141,9 @@ export class ActionRunner {
 
   async runAction(action: ActionKey, explicitIdOrContext?: ActionRunInput, protyle?: ProtyleLike): Promise<ActionRunResult> {
     const invokeContext = this.normalizeInvokeContext(explicitIdOrContext);
-    const explicitId = typeof explicitIdOrContext === "string"
-      ? explicitIdOrContext
-      : invokeContext?.docId;
+    const explicitId = typeof explicitIdOrContext === "string" ?
+      explicitIdOrContext :
+      invokeContext?.docId;
     const config = ACTIONS.find((item) => item.key === action);
     if (!config) {
       return this.createNotifiedFailure("execution-failed", "未找到对应动作", 4000, "error");
@@ -166,7 +166,7 @@ export class ActionRunner {
           ok: false,
           errorCode: "context-unavailable",
           message: this.getReadonlyDocMessage(config.commandText),
-          alreadyNotified: true,
+          alreadyNotified: true
         };
       }
     }
@@ -187,14 +187,14 @@ export class ActionRunner {
             ok: false,
             errorCode: handlerRes.errorCode || "execution-failed",
             message: handlerRes.message || "执行未完成",
-            alreadyNotified: true,
+            alreadyNotified: true
           };
         }
         if (handlerRes.message) {
           return {
             ok: true,
             alreadyNotified: true,
-            message: handlerRes.message,
+            message: handlerRes.message
           };
         }
       }
@@ -205,7 +205,7 @@ export class ActionRunner {
         ok: false,
         errorCode: "execution-failed",
         message: this.getErrorMessage(error),
-        alreadyNotified: true,
+        alreadyNotified: true
       };
     } finally {
       this.isRunning = false;
@@ -260,7 +260,7 @@ export class ActionRunner {
         "not-supported",
         `“${config.commandText}”正在后台处理中，请稍候`,
         4000,
-        "info",
+        "info"
       );
     }
 
@@ -271,23 +271,23 @@ export class ActionRunner {
     void (async () => {
       try {
         const handlerRes = await dispatchAction(action, docId, protyle, this.actionHandlers);
-      if (handlerRes && typeof handlerRes === "object") {
-        if (handlerRes.ok === false) {
-          return {
-            ok: false,
-            errorCode: handlerRes.errorCode || "execution-failed",
-            message: handlerRes.message || "执行未完成",
-            alreadyNotified: true,
-          };
+        if (handlerRes && typeof handlerRes === "object") {
+          if (handlerRes.ok === false) {
+            return {
+              ok: false,
+              errorCode: handlerRes.errorCode || "execution-failed",
+              message: handlerRes.message || "执行未完成",
+              alreadyNotified: true
+            };
+          }
+          if (handlerRes.message) {
+            return {
+              ok: true,
+              alreadyNotified: true,
+              message: handlerRes.message
+            };
+          }
         }
-        if (handlerRes.message) {
-          return {
-            ok: true,
-            alreadyNotified: true,
-            message: handlerRes.message,
-          };
-        }
-      }
       } catch (error: unknown) {
         this.showActionError(error);
       } finally {
@@ -315,14 +315,14 @@ export class ActionRunner {
     errorCode: ActionRunErrorCode,
     message: string,
     duration: number,
-    type: "info" | "error",
+    type: "info" | "error"
   ): ActionRunResult {
     showMessage(message, duration, type);
     return {
       ok: false,
       errorCode,
       message,
-      alreadyNotified: true,
+      alreadyNotified: true
     };
   }
 

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import {
   destroyActionProcessingOverlay,
   hideActionProcessingOverlay,
-  showActionProcessingOverlay,
+  showActionProcessingOverlay
 } from "@/ui/action-processing-overlay";
 
 const OVERLAY_ID = "doc-assistant-action-processing-overlay";

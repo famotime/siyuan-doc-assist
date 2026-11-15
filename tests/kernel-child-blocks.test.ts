@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   deleteBlocksByIds,
   getChildBlockRefsByParentId,
-  getChildBlocksByParentId,
+  getChildBlocksByParentId
 } from "@/services/kernel";
 import { requestApi } from "@/services/request";
 
 vi.mock("@/services/request", () => ({
-  requestApi: vi.fn(),
+  requestApi: vi.fn()
 }));
 
 const requestApiMock = requestApi as unknown as vi.Mock;
@@ -28,13 +28,13 @@ describe("kernel child blocks", () => {
       if (url === "/api/block/getChildBlocks") {
         return Promise.resolve([
           { id: "a", type: "p" },
-          { id: "b", type: "p" },
+          { id: "b", type: "p" }
         ]);
       }
       if (url === "/api/query/sql") {
         return Promise.resolve([
           { id: "b", type: "p", content: "", markdown: "" },
-          { id: "a", type: "p", content: "text", markdown: "text" },
+          { id: "a", type: "p", content: "text", markdown: "text" }
         ]);
       }
       return Promise.resolve([]);
@@ -42,7 +42,7 @@ describe("kernel child blocks", () => {
 
     const result = await getChildBlocksByParentId("doc-1");
     expect(requestApiMock).toHaveBeenCalledWith("/api/block/getChildBlocks", {
-      id: "doc-1",
+      id: "doc-1"
     });
     expect(result.map((item) => item.id)).toEqual(["a", "b"]);
   });
@@ -53,7 +53,7 @@ describe("kernel child blocks", () => {
         return Promise.resolve([
           { id: "a", type: "p" },
           { id: "a", type: "p" },
-          { id: "b", type: "h" },
+          { id: "b", type: "h" }
         ]);
       }
       if (url === "/api/query/sql") {
@@ -66,11 +66,11 @@ describe("kernel child blocks", () => {
 
     expect(result).toEqual([
       { id: "a", type: "p" },
-      { id: "b", type: "h" },
+      { id: "b", type: "h" }
     ]);
     expect(requestApiMock).toHaveBeenCalledTimes(1);
     expect(requestApiMock).toHaveBeenCalledWith("/api/block/getChildBlocks", {
-      id: "doc-1",
+      id: "doc-1"
     });
   });
 
@@ -79,7 +79,7 @@ describe("kernel child blocks", () => {
       if (url === "/api/block/getChildBlocks") {
         return Promise.resolve([
           { id: "a", type: "p" },
-          { id: "b", type: "p" },
+          { id: "b", type: "p" }
         ]);
       }
       if (url === "/api/query/sql") {
@@ -113,7 +113,7 @@ describe("kernel child blocks", () => {
         return Promise.resolve({
           kramdowns: ids
             .filter((id) => id !== "id-119")
-            .map((id) => ({ id, kramdown: `text-${id}` })),
+            .map((id) => ({ id, kramdown: `text-${id}` }))
         });
       }
       return Promise.resolve([]);
@@ -132,7 +132,7 @@ describe("kernel child blocks", () => {
       id,
       type: "p",
       content: id,
-      markdown: id,
+      markdown: id
     }));
     let kramdownCalls = 0;
 
@@ -183,7 +183,7 @@ describe("kernel child blocks", () => {
     });
 
     const pending = deleteBlocksByIds(["a", "b", "c", "d"], {
-      concurrency: 2,
+      concurrency: 2
     });
 
     await Promise.resolve();
@@ -203,7 +203,7 @@ describe("kernel child blocks", () => {
     const result = await pending;
     expect(result).toEqual({
       deletedCount: 4,
-      failedIds: [],
+      failedIds: []
     });
     expect(maxInFlight).toBe(2);
   });
@@ -226,7 +226,7 @@ describe("kernel child blocks", () => {
 
     const pending = deleteBlocksByIds(["a", "b", "c"], {
       concurrency: 2,
-      timeoutMs: 50,
+      timeoutMs: 50
     });
 
     await flushMicrotasks();
@@ -236,7 +236,7 @@ describe("kernel child blocks", () => {
 
     await expect(pending).resolves.toEqual({
       deletedCount: 2,
-      failedIds: ["b"],
+      failedIds: ["b"]
     });
 
     vi.useRealTimers();

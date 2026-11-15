@@ -18,7 +18,7 @@ const EMPTY_REPORT: RemoveDocImageLinksReport = {
   scannedImageLinkCount: 0,
   removedLinkCount: 0,
   updatedBlockCount: 0,
-  failedBlockCount: 0,
+  failedBlockCount: 0
 };
 
 export async function removeDocImageLinks(docId: string): Promise<RemoveDocImageLinksReport> {
@@ -67,6 +67,6 @@ export async function removeDocImageLinks(docId: string): Promise<RemoveDocImage
     scannedImageLinkCount,
     removedLinkCount,
     updatedBlockCount,
-    failedBlockCount,
+    failedBlockCount
   };
 }

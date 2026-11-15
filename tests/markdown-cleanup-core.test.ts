@@ -4,7 +4,7 @@ import {
   removeStrikethroughMarkedContentFromMarkdown,
   removeExtraBlankLinesFromMarkdown,
   removeTrailingWhitespaceFromDom,
-  removeTrailingWhitespaceFromMarkdown,
+  removeTrailingWhitespaceFromMarkdown
 } from "@/core/markdown-cleanup-core";
 
 describe("markdown-cleanup-core", () => {
@@ -160,7 +160,7 @@ describe("markdown-cleanup-core", () => {
     const input = [
       "段落内容 <sup>1</sup> ^^ [ref](https://example.com/a)",
       "| col1 | col2 [官网](https://example.com) |",
-      "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)",
+      "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)"
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -169,7 +169,7 @@ describe("markdown-cleanup-core", () => {
       markdown: [
         "段落内容",
         "| col1 | col2 |",
-        "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)",
+        "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)"
       ].join("\n"),
       removedSupCount: 1,
       removedCaretCount: 1,
@@ -177,7 +177,7 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
       removedDividerCount: 0,
-      removedCount: 4,
+      removedCount: 4
     });
   });
 
@@ -185,7 +185,7 @@ describe("markdown-cleanup-core", () => {
     const input = [
       `段落内容 \u200B [[name](https://www.notes.com/xxxxx)] \u200B`,
       `| col1 | [[官网](https://example.com/path)] |`,
-      "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)",
+      "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)"
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -194,7 +194,7 @@ describe("markdown-cleanup-core", () => {
       markdown: [
         "段落内容",
         "| col1 | |",
-        "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)",
+        "保留思源链接 [Doc](siyuan://blocks/20260101101010-abcdef1)"
       ].join("\n"),
       removedSupCount: 0,
       removedCaretCount: 0,
@@ -202,14 +202,14 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
       removedDividerCount: 0,
-      removedCount: 2,
+      removedCount: 2
     });
   });
 
   test("keeps markdown unchanged when no ai artifact exists", () => {
     const input = [
       "正文 [文档](siyuan://blocks/20260101101010-abcdef1)",
-      "| a | b |",
+      "| a | b |"
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -222,7 +222,7 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
       removedDividerCount: 0,
-      removedCount: 0,
+      removedCount: 0
     });
   });
 
@@ -238,7 +238,7 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
       removedDividerCount: 0,
-      removedCount: 4,
+      removedCount: 4
     });
 
     const second = cleanupAiOutputArtifactsInMarkdown(first.markdown);
@@ -250,7 +250,7 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
       removedDividerCount: 0,
-      removedCount: 0,
+      removedCount: 0
     });
   });
 
@@ -259,7 +259,7 @@ describe("markdown-cleanup-core", () => {
       "文本内容[4_2]继续",
       "引用[^4_2] 和 [^3_10]: 定义",
       "| 列[2_1] | 内容[^5_3] |",
-      "[正常的链接](https://example.com) 保留",
+      "[正常的链接](https://example.com) 保留"
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -269,7 +269,7 @@ describe("markdown-cleanup-core", () => {
         "文本内容继续",
         "引用 和  定义",
         "| 列 | 内容 |",
-        "[正常的链接](https://example.com) 保留",
+        "[正常的链接](https://example.com) 保留"
       ].join("\n"),
       removedSupCount: 0,
       removedCaretCount: 0,
@@ -277,14 +277,14 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 0,
       removedRefCount: 5,
       removedDividerCount: 0,
-      removedCount: 5,
+      removedCount: 5
     });
   });
 
   test("preserves reference definitions at line start while removing mid-line markers", () => {
     const input = [
       "正文[4_2]引用[^1_2]结尾",
-      "纯文本无标记",
+      "纯文本无标记"
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -292,7 +292,7 @@ describe("markdown-cleanup-core", () => {
     expect(result).toEqual({
       markdown: [
         "正文引用结尾",
-        "纯文本无标记",
+        "纯文本无标记"
       ].join("\n"),
       removedSupCount: 0,
       removedCaretCount: 0,
@@ -300,14 +300,14 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 0,
       removedRefCount: 2,
       removedDividerCount: 0,
-      removedCount: 2,
+      removedCount: 2
     });
   });
 
   test("removes entire hidden span containing citation references", () => {
     const input = [
       "请问您当前主要是在哪个系统上使用该终端？",
-      '<span style="display:none">[1_13][1_15]</span>',
+      '<span style="display:none">[1_13][1_15]</span>'
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -315,7 +315,7 @@ describe("markdown-cleanup-core", () => {
     expect(result).toEqual({
       markdown: [
         "请问您当前主要是在哪个系统上使用该终端？",
-        "",
+        ""
       ].join("\n"),
       removedSupCount: 0,
       removedCaretCount: 0,
@@ -323,7 +323,7 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 1,
       removedRefCount: 0,
       removedDividerCount: 0,
-      removedCount: 1,
+      removedCount: 1
     });
   });
 
@@ -331,7 +331,7 @@ describe("markdown-cleanup-core", () => {
     const input = [
       '<span style="display: none;">text</span>',
       "<span style='display:none'>text</span>",
-      '<span style="color:red; display:none; font-size:12px">text</span>',
+      '<span style="color:red; display:none; font-size:12px">text</span>'
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -344,7 +344,7 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 3,
       removedRefCount: 0,
       removedDividerCount: 0,
-      removedCount: 3,
+      removedCount: 3
     });
   });
 
@@ -355,7 +355,7 @@ describe("markdown-cleanup-core", () => {
       "第二段内容",
       "***",
       "___",
-      "  ---  ",
+      "  ---  "
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -363,7 +363,7 @@ describe("markdown-cleanup-core", () => {
     expect(result).toEqual({
       markdown: [
         "第一段内容",
-        "第二段内容",
+        "第二段内容"
       ].join("\n"),
       removedSupCount: 0,
       removedCaretCount: 0,
@@ -371,7 +371,7 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 0,
       removedRefCount: 0,
       removedDividerCount: 4,
-      removedCount: 4,
+      removedCount: 4
     });
   });
 
@@ -385,7 +385,7 @@ describe("markdown-cleanup-core", () => {
       "**多光标编辑** 可以创建多个光标同时编辑 。[^1_6]",
       "",
       "请问您主要在哪个系统上使用？",
-      '<span style="display:none">[1_13][1_15]</span>',
+      '<span style="display:none">[1_13][1_15]</span>'
     ].join("\n");
 
     const result = cleanupAiOutputArtifactsInMarkdown(input);
@@ -400,7 +400,7 @@ describe("markdown-cleanup-core", () => {
         "**多光标编辑** 可以创建多个光标同时编辑 。",
         "",
         "请问您主要在哪个系统上使用？",
-        "",
+        ""
       ].join("\n"),
       removedSupCount: 0,
       removedCaretCount: 0,
@@ -408,7 +408,7 @@ describe("markdown-cleanup-core", () => {
       removedHiddenSpanCount: 1,
       removedRefCount: 5,
       removedDividerCount: 0,
-      removedCount: 6,
+      removedCount: 6
     });
   });
 
@@ -416,7 +416,7 @@ describe("markdown-cleanup-core", () => {
     const input = [
       "保留前文 ~~删除这里~~ 保留后文",
       "- 列表 ~~去掉~~ 项",
-      "未处理文本",
+      "未处理文本"
     ].join("\n");
 
     const result = removeStrikethroughMarkedContentFromMarkdown(input);
@@ -425,9 +425,9 @@ describe("markdown-cleanup-core", () => {
       markdown: [
         "保留前文  保留后文",
         "- 列表  项",
-        "未处理文本",
+        "未处理文本"
       ].join("\n"),
-      removedCount: 2,
+      removedCount: 2
     });
   });
 
@@ -438,7 +438,7 @@ describe("markdown-cleanup-core", () => {
 
     expect(result).toEqual({
       markdown: input,
-      removedCount: 0,
+      removedCount: 0
     });
   });
 });

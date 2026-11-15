@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   reorderFavoriteActionKeys,
-  resolveInsertBeforeFromGeometry,
+  resolveInsertBeforeFromGeometry
 } from "@/core/dock-doc-action-drag-core";
 
 describe("dock doc action drag core", () => {

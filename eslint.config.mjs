@@ -1,13 +1,12 @@
 import antfu from '@antfu/eslint-config'
 import perfectionist from 'eslint-plugin-perfectionist'
-import i18nPlugin from './src/utils/eslint/i18n-validate-keys.mjs'
 
 export default antfu(
   {
     type: 'lib',
     stylistic: {
       indent: 2, // 4, or 'tab'
-      quotes: 'single', // or 'double'
+      semi: true, // 代码库统一使用分号
     },
 
     vue: true,
@@ -46,11 +45,10 @@ export default antfu(
 
       'object-curly-newline': ['error', {
         multiline: true,
-        minProperties: 2,
         consistent: true,
       }],
       'object-property-newline': ['error', {
-        allowAllPropertiesOnSameLine: false,
+        allowAllPropertiesOnSameLine: true,
       }],
 
       'style/arrow-parens': ['warn', 'always'],
@@ -58,7 +56,7 @@ export default antfu(
       'style/no-multiple-empty-lines': ['warn', {
         max: 7,
       }],
-      'style/operator-linebreak': ['warn', 'before', {
+      'style/operator-linebreak': ['warn', 'after', {
         overrides: {
           '=': 'ignore',
         },
@@ -73,6 +71,10 @@ export default antfu(
       'ts/prefer-literal-enum-member': 'off',
       'ts/strict-boolean-expressions': 'off',
 
+      // 插件运行于 Electron 渲染进程，process 为运行时全局；d.ts 方法签名保留双变以兼容思源事件回调
+      'node/prefer-global/process': 'off',
+      'ts/method-signature-style': 'off',
+
       'unused-imports/no-unused-vars': 'warn',
       'unused-imports/no-unused-imports': 'warn',
       'unicorn/prefer-dom-node-text-content': 'off',
@@ -83,7 +85,15 @@ export default antfu(
       'regexp/no-super-linear-backtracking': 'warn',
       'regexp/no-unused-capturing-group': 'warn',
 
-      'style/comma-dangle': ['error', 'always-multiline'],
+      'style/comma-dangle': ['error', 'never'],
+
+      // 代码库统一使用 test() 命名、interface 声明，导入排序未强制
+      'test/consistent-test-it': ['error', { fn: 'test', withinDescribe: 'test' }],
+      'ts/consistent-type-definitions': 'off',
+      'perfectionist/sort-imports': 'off',
+      'perfectionist/sort-named-imports': 'off',
+      'perfectionist/sort-named-exports': 'off',
+      'perfectionist/sort-exports': 'off',
 
       'vue/block-order': ['warn', {
         order: ['template', 'script', 'style'],
@@ -121,8 +131,17 @@ export default antfu(
       }],
       'vue/object-property-newline': ['error', {
         allowAllPropertiesOnSameLine: false,
-        allowMultiplePropertiesPerLine: true,
       }],
+    },
+  },
+  {
+    // 悬浮窗测试通过 Function 构造器执行注入脚本，属有意为之
+    files: [
+      'tests/floating-window-*.test.ts',
+    ],
+    rules: {
+      'no-new-func': 'off',
+      'no-new': 'off',
     },
   },
 )

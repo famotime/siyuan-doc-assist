@@ -1,7 +1,7 @@
 import { showMessage } from "siyuan";
 import {
   removeTrailingWhitespaceFromDom,
-  removeTrailingWhitespaceFromMarkdown,
+  removeTrailingWhitespaceFromMarkdown
 } from "@/core/markdown-cleanup-core";
 import { getBlockDOMs, getBlockKramdowns, getChildBlocksByParentId, updateBlockDom, updateBlockMarkdown, renderKramdownToBlockDOM } from "@/services/kernel";
 import { createDocAssistantLogger as createLogger } from "@/core/logger-core";
@@ -54,7 +54,7 @@ export async function handleTrimTrailingWhitespace(
   trailingWhitespaceLogger.debug("scan start", {
     docId,
     blockCount: blocks.length,
-    paragraphCount: paragraphBlocks.length,
+    paragraphCount: paragraphBlocks.length
   });
   if (!paragraphBlocks.length) {
     showMessage("当前文档没有可处理的段落", 4000, "info");
@@ -100,7 +100,7 @@ export async function handleTrimTrailingWhitespace(
           id: block.id,
           dataType: "dom",
           data: domCleaned.dom,
-          changedLines: domCleaned.changedLines,
+          changedLines: domCleaned.changedLines
         });
         affectedLineCount += domCleaned.changedLines;
         continue;
@@ -112,7 +112,7 @@ export async function handleTrimTrailingWhitespace(
       if (sourceFromKramdown !== undefined && block.resolved !== false) {
         if (/\(\([^)]+\)\)\{:/.test(block.markdown || "")) {
           trailingWhitespaceLogger.debug("skip block with block-ref inline IAL to prevent corruption", {
-            id: block.id,
+            id: block.id
           });
           continue;
         }
@@ -127,7 +127,7 @@ export async function handleTrimTrailingWhitespace(
         id: block.id,
         dataType: "markdown",
         data: markdownForUpdate,
-        changedLines: markdownCleaned.changedLines,
+        changedLines: markdownCleaned.changedLines
       });
       affectedLineCount += markdownCleaned.changedLines;
     }
@@ -147,7 +147,7 @@ export async function handleTrimTrailingWhitespace(
     affectedLineCount,
     skippedRiskyCount: skippedRiskyIds.length,
     skippedRiskySample: skippedRiskyIds.slice(0, 8),
-    updateSample: updates.slice(0, 8).map((item) => item.id),
+    updateSample: updates.slice(0, 8).map((item) => item.id)
   });
 
   if (!updates.length) {
@@ -158,14 +158,14 @@ export async function handleTrimTrailingWhitespace(
         length: source.length,
         hasWhiteSpacePre: /white-space\s*:\s*pre/i.test(source),
         hasTailWhitespace: /[ \t]+$/.test(source),
-        hasEscapedWhitespaceToken: /(?:\\t|\\u0009|\\x09)/i.test(source),
-        preview: JSON.stringify(source.slice(0, 200)),
+        hasEscapedWhitespaceToken: /\\t|\\u0009|\\x09/i.test(source),
+        preview: JSON.stringify(source.slice(0, 200))
       };
     });
     trailingWhitespaceLogger.debug("no-op source probe", {
       docId,
       sampleCount: probeSamples.length,
-      samples: probeSamples,
+      samples: probeSamples
     });
     showMessage("未发现需要清理的行尾空格", 4000, "info");
     return;
@@ -254,9 +254,9 @@ export async function handleTrimTrailingWhitespace(
         let verifiedClean = false;
         for (let readAttempt = 1; readAttempt <= maxVerifyReadAttempts; readAttempt += 1) {
           verifyReads = readAttempt;
-          const persistedRows = paragraphBlockIdSet.has(item.id)
-            ? (await getBlockKramdowns([item.id])) || []
-            : [];
+          const persistedRows = paragraphBlockIdSet.has(item.id) ?
+              (await getBlockKramdowns([item.id])) || [] :
+              [];
           const persistedMarkdown = persistedRows.find((row) => row.id === item.id)?.kramdown;
           if (typeof persistedMarkdown !== "string") {
             applied = true;
@@ -302,7 +302,7 @@ export async function handleTrimTrailingWhitespace(
         message: failureMessage || "unknown failure",
         lastChangedLines,
         persistedPreview: lastPersistedPreview,
-        cleanedPreview: lastCleanedPreview,
+        cleanedPreview: lastCleanedPreview
       });
     }
   }
@@ -321,7 +321,7 @@ export async function handleTrimTrailingWhitespace(
     maxApplyAttempts,
     maxVerifyReadAttempts,
     failedSummary,
-    failedSample: failedUpdates.slice(0, 8),
+    failedSample: failedUpdates.slice(0, 8)
   });
 
   if (failedBlockCount > 0) {

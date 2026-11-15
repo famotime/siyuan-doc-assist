@@ -1,7 +1,7 @@
 import { createDocAssistantLogger } from "@/core/logger-core";
 import {
   IrrelevantParagraphCandidate,
-  IrrelevantSegmentCandidate,
+  IrrelevantSegmentCandidate
 } from "@/services/ai-slop-marker-prompts";
 
 const parserLogger = createDocAssistantLogger("AiSlopMarker");
@@ -47,11 +47,11 @@ export function extractIrrelevantParagraphMarks(
   if (entries.length > 0) {
     const marks: IrrelevantParagraphMark[] = [];
     for (const entry of entries) {
-      const paragraphId = typeof entry?.paragraphId === "string"
-        ? entry.paragraphId.trim()
-        : typeof entry?.id === "string"
-          ? entry.id.trim()
-          : "";
+      const paragraphId = typeof entry?.paragraphId === "string" ?
+          entry.paragraphId.trim() :
+        typeof entry?.id === "string" ?
+            entry.id.trim() :
+          "";
       const paragraph = paragraphId ? paragraphMap.get(paragraphId) : undefined;
       if (!paragraph) {
         continue;
@@ -92,11 +92,11 @@ function resolveSegmentIdMarks(
   if (!Array.isArray(segmentCandidates) || !segmentCandidates.length) {
     return [];
   }
-  const ids = Array.isArray(parsed?.segmentIds)
-    ? parsed.segmentIds
-    : Array.isArray(parsed?.segments)
-      ? parsed.segments
-      : [];
+  const ids = Array.isArray(parsed?.segmentIds) ?
+    parsed.segmentIds :
+    Array.isArray(parsed?.segments) ?
+      parsed.segments :
+        [];
   if (!ids.length) {
     return [];
   }
@@ -119,7 +119,7 @@ function resolveSegmentIdMarks(
 
   return Array.from(grouped.entries()).map(([paragraphId, segments]) => ({
     paragraphId,
-    segments,
+    segments
   }));
 }
 
@@ -136,7 +136,7 @@ function resolveIrrelevantParagraphEntries(parsed: any): any[] {
     parsed?.items,
     parsed?.results,
     parsed?.entries,
-    parsed?.data,
+    parsed?.data
   ];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
@@ -157,7 +157,7 @@ function resolveEntrySegments(entry: any): unknown[] {
     entry?.snippets,
     entry?.phrases,
     entry?.texts,
-    entry?.sentences,
+    entry?.sentences
   ];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
@@ -201,11 +201,11 @@ export function extractKeyContentParagraphHighlights(
   const merged = new Map<string, string[]>();
 
   for (const entry of entries) {
-    const paragraphId = typeof entry?.paragraphId === "string"
-      ? entry.paragraphId.trim()
-      : typeof entry?.id === "string"
-        ? entry.id.trim()
-        : "";
+    const paragraphId = typeof entry?.paragraphId === "string" ?
+        entry.paragraphId.trim() :
+      typeof entry?.id === "string" ?
+          entry.id.trim() :
+        "";
     if (!paragraphId || !allowedIds.has(paragraphId)) {
       continue;
     }
@@ -231,7 +231,7 @@ export function extractKeyContentParagraphHighlights(
 
   return Array.from(merged.entries()).map(([paragraphId, highlights]) => ({
     paragraphId,
-    highlights,
+    highlights
   }));
 }
 
@@ -242,11 +242,11 @@ function resolveSegmentIdHighlights(
   if (!Array.isArray(segmentCandidates) || !segmentCandidates.length) {
     return [];
   }
-  const ids = Array.isArray(parsed?.segmentIds)
-    ? parsed.segmentIds
-    : Array.isArray(parsed?.highlightSegmentIds)
-      ? parsed.highlightSegmentIds
-      : [];
+  const ids = Array.isArray(parsed?.segmentIds) ?
+    parsed.segmentIds :
+    Array.isArray(parsed?.highlightSegmentIds) ?
+      parsed.highlightSegmentIds :
+        [];
   if (!ids.length) {
     return [];
   }
@@ -269,7 +269,7 @@ function resolveSegmentIdHighlights(
 
   return Array.from(grouped.entries()).map(([paragraphId, highlights]) => ({
     paragraphId,
-    highlights,
+    highlights
   }));
 }
 
@@ -286,7 +286,7 @@ function resolveKeyContentEntries(parsed: any): any[] {
     parsed?.items,
     parsed?.results,
     parsed?.entries,
-    parsed?.data,
+    parsed?.data
   ];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
@@ -308,7 +308,7 @@ function resolveEntryHighlights(entry: any): unknown[] {
     entry?.keywords,
     entry?.segments,
     entry?.snippets,
-    entry?.texts,
+    entry?.texts
   ];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
@@ -337,7 +337,7 @@ function extractMessageContent(payload: any): string {
   // 优先取 content，若为空则回退到 reasoning_content（部分国产推理模型会将输出放在此字段）
   const raw = extractFirstNonEmptyString([
     message?.content,
-    message?.reasoning_content,
+    message?.reasoning_content
   ]);
 
   let content: string;
@@ -346,11 +346,11 @@ function extractMessageContent(payload: any): string {
   } else if (Array.isArray(raw)) {
     content = raw
       .map((item) =>
-        typeof item?.text === "string"
-          ? item.text
-          : typeof item === "string"
-            ? item
-            : ""
+        typeof item?.text === "string" ?
+          item.text :
+          typeof item === "string" ?
+            item :
+            ""
       )
       .join("\n");
   } else {
@@ -401,9 +401,9 @@ function parseJsonObject(content: string, label = "结果"): any {
   try {
     return JSON.parse(jsonText);
   } catch {
-    const preview = normalized.length > 150
-      ? `${normalized.slice(0, 150)}…`
-      : normalized;
+    const preview = normalized.length > 150 ?
+      `${normalized.slice(0, 150)}…` :
+      normalized;
     if (looksLikeTruncatedJson(normalized)) {
       throw new Error(`AI 返回的${label}不是有效 JSON，可能被模型截断，请调高 AI 最大输出 Tokens 后重试：${preview}`);
     }

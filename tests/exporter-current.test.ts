@@ -3,7 +3,7 @@ import {
   collectAssetLinksFromMarkdown,
   getExportResourceAssetPaths,
   normalizeUploadFileName,
-  rewriteMarkdownAssetLinksToBasename,
+  rewriteMarkdownAssetLinksToBasename
 } from "@/core/export-media-core";
 
 describe("export current doc with media", () => {
@@ -12,13 +12,13 @@ describe("export current doc with media", () => {
       "![img](assets/image-20260201-abc.png)",
       "[video](/assets/video-20260201-def.mp4)",
       "[remote](https://example.com/file.png)",
-      "![query](assets/image-20260201-abc.png?x=1#y)",
+      "![query](assets/image-20260201-abc.png?x=1#y)"
     ].join("\n");
 
     expect(collectAssetLinksFromMarkdown(markdown)).toEqual([
       "assets/image-20260201-abc.png",
       "/assets/video-20260201-def.mp4",
-      "assets/image-20260201-abc.png?x=1#y",
+      "assets/image-20260201-abc.png?x=1#y"
     ]);
   });
 
@@ -33,7 +33,7 @@ describe("export current doc with media", () => {
     const markdown = "![img](assets/a.png)\n![img2](/assets/b.png)\n[http](https://a.com/x.png)";
     expect(getExportResourceAssetPaths(markdown)).toEqual([
       "/data/assets/a.png",
-      "/data/assets/b.png",
+      "/data/assets/b.png"
     ]);
   });
 

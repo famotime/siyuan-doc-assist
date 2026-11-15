@@ -7,28 +7,28 @@ import { KeyInfoController } from "@/plugin/key-info-controller";
 
 const { getActiveEditorMock, showMessageMock } = vi.hoisted(() => ({
   getActiveEditorMock: vi.fn(),
-  showMessageMock: vi.fn(),
+  showMessageMock: vi.fn()
 }));
 
 const { getDocKeyInfoMock } = vi.hoisted(() => ({
-  getDocKeyInfoMock: vi.fn(),
+  getDocKeyInfoMock: vi.fn()
 }));
 
 const { getDocReadonlyStateMock } = vi.hoisted(() => ({
-  getDocReadonlyStateMock: vi.fn(),
+  getDocReadonlyStateMock: vi.fn()
 }));
 
 vi.mock("siyuan", () => ({
   getActiveEditor: getActiveEditorMock,
-  showMessage: showMessageMock,
+  showMessage: showMessageMock
 }));
 
 vi.mock("@/services/key-info", () => ({
-  getDocKeyInfo: getDocKeyInfoMock,
+  getDocKeyInfo: getDocKeyInfoMock
 }));
 
 vi.mock("@/services/kernel", () => ({
-  getDocReadonlyState: getDocReadonlyStateMock,
+  getDocReadonlyState: getDocReadonlyStateMock
 }));
 
 describe("key-info-controller doc actions", () => {
@@ -43,7 +43,7 @@ describe("key-info-controller doc actions", () => {
 
     getDocKeyInfoMock.mockResolvedValueOnce({
       docTitle: "Doc 1",
-      items: [],
+      items: []
     });
 
     let rejectRefresh!: (reason?: unknown) => void;
@@ -66,14 +66,14 @@ describe("key-info-controller doc actions", () => {
       resetDocActionOrder: () => {},
       getDocFavoriteActionKeys: () => [],
       setDocActionFavorite: () => {},
-      setDocFavoriteActionOrder: () => {},
+      setDocFavoriteActionOrder: () => {}
     } as any);
 
     let dockConfig: any;
     controller.registerDock({
       addDock: (config: unknown) => {
         dockConfig = config;
-      },
+      }
     });
     dockConfig.init({ element: host });
     await Promise.resolve();
@@ -102,7 +102,7 @@ describe("key-info-controller doc actions", () => {
           raw: "**Bold content**",
           blockId: "block-bold",
           blockSort: 0,
-          order: 0,
+          order: 0
         },
         {
           id: "item-title",
@@ -111,9 +111,9 @@ describe("key-info-controller doc actions", () => {
           raw: "# Title content",
           blockId: "block-title",
           blockSort: 1,
-          order: 1,
-        },
-      ],
+          order: 1
+        }
+      ]
     });
 
     const setKeyInfoFilter = vi.fn();
@@ -133,14 +133,14 @@ describe("key-info-controller doc actions", () => {
       setDocActionFavorite: () => {},
       setDocFavoriteActionOrder: () => {},
       getKeyInfoFilter: () => ["bold"],
-      setKeyInfoFilter,
+      setKeyInfoFilter
     } as any);
 
     let dockConfig: any;
     controller.registerDock({
       addDock: (config: unknown) => {
         dockConfig = config;
-      },
+      }
     });
     dockConfig.init({ element: host });
     await Promise.resolve();
@@ -179,11 +179,11 @@ describe("key-info-controller doc actions", () => {
       commandText: "选中块全部加粗",
       menuText: "选中块全部加粗",
       group: "edit",
-      icon: "iconBold",
+      icon: "iconBold"
     };
     const protyle = {
       block: { id: "block-1", rootID: "doc-1" },
-      wysiwyg: { element: document.createElement("div") },
+      wysiwyg: { element: document.createElement("div") }
     };
     const controller = new KeyInfoController({
       isMobile: () => false,
@@ -199,14 +199,14 @@ describe("key-info-controller doc actions", () => {
       resetDocActionOrder: () => {},
       getDocFavoriteActionKeys: () => [],
       setDocActionFavorite: () => {},
-      setDocFavoriteActionOrder: () => {},
+      setDocFavoriteActionOrder: () => {}
     });
 
     let dockConfig: any;
     controller.registerDock({
       addDock: (config: unknown) => {
         dockConfig = config;
-      },
+      }
     });
     dockConfig.init({ element: host });
 
@@ -230,7 +230,7 @@ describe("key-info-controller doc actions", () => {
 
     getDocKeyInfoMock.mockResolvedValue({
       docTitle: "Doc 1",
-      items: [],
+      items: []
     });
     getDocReadonlyStateMock
       .mockResolvedValueOnce(true)
@@ -243,7 +243,7 @@ describe("key-info-controller doc actions", () => {
       group: "edit",
       icon: "iconBold",
       dockIconText: "粗",
-      requiresWritableDoc: true,
+      requiresWritableDoc: true
     };
     const controller = new KeyInfoController({
       isMobile: () => false,
@@ -259,14 +259,14 @@ describe("key-info-controller doc actions", () => {
       resetDocActionOrder: () => {},
       getDocFavoriteActionKeys: () => [],
       setDocActionFavorite: () => {},
-      setDocFavoriteActionOrder: () => {},
+      setDocFavoriteActionOrder: () => {}
     });
 
     let dockConfig: any;
     controller.registerDock({
       addDock: (config: unknown) => {
         dockConfig = config;
-      },
+      }
     });
     dockConfig.init({ element: host });
     await Promise.resolve();
@@ -302,7 +302,7 @@ describe("key-info-controller doc actions", () => {
       commandText: "插入反链文档列表（去重）",
       menuText: "插入反链文档列表（去重）",
       group: "edit",
-      icon: "iconList",
+      icon: "iconList"
     };
     const controller = new KeyInfoController({
       isMobile: () => false,
@@ -318,14 +318,14 @@ describe("key-info-controller doc actions", () => {
       resetDocActionOrder,
       getDocFavoriteActionKeys: () => [],
       setDocActionFavorite: () => {},
-      setDocFavoriteActionOrder: () => {},
+      setDocFavoriteActionOrder: () => {}
     });
 
     let dockConfig: any;
     controller.registerDock({
       addDock: (config: unknown) => {
         dockConfig = config;
-      },
+      }
     });
     dockConfig.init({ element: host });
 
@@ -352,7 +352,7 @@ describe("key-info-controller doc actions", () => {
       commandText: "插入反链文档列表（去重）",
       menuText: "插入反链文档列表（去重）",
       group: "insert",
-      icon: "iconList",
+      icon: "iconList"
     };
     const controller = new KeyInfoController({
       isMobile: () => false,
@@ -368,14 +368,14 @@ describe("key-info-controller doc actions", () => {
       resetDocActionOrder: () => {},
       getDocFavoriteActionKeys: () => [],
       setDocActionFavorite,
-      setDocFavoriteActionOrder: () => {},
+      setDocFavoriteActionOrder: () => {}
     });
 
     let dockConfig: any;
     controller.registerDock({
       addDock: (config: unknown) => {
         dockConfig = config;
-      },
+      }
     });
     dockConfig.init({ element: host });
 
@@ -404,15 +404,15 @@ describe("key-info-controller doc actions", () => {
         commandText: "仅导出当前文档",
         menuText: "仅导出当前文档",
         group: "export",
-        icon: "iconDownload",
+        icon: "iconDownload"
       },
       {
         key: "insert-backlinks",
         commandText: "插入反链文档列表（去重）",
         menuText: "插入反链文档列表（去重）",
         group: "insert",
-        icon: "iconList",
-      },
+        icon: "iconList"
+      }
     ];
     const controller = new KeyInfoController({
       isMobile: () => false,
@@ -428,14 +428,14 @@ describe("key-info-controller doc actions", () => {
       resetDocActionOrder: () => {},
       getDocFavoriteActionKeys: () => ["export-current", "insert-backlinks"],
       setDocActionFavorite: () => {},
-      setDocFavoriteActionOrder,
+      setDocFavoriteActionOrder
     });
 
     let dockConfig: any;
     controller.registerDock({
       addDock: (config: unknown) => {
         dockConfig = config;
-      },
+      }
     });
     dockConfig.init({ element: host });
 
@@ -452,7 +452,7 @@ describe("key-info-controller doc actions", () => {
 
     expect(setDocFavoriteActionOrder).toHaveBeenCalledWith([
       "insert-backlinks",
-      "export-current",
+      "export-current"
     ]);
 
     await Promise.resolve();

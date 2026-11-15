@@ -3,17 +3,17 @@ import {
   buildOcrQuoteMarkdown,
   calculateImageSliceRects,
   MAX_OCR_IMAGE_HEIGHT,
-  mergeOcrResults,
+  mergeOcrResults
 } from "@/core/ai-image-ocr-core";
 
 describe("ai-image-ocr-core", () => {
   describe("calculateImageSliceRects", () => {
     test("returns single slice when height is less than or equal to maxHeight", () => {
       expect(calculateImageSliceRects(800, 600)).toEqual([
-        { x: 0, y: 0, width: 800, height: 600 },
+        { x: 0, y: 0, width: 800, height: 600 }
       ]);
       expect(calculateImageSliceRects(1000, 3000)).toEqual([
-        { x: 0, y: 0, width: 1000, height: 3000 },
+        { x: 0, y: 0, width: 1000, height: 3000 }
       ]);
     });
 
@@ -22,7 +22,7 @@ describe("ai-image-ocr-core", () => {
       expect(rects).toEqual([
         { x: 0, y: 0, width: 1200, height: 3000 },
         { x: 0, y: 3000, width: 1200, height: 3000 },
-        { x: 0, y: 6000, width: 1200, height: 1500 },
+        { x: 0, y: 6000, width: 1200, height: 1500 }
       ]);
     });
 
@@ -30,14 +30,14 @@ describe("ai-image-ocr-core", () => {
       const rects = calculateImageSliceRects(1000, 6000, 3000);
       expect(rects).toEqual([
         { x: 0, y: 0, width: 1000, height: 3000 },
-        { x: 0, y: 3000, width: 1000, height: 3000 },
+        { x: 0, y: 3000, width: 1000, height: 3000 }
       ]);
     });
 
     test("handles edge cases like 0 or negative dimensions gracefully", () => {
       const rects = calculateImageSliceRects(0, 0);
       expect(rects).toEqual([
-        { x: 0, y: 0, width: 1, height: 1 },
+        { x: 0, y: 0, width: 1, height: 1 }
       ]);
     });
   });
@@ -57,7 +57,7 @@ describe("ai-image-ocr-core", () => {
       const results = [
         "第一段文字",
         "第二段文字\n包含换行",
-        "第三段文字",
+        "第三段文字"
       ];
       expect(mergeOcrResults(results)).toBe("第一段文字\n---\n第二段文字\n包含换行\n---\n第三段文字");
     });
@@ -66,7 +66,7 @@ describe("ai-image-ocr-core", () => {
       const results = [
         "头部文字",
         "[NO_TEXT]",
-        "尾部文字",
+        "尾部文字"
       ];
       expect(mergeOcrResults(results)).toBe("头部文字\n---\n尾部文字");
     });

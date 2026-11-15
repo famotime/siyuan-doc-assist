@@ -20,9 +20,9 @@ declare module "siyuan" {
   export function getFrontend(): string;
   export function getActiveEditor():
     | {
-        protyle?: unknown;
-      }
-    | undefined;
+      protyle?: unknown;
+    } |
+    undefined;
   export function openTab(options: {
     app: unknown;
     doc?: {
@@ -36,13 +36,13 @@ declare module "siyuan" {
   }): Promise<unknown>;
   export function getAllModels():
     | {
-        editor: Array<{
-          editor?: { protyle?: unknown };
-          element?: HTMLElement;
-          parent?: unknown;
-        }>;
-      }
-    | undefined;
+      editor: Array<{
+        editor?: { protyle?: unknown };
+        element?: HTMLElement;
+        parent?: unknown;
+      }>;
+    } |
+    undefined;
 
   export const Plugin: {
     new (...args: any[]): {

@@ -49,13 +49,15 @@ export function buildLinebreakToggleMode(
   const hasAnySingleLineBreak = blocks.some(
     (block) => countSingleLineBreaks(normalizeLineEndings(block.markdown || "")) > 0
   );
-  return !hasAnySingleLineBreak && blocks.length > 1 && blocks.every((block) => isParagraphBlockType(block.type))
-    ? "paragraph-to-line"
-    : "linebreak-to-paragraph";
+  return !hasAnySingleLineBreak && blocks.length > 1 && blocks.every((block) => isParagraphBlockType(block.type)) ?
+    "paragraph-to-line" :
+    "linebreak-to-paragraph";
 }
 
 export function buildPunctuationUpdates(
-  selectedIds: string[], sourceMap: Map<string, string>): {
+  selectedIds: string[],
+  sourceMap: Map<string, string>
+): {
   mode: PunctuationToggleMode;
   updates: Array<{ id: string; next: string; changedCount: number }>;
   missingSourceCount: number;

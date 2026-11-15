@@ -28,12 +28,12 @@ export function askConfirmWithDetail(
   return new Promise((resolve) => {
     const listHtml = detailItems
       .map((item, index) => {
-        const desc = item.description
-          ? `<span class="doc-assistant-confirm-detail__desc">${escapeHtml(item.description)}</span>`
-          : "";
-        const toneClass = item.tone
-          ? ` doc-assistant-confirm-detail__label--${item.tone}`
-          : "";
+        const desc = item.description ?
+          `<span class="doc-assistant-confirm-detail__desc">${escapeHtml(item.description)}</span>` :
+          "";
+        const toneClass = item.tone ?
+          ` doc-assistant-confirm-detail__label--${item.tone}` :
+          "";
         const labelHtml = `<span class="doc-assistant-confirm-detail__label${toneClass}">${escapeHtml(item.label)}</span>`;
         if (item.selectable) {
           const checked = item.selected !== false ? " checked" : "";
@@ -59,7 +59,7 @@ export function askConfirmWithDetail(
     const dialog = new Dialog({
       title,
       content,
-      width: "520px",
+      width: "520px"
     });
 
     const root = dialog.element.querySelector(".doc-assistant-confirm-detail") as HTMLElement;

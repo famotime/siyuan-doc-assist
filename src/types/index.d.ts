@@ -29,51 +29,51 @@ type NotebookConf = {
 };
 
 type BlockType =
-  | "d"
-  | "s"
-  | "h"
-  | "t"
-  | "i"
-  | "p"
-  | "f"
-  | "audio"
-  | "video"
-  | "other";
+  | "d" |
+  "s" |
+  "h" |
+  "t" |
+  "i" |
+  "p" |
+  "f" |
+  "audio" |
+  "video" |
+  "other";
 
 type BlockSubType =
-  | "d1"
-  | "d2"
-  | "s1"
-  | "s2"
-  | "s3"
-  | "t1"
-  | "t2"
-  | "h1"
-  | "h2"
-  | "h3"
-  | "h4"
-  | "h5"
-  | "h6"
-  | "table"
-  | "task"
-  | "toggle"
-  | "latex"
-  | "quote"
-  | "html"
-  | "code"
-  | "footnote"
-  | "cite"
-  | "collection"
-  | "bookmark"
-  | "attachment"
-  | "comment"
-  | "mindmap"
-  | "spreadsheet"
-  | "calendar"
-  | "image"
-  | "audio"
-  | "video"
-  | "other";
+  | "d1" |
+  "d2" |
+  "s1" |
+  "s2" |
+  "s3" |
+  "t1" |
+  "t2" |
+  "h1" |
+  "h2" |
+  "h3" |
+  "h4" |
+  "h5" |
+  "h6" |
+  "table" |
+  "task" |
+  "toggle" |
+  "latex" |
+  "quote" |
+  "html" |
+  "code" |
+  "footnote" |
+  "cite" |
+  "collection" |
+  "bookmark" |
+  "attachment" |
+  "comment" |
+  "mindmap" |
+  "spreadsheet" |
+  "calendar" |
+  "image" |
+  "audio" |
+  "video" |
+  "other";
 
 type Block = {
   id: BlockId;
@@ -93,7 +93,8 @@ type Block = {
   length: number;
   type: BlockType;
   subtype: BlockSubType;
-  /** string of { [key: string]: string }
+  /**
+   * string of { [key: string]: string }
    * For instance: "{: custom-type=\"query-code\" id=\"20230613234017-zkw3pr0\" updated=\"20230613234509\"}"
    */
   ial?: string;
@@ -138,5 +139,5 @@ enum SyFrontendTypes {
   // 浏览器 - 桌面端
   'browser-desktop' = 'browser-desktop',
   // 浏览器 - 移动端
-  'browser-mobile' = 'browser-mobile',
+  'browser-mobile' = 'browser-mobile'
 }

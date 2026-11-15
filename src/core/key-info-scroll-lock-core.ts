@@ -13,7 +13,7 @@ export function createKeyInfoListScrollLock(
   return {
     top,
     left,
-    until: now + durationMs,
+    until: now + durationMs
   };
 }
 

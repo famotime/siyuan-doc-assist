@@ -45,10 +45,10 @@ function isTabLike(value: unknown): value is TabLike {
   if (!value || typeof value !== "object") {
     return false;
   }
-  return (value as LayoutNodeLike).instance === "Tab"
-    || "model" in value
-    || "headElement" in value
-    || "title" in value;
+  return (value as LayoutNodeLike).instance === "Tab" ||
+    "model" in value ||
+    "headElement" in value ||
+    "title" in value;
 }
 
 function isPinnedTab(tab: TabLike): boolean {
@@ -62,9 +62,9 @@ function getLayoutChildren(node: unknown): unknown[] {
   if (!node || typeof node !== "object") {
     return [];
   }
-  return Array.isArray((node as LayoutNodeLike).children)
-    ? ((node as LayoutNodeLike).children as unknown[])
-    : [];
+  return Array.isArray((node as LayoutNodeLike).children) ?
+      ((node as LayoutNodeLike).children as unknown[]) :
+      [];
 }
 
 function getTabEditorModel(tab: TabLike): EditorModelLike | null {
@@ -92,7 +92,7 @@ function collectFromTab(tab: TabLike, docs: Map<string, OpenedDocSummaryItem>) {
   docs.set(id, {
     id,
     notebookId,
-    title: (tab.title || id).trim() || id,
+    title: (tab.title || id).trim() || id
   });
 }
 
@@ -181,6 +181,6 @@ export async function createOpenedDocsSummaryDoc(
   return {
     id,
     title,
-    docCount: items.length,
+    docCount: items.length
   };
 }

@@ -1,6 +1,8 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { openDedupeDialog } from "@/ui/dialogs";
+
 const { DialogClass, confirmMock, showMessageMock } = vi.hoisted(() => ({
   DialogClass: class MockDialog {
     public element: HTMLDivElement;
@@ -12,16 +14,14 @@ const { DialogClass, confirmMock, showMessageMock } = vi.hoisted(() => ({
     }
   },
   confirmMock: vi.fn(),
-  showMessageMock: vi.fn(),
+  showMessageMock: vi.fn()
 }));
 
 vi.mock("siyuan", () => ({
   Dialog: DialogClass,
   confirm: confirmMock,
-  showMessage: showMessageMock,
+  showMessage: showMessageMock
 }));
-
-import { openDedupeDialog } from "@/ui/dialogs";
 
 function createDialog() {
   return openDedupeDialog({
@@ -32,13 +32,13 @@ function createDialog() {
         docs: [
           { id: "doc-oldest", title: "A", updated: "20250101101010", hPath: "/A" },
           { id: "doc-middle", title: "A", updated: "20260101101010", hPath: "/A-2" },
-          { id: "doc-latest", title: "A", updated: "20260201101010", hPath: "/A-3" },
-        ],
-      },
+          { id: "doc-latest", title: "A", updated: "20260201101010", hPath: "/A-3" }
+        ]
+      }
     ],
     onDelete: vi.fn().mockResolvedValue({ successIds: [], failed: [] }),
     onInsertLinks: vi.fn(),
-    onOpenAll: vi.fn(),
+    onOpenAll: vi.fn()
   });
 }
 

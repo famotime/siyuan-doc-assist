@@ -9,9 +9,9 @@ type TextToLinkDialogArgs = {
 function createButton(label: string, primary = false): HTMLButtonElement {
   const button = document.createElement("button");
   button.textContent = label;
-  button.className = primary
-    ? "b3-button b3-button--text"
-    : "b3-button b3-button--outline";
+  button.className = primary ?
+    "b3-button b3-button--text" :
+    "b3-button b3-button--outline";
   return button;
 }
 
@@ -24,7 +24,7 @@ export function openTextToLinkDialog(args: TextToLinkDialogArgs): InstanceType<t
       <div class="link-tool-text-to-link__list"></div>
     </div>`,
     width: "720px",
-    height: "65vh",
+    height: "65vh"
   });
 
   const root = dialog.element.querySelector(".link-tool-text-to-link") as HTMLDivElement;

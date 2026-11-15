@@ -47,7 +47,7 @@ export function buildSelectedBlockStyleTogglePreview(
 ): SelectedBlockStyleTogglePreview {
   const analyzed = blocks.map((block) => ({
     ...block,
-    state: resolveSelectedBlockStyleState(block.markdown || "", style),
+    state: resolveSelectedBlockStyleState(block.markdown || "", style)
   }));
   const stylable = analyzed.filter((block) => block.state !== "unstylable");
   const styledBlockCount = stylable.filter((block) => block.state === "fully-styled").length;
@@ -65,7 +65,7 @@ export function buildSelectedBlockStyleTogglePreview(
       }
       return {
         id: block.id,
-        next,
+        next
       };
     })
     .filter((item): item is { id: string; next: string } => !!item);
@@ -80,6 +80,6 @@ export function buildSelectedBlockStyleTogglePreview(
     unstylableBlockCount: blocks.length - stylable.length,
     updateCount: updates.length,
     mode,
-    updates,
+    updates
   };
 }

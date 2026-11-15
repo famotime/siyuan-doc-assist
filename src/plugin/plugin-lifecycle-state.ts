@@ -1,7 +1,7 @@
 import {
   AiServiceConfig,
   buildDefaultAiServiceConfig,
-  normalizeAiServiceConfig,
+  normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import {
   buildDefaultDocActionEnabled,
@@ -20,23 +20,23 @@ import {
   setDocFavoriteAction as setDocFavoriteActionState,
   setSingleDocActionEnabled as setSingleDocActionEnabledState,
   setSingleDocMenuRegistration as setSingleDocMenuRegistrationState,
-  sortActionsByOrder,
+  sortActionsByOrder
 } from "@/core/doc-menu-registration-core";
 import {
   buildDefaultKeyInfoFilter,
   KeyInfoFilter,
-  normalizeKeyInfoFilter,
+  normalizeKeyInfoFilter
 } from "@/core/key-info-core";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 import {
   DEFAULT_FLOATING_TEXT_CONFIG,
   FloatingTextConfig,
-  normalizeFloatingConfig,
+  normalizeFloatingConfig
 } from "@/core/floating-text-core";
 import {
   DEFAULT_GESTURE_BINDINGS,
   GestureBindings,
-  normalizeGestureBindings,
+  normalizeGestureBindings
 } from "@/core/gesture-recognition-core";
 
 export type PluginDocMenuState = {
@@ -77,7 +77,7 @@ export function buildDefaultPluginDocMenuState(
     floatingConfig: { ...DEFAULT_FLOATING_TEXT_CONFIG },
     startupDocProcessTabEnabled: false,
     mouseGestureEnabled: false,
-    mouseGestureBindings: { ...DEFAULT_GESTURE_BINDINGS },
+    mouseGestureBindings: { ...DEFAULT_GESTURE_BINDINGS }
   };
 }
 
@@ -96,7 +96,7 @@ export function normalizePluginDocMenuState(
     floatingConfig: normalizeStoredFloatingConfig(raw),
     startupDocProcessTabEnabled: normalizeStoredStartupDocProcessTabEnabled(raw),
     mouseGestureEnabled: normalizeStoredMouseGestureEnabled(raw),
-    mouseGestureBindings: normalizeStoredMouseGestureBindings(raw),
+    mouseGestureBindings: normalizeStoredMouseGestureBindings(raw)
   };
 }
 
@@ -175,7 +175,7 @@ export function serializePluginDocMenuState(
     floatingConfig: state.floatingConfig,
     startupDocProcessTabEnabled: state.startupDocProcessTabEnabled,
     mouseGestureEnabled: state.mouseGestureEnabled,
-    mouseGestureBindings: state.mouseGestureBindings,
+    mouseGestureBindings: state.mouseGestureBindings
   };
 }
 
@@ -197,7 +197,7 @@ export function setAllPluginDocActionEnabled(
       state.docActionEnabledState,
       enabled,
       actionKeys
-    ),
+    )
   };
 }
 
@@ -212,7 +212,7 @@ export function setSinglePluginDocActionEnabled(
       state.docActionEnabledState,
       key,
       enabled
-    ),
+    )
   };
 }
 
@@ -227,7 +227,7 @@ export function setAllPluginDocMenuRegistration(
       state.docMenuRegistrationState,
       enabled,
       actionKeys
-    ),
+    )
   };
 }
 
@@ -242,7 +242,7 @@ export function setSinglePluginDocMenuRegistration(
       state.docMenuRegistrationState,
       key,
       enabled
-    ),
+    )
   };
 }
 
@@ -253,7 +253,7 @@ export function setPluginDocActionOrder(
 ): PluginDocMenuState {
   return {
     ...state,
-    docActionOrderState: normalizeDocActionOrder({ actionOrder: order }, actions),
+    docActionOrderState: normalizeDocActionOrder({ actionOrder: order }, actions)
   };
 }
 
@@ -263,7 +263,7 @@ export function resetPluginDocActionOrder(
 ): PluginDocMenuState {
   return {
     ...state,
-    docActionOrderState: buildDefaultDocActionOrder(actions),
+    docActionOrderState: buildDefaultDocActionOrder(actions)
   };
 }
 
@@ -278,7 +278,7 @@ export function setPluginDocActionFavorite(
       state.docFavoriteActionKeys,
       key,
       favorited
-    ),
+    )
   };
 }
 
@@ -291,7 +291,7 @@ export function reorderPluginDocFavoriteActions(
     docFavoriteActionKeys: reorderDocFavoriteActions(
       state.docFavoriteActionKeys,
       order
-    ),
+    )
   };
 }
 
@@ -301,7 +301,7 @@ export function setPluginKeyInfoFilter(
 ): PluginDocMenuState {
   return {
     ...state,
-    keyInfoFilterState: normalizeKeyInfoFilter(filter),
+    keyInfoFilterState: normalizeKeyInfoFilter(filter)
   };
 }
 
@@ -311,7 +311,7 @@ export function setAiSummaryConfig(
 ): PluginDocMenuState {
   return {
     ...state,
-    aiSummaryConfig: normalizeAiServiceConfig(config),
+    aiSummaryConfig: normalizeAiServiceConfig(config)
   };
 }
 
@@ -323,8 +323,8 @@ export function setFloatingConfig(
     ...state,
     floatingConfig: normalizeFloatingConfig({
       ...state.floatingConfig,
-      ...config,
-    }),
+      ...config
+    })
   };
 }
 
@@ -334,7 +334,7 @@ export function setPluginStartupDocProcessTabEnabled(
 ): PluginDocMenuState {
   return {
     ...state,
-    startupDocProcessTabEnabled: Boolean(enabled),
+    startupDocProcessTabEnabled: Boolean(enabled)
   };
 }
 
@@ -344,7 +344,7 @@ export function setPluginMouseGestureEnabled(
 ): PluginDocMenuState {
   return {
     ...state,
-    mouseGestureEnabled: Boolean(enabled),
+    mouseGestureEnabled: Boolean(enabled)
   };
 }
 
@@ -354,7 +354,7 @@ export function setPluginMouseGestureBindings(
 ): PluginDocMenuState {
   return {
     ...state,
-    mouseGestureBindings: normalizeGestureBindings(bindings),
+    mouseGestureBindings: normalizeGestureBindings(bindings)
   };
 }
 

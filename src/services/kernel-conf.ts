@@ -42,9 +42,9 @@ export async function setKeymap(keymap: KeymapData): Promise<void> {
 function mergeKeySet(target: KeySet, source: KeySet): KeySet {
   const result: KeySet = {};
   for (const key of Object.keys(target)) {
-    result[key] = Object.prototype.hasOwnProperty.call(source, key)
-      ? source[key]
-      : target[key];
+    result[key] = Object.prototype.hasOwnProperty.call(source, key) ?
+      source[key] :
+      target[key];
   }
   return result;
 }
@@ -55,7 +55,7 @@ function mergeEditor(target: KeymapEditor, source: KeymapEditor): KeymapEditor {
     heading: mergeKeySet(target.heading, source.heading),
     insert: mergeKeySet(target.insert, source.insert),
     list: mergeKeySet(target.list, source.list),
-    table: mergeKeySet(target.table, source.table),
+    table: mergeKeySet(target.table, source.table)
   };
 }
 
@@ -67,14 +67,14 @@ function mergeEditor(target: KeymapEditor, source: KeymapEditor): KeymapEditor {
 export function mergeKeymap(target: KeymapData, source: KeymapData): KeymapData {
   const mergedPlugin: Record<string, KeySet> = {};
   for (const pluginName of Object.keys(target.plugin)) {
-    mergedPlugin[pluginName] = Object.prototype.hasOwnProperty.call(source.plugin, pluginName)
-      ? mergeKeySet(target.plugin[pluginName], source.plugin[pluginName])
-      : { ...target.plugin[pluginName] };
+    mergedPlugin[pluginName] = Object.prototype.hasOwnProperty.call(source.plugin, pluginName) ?
+        mergeKeySet(target.plugin[pluginName], source.plugin[pluginName]) :
+        { ...target.plugin[pluginName] };
   }
 
   return {
     editor: mergeEditor(target.editor, source.editor),
     general: mergeKeySet(target.general, source.general),
-    plugin: mergedPlugin,
+    plugin: mergedPlugin
   };
 }

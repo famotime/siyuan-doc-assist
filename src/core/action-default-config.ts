@@ -11,14 +11,14 @@ export type ActionDefaultState = {
  */
 const DEFAULT_DISABLED_ACTION_KEYS = new Set<ActionKey>([
   "bold-selected-blocks",
-  "highlight-selected-blocks",
+  "highlight-selected-blocks"
 ]);
 
 /**
  * 默认注册到文档菜单的命令集合
  */
 const DEFAULT_MENU_REGISTERED_ACTION_KEYS = new Set<ActionKey>([
-  "float-selected-text",
+  "float-selected-text"
 ]);
 
 export function getDefaultActionState(key: ActionKey): ActionDefaultState {
@@ -26,7 +26,7 @@ export function getDefaultActionState(key: ActionKey): ActionDefaultState {
   const isDefaultMenuRegistered = DEFAULT_MENU_REGISTERED_ACTION_KEYS.has(key);
   return {
     defaultEnabled: !isDefaultDisabled,
-    defaultMenuRegistered: isDefaultMenuRegistered,
+    defaultMenuRegistered: isDefaultMenuRegistered
   };
 }
 
@@ -58,7 +58,7 @@ export const ACTION_DEFAULT_CONFIGS: Record<ActionKey, ActionDefaultState> = {
   "move-forward-links": { defaultEnabled: true, defaultMenuRegistered: false },
   "create-open-docs-summary": { defaultEnabled: true, defaultMenuRegistered: false },
   "create-top100-large-documents-report": { defaultEnabled: true, defaultMenuRegistered: false },
-  dedupe: { defaultEnabled: true, defaultMenuRegistered: false },
+  "dedupe": { defaultEnabled: true, defaultMenuRegistered: false },
   "split-doc-by-headings": { defaultEnabled: true, defaultMenuRegistered: false },
   "float-selected-text": { defaultEnabled: true, defaultMenuRegistered: true },
   "link-to-doc": { defaultEnabled: true, defaultMenuRegistered: false },
@@ -107,5 +107,5 @@ export const ACTION_DEFAULT_CONFIGS: Record<ActionKey, ActionDefaultState> = {
   "convert-images-to-webp": { defaultEnabled: true, defaultMenuRegistered: false },
   "convert-images-to-png": { defaultEnabled: true, defaultMenuRegistered: false },
   "resize-images-to-display": { defaultEnabled: true, defaultMenuRegistered: false },
-  "remove-doc-images": { defaultEnabled: true, defaultMenuRegistered: false },
+  "remove-doc-images": { defaultEnabled: true, defaultMenuRegistered: false }
 };

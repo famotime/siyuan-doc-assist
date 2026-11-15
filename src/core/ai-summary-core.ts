@@ -6,17 +6,17 @@ type SummaryInsertBlock = {
 
 type SummaryInsertTarget =
   | {
-      mode: "insert-before";
-      nextId: string;
-    }
-  | {
-      mode: "append";
-    };
+    mode: "insert-before";
+    nextId: string;
+  } |
+  {
+    mode: "append";
+  };
 
 const INTERNAL_DOC_LINK_PATTERNS = [
   /siyuan:\/\/blocks\//iu,
   /\(\([^)]+\)\)/u,
-  /\[\[[^[\]\n]+\]\]/u,
+  /\[\[[^[\]\n]+\]\]/u
 ];
 
 export function buildAiSummaryBlockMarkdown(summary: string): string {
@@ -50,7 +50,7 @@ export function resolveAiSummaryInsertTarget(
   if (firstParagraphIndex < 0) {
     return {
       mode: "insert-before",
-      nextId: blocks[0].id,
+      nextId: blocks[0].id
     };
   }
 
@@ -62,13 +62,13 @@ export function resolveAiSummaryInsertTarget(
     }
     return {
       mode: "insert-before",
-      nextId: nextBlock.id,
+      nextId: nextBlock.id
     };
   }
 
   return {
     mode: "insert-before",
-    nextId: firstParagraph.id,
+    nextId: firstParagraph.id
   };
 }
 

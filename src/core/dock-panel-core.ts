@@ -37,7 +37,7 @@ export type DockDocAction<T extends string = string> = {
 
 export const DOCK_TABS: DockTab[] = [
   { key: "key-info", label: "关键内容" },
-  { key: "doc-process", label: "文档处理" },
+  { key: "doc-process", label: "文档处理" }
 ];
 
 export const DOCK_ACTIVE_TAB_STORAGE_KEY = "doc-assistant.key-info-dock.active-tab";
@@ -88,7 +88,7 @@ const DOCK_ACTION_GROUP_LABELS: Record<DockDocActionGroup, string> = {
   organize: "整理",
   ai: "AI",
   image: "图片",
-  edit: "编辑",
+  edit: "编辑"
 };
 
 export const DOC_READONLY_DISABLED_REASON = "当前文档已锁定，仅支持导出、筛选等只读操作";
@@ -103,11 +103,11 @@ export function buildDockDocActions<T extends string>(
     const disabledByMobile = Boolean(action.desktopOnly && isMobile);
     const disabledByReadonly = Boolean(action.requiresWritableDoc && docReadonly);
     const disabled = disabledByMobile || disabledByReadonly;
-    const disabledReason = disabledByMobile
-      ? "该操作当前仅支持桌面端"
-      : disabledByReadonly
-        ? DOC_READONLY_DISABLED_REASON
-        : undefined;
+    const disabledReason = disabledByMobile ?
+      "该操作当前仅支持桌面端" :
+      disabledByReadonly ?
+        DOC_READONLY_DISABLED_REASON :
+        undefined;
     const menuRegistered = menuRegistrationState[action.key] === true;
     return {
       key: action.key,
@@ -122,7 +122,7 @@ export function buildDockDocActions<T extends string>(
       menuRegistered,
       menuToggleDisabled: disabled,
       ...(disabledReason ? { disabledReason } : {}),
-      ...(disabledReason ? { menuToggleDisabledReason: disabledReason } : {}),
+      ...(disabledReason ? { menuToggleDisabledReason: disabledReason } : {})
     };
   });
 }

@@ -7,15 +7,15 @@ describe("move-core", () => {
       sourceDoc: {
         id: "doc1",
         title: "Alpha",
-        parentId: "target",
+        parentId: "target"
       },
       targetParentId: "target",
-      existingChildTitles: ["Alpha"],
+      existingChildTitles: ["Alpha"]
     });
 
     expect(plan).toEqual({
       action: "skip",
-      reason: "already-child",
+      reason: "already-child"
     });
   });
 
@@ -24,15 +24,15 @@ describe("move-core", () => {
       sourceDoc: {
         id: "doc2",
         title: "Alpha",
-        parentId: "other",
+        parentId: "other"
       },
       targetParentId: "target",
-      existingChildTitles: ["Alpha", "Alpha (1)"],
+      existingChildTitles: ["Alpha", "Alpha (1)"]
     });
 
     expect(plan).toEqual({
       action: "rename-and-move",
-      newTitle: "Alpha (2)",
+      newTitle: "Alpha (2)"
     });
   });
 
@@ -41,14 +41,14 @@ describe("move-core", () => {
       sourceDoc: {
         id: "doc3",
         title: "Beta",
-        parentId: "other",
+        parentId: "other"
       },
       targetParentId: "target",
-      existingChildTitles: ["Alpha"],
+      existingChildTitles: ["Alpha"]
     });
 
     expect(plan).toEqual({
-      action: "move",
+      action: "move"
     });
   });
 });

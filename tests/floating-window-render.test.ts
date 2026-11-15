@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, vi, test } from "vitest";
 import { buildFloatingWindowHtml } from "@/ui/floating-text/floating-window-template";
 import { DEFAULT_FLOATING_TEXT_CONFIG, simpleMarkdownToHtml } from "@/core/floating-text-core";
 import { MARKED_UMD_SOURCE } from "@/ui/floating-text/marked-source";
 
 describe("floating-window-render", () => {
   describe("marked sandbox initialization and rendering", () => {
-    it("successfully initializes marked in isolated sandbox without global leakage", () => {
+    test("successfully initializes marked in isolated sandbox without global leakage", () => {
       const sandboxGlobal: Record<string, any> = {};
       const dummyExports: Record<string, any> = {};
       const dummyModule = { exports: dummyExports };
@@ -31,7 +31,7 @@ describe("floating-window-render", () => {
       expect(typeof sandboxGlobal.marked.parse).toBe("function");
     });
 
-    it("renders complex Markdown containing GFM tables, tasks and code blocks via sandboxed marked", () => {
+    test("renders complex Markdown containing GFM tables, tasks and code blocks via sandboxed marked", () => {
       const sandboxGlobal: Record<string, any> = {};
       const dummyExports: Record<string, any> = {};
       const dummyModule = { exports: dummyExports };
@@ -60,7 +60,7 @@ describe("floating-window-render", () => {
         "",
         "```typescript",
         "const num: number = 42;",
-        "```",
+        "```"
       ].join("\n");
 
       const html = marked.parse(markdownInput, { gfm: true, breaks: true });
@@ -81,12 +81,12 @@ describe("floating-window-render", () => {
   });
 
   describe("buildFloatingWindowHtml template output", () => {
-    it("embeds marked sandbox script in the generated HTML", () => {
+    test("embeds marked sandbox script in the generated HTML", () => {
       const html = buildFloatingWindowHtml({
         title: "测试悬浮",
         text: "# 初始内容",
         config: DEFAULT_FLOATING_TEXT_CONFIG,
-        isDark: false,
+        isDark: false
       });
 
       // 包含沙箱注入标记
@@ -101,7 +101,7 @@ describe("floating-window-render", () => {
       expect(html).toContain("stripKramdown");
     });
 
-    it("runs scripts in HTML without errors and binds buttons", async () => {
+    test("runs scripts in HTML without errors and binds buttons", async () => {
       const { JSDOM, VirtualConsole } = await import("jsdom");
       const virtualConsole = new VirtualConsole();
       const errors: any[] = [];
@@ -112,7 +112,7 @@ describe("floating-window-render", () => {
         title: "测试悬浮",
         text: "# 初始内容",
         config: DEFAULT_FLOATING_TEXT_CONFIG,
-        isDark: false,
+        isDark: false
       });
 
       const scriptMatches = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
@@ -140,7 +140,7 @@ describe("floating-window-render", () => {
 
       const dom = new JSDOM(html, {
         runScripts: "dangerously",
-        virtualConsole,
+        virtualConsole
       });
 
       expect(errors).toEqual([]);
@@ -182,7 +182,7 @@ describe("floating-window-render", () => {
   });
 
   describe("newline normalization and change detection logic", () => {
-    it("treats \\r\\n and \\n as identical to prevent unnecessary re-rendering on Windows", () => {
+    test("treats \\r\\n and \\n as identical to prevent unnecessary re-rendering on Windows", () => {
       const originalText = "第一行\r\n第二行\r\n第三行";
       const currentTextFromDom = "第一行\n第二行\n第三行";
 
@@ -199,13 +199,13 @@ describe("floating-window-render", () => {
   });
 
   describe("enhanced simpleMarkdownToHtml fallback", () => {
-    it("renders hr horizontal rules", () => {
+    test("renders hr horizontal rules", () => {
       const md = "第一段\n\n---\n\n第二段";
       const html = simpleMarkdownToHtml(md);
       expect(html).toContain('<hr class="ft-hr" />');
     });
 
-    it("renders mark highlight syntax", () => {
+    test("renders mark highlight syntax", () => {
       const md = "这是 ==重要高亮== 内容";
       const html = simpleMarkdownToHtml(md);
       expect(html).toContain("<mark>重要高亮</mark>");
@@ -213,12 +213,12 @@ describe("floating-window-render", () => {
   });
 
   describe("header drag enhancement styles and script", () => {
-    it("includes dragging cursor styles and pointer-event protections", () => {
+    test("includes dragging cursor styles and pointer-event protections", () => {
       const html = buildFloatingWindowHtml({
         title: "拖拽测试",
         text: "测试内容",
         config: DEFAULT_FLOATING_TEXT_CONFIG,
-        isDark: false,
+        isDark: false
       });
 
       expect(html).toContain("cursor: grab;");
@@ -228,12 +228,12 @@ describe("floating-window-render", () => {
       expect(html).toContain("pointer-events: none;");
     });
 
-    it("embeds mouse drag event listener script for fallback window movement", () => {
+    test("embeds mouse drag event listener script for fallback window movement", () => {
       const html = buildFloatingWindowHtml({
         title: "拖拽测试",
         text: "测试内容",
         config: DEFAULT_FLOATING_TEXT_CONFIG,
-        isDark: false,
+        isDark: false
       });
 
       expect(html).toContain("标题栏鼠标拖动增强与多环境兜底");
@@ -245,12 +245,12 @@ describe("floating-window-render", () => {
   });
 
   describe("search bar and auto-paste integration", () => {
-    it("renders search bar and search results markup in template", () => {
+    test("renders search bar and search results markup in template", () => {
       const html = buildFloatingWindowHtml({
         title: "搜索测试",
         text: "- 第一条信息\n- 第二条包含重要内容\n- 第三条信息",
         config: { ...DEFAULT_FLOATING_TEXT_CONFIG, autoPasteOnSelect: false },
-        isDark: false,
+        isDark: false
       });
 
       expect(html).toContain('id="ft-btn-search"');
@@ -262,7 +262,7 @@ describe("floating-window-render", () => {
       expect(html).toContain("ft-search-highlight");
     });
 
-    it("opens search bar, filters candidates, and navigates with keyboard in JSDOM", async () => {
+    test("opens search bar, filters candidates, and navigates with keyboard in JSDOM", async () => {
       const { JSDOM, VirtualConsole } = await import("jsdom");
       const virtualConsole = new VirtualConsole();
       const errors: any[] = [];
@@ -273,12 +273,12 @@ describe("floating-window-render", () => {
         title: "交互搜索测试",
         text,
         config: { ...DEFAULT_FLOATING_TEXT_CONFIG, autoPasteOnSelect: false },
-        isDark: false,
+        isDark: false
       });
 
       const dom = new JSDOM(html, {
         runScripts: "dangerously",
-        virtualConsole,
+        virtualConsole
       });
 
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -327,7 +327,7 @@ describe("floating-window-render", () => {
       expect(searchBar?.style.display).toBe("none");
     });
 
-    it("triggers copy and auto paste when autoPasteOnSelect is enabled", async () => {
+    test("triggers copy and auto paste when autoPasteOnSelect is enabled", async () => {
       const { JSDOM, VirtualConsole } = await import("jsdom");
       const virtualConsole = new VirtualConsole();
       const errors: any[] = [];
@@ -339,7 +339,7 @@ describe("floating-window-render", () => {
         title: "自动粘贴测试",
         text,
         config: { ...DEFAULT_FLOATING_TEXT_CONFIG, autoPasteOnSelect: true },
-        isDark: false,
+        isDark: false
       });
 
       const minimizeAndPasteMock = vi.fn();
@@ -350,13 +350,13 @@ describe("floating-window-render", () => {
         virtualConsole,
         beforeParse(window) {
           (window as any).__docAssistantHost = {
-            minimizeAndPaste: minimizeAndPasteMock,
+            minimizeAndPaste: minimizeAndPasteMock
           };
           (window as any).navigator.clipboard = {
             writeText: vi.fn().mockImplementation((txt) => {
               writtenClipboardText = txt;
               return Promise.resolve();
-            }),
+            })
           };
           (window as any).require = (mod: string) => {
             if (mod === "electron") {
@@ -364,13 +364,13 @@ describe("floating-window-render", () => {
                 clipboard: {
                   writeText: (txt: string) => {
                     writtenClipboardText = txt;
-                  },
-                },
+                  }
+                }
               };
             }
             return null;
           };
-        },
+        }
       });
 
       await new Promise((resolve) => setTimeout(resolve, 50));

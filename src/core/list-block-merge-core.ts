@@ -17,7 +17,7 @@ export type MergeSelectedListBlocksPreview = {
   hasChanges: boolean;
 };
 
-const ATTR_LINE_REGEX = /^\s*\{:\s*[^}]+\}\s*$/;
+const ATTR_LINE_REGEX = /^\s*\{:[^}]+\}\s*$/;
 const LIST_MARKER_REGEX = /^(\s*)([-+*]|\d+\.)\s+(.+)$/;
 const BULLET_ONLY_REGEX = /^\s*[•·●]\s*$/;
 
@@ -162,6 +162,6 @@ export function buildMergeSelectedListBlocksPreview(
     updateBlockId,
     mergedMarkdown,
     deleteBlockIds,
-    hasChanges,
+    hasChanges
   };
 }

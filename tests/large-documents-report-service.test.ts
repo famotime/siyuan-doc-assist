@@ -1,16 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel", () => ({
-  createDocWithMd: vi.fn(),
-  getDocAssets: vi.fn(),
-  getDocMetaByID: vi.fn(),
-  getFileBlob: vi.fn(),
-  getNotebookConf: vi.fn(),
-  listNotebookDocs: vi.fn(),
-  renderSprigTemplate: vi.fn(),
-  statAsset: vi.fn(),
-}));
-
 import {
   createDocWithMd,
   getDocAssets,
@@ -19,9 +8,20 @@ import {
   getNotebookConf,
   listNotebookDocs,
   renderSprigTemplate,
-  statAsset,
+  statAsset
 } from "@/services/kernel";
 import { createTop100LargeDocumentsReport } from "@/services/large-documents-report";
+
+vi.mock("@/services/kernel", () => ({
+  createDocWithMd: vi.fn(),
+  getDocAssets: vi.fn(),
+  getDocMetaByID: vi.fn(),
+  getFileBlob: vi.fn(),
+  getNotebookConf: vi.fn(),
+  listNotebookDocs: vi.fn(),
+  renderSprigTemplate: vi.fn(),
+  statAsset: vi.fn()
+}));
 
 const createDocWithMdMock = vi.mocked(createDocWithMd);
 const getDocAssetsMock = vi.mocked(getDocAssets);
@@ -42,13 +42,13 @@ describe("large documents report service", () => {
       id: "doc-1",
       box: "nb-1",
       hPath: "/项目/当前文档",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     getNotebookConfMock.mockResolvedValue({
       box: "nb-1",
       conf: {
-        dailyNoteSavePath: "/daily/{{now}}",
-      },
+        dailyNoteSavePath: "/daily/{{now}}"
+      }
     } as any);
     renderSprigTemplateMock.mockResolvedValue("/daily/2026/04/2026-04-27");
     listNotebookDocsMock.mockResolvedValue([
@@ -58,8 +58,8 @@ describe("large documents report service", () => {
         path: "/a.sy",
         hPath: "/资料/A 文档",
         updated: "20260427100000",
-        title: "A 文档",
-      },
+        title: "A 文档"
+      }
     ] as any);
     getFileBlobMock.mockResolvedValue(new Blob(["1234"]));
     getDocAssetsMock.mockResolvedValue(["assets/shared.png", "assets/shared.png"]);
@@ -68,7 +68,7 @@ describe("large documents report service", () => {
 
     const result = await createTop100LargeDocumentsReport({
       currentDocId: "doc-1",
-      now: new Date("2026-04-27T15:30:15+08:00"),
+      now: new Date("2026-04-27T15:30:15+08:00")
     });
 
     expect(createDocWithMdMock).toHaveBeenCalledWith(
@@ -81,7 +81,7 @@ describe("large documents report service", () => {
       id: "report-doc",
       title: "Top100大文件清单-20260427-153015",
       path: "/daily/2026/04/Top100大文件清单-20260427-153015",
-      docCount: 1,
+      docCount: 1
     });
   });
 
@@ -90,19 +90,19 @@ describe("large documents report service", () => {
       id: "doc-1",
       box: "nb-1",
       hPath: "/项目/当前文档",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     getNotebookConfMock.mockResolvedValue({
       box: "nb-1",
       conf: {
-        dailyNoteSavePath: "",
-      },
+        dailyNoteSavePath: ""
+      }
     } as any);
 
     await expect(
       createTop100LargeDocumentsReport({
         currentDocId: "doc-1",
-        now: new Date("2026-04-27T15:30:15+08:00"),
+        now: new Date("2026-04-27T15:30:15+08:00")
       })
     ).rejects.toThrow("当前笔记本未配置 Daily Note 保存路径");
   });
@@ -112,13 +112,13 @@ describe("large documents report service", () => {
       id: "doc-1",
       box: "nb-1",
       hPath: "/项目/当前文档",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     getNotebookConfMock.mockResolvedValue({
       box: "nb-1",
       conf: {
-        dailyNoteSavePath: "/daily/{{now}}",
-      },
+        dailyNoteSavePath: "/daily/{{now}}"
+      }
     } as any);
     renderSprigTemplateMock.mockResolvedValue("/daily/2026/04/2026-04-27");
     listNotebookDocsMock.mockResolvedValue([
@@ -128,8 +128,8 @@ describe("large documents report service", () => {
         path: "/a.sy",
         hPath: "/资料/A 文档",
         updated: "20260427100000",
-        title: "A 文档",
-      },
+        title: "A 文档"
+      }
     ] as any);
     getFileBlobMock.mockResolvedValue(new Blob(["1234"]));
     getDocAssetsMock.mockRejectedValue(new Error("asset lookup failed"));
@@ -137,7 +137,7 @@ describe("large documents report service", () => {
 
     await createTop100LargeDocumentsReport({
       currentDocId: "doc-1",
-      now: new Date("2026-04-27T15:30:15+08:00"),
+      now: new Date("2026-04-27T15:30:15+08:00")
     });
 
     expect(createDocWithMdMock).toHaveBeenCalledWith(

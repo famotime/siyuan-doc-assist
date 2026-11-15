@@ -5,7 +5,7 @@ import { createDocAssistantLogger } from "@/core/logger-core";
 import { BlockStyle } from "@/core/markdown-style-core";
 import {
   convertChineseEnglishPunctuation,
-  detectPunctuationToggleMode,
+  detectPunctuationToggleMode
 } from "@/core/punctuation-toggle-core";
 import { buildSelectedBlockStyleTogglePreview } from "@/core/selected-block-style-toggle-core";
 import {
@@ -14,25 +14,25 @@ import {
   convertSingleLineBreaksToParagraphMarks,
   countSingleLineBreaks,
   normalizeLineEndings,
-  removeSpaceLikeChars,
+  removeSpaceLikeChars
 } from "@/core/selection-text-transform-core";
 import {
   applyTextTransformToPartialSelection,
   applyTextTransformToSelectedBlocks,
   collectSelectedBlockElements,
-  filterOutNestedSelectedBlockIds,
+  filterOutNestedSelectedBlockIds
 } from "@/core/selection-dom-cleanup-core";
 import {
   deleteBlocksByIds,
   getBlocksByIds,
   getBlockKramdowns,
   getChildBlocksByParentId,
-  updateBlockMarkdown,
+  updateBlockMarkdown
 } from "@/services/kernel";
 import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
 import {
   getExplicitlySelectedBlockIds,
-  getSelectedBlockIds,
+  getSelectedBlockIds
 } from "@/plugin/action-runner-context";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { ProtyleLike } from "@/plugin/doc-context";
@@ -159,8 +159,7 @@ function applySelectedBlocksPunctuationToggleFromDom(
   }
   const mode = detectPunctuationToggleMode(source);
   return applyTextTransformToSelectedBlocks(root, selectedIds, (text) =>
-    convertChineseEnglishPunctuation(text, mode)
-  );
+    convertChineseEnglishPunctuation(text, mode));
 }
 
 function applyPartialSelectionPunctuationToggle(
@@ -168,8 +167,7 @@ function applyPartialSelectionPunctuationToggle(
 ): { handled: boolean; changedCount: number } {
   const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
   return applyTextTransformToPartialSelection(root, (text) =>
-    convertChineseEnglishPunctuation(text, detectPunctuationToggleMode(text))
-  );
+    convertChineseEnglishPunctuation(text, detectPunctuationToggleMode(text)));
 }
 
 export function createSelectionActionHandlers(
@@ -197,7 +195,7 @@ export function createSelectionActionHandlers(
         failures.push({
           id,
           kind: "source-missing",
-          reason: "读取块源码失败",
+          reason: "读取块源码失败"
         });
         continue;
       }
@@ -220,7 +218,7 @@ export function createSelectionActionHandlers(
         `含${styleLabel} ${preview.markedBlockCount} 个`,
         `未${styleLabel} ${preview.plainBlockCount} 个`,
         `操作：${operationText}`,
-        `预计更新 ${pendingUpdates.length} 个块。`,
+        `预计更新 ${pendingUpdates.length} 个块。`
       ];
       if (preview.partialBlockCount > 0) {
         confirmLines.push(`部分${styleLabel} ${preview.partialBlockCount} 个。`);
@@ -251,7 +249,7 @@ export function createSelectionActionHandlers(
         failures.push({
           id: item.id,
           kind: "update-failed",
-          reason: error instanceof Error ? error.message : String(error),
+          reason: error instanceof Error ? error.message : String(error)
         });
       }
     }
@@ -270,7 +268,7 @@ export function createSelectionActionHandlers(
         success,
         failed,
         skipped,
-        failures,
+        failures
       });
       showMessage(
         `处理完成，成功 ${success}，失败 ${failed}${sample ? `（${sample}）` : ""}`,
@@ -312,9 +310,9 @@ export function createSelectionActionHandlers(
       }
     }
 
-    const selectedIds = explicitSelectedIds.length
-      ? explicitSelectedIds
-      : getSelectedBlockIds(protyle);
+    const selectedIds = explicitSelectedIds.length ?
+      explicitSelectedIds :
+        getSelectedBlockIds(protyle);
     if (!selectedIds.length) {
       showMessage("未选中任何内容，请先选中后再操作", 5000, "info");
       return;
@@ -337,7 +335,7 @@ export function createSelectionActionHandlers(
       updates.push({
         id,
         next: cleaned.next,
-        removedCount: cleaned.removedCount,
+        removedCount: cleaned.removedCount
       });
     }
 
@@ -404,9 +402,9 @@ export function createSelectionActionHandlers(
       }
     }
 
-    const rawSelectedIds = explicitSelectedIds.length
-      ? explicitSelectedIds
-      : getSelectedBlockIds(protyle);
+    const rawSelectedIds = explicitSelectedIds.length ?
+      explicitSelectedIds :
+        getSelectedBlockIds(protyle);
 
     const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
     const selectedIds = filterOutNestedSelectedBlockIds(root, rawSelectedIds);
@@ -428,12 +426,12 @@ export function createSelectionActionHandlers(
           const cleaned = removeEmojiFromText(source);
           return {
             markdown: cleaned.next,
-            changedCount: cleaned.removedCount,
+            changedCount: cleaned.removedCount
           };
         },
         onUpdated: (cleaned) => {
           removedEmojiCount += cleaned.changedCount;
-        },
+        }
       });
 
       if (!report.updatedBlockCount) {
@@ -475,7 +473,7 @@ export function createSelectionActionHandlers(
         updates.push({
           id: block.id,
           next: cleaned.next,
-          removedCount: cleaned.removedCount,
+          removedCount: cleaned.removedCount
         });
         totalEmojiCount += cleaned.removedCount;
       }
@@ -490,7 +488,7 @@ export function createSelectionActionHandlers(
       "范围：本文档所有内容（未选中内容）",
       `待处理块数：${updates.length} 个（文档共 ${blocks.length} 个块）`,
       `预计清理 Emoji：${totalEmojiCount} 个`,
-      "是否继续？",
+      "是否继续？"
     ];
     const ok = await deps.askConfirmWithVisibleDialog("确认清理整篇文档 Emoji 表情", confirmLines.join("\n"));
     if (!ok) {
@@ -509,12 +507,12 @@ export function createSelectionActionHandlers(
         const cleaned = removeEmojiFromText(source);
         return {
           markdown: cleaned.next,
-          changedCount: cleaned.removedCount,
+          changedCount: cleaned.removedCount
         };
       },
       onUpdated: (cleaned) => {
         actualRemovedCount += cleaned.changedCount;
-      },
+      }
     });
 
     if (report.failedBlockCount > 0) {
@@ -554,9 +552,9 @@ export function createSelectionActionHandlers(
       }
     }
 
-    const selectedIds = explicitSelectedIds.length
-      ? explicitSelectedIds
-      : getSelectedBlockIds(protyle);
+    const selectedIds = explicitSelectedIds.length ?
+      explicitSelectedIds :
+        getSelectedBlockIds(protyle);
     if (!selectedIds.length) {
       showMessage("未选中任何内容，请先选中后再操作", 5000, "info");
       return;
@@ -629,7 +627,7 @@ export function createSelectionActionHandlers(
         useAllDoc ? "范围：本文档所有内容（未选中内容）" : `范围：选中块 ${targetBlocks.length} 个`,
         "模式：分段转换行",
         `预计更新 1 个块，删除 ${targetBlocks.length - 1} 个块。`,
-        "是否继续？",
+        "是否继续？"
       ];
       const ok = await deps.askConfirmWithVisibleDialog("确认执行换行-分段互转", confirmLines.join("\n"));
       if (!ok) {
@@ -675,7 +673,7 @@ export function createSelectionActionHandlers(
         return {
           id: block.id,
           next,
-          replaced,
+          replaced
         };
       })
       .filter((item): item is { id: string; next: string; replaced: number } => !!item);
@@ -689,7 +687,7 @@ export function createSelectionActionHandlers(
       useAllDoc ? "范围：本文档所有内容（未选中内容）" : `范围：选中块 ${targetBlocks.length} 个`,
       "模式：换行转分段",
       `预计替换单个换行 ${replacedCount} 处，更新 ${updates.length} 个块。`,
-      "是否继续？",
+      "是否继续？"
     ];
     const ok = await deps.askConfirmWithVisibleDialog("确认执行换行-分段互转", confirmLines.join("\n"));
     if (!ok) {
@@ -754,7 +752,7 @@ export function createSelectionActionHandlers(
       `普通段落转列表项 ${preview.paragraphBlockCount} 个`,
       `已有列表/列表项 ${preview.listLikeBlockCount} 个`,
       `预计生成列表项 ${preview.resultItemCount} 个`,
-      `预计更新 1 个块，删除 ${preview.deleteBlockIds.length} 个块`,
+      `预计更新 1 个块，删除 ${preview.deleteBlockIds.length} 个块`
     ];
     if (preview.skippedBlockCount > 0) {
       confirmLines.push(`跳过不支持块 ${preview.skippedBlockCount} 个`);
@@ -777,7 +775,7 @@ export function createSelectionActionHandlers(
 
     if (failed === 0) {
       const deleteResult = await deleteBlocksByIds(preview.deleteBlockIds, {
-        concurrency: DELETE_BLOCK_CONCURRENCY,
+        concurrency: DELETE_BLOCK_CONCURRENCY
       });
       deleted = deleteResult.deletedCount;
       failed += deleteResult.failedIds.length;
@@ -800,6 +798,6 @@ export function createSelectionActionHandlers(
     "clean-emoji": handleCleanEmoji,
     "toggle-selected-punctuation": handleToggleSelectedPunctuation,
     "toggle-linebreaks-paragraphs": handleToggleLinebreaksParagraphs,
-    "merge-selected-list-blocks": handleMergeSelectedListBlocks,
+    "merge-selected-list-blocks": handleMergeSelectedListBlocks
   };
 }

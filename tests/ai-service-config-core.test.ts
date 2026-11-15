@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildDefaultAiServiceConfig,
   isAiServiceConfigComplete,
-  normalizeAiServiceConfig,
+  normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 
 describe("ai service config core", () => {
@@ -14,7 +14,7 @@ describe("ai service config core", () => {
       model: "",
       requestTimeoutSeconds: 60,
       temperature: 0.7,
-      maxTokens: 4096,
+      maxTokens: 4096
     });
   });
 
@@ -24,7 +24,7 @@ describe("ai service config core", () => {
       baseUrl: " https://api.example.com/v1 ",
       apiKey: " sk-test ",
       model: " gpt-4.1-mini ",
-      requestTimeoutSeconds: 0,
+      requestTimeoutSeconds: 0
     })).toEqual({
       enabled: true,
       baseUrl: "https://api.example.com/v1",
@@ -32,7 +32,7 @@ describe("ai service config core", () => {
       model: "gpt-4.1-mini",
       requestTimeoutSeconds: 60,
       temperature: 0.7,
-      maxTokens: 4096,
+      maxTokens: 4096
     });
   });
 
@@ -42,7 +42,7 @@ describe("ai service config core", () => {
       enabled: true,
       baseUrl: `${zwsp}https://api.example.com/v1${zwsp}`,
       apiKey: `${zwsp}sk-test${zwsp}`,
-      model: `${zwsp}mimo-v2.5-pro${zwsp}`,
+      model: `${zwsp}mimo-v2.5-pro${zwsp}`
     });
     expect(result.baseUrl).toBe("https://api.example.com/v1");
     expect(result.apiKey).toBe("sk-test");
@@ -56,7 +56,7 @@ describe("ai service config core", () => {
       baseUrl: "https://api.example.com/v1",
       apiKey: "sk-test",
       model: "gpt-4.1-mini",
-      requestTimeoutSeconds: 45,
+      requestTimeoutSeconds: 45
     })).toBe(true);
   });
 });

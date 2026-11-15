@@ -7,16 +7,16 @@ import {
   resolveBlocksAfterOpeningSeparator,
   stripMarkdownMarkersForDisplay,
   toConfirmDetailText,
-  truncateForDisplay,
+  truncateForDisplay
 } from "@/core/ai-marker-action-core";
 import {
   detectIrrelevantParagraphMarks,
-  detectKeyContentParagraphHighlights,
+  detectKeyContentParagraphHighlights
 } from "@/services/ai-slop-marker";
 import {
   getChildBlocksByParentId,
   getDocMetaByID,
-  updateBlockMarkdown,
+  updateBlockMarkdown
 } from "@/services/kernel";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import type { ConfirmDetailItem } from "@/plugin/action-runner";
@@ -35,7 +35,7 @@ export function createAiMarkerActionHandlers(
         .filter((block) => !isFullyStruckParagraph(block.markdown || ""))
         .map((block) => ({
           id: block.id,
-          markdown: (block.markdown || "").trim(),
+          markdown: (block.markdown || "").trim()
         }));
       if (!paragraphs.length) {
         showMessage("当前文档没有可供筛选的段落", 5000, "info");
@@ -52,7 +52,7 @@ export function createAiMarkerActionHandlers(
       const marks = await detectIrrelevantParagraphMarks({
         config: options.getAiSummaryConfig?.(),
         documentTitle: docMeta?.title,
-        paragraphs,
+        paragraphs
       });
       const paragraphMap = new Map(paragraphs.map((item) => [item.id, item]));
       const updates = marks
@@ -66,9 +66,9 @@ export function createAiMarkerActionHandlers(
             id: paragraph.id,
             markdown: result.markdown,
             markedCount: result.markedCount,
-            detailLabels: result.detailLabels.length
-              ? result.detailLabels
-              : [toConfirmDetailText(paragraph.markdown)],
+            detailLabels: result.detailLabels.length ?
+              result.detailLabels :
+                [toConfirmDetailText(paragraph.markdown)]
           };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
@@ -82,17 +82,17 @@ export function createAiMarkerActionHandlers(
       const markedCount = updates.reduce((sum, item) => sum + item.markedCount, 0);
       const detailItems: ConfirmDetailItem[] = updates.flatMap((item) =>
         item.detailLabels.map((label) => ({
-          label: truncateForDisplay(label, 200),
+          label: truncateForDisplay(label, 200)
         }))
       );
 
-      const ok = options.askConfirmWithVisibleDialog
-        ? await options.askConfirmWithVisibleDialog(
-          "确认标记口水内容",
-          `AI 判定可标记 ${markedCount} 处，涉及 ${updates.length} 个块。将为对应内容添加删除线，是否继续？`,
-          detailItems
-        )
-        : true;
+      const ok = options.askConfirmWithVisibleDialog ?
+          await options.askConfirmWithVisibleDialog(
+            "确认标记口水内容",
+            `AI 判定可标记 ${markedCount} 处，涉及 ${updates.length} 个块。将为对应内容添加删除线，是否继续？`,
+            detailItems
+          ) :
+        true;
       if (!ok) {
         return;
       }
@@ -129,7 +129,7 @@ export function createAiMarkerActionHandlers(
         .filter((block) => Boolean((block.markdown || "").trim()))
         .map((block) => ({
           id: block.id,
-          markdown: (block.markdown || "").trim(),
+          markdown: (block.markdown || "").trim()
         }));
       if (!paragraphs.length) {
         showMessage("当前文档没有可供识别的段落", 5000, "info");
@@ -146,7 +146,7 @@ export function createAiMarkerActionHandlers(
       const highlightResults = await detectKeyContentParagraphHighlights({
         config: options.getAiSummaryConfig?.(),
         documentTitle: docMeta?.title,
-        paragraphs,
+        paragraphs
       });
       const paragraphMap = new Map(paragraphs.map((item) => [item.id, item]));
       const updates = highlightResults
@@ -157,7 +157,7 @@ export function createAiMarkerActionHandlers(
           }
           return {
             id: paragraph.id,
-            markdown: applyBoldToParagraphHighlights(paragraph.markdown, item.highlights),
+            markdown: applyBoldToParagraphHighlights(paragraph.markdown, item.highlights)
           };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
@@ -171,16 +171,16 @@ export function createAiMarkerActionHandlers(
       const detailItems: ConfirmDetailItem[] = highlightResults
         .filter((item) => paragraphMap.has(item.paragraphId))
         .flatMap((item) => item.highlights.map((highlight) => ({
-          label: truncateForDisplay(stripMarkdownMarkersForDisplay(highlight), 200),
+          label: truncateForDisplay(stripMarkdownMarkersForDisplay(highlight), 200)
         })));
 
-      const ok = options.askConfirmWithVisibleDialog
-        ? await options.askConfirmWithVisibleDialog(
-          "确认标记关键内容",
-          `AI 判定可标记 ${updates.length} 段关键内容。将为 ${updates.length} 个块添加局部加粗，是否继续？`,
-          detailItems
-        )
-        : true;
+      const ok = options.askConfirmWithVisibleDialog ?
+          await options.askConfirmWithVisibleDialog(
+            "确认标记关键内容",
+            `AI 判定可标记 ${updates.length} 段关键内容。将为 ${updates.length} 个块添加局部加粗，是否继续？`,
+            detailItems
+          ) :
+        true;
       if (!ok) {
         return;
       }
@@ -208,6 +208,6 @@ export function createAiMarkerActionHandlers(
         return;
       }
       showMessage(summary, 5000, "info");
-    },
+    }
   };
 }

@@ -21,6 +21,6 @@ export function buildGetFileRequest(path: string): {
   const normalized = normalizeWorkspacePath(path);
   return {
     url: "/api/file/getFile",
-    body: JSON.stringify({ path: normalized }),
+    body: JSON.stringify({ path: normalized })
   };
 }

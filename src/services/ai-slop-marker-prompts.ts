@@ -19,7 +19,7 @@ export function normalizeParagraphCandidates(
   return paragraphs
     .map((item) => ({
       id: typeof item?.id === "string" ? item.id.trim() : "",
-      markdown: typeof item?.markdown === "string" ? item.markdown.trim() : "",
+      markdown: typeof item?.markdown === "string" ? item.markdown.trim() : ""
     }))
     .filter((item) => item.id && item.markdown);
 }
@@ -30,13 +30,13 @@ export function buildIrrelevantParagraphMessages(params: {
   segments?: IrrelevantSegmentCandidate[];
 }) {
   const segments = Array.isArray(params.segments) ? params.segments : [];
-  const userPayload = segments.length > 0
-    ? JSON.stringify(segments.map((item) => ({
-      id: item.id,
-      paragraphId: item.paragraphId,
-      text: item.text,
-    })))
-    : JSON.stringify(params.paragraphs);
+  const userPayload = segments.length > 0 ?
+      JSON.stringify(segments.map((item) => ({
+        id: item.id,
+        paragraphId: item.paragraphId,
+        text: item.text
+      }))) :
+      JSON.stringify(params.paragraphs);
   return [
     {
       role: "system",
@@ -49,21 +49,21 @@ export function buildIrrelevantParagraphMessages(params: {
         "输出要求：只返回候选片段 id，不要返回原文内容，不要改写、不要概括、不要新增片段。",
         "输出要求：只输出一个 JSON 对象，不要任何解释文字、不要 Markdown 代码块、不要推理过程。",
         "若有应标记的片段：{\"segmentIds\":[\"s1\",\"s2\"]}",
-        "若没有应标记的片段：{\"segmentIds\":[]}",
-      ].join("\n"),
+        "若没有应标记的片段：{\"segmentIds\":[]}"
+      ].join("\n")
     },
     {
       role: "user",
       content: [
         params.documentTitle ? `文档标题：${params.documentTitle}` : "",
-        segments.length > 0
-          ? `以下是 ${segments.length} 个候选片段（含片段 id、段落 id 和原文），请返回应标记删除线的片段 id：`
-          : `以下是 ${params.paragraphs.length} 个段落（含 id 和 markdown 内容），请识别应标记删除线的口水片段：`,
-        userPayload,
+        segments.length > 0 ?
+          `以下是 ${segments.length} 个候选片段（含片段 id、段落 id 和原文），请返回应标记删除线的片段 id：` :
+          `以下是 ${params.paragraphs.length} 个段落（含 id 和 markdown 内容），请识别应标记删除线的口水片段：`,
+        userPayload
       ]
         .filter(Boolean)
-        .join("\n\n"),
-    },
+        .join("\n\n")
+    }
   ];
 }
 
@@ -73,13 +73,13 @@ export function buildKeyContentParagraphMessages(params: {
   segments?: IrrelevantSegmentCandidate[];
 }) {
   const segments = Array.isArray(params.segments) ? params.segments : [];
-  const userPayload = segments.length > 0
-    ? JSON.stringify(segments.map((item) => ({
-      id: item.id,
-      paragraphId: item.paragraphId,
-      text: item.text,
-    })))
-    : JSON.stringify(params.paragraphs);
+  const userPayload = segments.length > 0 ?
+      JSON.stringify(segments.map((item) => ({
+        id: item.id,
+        paragraphId: item.paragraphId,
+        text: item.text
+      }))) :
+      JSON.stringify(params.paragraphs);
   return [
     {
       role: "system",
@@ -90,20 +90,20 @@ export function buildKeyContentParagraphMessages(params: {
         "没有明确关键内容的候选片段不要出现在结果中。",
         "输出要求：只输出一个 JSON 对象，不要任何解释文字、不要 Markdown 代码块、不要推理过程。",
         "输出格式：{\"segmentIds\":[\"s1\",\"s2\"]}",
-        "若所有候选片段都没有明确关键内容：{\"segmentIds\":[]}",
-      ].join("\n"),
+        "若所有候选片段都没有明确关键内容：{\"segmentIds\":[]}"
+      ].join("\n")
     },
     {
       role: "user",
       content: [
         params.documentTitle ? `文档标题：${params.documentTitle}` : "",
-        segments.length > 0
-          ? `以下是 ${segments.length} 个候选片段（含片段 id、段落 id 和原文），请返回适合局部加粗的片段 id：`
-          : `以下是 ${params.paragraphs.length} 个段落（含 id 和 markdown 内容），请识别适合局部加粗的关键内容片段：`,
-        userPayload,
+        segments.length > 0 ?
+          `以下是 ${segments.length} 个候选片段（含片段 id、段落 id 和原文），请返回适合局部加粗的片段 id：` :
+          `以下是 ${params.paragraphs.length} 个段落（含 id 和 markdown 内容），请识别适合局部加粗的关键内容片段：`,
+        userPayload
       ]
         .filter(Boolean)
-        .join("\n\n"),
-    },
+        .join("\n\n")
+    }
   ];
 }

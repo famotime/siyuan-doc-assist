@@ -1,7 +1,7 @@
 import {
   GestureDirection,
   GesturePoint,
-  GestureRecognizer,
+  GestureRecognizer
 } from "@/core/gesture-recognition-core";
 
 export type GestureStrokeState = {
@@ -40,7 +40,7 @@ export function createGestureCapture(callbacks: GestureCaptureCallbacks) {
     points: [...points],
     directions: recognizer.getDirections(),
     moved: recognizer.isMoved(),
-    startTarget,
+    startTarget
   });
 
   const handleMouseDown = (event: MouseEvent) => {
@@ -130,6 +130,6 @@ export function createGestureCapture(callbacks: GestureCaptureCallbacks) {
   return {
     bind,
     unbind,
-    isDragging: () => dragging,
+    isDragging: () => dragging
   };
 }

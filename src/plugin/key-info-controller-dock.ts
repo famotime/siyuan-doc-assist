@@ -1,7 +1,7 @@
 import { buildDockDocActions } from "@/core/dock-panel-core";
 import {
   DocMenuRegistrationState,
-  isAllDocMenuRegistrationEnabled,
+  isAllDocMenuRegistrationEnabled
 } from "@/core/doc-menu-registration-core";
 import type { KeyInfoItem, KeyInfoFilter } from "@/core/key-info-core";
 import { ActionConfig, ActionKey, isActionKey } from "@/plugin/actions";
@@ -76,7 +76,7 @@ export function createKeyInfoControllerDockCallbacks(options: {
     onDocFavoriteActionReorder: (order) => {
       const normalized = order.filter((key): key is ActionKey => isActionKey(key));
       void deps.setDocFavoriteActionOrder(normalized);
-    },
+    }
   };
 }
 
@@ -91,7 +91,7 @@ export function buildKeyInfoControllerDockActionState(options: {
   return {
     docMenuRegisterAll: isAllDocMenuRegistrationEnabled(registration),
     docActions: buildDockDocActions(actions, isMobile, registration, docReadonly),
-    favoriteActionKeys,
+    favoriteActionKeys
   };
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildGetFileRequest,
   decodeURIComponentSafe,
-  normalizeWorkspacePath,
+  normalizeWorkspacePath
 } from "@/core/workspace-path-core";
 
 describe("workspace path core", () => {
@@ -14,7 +14,7 @@ describe("workspace path core", () => {
   test("builds getFile request payload with normalized path", () => {
     expect(buildGetFileRequest("temp/export/a b.zip")).toEqual({
       url: "/api/file/getFile",
-      body: "{\"path\":\"/temp/export/a b.zip\"}",
+      body: "{\"path\":\"/temp/export/a b.zip\"}"
     });
   });
 

@@ -34,9 +34,9 @@ function createDocRow(
   const title = document.createElement("span");
   title.className = "link-tool-dedupe__title";
   title.textContent =
-    doc.id === keepId
-      ? `${doc.title} (${doc.updated}) [建议保留]`
-      : `${doc.title} (${doc.updated})`;
+    doc.id === keepId ?
+      `${doc.title} (${doc.updated}) [建议保留]` :
+      `${doc.title} (${doc.updated})`;
 
   const path = document.createElement("span");
   path.className = "ft__secondary";
@@ -53,7 +53,7 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
     title: "重复文档识别",
     content: `<div class="link-tool-dedupe"><div class="link-tool-dedupe__toolbar"></div><div class="link-tool-dedupe__groups"></div></div>`,
     width: "820px",
-    height: "70vh",
+    height: "70vh"
   });
 
   const root = dialog.element.querySelector(".link-tool-dedupe") as HTMLDivElement;
@@ -179,9 +179,9 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
           try {
             const report = await args.onDelete(selectedIds);
             const failed = report.failed.length;
-            const msg = failed
-              ? `删除完成，成功 ${report.successIds.length}，失败 ${failed}`
-              : `删除完成，成功 ${report.successIds.length}`;
+            const msg = failed ?
+              `删除完成，成功 ${report.successIds.length}，失败 ${failed}` :
+              `删除完成，成功 ${report.successIds.length}`;
             showMessage(msg, 7000, failed ? "error" : "info");
             dialog.destroy();
           } finally {

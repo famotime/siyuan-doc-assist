@@ -4,20 +4,20 @@ export {
   removeTrailingWhitespaceFromDom,
   removeTrailingWhitespaceFromMarkdown,
   removeClippedListPrefixesFromMarkdown,
-  splitBilingualParagraphMarkdown,
+  splitBilingualParagraphMarkdown
 } from "@/core/markdown-cleanup-text-core";
 export type {
   BilingualParagraphSplitResult,
   StrikethroughCleanupResult,
   TrailingWhitespaceCleanupResult,
-  TrailingWhitespaceDomCleanupResult,
+  TrailingWhitespaceDomCleanupResult
 } from "@/core/markdown-cleanup-text-core";
 
 export {
-  cleanupAiOutputArtifactsInMarkdown,
+  cleanupAiOutputArtifactsInMarkdown
 } from "@/core/markdown-cleanup-ai-core";
 export type {
-  AiOutputCleanupResult,
+  AiOutputCleanupResult
 } from "@/core/markdown-cleanup-ai-core";
 
 export {
@@ -33,7 +33,7 @@ export {
   isBlockquoteBlock,
   isBlockquoteBlockType,
   isCodeBlockType,
-  isEmptyCodeBlock,
+  isEmptyCodeBlock
 } from "@/core/markdown-cleanup-block-core";
 export type {
   BlankParagraphCleanupResult,
@@ -45,6 +45,6 @@ export type {
   EmptyCodeBlockCleanupResult,
   HeadingBlankParagraphInsertResult,
   ParagraphBlockMeta,
-  SelectBlockRangeResult,
+  SelectBlockRangeResult
 } from "@/core/markdown-cleanup-block-core";
 

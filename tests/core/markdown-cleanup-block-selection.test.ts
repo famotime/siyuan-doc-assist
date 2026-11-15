@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
   findSelectFromCurrentToEndBlockIds,
-  findSelectFromStartToCurrentBlockIds,
+  findSelectFromStartToCurrentBlockIds
 } from "@/core/markdown-cleanup-core";
 import {
   applyBlockSelectionInDom,
   ensureRangeBlocksLoadedInDom,
   isBlockOrAncestorInTargetSet,
-  RangeSelectionObserverManager,
+  RangeSelectionObserverManager
 } from "@/plugin/action-runner-select-range-handlers";
 
 describe("select block range core logic", () => {
@@ -17,35 +17,35 @@ describe("select block range core logic", () => {
     { id: "block-2" },
     { id: "block-3" },
     { id: "block-4" },
-    { id: "block-5" },
+    { id: "block-5" }
   ];
 
   describe("findSelectFromStartToCurrentBlockIds", () => {
-    it("returns empty result when currentBlockId is empty", () => {
+    test("returns empty result when currentBlockId is empty", () => {
       const res = findSelectFromStartToCurrentBlockIds(mockBlocks, "");
       expect(res.selectedIds).toEqual([]);
       expect(res.selectedCount).toBe(0);
     });
 
-    it("returns empty result when currentBlockId is not in blocks", () => {
+    test("returns empty result when currentBlockId is not in blocks", () => {
       const res = findSelectFromStartToCurrentBlockIds(mockBlocks, "non-existent");
       expect(res.selectedIds).toEqual([]);
       expect(res.selectedCount).toBe(0);
     });
 
-    it("selects only first block when currentBlockId is the first block", () => {
+    test("selects only first block when currentBlockId is the first block", () => {
       const res = findSelectFromStartToCurrentBlockIds(mockBlocks, "block-1");
       expect(res.selectedIds).toEqual(["block-1"]);
       expect(res.selectedCount).toBe(1);
     });
 
-    it("selects from start to middle block", () => {
+    test("selects from start to middle block", () => {
       const res = findSelectFromStartToCurrentBlockIds(mockBlocks, "block-3");
       expect(res.selectedIds).toEqual(["block-1", "block-2", "block-3"]);
       expect(res.selectedCount).toBe(3);
     });
 
-    it("selects all blocks when currentBlockId is the last block", () => {
+    test("selects all blocks when currentBlockId is the last block", () => {
       const res = findSelectFromStartToCurrentBlockIds(mockBlocks, "block-5");
       expect(res.selectedIds).toEqual(["block-1", "block-2", "block-3", "block-4", "block-5"]);
       expect(res.selectedCount).toBe(5);
@@ -53,39 +53,39 @@ describe("select block range core logic", () => {
   });
 
   describe("findSelectFromCurrentToEndBlockIds", () => {
-    it("returns empty result when currentBlockId is empty", () => {
+    test("returns empty result when currentBlockId is empty", () => {
       const res = findSelectFromCurrentToEndBlockIds(mockBlocks, "");
       expect(res.selectedIds).toEqual([]);
       expect(res.selectedCount).toBe(0);
     });
 
-    it("returns empty result when currentBlockId is not in blocks", () => {
+    test("returns empty result when currentBlockId is not in blocks", () => {
       const res = findSelectFromCurrentToEndBlockIds(mockBlocks, "non-existent");
       expect(res.selectedIds).toEqual([]);
       expect(res.selectedCount).toBe(0);
     });
 
-    it("selects all blocks when currentBlockId is the first block", () => {
+    test("selects all blocks when currentBlockId is the first block", () => {
       const res = findSelectFromCurrentToEndBlockIds(mockBlocks, "block-1");
       expect(res.selectedIds).toEqual(["block-1", "block-2", "block-3", "block-4", "block-5"]);
       expect(res.selectedCount).toBe(5);
     });
 
-    it("selects from middle block to end", () => {
+    test("selects from middle block to end", () => {
       const res = findSelectFromCurrentToEndBlockIds(mockBlocks, "block-3");
       expect(res.selectedIds).toEqual(["block-3", "block-4", "block-5"]);
       expect(res.selectedCount).toBe(3);
     });
 
-    it("selects only last block when currentBlockId is the last block", () => {
+    test("selects only last block when currentBlockId is the last block", () => {
       const res = findSelectFromCurrentToEndBlockIds(mockBlocks, "block-5");
       expect(res.selectedIds).toEqual(["block-5"]);
       expect(res.selectedCount).toBe(1);
     });
   });
 
-  describe("DOM selection application and dynamic loading helper", () => {
-    it("applies protyle-wysiwyg--select class to matching target DOM elements", () => {
+  describe("dOM selection application and dynamic loading helper", () => {
+    test("applies protyle-wysiwyg--select class to matching target DOM elements", () => {
       const container = document.createElement("div");
       container.innerHTML = `
         <div data-node-id="b1" class="p"></div>
@@ -103,7 +103,7 @@ describe("select block range core logic", () => {
       expect(b3?.classList.contains("protyle-wysiwyg--select")).toBe(false);
     });
 
-    it("correctly selects all nested sub-blocks and paragraphs when container block is targeted", () => {
+    test("correctly selects all nested sub-blocks and paragraphs when container block is targeted", () => {
       const container = document.createElement("div");
       container.innerHTML = `
         <div data-node-id="list-1" class="list">
@@ -130,7 +130,7 @@ describe("select block range core logic", () => {
       expect(pOutside.classList.contains("protyle-wysiwyg--select")).toBe(false);
     });
 
-    it("ensureRangeBlocksLoadedInDom triggers scroll and confirms boundary block loading", async () => {
+    test("ensureRangeBlocksLoadedInDom triggers scroll and confirms boundary block loading", async () => {
       const scrollParent = document.createElement("div");
       scrollParent.className = "protyle-content";
       const root = document.createElement("div");
@@ -161,7 +161,7 @@ describe("select block range core logic", () => {
       expect(root.querySelector('[data-node-id="b3"]')?.classList.contains("protyle-wysiwyg--select")).toBe(true);
     });
 
-    it("RangeSelectionObserverManager maintains active target set and handles activation/deactivation", () => {
+    test("rangeSelectionObserverManager maintains active target set and handles activation/deactivation", () => {
       const manager = new RangeSelectionObserverManager();
       const scrollParent = document.createElement("div");
       scrollParent.className = "protyle-content";

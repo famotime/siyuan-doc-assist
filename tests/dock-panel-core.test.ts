@@ -6,14 +6,14 @@ import {
   loadPersistedDockActiveTab,
   resolveInitialDockActiveTab,
   normalizeDockTabKey,
-  savePersistedDockActiveTab,
+  savePersistedDockActiveTab
 } from "@/core/dock-panel-core";
 
 describe("dock-panel-core", () => {
   test("defines key info and doc process tabs", () => {
     expect(DOCK_TABS).toEqual([
       { key: "key-info", label: "关键内容" },
-      { key: "doc-process", label: "文档处理" },
+      { key: "doc-process", label: "文档处理" }
     ]);
   });
 
@@ -24,33 +24,33 @@ describe("dock-panel-core", () => {
           key: "export-current",
           commandText: "仅导出当前文档",
           icon: "iconDownload",
-          group: "export",
+          group: "export"
         },
         {
           key: "move-backlinks",
           commandText: "移动反链文档为子文档",
           desktopOnly: true,
           icon: "iconMove",
-          group: "organize",
+          group: "organize"
         },
         {
           key: "convert-images-to-webp",
           commandText: "批量转换为WebP",
           icon: "iconImage",
-          group: "image",
+          group: "image"
         },
         {
           key: "convert-images-to-png",
           commandText: "批量转换为PNG",
           icon: "iconImage",
-          group: "image",
+          group: "image"
         },
         {
           key: "remove-doc-images",
           commandText: "删除本文档图片",
           icon: "iconImage",
-          group: "image",
-        },
+          group: "image"
+        }
       ],
       true,
       {
@@ -58,7 +58,7 @@ describe("dock-panel-core", () => {
         "move-backlinks": true,
         "convert-images-to-webp": true,
         "convert-images-to-png": true,
-        "remove-doc-images": true,
+        "remove-doc-images": true
       }
     );
 
@@ -72,7 +72,7 @@ describe("dock-panel-core", () => {
         groupLabel: "导出",
         disabled: false,
         menuRegistered: false,
-        menuToggleDisabled: false,
+        menuToggleDisabled: false
       },
       {
         key: "move-backlinks",
@@ -85,7 +85,7 @@ describe("dock-panel-core", () => {
         disabledReason: "该操作当前仅支持桌面端",
         menuRegistered: true,
         menuToggleDisabled: true,
-        menuToggleDisabledReason: "该操作当前仅支持桌面端",
+        menuToggleDisabledReason: "该操作当前仅支持桌面端"
       },
       {
         key: "convert-images-to-webp",
@@ -96,7 +96,7 @@ describe("dock-panel-core", () => {
         groupLabel: "图片",
         disabled: false,
         menuRegistered: true,
-        menuToggleDisabled: false,
+        menuToggleDisabled: false
       },
       {
         key: "convert-images-to-png",
@@ -107,7 +107,7 @@ describe("dock-panel-core", () => {
         groupLabel: "图片",
         disabled: false,
         menuRegistered: true,
-        menuToggleDisabled: false,
+        menuToggleDisabled: false
       },
       {
         key: "remove-doc-images",
@@ -118,8 +118,8 @@ describe("dock-panel-core", () => {
         groupLabel: "图片",
         disabled: false,
         menuRegistered: true,
-        menuToggleDisabled: false,
-      },
+        menuToggleDisabled: false
+      }
     ]);
   });
 
@@ -130,28 +130,28 @@ describe("dock-panel-core", () => {
           key: "export-current",
           commandText: "仅导出当前文档",
           icon: "iconDownload",
-          group: "export",
+          group: "export"
         },
         {
           key: "insert-backlinks",
           commandText: "插入反链文档列表（去重）",
           icon: "iconList",
           group: "insert",
-          requiresWritableDoc: true,
+          requiresWritableDoc: true
         },
         {
           key: "move-backlinks",
           commandText: "移动反链文档为子文档",
           icon: "iconMove",
           group: "organize",
-          requiresWritableDoc: true,
-        },
+          requiresWritableDoc: true
+        }
       ],
       false,
       {
         "export-current": true,
         "insert-backlinks": true,
-        "move-backlinks": true,
+        "move-backlinks": true
       },
       true
     );
@@ -166,7 +166,7 @@ describe("dock-panel-core", () => {
         groupLabel: "导出",
         disabled: false,
         menuRegistered: true,
-        menuToggleDisabled: false,
+        menuToggleDisabled: false
       },
       {
         key: "insert-backlinks",
@@ -179,7 +179,7 @@ describe("dock-panel-core", () => {
         disabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
         menuRegistered: true,
         menuToggleDisabled: true,
-        menuToggleDisabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
+        menuToggleDisabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作"
       },
       {
         key: "move-backlinks",
@@ -192,8 +192,8 @@ describe("dock-panel-core", () => {
         disabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
         menuRegistered: true,
         menuToggleDisabled: true,
-        menuToggleDisabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作",
-      },
+        menuToggleDisabledReason: "当前文档已锁定，仅支持导出、筛选等只读操作"
+      }
     ]);
   });
 
@@ -210,7 +210,7 @@ describe("dock-panel-core", () => {
       getItem: vi.fn((key: string) => values.get(key) ?? null),
       setItem: vi.fn((key: string, value: string) => {
         values.set(key, value);
-      }),
+      })
     };
 
     expect(loadPersistedDockActiveTab(storage)).toBe("key-info");
@@ -232,7 +232,7 @@ describe("dock-panel-core", () => {
       }),
       setItem: vi.fn(() => {
         throw new Error("storage offline");
-      }),
+      })
     };
 
     expect(loadPersistedDockActiveTab(throwingStorage)).toBe("key-info");
@@ -241,7 +241,7 @@ describe("dock-panel-core", () => {
 
   test("resolves initial dock active tab considering startupDocProcessTabEnabled", () => {
     const storage = {
-      getItem: vi.fn(() => "key-info"),
+      getItem: vi.fn(() => "key-info")
     };
 
     expect(resolveInitialDockActiveTab(storage, true)).toBe("doc-process");
@@ -251,7 +251,7 @@ describe("dock-panel-core", () => {
     expect(resolveInitialDockActiveTab(null, false)).toBe("key-info");
 
     const processStorage = {
-      getItem: vi.fn(() => "doc-process"),
+      getItem: vi.fn(() => "doc-process")
     };
     expect(resolveInitialDockActiveTab(processStorage, false)).toBe("doc-process");
   });

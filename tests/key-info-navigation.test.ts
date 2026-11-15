@@ -2,9 +2,10 @@
 
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
-  createKeyInfoNavigation,
-  type KeyInfoNavigationItem,
+  createKeyInfoNavigation
+
 } from "@/plugin/key-info-navigation";
+import type { KeyInfoNavigationItem } from "@/plugin/key-info-navigation";
 
 function item(blockId: string): KeyInfoNavigationItem {
   return {
@@ -14,7 +15,7 @@ function item(blockId: string): KeyInfoNavigationItem {
     raw: blockId,
     blockId,
     blockSort: 0,
-    order: 0,
+    order: 0
   };
 }
 
@@ -39,7 +40,7 @@ describe("key-info navigation", () => {
       width: 0,
       x: 0,
       y: 0,
-      toJSON: () => ({}),
+      toJSON: () => ({})
     });
     root.appendChild(target);
     Object.defineProperty(window, "innerHeight", { value: 480, configurable: true });

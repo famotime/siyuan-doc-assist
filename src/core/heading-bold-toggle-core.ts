@@ -39,7 +39,7 @@ export function buildHeadingBoldTogglePreview(
       }
       return {
         id: block.id,
-        next,
+        next
       };
     })
     .filter((item): item is { id: string; next: string } => !!item);
@@ -50,6 +50,6 @@ export function buildHeadingBoldTogglePreview(
     plainHeadingCount: headingBlocks.length - boldHeadingCount,
     updateCount: updates.length,
     mode,
-    updates,
+    updates
   };
 }

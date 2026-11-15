@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   convertChineseEnglishPunctuation,
   detectPunctuationToggleMode,
-  toggleChineseEnglishPunctuation,
+  toggleChineseEnglishPunctuation
 } from "@/core/punctuation-toggle-core";
 
 describe("punctuation-toggle-core", () => {
@@ -19,7 +19,7 @@ describe("punctuation-toggle-core", () => {
     const result = convertChineseEnglishPunctuation("A, B. C?", "en-to-zh");
     expect(result).toEqual({
       next: "A， B。 C？",
-      changedCount: 3,
+      changedCount: 3
     });
   });
 
@@ -30,7 +30,7 @@ describe("punctuation-toggle-core", () => {
     );
     expect(result).toEqual({
       next: "价格 1,234.56 元，约 7.5%",
-      changedCount: 0,
+      changedCount: 0
     });
   });
 
@@ -41,7 +41,7 @@ describe("punctuation-toggle-core", () => {
     );
     expect(result).toEqual({
       next: "Version 1.2.3， build 4,567。",
-      changedCount: 2,
+      changedCount: 2
     });
   });
 
@@ -49,7 +49,7 @@ describe("punctuation-toggle-core", () => {
     const result = convertChineseEnglishPunctuation("你好，世界！", "zh-to-en");
     expect(result).toEqual({
       next: "你好,世界!",
-      changedCount: 2,
+      changedCount: 2
     });
   });
 
@@ -60,7 +60,7 @@ describe("punctuation-toggle-core", () => {
     );
     expect(result).toEqual({
       next: "英文【test】。中文《标题》",
-      changedCount: 5,
+      changedCount: 5
     });
   });
 
@@ -72,7 +72,7 @@ describe("punctuation-toggle-core", () => {
     );
     expect(result).toEqual({
       next: "半角中文.逗号,引号\"内容\"",
-      changedCount: 4,
+      changedCount: 4
     });
   });
 
@@ -80,17 +80,17 @@ describe("punctuation-toggle-core", () => {
     expect(toggleChineseEnglishPunctuation("Hello, world!")).toEqual({
       mode: "en-to-zh",
       next: "Hello， world！",
-      changedCount: 2,
+      changedCount: 2
     });
     expect(toggleChineseEnglishPunctuation("Rate 3.5, total 12,000 items!")).toEqual({
       mode: "en-to-zh",
       next: "Rate 3.5， total 12,000 items！",
-      changedCount: 2,
+      changedCount: 2
     });
     expect(toggleChineseEnglishPunctuation("你好，世界！")).toEqual({
       mode: "zh-to-en",
       next: "你好,世界!",
-      changedCount: 2,
+      changedCount: 2
     });
   });
 });

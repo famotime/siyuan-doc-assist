@@ -2,12 +2,12 @@ export type BlockStyle = "bold" | "highlight";
 
 const STYLE_MARKERS: Record<BlockStyle, string> = {
   bold: "**",
-  highlight: "==",
+  highlight: "=="
 };
 
-const ATTR_LINE_REGEX = /^\s*\{\:\s*[^}]+\}\s*$/;
-const ATTR_SUFFIX_REGEX = /\s*\{\:\s*[^}]+\}\s*$/;
-const ATTR_LEADING_REGEX = /^\s*(?:\{\:\s*[^}]+\}\s*)+/;
+const ATTR_LINE_REGEX = /^\s*\{:[^}]+\}\s*$/;
+const ATTR_SUFFIX_REGEX = /\s*\{:[^}]+\}\s*$/;
+const ATTR_LEADING_REGEX = /^\s*(?:\{:[^}]+\}\s*)+/;
 
 type ParsedStyleLine = {
   original: string;
@@ -25,7 +25,7 @@ function splitAttrSuffix(line: string): { body: string; suffix: string } {
   const index = line.lastIndexOf(match[0]);
   return {
     body: line.slice(0, index),
-    suffix: line.slice(index),
+    suffix: line.slice(index)
   };
 }
 
@@ -37,7 +37,7 @@ function splitLeadingAttrs(content: string): { body: string; attrs: string } {
   const attrs = match[0].trim();
   return {
     body: content.slice(match[0].length),
-    attrs,
+    attrs
   };
 }
 
@@ -54,7 +54,7 @@ function toParsedStyleLine(
       stylable: false,
       prefix: "",
       content: "",
-      suffix: "",
+      suffix: ""
     };
   }
   return {
@@ -62,7 +62,7 @@ function toParsedStyleLine(
     stylable: true,
     prefix,
     content: body,
-    suffix: "",
+    suffix: ""
   };
 }
 
@@ -84,7 +84,7 @@ function parseStyleLine(line: string): ParsedStyleLine {
       stylable: false,
       prefix: "",
       content: "",
-      suffix: "",
+      suffix: ""
     };
   }
   if (ATTR_LINE_REGEX.test(line)) {
@@ -93,7 +93,7 @@ function parseStyleLine(line: string): ParsedStyleLine {
       stylable: false,
       prefix: "",
       content: "",
-      suffix: "",
+      suffix: ""
     };
   }
 
@@ -103,7 +103,7 @@ function parseStyleLine(line: string): ParsedStyleLine {
     return toParsedStyleLine(line, headingMatch[1], headingMatch[2] || "");
   }
 
-  const listMatch = body.match(/^(\s*(?:[-*+]|[0-9]+\.)\s+)(.*)$/);
+  const listMatch = body.match(/^(\s*(?:[-*+]|\d+\.)\s+)(.*)$/);
   if (listMatch) {
     return toParsedStyleLine(line, listMatch[1], listMatch[2] || "");
   }
@@ -162,9 +162,9 @@ function renderStyledLines(
     if (!normalized) {
       return line.original;
     }
-    const nextContent = enabled
-      ? wrapContent(normalized, marker)
-      : normalized;
+    const nextContent = enabled ?
+        wrapContent(normalized, marker) :
+      normalized;
     return `${line.prefix}${nextContent}${line.suffix}`;
   });
   return styled.join("\n");

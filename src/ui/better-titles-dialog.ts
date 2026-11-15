@@ -117,7 +117,7 @@ export function openBetterTitlesDialog(
   const dialog = new Dialog({
     title: "更好的标题",
     content,
-    width: "640px",
+    width: "640px"
   });
 
   const root = dialog.element.querySelector(".doc-assistant-better-titles") as HTMLElement;
@@ -160,7 +160,7 @@ export function openBetterTitlesDialog(
     dialog,
     setLoading,
     updateCandidates,
-    close: closeDialog,
+    close: closeDialog
   };
 
   regenBtn.addEventListener("click", async () => {

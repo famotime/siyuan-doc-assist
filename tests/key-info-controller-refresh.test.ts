@@ -4,7 +4,7 @@ import {
   buildKeyInfoRefreshPendingState,
   buildKeyInfoRefreshSuccessState,
   buildKeyInfoUnavailableState,
-  shouldSkipReadonlyStateSync,
+  shouldSkipReadonlyStateSync
 } from "@/plugin/key-info-controller-refresh";
 import { KeyInfoItem } from "@/core/key-info-core";
 
@@ -17,7 +17,7 @@ function item(id: string, text: string, order: number): KeyInfoItem {
     offset: order,
     blockId: `b-${id}`,
     blockSort: order,
-    order,
+    order
   };
 }
 
@@ -29,7 +29,7 @@ describe("key-info controller refresh", () => {
       loading: false,
       isRefreshing: false,
       emptyText: "未找到当前文档",
-      scrollContextKey: "",
+      scrollContextKey: ""
     });
   });
 
@@ -37,29 +37,29 @@ describe("key-info controller refresh", () => {
     const next = buildKeyInfoRefreshPendingState({
       currentState: {
         items: [item("old-1", "Old 1", 0)],
-        emptyText: "暂无关键内容",
+        emptyText: "暂无关键内容"
       },
       currentDocId: "doc-1",
-      nextDocId: "doc-1",
+      nextDocId: "doc-1"
     });
 
     expect(next).toEqual({
       loading: false,
       isRefreshing: true,
       emptyText: "暂无关键内容",
-      scrollContextKey: "doc-1",
+      scrollContextKey: "doc-1"
     });
   });
 
   test("resolves refreshed state with latest ordered items and doc title fallback", () => {
     const next = buildKeyInfoRefreshSuccessState({
       currentState: {
-        items: [item("old-1", "Old 1", 0)],
+        items: [item("old-1", "Old 1", 0)]
       },
       currentDocId: "doc-1",
       nextDocId: "doc-1",
       docTitle: "",
-      latestItems: [item("new-1", "New 1", 0), item("new-2", "New 2", 1)],
+      latestItems: [item("new-1", "New 1", 0), item("new-2", "New 2", 1)]
     });
 
     expect(next.docTitle).toBe("doc-1");
@@ -73,25 +73,25 @@ describe("key-info controller refresh", () => {
   test("keeps same-doc items on refresh failure but clears switched doc state", () => {
     const keepItems = buildKeyInfoRefreshFailureState({
       currentState: {
-        items: [item("old-1", "Old 1", 0)],
+        items: [item("old-1", "Old 1", 0)]
       },
       currentDocId: "doc-1",
-      nextDocId: "doc-1",
+      nextDocId: "doc-1"
     });
 
     expect(keepItems).toEqual({
       loading: false,
       isRefreshing: false,
       emptyText: "加载失败",
-      scrollContextKey: "doc-1",
+      scrollContextKey: "doc-1"
     });
 
     const clearItems = buildKeyInfoRefreshFailureState({
       currentState: {
-        items: [item("old-1", "Old 1", 0)],
+        items: [item("old-1", "Old 1", 0)]
       },
       currentDocId: "doc-1",
-      nextDocId: "doc-2",
+      nextDocId: "doc-2"
     });
 
     expect(clearItems).toEqual({
@@ -100,7 +100,7 @@ describe("key-info controller refresh", () => {
       emptyText: "加载失败",
       scrollContextKey: "doc-2",
       docTitle: "",
-      items: [],
+      items: []
     });
   });
 
@@ -110,7 +110,7 @@ describe("key-info controller refresh", () => {
         currentDocId: "doc-1",
         nextDocId: "doc-1",
         currentReadonly: true,
-        nextReadonly: true,
+        nextReadonly: true
       })
     ).toBe(true);
 
@@ -119,7 +119,7 @@ describe("key-info controller refresh", () => {
         currentDocId: "doc-1",
         nextDocId: "doc-2",
         currentReadonly: true,
-        nextReadonly: true,
+        nextReadonly: true
       })
     ).toBe(false);
 
@@ -128,7 +128,7 @@ describe("key-info controller refresh", () => {
         currentDocId: "doc-1",
         nextDocId: "doc-1",
         currentReadonly: false,
-        nextReadonly: true,
+        nextReadonly: true
       })
     ).toBe(false);
   });

@@ -12,7 +12,7 @@ import {
   parseInlineMemoFromText,
   resolveSpanFormatType,
   SqlSpanRow,
-  tokenizeType,
+  tokenizeType
 } from "@/services/key-info-model";
 
 type ProtyleLike = {
@@ -107,7 +107,7 @@ export function mapSpanRowsToItems(
       blockSort,
       order,
       listItem: listLine.listItem,
-      listPrefix: listLine.listPrefix,
+      listPrefix: listLine.listPrefix
     });
     order += 1;
   });
@@ -158,7 +158,7 @@ export function extractInlineFromDom(
       blockSort,
       order,
       listItem: listLine.listItem,
-      listPrefix: listLine.listPrefix,
+      listPrefix: listLine.listPrefix
     });
     wholeBlockHighlightIds.add(blockId);
     order += 1;
@@ -183,7 +183,7 @@ export function extractInlineFromDom(
     "span[data-inline-memo-content]",
     "span[data-memo-content]",
     "span[data-memo]",
-    "span[data-type='tag']",
+    "span[data-type='tag']"
   ];
   const elements = root.querySelectorAll(selectors.join(","));
   elements.forEach((element) => {
@@ -341,7 +341,7 @@ export function extractInlineFromDom(
       blockSort,
       order,
       listItem: listLine.listItem,
-      listPrefix: listLine.listPrefix,
+      listPrefix: listLine.listPrefix
     });
     order += 1;
   });

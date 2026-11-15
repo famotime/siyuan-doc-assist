@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel-shared", () => ({
-  escapeSqlLiteral: vi.fn((value: string) => value.replace(/'/g, "''")),
-  sqlPaged: vi.fn(),
-}));
-
-vi.mock("@/services/kernel", () => ({
-  updateBlockMarkdown: vi.fn(),
-}));
-
-vi.mock("@/services/image-webp-converter", () => ({
-  convertLocalAssetImageToWebp: vi.fn(),
-}));
-
 import { sqlPaged } from "@/services/kernel-shared";
 import { updateBlockMarkdown } from "@/services/kernel";
 import { convertLocalAssetImageToWebp } from "@/services/image-webp-converter";
 import { convertDocImagesToWebp } from "@/services/image-webp";
+
+vi.mock("@/services/kernel-shared", () => ({
+  escapeSqlLiteral: vi.fn((value: string) => value.replace(/'/g, "''")),
+  sqlPaged: vi.fn()
+}));
+
+vi.mock("@/services/kernel", () => ({
+  updateBlockMarkdown: vi.fn()
+}));
+
+vi.mock("@/services/image-webp-converter", () => ({
+  convertLocalAssetImageToWebp: vi.fn()
+}));
 
 const sqlPagedMock = vi.mocked(sqlPaged);
 const updateBlockMarkdownMock = vi.mocked(updateBlockMarkdown);
@@ -31,12 +31,12 @@ describe("image-webp service", () => {
     sqlPagedMock.mockResolvedValue([
       {
         id: "b1",
-        markdown: "![a](assets/a.png)\n![b](/assets/b.jpg?x=1)",
+        markdown: "![a](assets/a.png)\n![b](/assets/b.jpg?x=1)"
       } as any,
       {
         id: "b2",
-        markdown: '<img src="/assets/a.png" />',
-      } as any,
+        markdown: '<img src="/assets/a.png" />'
+      } as any
     ]);
 
     convertLocalAssetImageToWebpMock
@@ -44,13 +44,13 @@ describe("image-webp service", () => {
         sourceAssetPath: "/assets/a.png",
         targetAssetPath: "/assets/a.webp",
         converted: true,
-        savedBytes: 1200,
+        savedBytes: 1200
       } as any)
       .mockResolvedValueOnce({
         sourceAssetPath: "/assets/b.jpg",
         targetAssetPath: "/assets/b.webp",
         converted: true,
-        savedBytes: 800,
+        savedBytes: 800
       } as any);
 
     const report = await convertDocImagesToWebp("doc-1");
@@ -76,7 +76,7 @@ describe("image-webp service", () => {
       failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
-      totalSavedBytes: 2000,
+      totalSavedBytes: 2000
     });
   });
 
@@ -84,15 +84,15 @@ describe("image-webp service", () => {
     sqlPagedMock.mockResolvedValue([
       {
         id: "b1",
-        markdown: "![a](assets/a.png)\n![g](/assets/anim.gif)\n![w](/assets/c.webp)",
-      } as any,
+        markdown: "![a](assets/a.png)\n![g](/assets/anim.gif)\n![w](/assets/c.webp)"
+      } as any
     ]);
     convertLocalAssetImageToWebpMock.mockResolvedValue({
       sourceAssetPath: "/assets/a.png",
       targetAssetPath: "/assets/a.webp",
       converted: false,
       savedBytes: 0,
-      reason: "no-size-gain",
+      reason: "no-size-gain"
     } as any);
 
     const report = await convertDocImagesToWebp("doc-1");
@@ -108,7 +108,7 @@ describe("image-webp service", () => {
       failedBlockCount: 0,
       replacedLinkCount: 0,
       updatedBlockCount: 0,
-      totalSavedBytes: 0,
+      totalSavedBytes: 0
     });
   });
 
@@ -116,12 +116,12 @@ describe("image-webp service", () => {
     sqlPagedMock.mockResolvedValue([
       {
         id: "b1",
-        markdown: "![a](assets/a.png)",
+        markdown: "![a](assets/a.png)"
       } as any,
       {
         id: "b2",
-        markdown: "![b](assets/b.jpg)",
-      } as any,
+        markdown: "![b](assets/b.jpg)"
+      } as any
     ]);
 
     convertLocalAssetImageToWebpMock
@@ -129,13 +129,13 @@ describe("image-webp service", () => {
         sourceAssetPath: "/assets/a.png",
         targetAssetPath: "/assets/a.webp",
         converted: true,
-        savedBytes: 1200,
+        savedBytes: 1200
       } as any)
       .mockResolvedValueOnce({
         sourceAssetPath: "/assets/b.jpg",
         targetAssetPath: "/assets/b.webp",
         converted: true,
-        savedBytes: 800,
+        savedBytes: 800
       } as any);
     updateBlockMarkdownMock
       .mockRejectedValueOnce(new Error("block not found"))
@@ -153,7 +153,7 @@ describe("image-webp service", () => {
       failedBlockCount: 1,
       replacedLinkCount: 1,
       updatedBlockCount: 1,
-      totalSavedBytes: 2000,
+      totalSavedBytes: 2000
     });
   });
 });

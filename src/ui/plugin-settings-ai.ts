@@ -2,14 +2,14 @@ import {
   AiServiceConfig,
   DEFAULT_AI_MAX_TOKENS,
   DEFAULT_AI_TEMPERATURE,
-  normalizeAiServiceConfig,
+  normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import {
   createCheckbox,
   createCollapseButton,
   createElement,
   createFieldRow,
-  createTextInput,
+  createTextInput
 } from "@/ui/plugin-settings-shared";
 
 type CreateAiSettingsPanelOptions = {
@@ -29,7 +29,7 @@ export function createAiSettingsPanel(
     modelInput: HTMLInputElement,
     timeoutInput: HTMLInputElement,
     temperatureInput: HTMLInputElement,
-    maxTokensInput: HTMLInputElement,
+    maxTokensInput: HTMLInputElement
   ) => {
     enabledInput.checked = aiConfig.enabled;
     baseUrlInput.value = aiConfig.baseUrl;
@@ -46,7 +46,7 @@ export function createAiSettingsPanel(
     onChange: async (checked) => {
       Object.assign(aiConfig, normalizeAiServiceConfig({
         ...aiConfig,
-        enabled: checked,
+        enabled: checked
       }));
       syncAiInputs(
         aiEnabledInput,
@@ -55,10 +55,10 @@ export function createAiSettingsPanel(
         aiModelInput,
         aiTimeoutInput,
         aiTemperatureInput,
-        aiMaxTokensInput,
+        aiMaxTokensInput
       );
       await options.onAiSummaryConfigChange({ ...aiConfig });
-    },
+    }
   });
   aiEnabledInput.dataset.settingKey = "ai-enabled";
 
@@ -69,7 +69,7 @@ export function createAiSettingsPanel(
     onChange: async (value) => {
       Object.assign(aiConfig, normalizeAiServiceConfig({
         ...aiConfig,
-        baseUrl: value,
+        baseUrl: value
       }));
       syncAiInputs(
         aiEnabledInput,
@@ -78,10 +78,10 @@ export function createAiSettingsPanel(
         aiModelInput,
         aiTimeoutInput,
         aiTemperatureInput,
-        aiMaxTokensInput,
+        aiMaxTokensInput
       );
       await options.onAiSummaryConfigChange({ ...aiConfig });
-    },
+    }
   });
 
   const aiApiKeyInput = createTextInput({
@@ -92,7 +92,7 @@ export function createAiSettingsPanel(
     onChange: async (value) => {
       Object.assign(aiConfig, normalizeAiServiceConfig({
         ...aiConfig,
-        apiKey: value,
+        apiKey: value
       }));
       syncAiInputs(
         aiEnabledInput,
@@ -101,10 +101,10 @@ export function createAiSettingsPanel(
         aiModelInput,
         aiTimeoutInput,
         aiTemperatureInput,
-        aiMaxTokensInput,
+        aiMaxTokensInput
       );
       await options.onAiSummaryConfigChange({ ...aiConfig });
-    },
+    }
   });
   aiApiKeyInput.classList.add("doc-assistant-settings__api-key-input");
 
@@ -139,7 +139,7 @@ export function createAiSettingsPanel(
     onChange: async (value) => {
       Object.assign(aiConfig, normalizeAiServiceConfig({
         ...aiConfig,
-        model: value,
+        model: value
       }));
       syncAiInputs(
         aiEnabledInput,
@@ -148,10 +148,10 @@ export function createAiSettingsPanel(
         aiModelInput,
         aiTimeoutInput,
         aiTemperatureInput,
-        aiMaxTokensInput,
+        aiMaxTokensInput
       );
       await options.onAiSummaryConfigChange({ ...aiConfig });
-    },
+    }
   });
 
   const aiTimeoutInput = createTextInput({
@@ -162,7 +162,7 @@ export function createAiSettingsPanel(
     onChange: async (value) => {
       Object.assign(aiConfig, normalizeAiServiceConfig({
         ...aiConfig,
-        requestTimeoutSeconds: value,
+        requestTimeoutSeconds: value
       }));
       syncAiInputs(
         aiEnabledInput,
@@ -171,10 +171,10 @@ export function createAiSettingsPanel(
         aiModelInput,
         aiTimeoutInput,
         aiTemperatureInput,
-        aiMaxTokensInput,
+        aiMaxTokensInput
       );
       await options.onAiSummaryConfigChange({ ...aiConfig });
-    },
+    }
   });
 
   const aiTemperatureInput = createTextInput({
@@ -185,7 +185,7 @@ export function createAiSettingsPanel(
     onChange: async (value) => {
       Object.assign(aiConfig, normalizeAiServiceConfig({
         ...aiConfig,
-        temperature: value,
+        temperature: value
       }));
       syncAiInputs(
         aiEnabledInput,
@@ -194,10 +194,10 @@ export function createAiSettingsPanel(
         aiModelInput,
         aiTimeoutInput,
         aiTemperatureInput,
-        aiMaxTokensInput,
+        aiMaxTokensInput
       );
       await options.onAiSummaryConfigChange({ ...aiConfig });
-    },
+    }
   });
 
   const aiMaxTokensInput = createTextInput({
@@ -208,7 +208,7 @@ export function createAiSettingsPanel(
     onChange: async (value) => {
       Object.assign(aiConfig, normalizeAiServiceConfig({
         ...aiConfig,
-        maxTokens: value,
+        maxTokens: value
       }));
       syncAiInputs(
         aiEnabledInput,
@@ -217,10 +217,10 @@ export function createAiSettingsPanel(
         aiModelInput,
         aiTimeoutInput,
         aiTemperatureInput,
-        aiMaxTokensInput,
+        aiMaxTokensInput
       );
       await options.onAiSummaryConfigChange({ ...aiConfig });
-    },
+    }
   });
 
   const panel = createElement(
@@ -244,29 +244,29 @@ export function createAiSettingsPanel(
     createFieldRow({
       label: "Base URL",
       hint: "通常需要填写到 /v1，例如 https://api.openai.com/v1",
-      input: aiBaseUrlInput,
+      input: aiBaseUrlInput
     }),
     createFieldRow({
       label: "API Key",
-      input: apiKeyFieldWrap,
+      input: apiKeyFieldWrap
     }),
     createFieldRow({
       label: "Model",
-      input: aiModelInput,
+      input: aiModelInput
     }),
     createFieldRow({
       label: "超时时间（秒）",
-      input: aiTimeoutInput,
+      input: aiTimeoutInput
     }),
     createFieldRow({
       label: "Temperature",
       hint: `控制输出的随机性，范围 0-2，默认 ${DEFAULT_AI_TEMPERATURE}。值越小越确定，值越大越发散。`,
-      input: aiTemperatureInput,
+      input: aiTemperatureInput
     }),
     createFieldRow({
       label: "Max Tokens",
       hint: `最大输出 token 数量，默认 ${DEFAULT_AI_MAX_TOKENS}。`,
-      input: aiMaxTokensInput,
+      input: aiMaxTokensInput
     })
   );
 
@@ -276,7 +276,7 @@ export function createAiSettingsPanel(
     createCollapseButton({
       key: "ai-fields",
       label: "AI 服务设置",
-      content: fields,
+      content: fields
     })
   );
 

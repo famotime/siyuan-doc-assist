@@ -1,8 +1,9 @@
 import {
   buildLargeDocumentsReportMarkdown,
-  rankLargeDocuments,
-  type LargeDocumentReportItem,
+  rankLargeDocuments
+
 } from "@/core/large-documents-report-core";
+import type { LargeDocumentReportItem } from "@/core/large-documents-report-core";
 import {
   createDocWithMd,
   getDocAssets,
@@ -11,7 +12,7 @@ import {
   getNotebookConf,
   listNotebookDocs,
   renderSprigTemplate,
-  statAsset,
+  statAsset
 } from "@/services/kernel";
 
 type CreateTop100LargeDocumentsReportOptions = {
@@ -62,7 +63,7 @@ export async function createTop100LargeDocumentsReport(
       updated: doc.updated,
       documentBytes,
       assetBytes,
-      assetCount: assetPaths.length,
+      assetCount: assetPaths.length
     });
   }
 
@@ -71,7 +72,7 @@ export async function createTop100LargeDocumentsReport(
   const markdown = buildLargeDocumentsReportMarkdown({
     notebookLabel: notebookConf?.name || currentDoc.box,
     generatedAt: formatGeneratedAt(now),
-    items: rankLargeDocuments(items, 100),
+    items: rankLargeDocuments(items, 100)
   });
   const id = await createDocWithMd(currentDoc.box, path, markdown);
 
@@ -79,7 +80,7 @@ export async function createTop100LargeDocumentsReport(
     id,
     title,
     path,
-    docCount: Math.min(items.length, 100),
+    docCount: Math.min(items.length, 100)
   };
 }
 
@@ -131,7 +132,7 @@ function normalizeAssetPaths(payload: unknown): string[] {
   return [
     ...new Set(
       values.map(resolveAssetPath).filter((value): value is string => Boolean(value))
-    ),
+    )
   ];
 }
 

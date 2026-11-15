@@ -3,8 +3,9 @@ import {
   cleanInlineText,
   normalizeListDecoratedText,
   splitTags,
+  SqlKeyInfoRow
 } from "@/services/key-info-model";
-import { SqlKeyInfoRow } from "@/services/key-info-model";
+
 
 type ResolveListLine = (blockId?: string) => { listItem: boolean; listPrefix?: string };
 
@@ -49,7 +50,7 @@ export function collectHeadingItems(
         blockSort: blockSortMap.get(row.id) ?? 0,
         order,
         listItem: listLine.listItem,
-        listPrefix: listLine.listPrefix,
+        listPrefix: listLine.listPrefix
       });
       order += 1;
     }
@@ -58,7 +59,7 @@ export function collectHeadingItems(
   return {
     items,
     headingBlockIds,
-    nextOrder: order,
+    nextOrder: order
   };
 }
 
@@ -88,7 +89,7 @@ export function collectMarkdownAndMetaItems(
     blockSortMap,
     isListItemWithMappedChild,
     getMappedListLineChildId,
-    resolveListLine,
+    resolveListLine
   } = options;
   const rowById = new Map(rows.map((row) => [row.id, row]));
   const inlineTagTextsByRowId = new Map<string, Set<string>>();
@@ -142,12 +143,12 @@ export function collectMarkdownAndMetaItems(
       (!isRootDocRow || !hasChildBlocks) &&
       !isListContainerRow &&
       !isListItemWithMappedChild(row.id);
-    const markdown = shouldExtractMarkdown
-      ? (kramdownMap.get(row.id) || row.markdown || "")
-      : "";
-    const extracted = shouldExtractMarkdown
-      ? extractKeyInfoFromMarkdown(markdown)
-      : [];
+    const markdown = shouldExtractMarkdown ?
+        (kramdownMap.get(row.id) || row.markdown || "") :
+      "";
+    const extracted = shouldExtractMarkdown ?
+        extractKeyInfoFromMarkdown(markdown) :
+        [];
     if (shouldExtractMarkdown && hasWholeBlockHighlightStyle(markdown)) {
       const listLine = resolveListLine(row.id);
       const blockText = cleanInlineText(row.content || "");
@@ -162,16 +163,16 @@ export function collectMarkdownAndMetaItems(
           blockSort,
           order,
           listItem: listLine.listItem,
-          listPrefix: listLine.listPrefix,
+          listPrefix: listLine.listPrefix
         });
         order += 1;
       }
     }
     for (const item of extracted) {
       const listLine = resolveListLine(row.id);
-      const normalizedText = listLine.listPrefix && item.type !== "tag"
-        ? normalizeListDecoratedText(item.text)
-        : item.text;
+      const normalizedText = listLine.listPrefix && item.type !== "tag" ?
+          normalizeListDecoratedText(item.text) :
+        item.text;
       if (item.type === "title") {
         if (row.type === "h") {
           continue;
@@ -186,7 +187,7 @@ export function collectMarkdownAndMetaItems(
           blockSort,
           order,
           listItem: listLine.listItem,
-          listPrefix: listLine.listPrefix,
+          listPrefix: listLine.listPrefix
         });
         order += 1;
         continue;
@@ -201,7 +202,7 @@ export function collectMarkdownAndMetaItems(
         blockSort,
         order,
         listItem: listLine.listItem,
-        listPrefix: listLine.listPrefix,
+        listPrefix: listLine.listPrefix
       });
       order += 1;
     }
@@ -219,7 +220,7 @@ export function collectMarkdownAndMetaItems(
         blockSort,
         order,
         listItem: listLine.listItem,
-        listPrefix: listLine.listPrefix,
+        listPrefix: listLine.listPrefix
       });
       order += 1;
     }
@@ -238,7 +239,7 @@ export function collectMarkdownAndMetaItems(
         blockSort: blockSortMap.get(anchorBlockId) ?? blockSort,
         order,
         listItem: listLine.listItem,
-        listPrefix: listLine.listPrefix,
+        listPrefix: listLine.listPrefix
       });
       order += 1;
     });
@@ -247,6 +248,6 @@ export function collectMarkdownAndMetaItems(
   return {
     items,
     markdownInlineItems,
-    nextOrder: order,
+    nextOrder: order
   };
 }

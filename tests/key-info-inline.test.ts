@@ -32,7 +32,7 @@ describe("key-info inline extraction", () => {
       { wysiwyg: { element: root } } as any,
       new Map([
         ["doc-1", 0],
-        ["p-1", 1],
+        ["p-1", 1]
       ]),
       "doc-1"
     );
@@ -55,7 +55,7 @@ describe("key-info inline extraction", () => {
       { wysiwyg: { element: root } } as any,
       new Map([
         ["doc-1", 0],
-        ["p-1", 1],
+        ["p-1", 1]
       ]),
       "doc-1"
     );
@@ -80,7 +80,7 @@ describe("key-info inline extraction", () => {
       { wysiwyg: { element: root } } as any,
       new Map([
         ["doc-1", 0],
-        ["p-1", 1],
+        ["p-1", 1]
       ]),
       "doc-1"
     );
@@ -114,7 +114,7 @@ describe("key-info inline extraction", () => {
       { wysiwyg: { element: root } } as any,
       new Map([
         ["doc-1", 0],
-        ["p-1", 1],
+        ["p-1", 1]
       ]),
       "doc-1"
     );
@@ -144,7 +144,7 @@ describe("key-info inline extraction", () => {
       { wysiwyg: { element: root } } as any,
       new Map([
         ["doc-1", 0],
-        ["p-1", 1],
+        ["p-1", 1]
       ]),
       "doc-1"
     );
@@ -171,7 +171,7 @@ describe("key-info inline extraction", () => {
       new Map([
         ["doc-1", 0],
         ["p-1", 1],
-        ["p-2", 2],
+        ["p-2", 2]
       ]),
       "doc-1"
     );

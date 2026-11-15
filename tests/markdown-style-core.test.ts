@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   applyBlockStyle,
   hasBlockStyleMarker,
-  setBlockStyle,
+  setBlockStyle
 } from "@/core/markdown-style-core";
 
 describe("markdown-style-core", () => {

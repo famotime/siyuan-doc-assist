@@ -1,14 +1,14 @@
 import {
   isConvertibleImageAssetPath,
   normalizeLocalImageAssetPath,
-  toWebpAssetPath,
+  toWebpAssetPath
 } from "@/core/image-webp-core";
 import { getFileBlob, putBlobFile } from "@/services/kernel";
 
 export type ImageWebpConvertSkipReason =
-  | "unsupported-format"
-  | "already-webp"
-  | "no-size-gain";
+  | "unsupported-format" |
+  "already-webp" |
+  "no-size-gain";
 
 export type LocalAssetImageWebpConvertResult = {
   sourceAssetPath: string;
@@ -41,12 +41,12 @@ async function loadImageSource(blob: Blob): Promise<{
       height: bitmap.height,
       cleanup: () => {
         bitmap.close?.();
-      },
+      }
     };
   }
 
   if (typeof Image === "undefined" || typeof URL === "undefined") {
-    throw new Error("当前环境不支持图片转码");
+    throw new TypeError("当前环境不支持图片转码");
   }
 
   const objectUrl = URL.createObjectURL(blob);
@@ -62,7 +62,7 @@ async function loadImageSource(blob: Blob): Promise<{
     height: image.naturalHeight || image.height,
     cleanup: () => {
       URL.revokeObjectURL(objectUrl);
-    },
+    }
   };
 }
 
@@ -93,7 +93,7 @@ export async function convertLocalAssetImageToWebp(
       targetAssetPath: assetPath,
       converted: false,
       savedBytes: 0,
-      reason: "unsupported-format",
+      reason: "unsupported-format"
     };
   }
   const targetAssetPath = toWebpAssetPath(normalized);
@@ -103,7 +103,7 @@ export async function convertLocalAssetImageToWebp(
       targetAssetPath,
       converted: false,
       savedBytes: 0,
-      reason: "already-webp",
+      reason: "already-webp"
     };
   }
   if (!isConvertibleImageAssetPath(normalized)) {
@@ -112,7 +112,7 @@ export async function convertLocalAssetImageToWebp(
       targetAssetPath,
       converted: false,
       savedBytes: 0,
-      reason: "unsupported-format",
+      reason: "unsupported-format"
     };
   }
 
@@ -135,7 +135,7 @@ export async function convertLocalAssetImageToWebp(
         targetAssetPath,
         converted: false,
         savedBytes: 0,
-        reason: "no-size-gain",
+        reason: "no-size-gain"
       };
     }
     await putBlobFile(
@@ -147,7 +147,7 @@ export async function convertLocalAssetImageToWebp(
       sourceAssetPath: normalized,
       targetAssetPath,
       converted: true,
-      savedBytes: sourceBlob.size - webpBlob.size,
+      savedBytes: sourceBlob.size - webpBlob.size
     };
   } finally {
     imageSource.cleanup();

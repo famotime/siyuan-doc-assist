@@ -3,10 +3,10 @@ import { DisplaySizeSpec } from "@/core/image-display-size-core";
 import { getFileBlob, putBlobFile } from "@/services/kernel";
 
 export type ImageDisplayResizeSkipReason =
-  | "unsupported-format"
-  | "invalid-target"
-  | "no-downscale"
-  | "no-size-gain";
+  | "unsupported-format" |
+  "invalid-target" |
+  "no-downscale" |
+  "no-size-gain";
 
 export type LocalAssetImageDisplayResizeResult = {
   sourceAssetPath: string;
@@ -29,10 +29,10 @@ function toFileName(path: string): string {
 
 function toDisplayResizedAssetPath(assetPath: string, width: number, height: number): string {
   const suffix = `-display-${width}x${height}`;
-  if (!/\.[^.\/]+$/i.test(assetPath)) {
+  if (!/\.[^./]+$/.test(assetPath)) {
     return `${assetPath}${suffix}`;
   }
-  return assetPath.replace(/(\.[^.\/]+)$/i, `${suffix}$1`);
+  return assetPath.replace(/(\.[^./]+)$/, `${suffix}$1`);
 }
 
 function getAssetExtension(assetPath: string): string {
@@ -73,12 +73,12 @@ async function loadImageSource(blob: Blob): Promise<{
       height: bitmap.height,
       cleanup: () => {
         bitmap.close?.();
-      },
+      }
     };
   }
 
   if (typeof Image === "undefined" || typeof URL === "undefined") {
-    throw new Error("当前环境不支持图片转码");
+    throw new TypeError("当前环境不支持图片转码");
   }
 
   const objectUrl = URL.createObjectURL(blob);
@@ -94,7 +94,7 @@ async function loadImageSource(blob: Blob): Promise<{
     height: image.naturalHeight || image.height,
     cleanup: () => {
       URL.revokeObjectURL(objectUrl);
-    },
+    }
   };
 }
 
@@ -128,18 +128,18 @@ function normalizeResizeTargetSize(
   if (width && height) {
     return {
       width: Math.max(1, width),
-      height: Math.max(1, height),
+      height: Math.max(1, height)
     };
   }
   if (width) {
     return {
       width: Math.max(1, width),
-      height: Math.max(1, Math.round((sourceHeight * width) / Math.max(1, sourceWidth))),
+      height: Math.max(1, Math.round((sourceHeight * width) / Math.max(1, sourceWidth)))
     };
   }
   return {
     width: Math.max(1, Math.round((sourceWidth * Math.max(1, height || 1)) / Math.max(1, sourceHeight))),
-    height: Math.max(1, height || 1),
+    height: Math.max(1, height || 1)
   };
 }
 
@@ -156,7 +156,7 @@ export async function resizeLocalAssetImageByDisplaySize(
       savedBytes: 0,
       targetWidth: 0,
       targetHeight: 0,
-      reason: "unsupported-format",
+      reason: "unsupported-format"
     };
   }
   const mimeType = getEncodeMimeFromAssetPath(normalized);
@@ -168,7 +168,7 @@ export async function resizeLocalAssetImageByDisplaySize(
       savedBytes: 0,
       targetWidth: 0,
       targetHeight: 0,
-      reason: "unsupported-format",
+      reason: "unsupported-format"
     };
   }
 
@@ -188,7 +188,7 @@ export async function resizeLocalAssetImageByDisplaySize(
         savedBytes: 0,
         targetWidth: 0,
         targetHeight: 0,
-        reason: "invalid-target",
+        reason: "invalid-target"
       };
     }
     if (
@@ -202,7 +202,7 @@ export async function resizeLocalAssetImageByDisplaySize(
         savedBytes: 0,
         targetWidth: targetSize.width,
         targetHeight: targetSize.height,
-        reason: "no-downscale",
+        reason: "no-downscale"
       };
     }
 
@@ -238,7 +238,7 @@ export async function resizeLocalAssetImageByDisplaySize(
         savedBytes: 0,
         targetWidth: targetSize.width,
         targetHeight: targetSize.height,
-        reason: "no-size-gain",
+        reason: "no-size-gain"
       };
     }
     await putBlobFile(
@@ -252,7 +252,7 @@ export async function resizeLocalAssetImageByDisplaySize(
       converted: true,
       savedBytes: sourceBlob.size - resizedBlob.size,
       targetWidth: targetSize.width,
-      targetHeight: targetSize.height,
+      targetHeight: targetSize.height
     };
   } finally {
     imageSource.cleanup();

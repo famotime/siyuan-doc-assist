@@ -26,7 +26,7 @@ export function triggerSystemPaste(delayMs = 180): void {
               "-NoProfile",
               "-NonInteractive",
               "-Command",
-              "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; [System.Windows.Forms.SendKeys]::SendWait('^v')",
+              "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; [System.Windows.Forms.SendKeys]::SendWait('^v')"
             ],
             { windowsHide: true }
           );
@@ -37,7 +37,7 @@ export function triggerSystemPaste(delayMs = 180): void {
           // macOS: 使用 AppleScript 发送 Cmd+V
           const child = cp.spawn("osascript", [
             "-e",
-            'tell application "System Events" to keystroke "v" using command down',
+            'tell application "System Events" to keystroke "v" using command down'
           ]);
           child.on("error", (e: any) => {
             console.warn("[DocAssistant][FloatingText] macOS osascript error:", e);

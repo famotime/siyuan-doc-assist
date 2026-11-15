@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import {
   getExplicitlySelectedBlockIds,
   getSelectedBlockIds,
-  getSelectedImageAssetPaths,
+  getSelectedImageAssetPaths
 } from "@/plugin/action-runner-context";
 
 describe("action-runner-context selection", () => {
@@ -31,8 +31,8 @@ describe("action-runner-context selection", () => {
 
     const protyle = {
       wysiwyg: {
-        element: container,
-      },
+        element: container
+      }
     } as any;
 
     const blockIds = getSelectedBlockIds(protyle);
@@ -54,8 +54,8 @@ describe("action-runner-context selection", () => {
     `;
     const protyle = {
       wysiwyg: {
-        element: container,
-      },
+        element: container
+      }
     } as any;
 
     expect(getExplicitlySelectedBlockIds(protyle)).toEqual([]);

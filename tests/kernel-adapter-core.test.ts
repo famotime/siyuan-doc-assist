@@ -1,16 +1,16 @@
 import { describe, expect, test, vi } from "vitest";
 import {
   parseKernelTextRows,
-  requestBatchRowsWithSingleFallback,
+  requestBatchRowsWithSingleFallback
 } from "@/services/kernel-adapter-core";
 
 describe("kernel-adapter-core", () => {
   test("parses mixed payload shapes and keeps first row per id", () => {
     const rows = parseKernelTextRows(
       {
-        items: [{ id: "a", kramdown: "A" }],
-        blocks: [{ id: "a", kramdown: "A-ignored" }, { id: "b", kramdown: 123 }],
-        "20260224194151-rzj7ze5": "dict-value",
+        "items": [{ id: "a", kramdown: "A" }],
+        "blocks": [{ id: "a", kramdown: "A-ignored" }, { id: "b", kramdown: 123 }],
+        "20260224194151-rzj7ze5": "dict-value"
       },
       "kramdown"
     );
@@ -18,7 +18,7 @@ describe("kernel-adapter-core", () => {
     expect(rows).toEqual([
       { id: "a", text: "A" },
       { id: "b", text: "123" },
-      { id: "20260224194151-rzj7ze5", text: "dict-value" },
+      { id: "20260224194151-rzj7ze5", text: "dict-value" }
     ]);
   });
 
@@ -39,7 +39,7 @@ describe("kernel-adapter-core", () => {
         const source = payload as { rows?: Array<{ id: string; value: string }> };
         return (source.rows || []).map((item) => ({ id: item.id, value: item.value }));
       },
-      requestSingle,
+      requestSingle
     });
 
     expect(requestBatch).toHaveBeenCalledTimes(2);
@@ -48,7 +48,7 @@ describe("kernel-adapter-core", () => {
     expect(requestSingle).not.toHaveBeenCalled();
     expect(rows).toEqual([
       { id: "a", value: "A" },
-      { id: "c", value: "C" },
+      { id: "c", value: "C" }
     ]);
   });
 
@@ -78,7 +78,7 @@ describe("kernel-adapter-core", () => {
       },
       requestSingle,
       onBatchError,
-      onSingleError,
+      onSingleError
     });
 
     expect(onBatchError).toHaveBeenCalledTimes(1);
@@ -88,7 +88,7 @@ describe("kernel-adapter-core", () => {
     expect(requestSingle).toHaveBeenCalledWith("b");
     expect(rows).toEqual([
       { id: "a", value: "A" },
-      { id: "b", value: "B" },
+      { id: "b", value: "B" }
     ]);
   });
 });

@@ -14,7 +14,7 @@ function item(id: string): KeyInfoItem {
     offset: 0,
     blockId: `block-${id}`,
     blockSort: 0,
-    order: 0,
+    order: 0
   };
 }
 
@@ -24,7 +24,7 @@ describe("key-info-dock scroll interaction", () => {
     document.body.appendChild(host);
 
     const dock = createKeyInfoDock(host, {
-      onExport: () => {},
+      onExport: () => {}
     });
 
     const titleRow = host.querySelector(".doc-assistant-keyinfo__title-row") as HTMLDivElement | null;
@@ -40,11 +40,11 @@ describe("key-info-dock scroll interaction", () => {
     document.body.appendChild(host);
 
     const dock = createKeyInfoDock(host, {
-      onExport: () => {},
+      onExport: () => {}
     });
 
     dock.setState({
-      docTitle: "测试文档标题",
+      docTitle: "测试文档标题"
     });
 
     const docTitle = host.querySelector(".doc-assistant-keyinfo__doc-title") as HTMLDivElement | null;
@@ -61,18 +61,18 @@ describe("key-info-dock scroll interaction", () => {
     document.body.appendChild(host);
 
     const dock = createKeyInfoDock(host, {
-      onExport: () => {},
+      onExport: () => {}
     });
 
     dock.setState({
       items: [
         {
           ...item("1"),
-          type: "highlight",
-        },
+          type: "highlight"
+        }
       ],
       loading: false,
-      isRefreshing: false,
+      isRefreshing: false
     });
 
     const row = host.querySelector(".doc-assistant-keyinfo__row") as HTMLDivElement | null;
@@ -88,14 +88,14 @@ describe("key-info-dock scroll interaction", () => {
     document.body.appendChild(host);
 
     const dock = createKeyInfoDock(host, {
-      onExport: () => {},
+      onExport: () => {}
     });
 
     dock.setState({
       items: [item("1"), item("2"), item("3")],
       filter: ["bold"],
       loading: false,
-      isRefreshing: false,
+      isRefreshing: false
     });
 
     const meta = host.querySelector(".doc-assistant-keyinfo__meta") as HTMLDivElement | null;
@@ -112,7 +112,7 @@ describe("key-info-dock scroll interaction", () => {
     document.body.appendChild(host);
 
     const dock = createKeyInfoDock(host, {
-      onExport: () => {},
+      onExport: () => {}
     });
 
     dock.setState({
@@ -128,7 +128,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "move-backlinks",
@@ -138,9 +138,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "整理",
           disabled: false,
           menuRegistered: false,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const meta = host.querySelector(".doc-assistant-keyinfo__meta") as HTMLDivElement | null;
@@ -160,7 +160,7 @@ describe("key-info-dock scroll interaction", () => {
     document.body.appendChild(host);
 
     const dock = createKeyInfoDock(host, {
-      onExport: () => {},
+      onExport: () => {}
     });
     const root = host.querySelector(".doc-assistant-keyinfo") as HTMLDivElement | null;
     expect(root).toBeTruthy();
@@ -182,14 +182,14 @@ describe("key-info-dock scroll interaction", () => {
     const onItemClick = vi.fn();
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onItemClick,
+      onItemClick
     });
 
     dock.setState({
       items: [item("1"), item("2")],
       loading: false,
       isRefreshing: false,
-      scrollContextKey: "doc-a",
+      scrollContextKey: "doc-a"
     });
 
     const list = host.querySelector(".doc-assistant-keyinfo__list") as HTMLDivElement | null;
@@ -219,7 +219,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -232,9 +232,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const button = host.querySelector(".doc-assistant-keyinfo__action-btn") as HTMLButtonElement | null;
@@ -255,7 +255,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -268,9 +268,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const button = host.querySelector(".doc-assistant-keyinfo__action-btn") as HTMLButtonElement | null;
@@ -291,7 +291,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -304,9 +304,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const button = host.querySelector(".doc-assistant-keyinfo__action-btn") as HTMLButtonElement | null;
@@ -327,7 +327,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -340,9 +340,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const button = host.querySelector(".doc-assistant-keyinfo__action-btn") as HTMLButtonElement | null;
@@ -363,7 +363,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -376,9 +376,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const button = host.querySelector(".doc-assistant-keyinfo__action-btn") as HTMLButtonElement | null;
@@ -404,7 +404,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => runActionPromise,
+      onDocActionClick: () => runActionPromise
     });
 
     dock.setState({
@@ -418,9 +418,9 @@ describe("key-info-dock scroll interaction", () => {
           disabled: false,
           menuRegistered: true,
           menuToggleDisabled: false,
-          runInBackground: true,
-        },
-      ],
+          runInBackground: true
+        }
+      ]
     });
 
     const button = host.querySelector(".doc-assistant-keyinfo__action-btn") as HTMLButtonElement | null;
@@ -454,7 +454,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -468,7 +468,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "move-backlinks",
@@ -481,9 +481,9 @@ describe("key-info-dock scroll interaction", () => {
           disabledReason: "该操作当前仅支持桌面端",
           menuRegistered: true,
           menuToggleDisabled: true,
-          menuToggleDisabledReason: "该操作当前仅支持桌面端",
-        },
-      ],
+          menuToggleDisabledReason: "该操作当前仅支持桌面端"
+        }
+      ]
     });
 
     const buttons = Array.from(
@@ -507,7 +507,7 @@ describe("key-info-dock scroll interaction", () => {
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
       onDocActionClick: () => {},
-      onDocActionReorder,
+      onDocActionReorder
     });
 
     dock.setState({
@@ -520,7 +520,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "export-forward-zip",
@@ -530,7 +530,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-backlinks",
@@ -540,9 +540,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const rows = host.querySelectorAll(".doc-assistant-keyinfo__action-row");
@@ -554,7 +554,7 @@ describe("key-info-dock scroll interaction", () => {
     expect(onDocActionReorder).toHaveBeenCalledWith([
       "export-forward-zip",
       "export-current",
-      "insert-backlinks",
+      "insert-backlinks"
     ]);
     const labels = Array.from(
       host.querySelectorAll(".doc-assistant-keyinfo__action-label")
@@ -573,7 +573,7 @@ describe("key-info-dock scroll interaction", () => {
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
       onDocActionClick: () => {},
-      onDocActionReorder,
+      onDocActionReorder
     });
 
     dock.setState({
@@ -586,7 +586,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-backlinks",
@@ -596,7 +596,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "export-forward-zip",
@@ -606,9 +606,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const rows = host.querySelectorAll(".doc-assistant-keyinfo__action-row");
@@ -618,8 +618,8 @@ describe("key-info-dock scroll interaction", () => {
     const dropEvent = new Event("drop", { bubbles: true, cancelable: true });
     Object.defineProperty(dropEvent, "dataTransfer", {
       value: {
-        getData: (type: string) => (type === "text/plain" ? "export-current" : ""),
-      },
+        getData: (type: string) => (type === "text/plain" ? "export-current" : "")
+      }
     });
     rows[2].dispatchEvent(dropEvent);
 
@@ -641,7 +641,7 @@ describe("key-info-dock scroll interaction", () => {
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
       onDocActionClick: () => {},
-      onDocActionReorder,
+      onDocActionReorder
     });
 
     dock.setState({
@@ -654,7 +654,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "export-forward-zip",
@@ -664,7 +664,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "move-backlinks",
@@ -674,7 +674,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "整理",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "dedupe",
@@ -684,7 +684,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "整理",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-backlinks",
@@ -694,7 +694,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-child-docs",
@@ -704,9 +704,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const rows = host.querySelectorAll(".doc-assistant-keyinfo__action-row");
@@ -718,8 +718,8 @@ describe("key-info-dock scroll interaction", () => {
     const dropEvent = new Event("drop", { bubbles: true, cancelable: true });
     Object.defineProperty(dropEvent, "dataTransfer", {
       value: {
-        getData: (type: string) => (type === "text/plain" ? "insert-backlinks" : ""),
-      },
+        getData: (type: string) => (type === "text/plain" ? "insert-backlinks" : "")
+      }
     });
     separators[1].dispatchEvent(dropEvent);
 
@@ -736,7 +736,7 @@ describe("key-info-dock scroll interaction", () => {
     const onDocActionOrderReset = vi.fn();
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionOrderReset,
+      onDocActionOrderReset
     });
 
     const resetButton = host.querySelector(
@@ -757,7 +757,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -770,7 +770,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "delete-from-current-to-end",
@@ -780,9 +780,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "编辑",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const iconTexts = Array.from(
@@ -809,7 +809,7 @@ describe("key-info-dock scroll interaction", () => {
     document.body.appendChild(host);
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -822,9 +822,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const svgIcon = host.querySelector(".doc-assistant-keyinfo__action-icon-svg");
@@ -843,7 +843,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -857,7 +857,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-backlinks",
@@ -867,9 +867,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "插入",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const groupLabels = Array.from(
@@ -883,7 +883,7 @@ describe("key-info-dock scroll interaction", () => {
     expect(actionLabels).toEqual([
       "插入反链文档列表（去重）",
       "仅导出当前文档",
-      "插入反链文档列表（去重）",
+      "插入反链文档列表（去重）"
     ]);
 
     dock.destroy();
@@ -898,7 +898,7 @@ describe("key-info-dock scroll interaction", () => {
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
       onDocActionClick: () => {},
-      onDocActionFavoriteToggle,
+      onDocActionFavoriteToggle
     });
 
     dock.setState({
@@ -912,7 +912,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-backlinks",
@@ -922,9 +922,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "插入",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const exportFavoriteButton = host.querySelector(
@@ -955,7 +955,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -969,7 +969,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-backlinks",
@@ -979,9 +979,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "插入",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const countRows = () =>
@@ -1026,7 +1026,7 @@ describe("key-info-dock scroll interaction", () => {
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
       onDocActionClick: () => {},
-      onDocFavoriteActionReorder,
+      onDocFavoriteActionReorder
     });
 
     dock.setState({
@@ -1040,7 +1040,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-backlinks",
@@ -1050,9 +1050,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "插入",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const favoriteRows = host.querySelectorAll(
@@ -1069,7 +1069,7 @@ describe("key-info-dock scroll interaction", () => {
 
     expect(onDocFavoriteActionReorder).toHaveBeenCalledWith([
       "insert-backlinks",
-      "export-current",
+      "export-current"
     ]);
 
     dock.destroy();
@@ -1082,7 +1082,7 @@ describe("key-info-dock scroll interaction", () => {
 
     const dock = createKeyInfoDock(host, {
       onExport: () => {},
-      onDocActionClick: () => {},
+      onDocActionClick: () => {}
     });
 
     dock.setState({
@@ -1097,7 +1097,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "导出",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "move-backlinks",
@@ -1107,7 +1107,7 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "整理",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
+          menuToggleDisabled: false
         },
         {
           key: "insert-backlinks",
@@ -1117,9 +1117,9 @@ describe("key-info-dock scroll interaction", () => {
           groupLabel: "插入",
           disabled: false,
           menuRegistered: true,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     const separators = host.querySelectorAll(".doc-assistant-keyinfo__action-separator");

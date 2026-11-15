@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, vi, test } from "vitest";
 import {
   clipWebLinkToDoc,
   clipWebLinksToDocs,
   fetchLinkTitles,
-  fetchPageHtml,
+  fetchPageHtml
 } from "@/services/link-to-doc-service";
 import { createDocWithMd, forwardProxy, getDocMetaByID } from "@/services/kernel";
 
 vi.mock("@/services/kernel", () => ({
   forwardProxy: vi.fn(),
   getDocMetaByID: vi.fn(),
-  createDocWithMd: vi.fn(),
+  createDocWithMd: vi.fn()
 }));
 
 const mockForwardProxy = vi.mocked(forwardProxy);
@@ -24,10 +24,10 @@ describe("link-to-doc-service", () => {
   });
 
   describe("fetchPageHtml", () => {
-    it("fetches html successfully through forwardProxy", async () => {
+    test("fetches html successfully through forwardProxy", async () => {
       mockForwardProxy.mockResolvedValueOnce({
         status: 200,
-        body: "<html><body><h1>Hello World</h1></body></html>",
+        body: "<html><body><h1>Hello World</h1></body></html>"
       });
 
       const html = await fetchPageHtml("https://example.com/test");
@@ -35,16 +35,16 @@ describe("link-to-doc-service", () => {
       expect(mockForwardProxy).toHaveBeenCalledTimes(1);
     });
 
-    it("follows wechat original link in feishu page", async () => {
+    test("follows wechat original link in feishu page", async () => {
       // 第一次返回飞书页面，包含微信链接
       mockForwardProxy.mockResolvedValueOnce({
         status: 200,
-        body: "<html><body><div>原文链接：https://mp.weixin.qq.com/s/real_article</div></body></html>",
+        body: "<html><body><div>原文链接：https://mp.weixin.qq.com/s/real_article</div></body></html>"
       });
       // 第二次返回微信文章
       mockForwardProxy.mockResolvedValueOnce({
         status: 200,
-        body: "<html><body><h1 id='activity-name'>微信真实文章</h1></body></html>",
+        body: "<html><body><h1 id='activity-name'>微信真实文章</h1></body></html>"
       });
 
       const html = await fetchPageHtml("https://waytoagi.feishu.cn/doc123");
@@ -60,10 +60,10 @@ describe("link-to-doc-service", () => {
       );
     });
 
-    it("throws error when status is error", async () => {
+    test("throws error when status is error", async () => {
       mockForwardProxy.mockResolvedValueOnce({
         status: 404,
-        body: "Not Found",
+        body: "Not Found"
       });
 
       await expect(fetchPageHtml("https://example.com/notfound")).rejects.toThrow(
@@ -73,12 +73,12 @@ describe("link-to-doc-service", () => {
   });
 
   describe("fetchLinkTitles", () => {
-    it("fetches titles for multiple links concurrently and handles fallbacks", async () => {
+    test("fetches titles for multiple links concurrently and handles fallbacks", async () => {
       mockForwardProxy.mockImplementation(async (url) => {
         if (url.includes("success")) {
           return {
             status: 200,
-            body: "<html><head><title>成功获取的网页标题</title></head><body>正文</body></html>",
+            body: "<html><head><title>成功获取的网页标题</title></head><body>正文</body></html>"
           };
         }
         return { status: 500, body: "" };
@@ -89,8 +89,8 @@ describe("link-to-doc-service", () => {
         {
           url: "https://example.com/failed",
           originalUrl: "https://example.com/failed",
-          fallbackTitle: "我的备选标题",
-        },
+          fallbackTitle: "我的备选标题"
+        }
       ];
 
       const results = await fetchLinkTitles(links, 2);
@@ -105,7 +105,7 @@ describe("link-to-doc-service", () => {
   });
 
   describe("clipWebLinkToDoc", () => {
-    it("clips single link and creates sibling doc", async () => {
+    test("clips single link and creates sibling doc", async () => {
       mockForwardProxy.mockResolvedValueOnce({
         status: 200,
         body: `
@@ -121,7 +121,7 @@ describe("link-to-doc-service", () => {
               </article>
             </body>
           </html>
-        `,
+        `
       });
 
       mockCreateDocWithMd.mockResolvedValueOnce("created-doc-id-1");
@@ -142,12 +142,12 @@ describe("link-to-doc-service", () => {
   });
 
   describe("clipWebLinksToDocs", () => {
-    it("processes batch of links and records progress and errors", async () => {
+    test("processes batch of links and records progress and errors", async () => {
       mockGetDocMetaByID.mockResolvedValueOnce({
         id: "cur-doc",
         box: "box-1",
         hPath: "/工作区/当前任务",
-        rootID: "root-1",
+        rootID: "root-1"
       });
 
       mockForwardProxy.mockImplementation(async (url) => {
@@ -156,7 +156,7 @@ describe("link-to-doc-service", () => {
         }
         return {
           status: 200,
-          body: "<html><head><title>网页标题</title></head><body>正文</body></html>",
+          body: "<html><head><title>网页标题</title></head><body>正文</body></html>"
         };
       });
 
@@ -165,7 +165,7 @@ describe("link-to-doc-service", () => {
       const progressSpy = vi.fn();
       const links = [
         { url: "https://example.com/1", originalUrl: "https://example.com/1", title: "标题1" },
-        { url: "https://example.com/fail", originalUrl: "https://example.com/fail", title: "失败项" },
+        { url: "https://example.com/fail", originalUrl: "https://example.com/fail", title: "失败项" }
       ];
 
       const report = await clipWebLinksToDocs("cur-doc", links, progressSpy);
@@ -180,8 +180,8 @@ describe("link-to-doc-service", () => {
     });
   });
 
-  describe("X post clipping & title extraction", () => {
-    it("clips X post via structured API with first paragraph as title and preserved paragraph breaks", async () => {
+  describe("x post clipping & title extraction", () => {
+    test("clips X post via structured API with first paragraph as title and preserved paragraph breaks", async () => {
       // 模拟 FxTwitter API 返回数据
       mockForwardProxy.mockImplementation(async (url) => {
         if (url.includes("api.fxtwitter.com/status/123456")) {
@@ -193,14 +193,14 @@ describe("link-to-doc-service", () => {
                 text: "X正文第一段介绍内容。\n\nX正文第二段深入阐述细节。\n第三段总结分析。 https://t.co/xyz123",
                 author: {
                   name: "推特作者",
-                  screen_name: "twitter_user",
+                  screen_name: "twitter_user"
                 },
                 created_at: "2026-09-19 12:00:00",
                 media: {
-                  photos: [{ url: "https://pbs.twimg.com/media/test.jpg" }],
-                },
-              },
-            }),
+                  photos: [{ url: "https://pbs.twimg.com/media/test.jpg" }]
+                }
+              }
+            })
           };
         }
         return { status: 404, body: "" };
@@ -210,7 +210,7 @@ describe("link-to-doc-service", () => {
 
       const link = {
         url: "https://x.com/twitter_user/status/123456",
-        originalUrl: "https://x.com/twitter_user/status/123456",
+        originalUrl: "https://x.com/twitter_user/status/123456"
       };
 
       const res = await clipWebLinkToDoc("test-box", "/社媒/推特汇总", link);
@@ -227,7 +227,7 @@ describe("link-to-doc-service", () => {
       );
     });
 
-    it("prefetches first paragraph title for X post in fetchLinkTitles", async () => {
+    test("prefetches first paragraph title for X post in fetchLinkTitles", async () => {
       mockForwardProxy.mockImplementation(async (url) => {
         if (url.includes("api.fxtwitter.com/status/999")) {
           return {
@@ -236,16 +236,16 @@ describe("link-to-doc-service", () => {
               code: 200,
               tweet: {
                 text: "首段重要见解与观察！\n\n次段详细说明...",
-                author: { name: "Author", screen_name: "author" },
-              },
-            }),
+                author: { name: "Author", screen_name: "author" }
+              }
+            })
           };
         }
         return { status: 404, body: "" };
       });
 
       const links = [
-        { url: "https://x.com/author/status/999", originalUrl: "https://x.com/author/status/999" },
+        { url: "https://x.com/author/status/999", originalUrl: "https://x.com/author/status/999" }
       ];
 
       const titles = await fetchLinkTitles(links, 1);
@@ -254,7 +254,7 @@ describe("link-to-doc-service", () => {
       expect(titles[0].hasFetchedTitle).toBe(true);
     });
 
-    it("clips full long-form Note Tweet by prioritizing complete VxTwitter text over truncated FxTwitter text", async () => {
+    test("clips full long-form Note Tweet by prioritizing complete VxTwitter text over truncated FxTwitter text", async () => {
       mockForwardProxy.mockImplementation(async (url) => {
         if (url.includes("api.vxtwitter.com/status/2096129449725174257")) {
           return {
@@ -265,8 +265,8 @@ describe("link-to-doc-service", () => {
               user_name: "Suu",
               user_screen_name: "Suu766",
               date: "Sat Sep 05 06:52:59 +0000 2026",
-              mediaURLs: ["https://pbs.twimg.com/media/HRbyg2paMAA8kz1.jpg"],
-            }),
+              mediaURLs: ["https://pbs.twimg.com/media/HRbyg2paMAA8kz1.jpg"]
+            })
           };
         }
         if (url.includes("api.fxtwitter.com/status/2096129449725174257")) {
@@ -279,9 +279,9 @@ describe("link-to-doc-service", () => {
                 // 模拟 FxTwitter 在 180 字符处截断的情形
                 text: "别再问我 2026 大陆用户还有什么 U 卡值得开了！！！\n\n我整理了目前中国大陆用户最值得开的 6 张卡：\n\n1. Gate U 卡\n\n2. Bybit U 卡\n\n3. PokePay Card\n约",
                 author: { name: "Suu", screen_name: "Suu766" },
-                media: { photos: [{ url: "https://pbs.twimg.com/media/HRbyg2paMAA8kz1.jpg?name=orig" }] },
-              },
-            }),
+                media: { photos: [{ url: "https://pbs.twimg.com/media/HRbyg2paMAA8kz1.jpg?name=orig" }] }
+              }
+            })
           };
         }
         return { status: 404, body: "" };
@@ -291,7 +291,7 @@ describe("link-to-doc-service", () => {
 
       const link = {
         url: "https://x.com/Suu766/status/2096129449725174257",
-        originalUrl: "https://x.com/Suu766/status/2096129449725174257",
+        originalUrl: "https://x.com/Suu766/status/2096129449725174257"
       };
 
       const res = await clipWebLinkToDoc("test-box", "/卡片/U卡汇总", link);

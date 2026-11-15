@@ -4,21 +4,21 @@ import {
   formatGestureHint,
   GestureBindings,
   matchGestureAction,
-  MouseGestureActionKey,
+  MouseGestureActionKey
 } from "@/core/gesture-recognition-core";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
 import {
   closeDocTab,
   fetchSiblingDocs,
   findProtyleByElement,
-  openDocTab,
+  openDocTab
 } from "@/services/doc-navigation";
 import { createGestureCapture, GestureStrokeState } from "@/ui/gesture-capture";
 import {
   destroyGestureTrail,
   drawGestureTrail,
   hideGestureTrail,
-  showGestureTrail,
+  showGestureTrail
 } from "@/ui/gesture-trail-overlay";
 
 export type MouseGestureControllerOptions = {
@@ -69,9 +69,9 @@ export function createMouseGestureController(options: MouseGestureControllerOpti
       closeDocTab(protyle);
       if (pick.wrapped) {
         showMessage(
-          direction === "next"
-            ? "已循环：从最后一个文档切换回第一个文档"
-            : "已循环：从第一个文档切换回最后一个文档",
+          direction === "next" ?
+            "已循环：从最后一个文档切换回第一个文档" :
+            "已循环：从第一个文档切换回最后一个文档",
           4000
         );
       } else {
@@ -111,7 +111,7 @@ export function createMouseGestureController(options: MouseGestureControllerOpti
         return;
       }
       void executeAction(action, state);
-    },
+    }
   });
 
   return {
@@ -131,6 +131,6 @@ export function createMouseGestureController(options: MouseGestureControllerOpti
     destroy() {
       capture.unbind();
       destroyGestureTrail();
-    },
+    }
   };
 }

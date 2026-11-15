@@ -8,7 +8,7 @@ export const GESTURE_DIRECTION_ARROWS: Record<GestureDirection, string> = {
   UL: "↖",
   UR: "↗",
   DL: "↙",
-  DR: "↘",
+  DR: "↘"
 };
 
 export type GesturePoint = { x: number; y: number };
@@ -33,7 +33,7 @@ const DIRECTION_BY_SECTOR: Record<number, GestureDirection> = {
   1: "DR",
   2: "D",
   3: "DL",
-  4: "L",
+  4: "L"
 };
 
 export function resolveDirection(deltaX: number, deltaY: number): GestureDirection {
@@ -191,25 +191,25 @@ export type GestureBindings = Record<MouseGestureActionKey, string>;
 export const MOUSE_GESTURE_ACTION_KEYS: MouseGestureActionKey[] = [
   "previous-doc",
   "next-doc",
-  "close-current-doc",
+  "close-current-doc"
 ];
 
 export const MOUSE_GESTURE_ACTION_LABELS: Record<MouseGestureActionKey, string> = {
   "previous-doc": "切换上一个文档",
   "next-doc": "切换下一个文档",
-  "close-current-doc": "关闭当前文档",
+  "close-current-doc": "关闭当前文档"
 };
 
 export const MOUSE_GESTURE_ACTION_HINTS: Record<MouseGestureActionKey, string> = {
   "previous-doc": "打开文档树中同一层级的上一个文档",
   "next-doc": "打开文档树中同一层级的下一个文档",
-  "close-current-doc": "关闭当前文档标签页（不删除文档）",
+  "close-current-doc": "关闭当前文档标签页（不删除文档）"
 };
 
 export const DEFAULT_GESTURE_BINDINGS: GestureBindings = {
   "previous-doc": "L",
   "next-doc": "R",
-  "close-current-doc": "D,R",
+  "close-current-doc": "D,R"
 };
 
 export function matchGestureAction(

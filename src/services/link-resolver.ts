@@ -2,7 +2,7 @@ import {
   buildBacklinkListMarkdown,
   buildChildDocListMarkdown,
   dedupeDocRefs,
-  extractSiyuanBlockIdsFromMarkdown,
+  extractSiyuanBlockIdsFromMarkdown
 } from "@/core/link-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import {
@@ -15,7 +15,7 @@ import {
   getForwardRefTargetBlockIds,
   getRootDocRawMarkdown,
   listDocsByPath,
-  mapBlockIdsToRootDocIds,
+  mapBlockIdsToRootDocIds
 } from "@/services/kernel";
 import { DocRefItem } from "@/types/link-tool";
 
@@ -59,7 +59,7 @@ export async function getBacklinkDocs(docId: string): Promise<DocRefItem[]> {
   const [idsFromRefs, idsFromMarkdown, res] = await Promise.all([
     getBacklinkSourceDocIdsFromRefs(docId),
     getBacklinkSourceDocIdsFromMarkdown(docId),
-    getBacklink2(docId, false),
+    getBacklink2(docId, false)
   ]);
   const apiDocs = res.backlinks
     .filter((item) => item.id && item.id !== docId)
@@ -69,7 +69,7 @@ export async function getBacklinkDocs(docId: string): Promise<DocRefItem[]> {
       hPath: item.hPath || "",
       name: item.name || basename(item.hPath || item.id),
       updated: item.updated,
-      source: "backlink" as const,
+      source: "backlink" as const
     }));
   const mergedIds = [...new Set([...idsFromRefs, ...idsFromMarkdown, ...apiDocs.map((item) => item.id)])];
   if (!mergedIds.length) {
@@ -88,7 +88,7 @@ export async function getBacklinkDocs(docId: string): Promise<DocRefItem[]> {
         hPath: meta.hPath || "",
         name: meta.title || basename(meta.hPath || id),
         updated: meta.updated,
-        source: "backlink" as const,
+        source: "backlink" as const
       };
     }
     const fallback = apiDocMap.get(id);
@@ -101,7 +101,7 @@ export async function getBacklinkDocs(docId: string): Promise<DocRefItem[]> {
       hPath: "",
       name: id,
       updated: undefined,
-      source: "backlink" as const,
+      source: "backlink" as const
     };
   });
   return dedupeDocRefs(docs);
@@ -161,7 +161,7 @@ export async function getChildDocs(parentId: string): Promise<DocRefItem[]> {
         hPath: "",
         name: docName(item.name || "", item.path || "", item.id),
         source: "child" as const,
-        depth,
+        depth
       });
       if (item.path && (item.subFileCount === undefined || item.subFileCount > 0)) {
         await walk(item.path, depth + 1);
@@ -187,15 +187,15 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
     }
     const [rootIds, docMetas] = await Promise.all([
       mapBlockIdsToRootDocIds(candidateBlockIds),
-      getDocMetasByIDs(candidateBlockIds),
+      getDocMetasByIDs(candidateBlockIds)
     ]);
     forwardLinksLogger.debug(`${source}MappedRootIds`, {
       count: rootIds.length,
-      rootIds,
+      rootIds
     });
     forwardLinksLogger.debug(`${source}DocMetaFallbackIds`, {
       count: docMetas.length,
-      docMetaIds: docMetas.map((item) => item.id),
+      docMetaIds: docMetas.map((item) => item.id)
     });
 
     const set = new Set<string>();
@@ -218,13 +218,13 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
       }
       forwardLinksLogger.debug(`${source}FallbackToRawBlockIds`, {
         count: set.size,
-        ids: [...set],
+        ids: [...set]
       });
     }
     const result = [...set];
     forwardLinksLogger.debug(`${source}FinalForwardDocIds`, {
       count: result.length,
-      ids: result,
+      ids: result
     });
     return result;
   };
@@ -232,7 +232,7 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
   const refTargetBlockIds = await getForwardRefTargetBlockIds(docId);
   forwardLinksLogger.debug("refsTargetBlockIds", {
     count: refTargetBlockIds.length,
-    ids: refTargetBlockIds,
+    ids: refTargetBlockIds
   });
   let idsFromRefs: string[] = [];
   if (refTargetBlockIds.length) {
@@ -245,19 +245,19 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
       refMode: 3,
       embedMode: 0,
       addTitle: false,
-      yfm: false,
+      yfm: false
     }),
-    getRootDocRawMarkdown(docId),
+    getRootDocRawMarkdown(docId)
   ]);
 
   forwardLinksLogger.debug("exportMdContent", {
     docId,
     contentLength: (md.content || "").length,
-    preview: (md.content || "").slice(0, 400),
+    preview: (md.content || "").slice(0, 400)
   });
   forwardLinksLogger.debug("rawRootMarkdown", {
     contentLength: (rawRootMarkdown || "").length,
-    preview: (rawRootMarkdown || "").slice(0, 400),
+    preview: (rawRootMarkdown || "").slice(0, 400)
   });
 
   const fromExport = extractSiyuanBlockIdsFromMarkdown(md.content || "");
@@ -267,10 +267,10 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
     fromExportCount: fromExport.length,
     fromRawCount: fromRaw.length,
     count: blockIds.length,
-    blockIds,
+    blockIds
   });
   forwardLinksLogger.debug("rawIdLineEvidence", {
-    evidence: buildIdLineEvidence(rawRootMarkdown || "", blockIds),
+    evidence: buildIdLineEvidence(rawRootMarkdown || "", blockIds)
   });
   if (!blockIds.length) {
     forwardLinksLogger.debug("no block ids extracted");
@@ -294,7 +294,7 @@ export async function getForwardLinkedDocIds(docId: string): Promise<string[]> {
     markdownCount: idsFromMarkdown.length,
     mergedCount: merged.length,
     refsOnly,
-    markdownOnly,
+    markdownOnly
   });
   return merged;
 }

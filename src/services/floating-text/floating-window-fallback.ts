@@ -15,14 +15,14 @@ export function openInAppFloatingFallback(
   isDark: boolean
 ) {
   const hasImage = hasImageMarkdown(text);
-  const effectiveConfig: FloatingTextConfig = hasImage
-    ? { ...config, viewMode: "markdown" }
-    : config;
+  const effectiveConfig: FloatingTextConfig = hasImage ?
+      { ...config, viewMode: "markdown" } :
+    config;
   const initialHtml = renderMarkdownToHtml(text);
   const baseUrl =
-    typeof window !== "undefined" && window.location?.origin
-      ? window.location.origin
-      : "";
+    typeof window !== "undefined" && window.location?.origin ?
+      window.location.origin :
+      "";
   const dialogHtml = buildFloatingWindowHtml({
     title,
     text,
@@ -30,7 +30,7 @@ export function openInAppFloatingFallback(
     isDark,
     initialHtml,
     baseUrl,
-    isDialogFallback: true,
+    isDialogFallback: true
   });
 
   const dialog = new Dialog({
@@ -38,7 +38,7 @@ export function openInAppFloatingFallback(
     content: `<div class="doc-assistant-floating-dialog-wrapper" style="height: 100%; min-height: 260px;">${dialogHtml}</div>`,
     width: `${effectiveConfig.width}px`,
     height: `${effectiveConfig.height}px`,
-    transparent: true,
+    transparent: true
   });
 
   const dialogEl = dialog.element;

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/request", () => ({
-  requestApi: vi.fn(),
-}));
-
 import { listNotebookDocs } from "@/services/kernel";
 import { requestApi } from "@/services/request";
+
+vi.mock("@/services/request", () => ({
+  requestApi: vi.fn()
+}));
 
 describe("kernel listNotebookDocs", () => {
   const requestApiMock = vi.mocked(requestApi);
@@ -20,7 +20,7 @@ describe("kernel listNotebookDocs", () => {
       box: "notebook-1",
       path: `/${String(i + 1).padStart(2, "0")}.sy`,
       hpath: `/文档 ${i + 1}`,
-      updated: `20260428${String(i).padStart(6, "0")}`,
+      updated: `20260428${String(i).padStart(6, "0")}`
     }));
 
     requestApiMock.mockImplementation(async (url: string, payload?: any) => {
@@ -51,7 +51,7 @@ describe("kernel listNotebookDocs", () => {
       path: "/01.sy",
       hPath: "/文档 1",
       updated: "20260428000000",
-      title: "文档 1",
+      title: "文档 1"
     });
     expect(result[64]?.id).toBe("doc-65");
   });

@@ -3,7 +3,7 @@ import {
   buildAiForwardProxyHeaders,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
-  normalizeAiServiceConfig,
+  normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse } from "@/services/kernel";
@@ -11,14 +11,14 @@ import {
   extractIrrelevantParagraphMarks,
   extractKeyContentParagraphHighlights,
   IrrelevantParagraphMark,
-  KeyContentParagraphHighlight,
+  KeyContentParagraphHighlight
 } from "@/services/ai-slop-marker-parser";
 import {
   buildIrrelevantParagraphMessages,
   buildKeyContentParagraphMessages,
   IrrelevantParagraphCandidate,
   IrrelevantSegmentCandidate,
-  normalizeParagraphCandidates,
+  normalizeParagraphCandidates
 } from "@/services/ai-slop-marker-prompts";
 
 type ForwardProxyFn = (
@@ -67,7 +67,7 @@ async function requestChatCompletion(params: {
   aiSlopLogger.debug("request", {
     endpoint,
     model: params.config.model,
-    bodySize: params.body.length,
+    bodySize: params.body.length
   });
 
   const response = await params.forwardProxy(
@@ -101,7 +101,7 @@ async function requestChatCompletion(params: {
       } catch {
         return "(parse error)";
       }
-    })(),
+    })()
   });
 
   if (!response || response.status < 200 || response.status >= 300) {
@@ -155,17 +155,17 @@ export function createAiSlopMarkerService(deps: {
           messages: buildIrrelevantParagraphMessages({
             documentTitle: params.documentTitle,
             paragraphs,
-            segments,
+            segments
           }),
           max_tokens: Math.min(config.maxTokens, IRRELEVANT_PARAGRAPH_MAX_OUTPUT_TOKENS),
           temperature: config.temperature,
-          response_format: { type: "json_object" },
+          response_format: { type: "json_object" }
         }),
-        failureMessage: "AI 口水内容筛选请求失败",
+        failureMessage: "AI 口水内容筛选请求失败"
       });
 
       return extractIrrelevantParagraphMarks(payload, paragraphs, segments);
-    },
+    }
   };
 }
 
@@ -180,7 +180,7 @@ function buildIrrelevantSegmentCandidates(
         id: `s${segments.length + 1}`,
         paragraphId: paragraph.id,
         text: stripMarkdownMarkersForAiSegment(segmentText),
-        sourceText: segmentText,
+        sourceText: segmentText
       });
     }
   }
@@ -247,17 +247,17 @@ export function createAiKeyContentMarkerService(deps: {
           messages: buildKeyContentParagraphMessages({
             documentTitle: params.documentTitle,
             paragraphs,
-            segments,
+            segments
           }),
           max_tokens: Math.min(config.maxTokens, 700),
           temperature: config.temperature,
-          response_format: { type: "json_object" },
+          response_format: { type: "json_object" }
         }),
-        failureMessage: "AI 关键内容识别请求失败",
+        failureMessage: "AI 关键内容识别请求失败"
       });
 
       return extractKeyContentParagraphHighlights(payload, paragraphs, segments);
-    },
+    }
   };
 }
 
@@ -288,5 +288,5 @@ export type {
   DetectKeyContentParagraphHighlightsParams,
   IrrelevantParagraphMark,
   IrrelevantParagraphCandidate,
-  KeyContentParagraphHighlight,
+  KeyContentParagraphHighlight
 };

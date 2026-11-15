@@ -20,20 +20,20 @@ export type RelatedSuggestionPayload = {
 
 export function normalizeRelatedSuggestionPayload(value: unknown): RelatedSuggestionPayload {
   const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const suggestions = Array.isArray(source.suggestions)
-    ? source.suggestions
-      .map(normalizeRelatedSuggestion)
-      .filter((item): item is RelatedSuggestion => Boolean(item))
-    : [];
-  const tagSuggestions = Array.isArray(source.tagSuggestions)
-    ? source.tagSuggestions
-      .map(normalizeTagSuggestion)
-      .filter((item): item is TagSuggestionItem => Boolean(item))
-    : [];
+  const suggestions = Array.isArray(source.suggestions) ?
+      source.suggestions
+        .map(normalizeRelatedSuggestion)
+        .filter((item): item is RelatedSuggestion => Boolean(item)) :
+      [];
+  const tagSuggestions = Array.isArray(source.tagSuggestions) ?
+      source.tagSuggestions
+        .map(normalizeTagSuggestion)
+        .filter((item): item is TagSuggestionItem => Boolean(item)) :
+      [];
   return {
     summary: typeof source.summary === "string" ? source.summary.trim() : "",
     suggestions,
-    tagSuggestions,
+    tagSuggestions
   };
 }
 
@@ -47,17 +47,17 @@ function normalizeRelatedSuggestion(value: unknown): RelatedSuggestion | null {
   if (!targetDocumentId || !targetTitle) {
     return null;
   }
-  const tagSuggestions = Array.isArray(source.tagSuggestions)
-    ? source.tagSuggestions
-      .map(normalizeTagSuggestion)
-      .filter((item): item is RelatedSuggestion["tagSuggestions"][number] => Boolean(item))
-    : [];
+  const tagSuggestions = Array.isArray(source.tagSuggestions) ?
+      source.tagSuggestions
+        .map(normalizeTagSuggestion)
+        .filter((item): item is RelatedSuggestion["tagSuggestions"][number] => Boolean(item)) :
+      [];
   return {
     targetDocumentId,
     targetTitle,
     confidence: typeof source.confidence === "string" ? source.confidence.trim() : undefined,
     reason: typeof source.reason === "string" ? source.reason.trim() : undefined,
-    tagSuggestions,
+    tagSuggestions
   };
 }
 
@@ -73,7 +73,7 @@ function normalizeTagSuggestion(value: unknown): RelatedSuggestion["tagSuggestio
   return {
     tag,
     source: typeof source.source === "string" ? source.source.trim() : undefined,
-    reason: typeof source.reason === "string" ? source.reason.trim() : undefined,
+    reason: typeof source.reason === "string" ? source.reason.trim() : undefined
   };
 }
 
@@ -145,7 +145,7 @@ export function convertKeywordsToTagItems(
       .map((tag) => ({
         tag,
         source,
-        reason,
+        reason
       }))
   );
 }
@@ -168,9 +168,9 @@ export function buildRelatedSuggestionSummary(params: {
   }
   if (params.tagCount > 0) {
     if (params.isLinkFailed) {
-      const note = params.failureMessage?.trim()
-        ? `（补链提示：${params.failureMessage.trim()}）\n`
-        : "（补链未能获取相关文档）\n";
+      const note = params.failureMessage?.trim() ?
+        `（补链提示：${params.failureMessage.trim()}）\n` :
+        "（补链未能获取相关文档）\n";
       return `${note}已自动生成相关标签 ${params.tagCount} 个。`;
     }
     return `AI 建议添加相关标签 ${params.tagCount} 个。`;
@@ -187,7 +187,7 @@ export function extractCleanTagsFromTitle(title?: string): string[] {
   let cleaned = raw
     .replace(/^[\d.万亿kK]+\s*[人次阅读看过浏览赞]*[的之]?[万千百字]*[长短文章报告指南]*[—\-:_|～~=]+/u, "")
     .replace(/^【[^】]+】|^\[[^\]]+\]|^《[^》]+》/u, "")
-    .replace(/["'“”‘’《》【】\[\]]/gu, " ")
+    .replace(/["'“”‘’《》【】[\]]/gu, " ")
     .trim();
 
   cleaned = cleaned.replace(/^[—\-:_|～~=,，;；\s]+/u, "").trim();
@@ -207,7 +207,7 @@ export function extractCleanTagsFromTitle(title?: string): string[] {
     }
   }
 
-  const fallbackClean = raw.replace(/[—\-:_|～~="'“”‘’《》【】\[\]]/gu, "").trim();
+  const fallbackClean = raw.replace(/[—\-:_|～~="'“”‘’《》【】[\]]/gu, "").trim();
   if (fallbackClean.length >= 2 && fallbackClean.length <= 15 && !tags.includes(fallbackClean)) {
     tags.push(fallbackClean);
   }
@@ -246,7 +246,7 @@ const IGNORED_HEADING_TITLES = new Set([
   "background",
   "references",
   "appendix",
-  "table of contents",
+  "table of contents"
 ]);
 
 export function extractCleanTagsFromTitleAndContent(
@@ -260,7 +260,7 @@ export function extractCleanTagsFromTitleAndContent(
     if (!candidate || typeof candidate !== "string") {
       return;
     }
-    const clean = candidate.trim().replace(/^#+\s*/u, "").replace(/["'“”‘’《》【】\[\]]/gu, "").trim();
+    const clean = candidate.trim().replace(/^#+\s*/u, "").replace(/["'“”‘’《》【】[\]]/gu, "").trim();
     if (!clean || clean.length < 2 || clean.length > 15) {
       return;
     }
@@ -290,10 +290,10 @@ export function extractCleanTagsFromTitleAndContent(
       continue;
     }
     const cleanedHeading = rawHeading
-      .replace(/^[\d\.、一二三四五六七八九十]+\s*/u, "")
+      .replace(/^[\d.、一二三四五六七八九十]+\s*/u, "")
       .replace(/^（[一二三四五六七八九十\d]+）\s*/u, "")
       .replace(/^【[^】]+】|^\[[^\]]+\]|^《[^》]+》/u, "")
-      .replace(/[\*\_`]/g, "")
+      .replace(/[*_`]/g, "")
       .trim();
 
     addCandidate(cleanedHeading);
@@ -304,7 +304,7 @@ export function extractCleanTagsFromTitleAndContent(
 
   // 3. 如果标签数仍不足 3 个，从加粗关键词 (**xxx**) 中补充
   if (result.length < 3) {
-    const boldMatches = markdown.matchAll(/\*\*([^\*\n]{2,12})\*\*/g);
+    const boldMatches = markdown.matchAll(/\*\*([^*\n]{2,12})\*\*/g);
     for (const match of boldMatches) {
       const boldText = match[1]?.trim();
       addCandidate(boldText);

@@ -14,12 +14,12 @@ export {
   insertBlockBefore,
   updateBlockDom,
   updateBlockMarkdown,
-  renderKramdownToBlockDOM,
+  renderKramdownToBlockDOM
 } from "@/services/kernel-block";
 export type {
   ChildBlockMeta,
   ChildBlockRef,
-  DeleteBlocksResult,
+  DeleteBlocksResult
 } from "@/services/kernel-block";
 
 export { DOC_READONLY_ATTR_KEY } from "@/services/kernel-attr";
@@ -28,7 +28,7 @@ export {
   getBlockAttrs,
   getDocReadonlyState,
   isReadonlyAttrValue,
-  setBlockAttrs,
+  setBlockAttrs
 } from "@/services/kernel-attr";
 
 export {
@@ -40,7 +40,7 @@ export {
   putFile,
   removeDocByID,
   removeFile,
-  renameDocByID,
+  renameDocByID
 } from "@/services/kernel-file";
 export type { FileTreeDoc, PathInfo } from "@/services/kernel-file";
 
@@ -50,13 +50,13 @@ export {
   getForwardRefTargetBlockIds,
   getRootDocRawMarkdown,
   listDocsByParentSubtree,
-  mapBlockIdsToRootDocIds,
+  mapBlockIdsToRootDocIds
 } from "@/services/kernel-ref";
 
 export { forwardProxy } from "@/services/kernel-network";
 export type {
   ForwardProxyHeader,
-  ForwardProxyResponse,
+  ForwardProxyResponse
 } from "@/services/kernel-network";
 
 export { sql } from "@/services/kernel-shared";
@@ -67,12 +67,12 @@ export {
   getDocMetaByID,
   getDocMetasByIDs,
   getDocTreeOrderFromSy,
-  listNotebookDocs,
+  listNotebookDocs
 } from "@/services/kernel-doc-query";
 export type {
   ChildDocMeta,
   DocMeta,
-  NotebookDocMeta,
+  NotebookDocMeta
 } from "@/services/kernel-doc-query";
 
 type BacklinkPath = {
@@ -128,7 +128,7 @@ export async function getBacklink2(
     id,
     k: "",
     mk: "",
-    containChildren,
+    containChildren
   });
 }
 
@@ -138,7 +138,7 @@ export async function exportMdContent(
 ): Promise<ExportMdContentRes> {
   return requestApi<ExportMdContentRes>("/api/export/exportMdContent", {
     id,
-    ...options,
+    ...options
   });
 }
 
@@ -152,7 +152,7 @@ export async function exportResources(
 ): Promise<ExportResourcesRes> {
   return requestApi<ExportResourcesRes>("/api/export/exportResources", {
     paths,
-    name,
+    name
   });
 }
 
@@ -164,7 +164,7 @@ export async function createDocWithMd(
   return requestApi<string>("/api/filetree/createDocWithMd", {
     notebook,
     path,
-    markdown,
+    markdown
   });
 }
 
@@ -172,13 +172,13 @@ export async function getNotebookConf(
   notebook: string
 ): Promise<NotebookConfResponse> {
   return requestApi<NotebookConfResponse>("/api/notebook/getNotebookConf", {
-    notebook,
+    notebook
   });
 }
 
 export async function renderSprigTemplate(template: string): Promise<string> {
   return requestApi<string>("/api/template/renderSprig", {
-    template,
+    template
   });
 }
 

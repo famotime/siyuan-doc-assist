@@ -28,7 +28,7 @@ export function sanitizeDocTitle(title: string, fallbackUrl?: string): string {
     '"': "＂",
     "<": "＜",
     ">": "＞",
-    "|": "｜",
+    "|": "｜"
   };
 
   clean = clean.replace(/[\\/:*?"<>|]/g, (char) => invalidChars[char] || " ");

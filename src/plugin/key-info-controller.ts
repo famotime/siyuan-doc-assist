@@ -5,14 +5,14 @@ import { buildKeyInfoMarkdown, KeyInfoFilter, KeyInfoItem } from "@/core/key-inf
 import {
   buildKeyInfoControllerDockActionState,
   cloneKeyInfoDockFilter,
-  createKeyInfoControllerDockCallbacks,
+  createKeyInfoControllerDockCallbacks
 } from "@/plugin/key-info-controller-dock";
 import {
   buildKeyInfoRefreshFailureState,
   buildKeyInfoRefreshPendingState,
   buildKeyInfoRefreshSuccessState,
   buildKeyInfoUnavailableState,
-  shouldSkipReadonlyStateSync,
+  shouldSkipReadonlyStateSync
 } from "@/plugin/key-info-controller-refresh";
 import { createKeyInfoNavigation } from "@/plugin/key-info-navigation";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
@@ -65,8 +65,8 @@ export class KeyInfoController {
         position: "RightTop",
         size: {
           width: 320,
-          height: null,
-        },
+          height: null
+        }
       },
       init: (dock: { element: HTMLElement }) => {
         const startupDocProcessTabEnabled = Boolean(
@@ -83,11 +83,11 @@ export class KeyInfoController {
               onDocProcessActivate: () => this.syncCurrentDocReadonlyState(),
               onItemClick: (item) => {
                 this.handleKeyInfoItemClick(item);
-              },
+              }
             }),
             onFilterChange: (filter) => {
               void this.deps.setKeyInfoFilter?.(cloneKeyInfoDockFilter(filter) || []);
-            },
+            }
           },
           { startupDocProcessTabEnabled }
         );
@@ -104,7 +104,7 @@ export class KeyInfoController {
       },
       destroy: () => {
         this.destroy();
-      },
+      }
     });
   }
 
@@ -135,7 +135,7 @@ export class KeyInfoController {
       this.runningDocActionKeys.delete(action);
     }
     this.keyInfoDock?.setState({
-      runningDocActionKeys: Array.from(this.runningDocActionKeys),
+      runningDocActionKeys: Array.from(this.runningDocActionKeys)
     });
   }
 
@@ -150,15 +150,15 @@ export class KeyInfoController {
         isMobile: this.deps.isMobile(),
         registration,
         favoriteActionKeys: this.deps.getDocFavoriteActionKeys(),
-        docReadonly: this.currentDocReadonly,
+        docReadonly: this.currentDocReadonly
       }),
-      runningDocActionKeys: Array.from(this.runningDocActionKeys),
+      runningDocActionKeys: Array.from(this.runningDocActionKeys)
     });
   }
 
   getCurrentFilter(): KeyInfoFilter | undefined {
-    return cloneKeyInfoDockFilter(this.keyInfoDock?.getState().filter)
-      || cloneKeyInfoDockFilter(this.deps.getKeyInfoFilter?.());
+    return cloneKeyInfoDockFilter(this.keyInfoDock?.getState().filter) ||
+      cloneKeyInfoDockFilter(this.deps.getKeyInfoFilter?.());
   }
 
   async refresh(explicitId?: string, protyle?: ProtyleLike) {
@@ -178,7 +178,7 @@ export class KeyInfoController {
       buildKeyInfoRefreshPendingState({
         currentState,
         currentDocId,
-        nextDocId: docId,
+        nextDocId: docId
       })
     );
 
@@ -199,7 +199,7 @@ export class KeyInfoController {
           currentDocId,
           nextDocId: docId,
           docTitle: data.docTitle,
-          latestItems: data.items,
+          latestItems: data.items
         })
       );
     } catch (error: unknown) {
@@ -217,7 +217,7 @@ export class KeyInfoController {
         buildKeyInfoRefreshFailureState({
           currentState,
           currentDocId,
-          nextDocId: docId,
+          nextDocId: docId
         })
       );
     }
@@ -240,7 +240,7 @@ export class KeyInfoController {
       currentDocId: this.keyInfoDocId,
       nextDocId: docId,
       currentReadonly: this.currentDocReadonly,
-      nextReadonly: readonly,
+      nextReadonly: readonly
     })) {
       return;
     }
@@ -327,7 +327,7 @@ export class KeyInfoController {
     const canvasDoc = buildCanvasFromKeyInfoItems(processedItems, docTitle);
     await canvasPlugin.openCanvasTab({
       raw: JSON.stringify(canvasDoc),
-      title: docTitle,
+      title: docTitle
     });
     showMessage("已生成Canvas", 3000, "info");
   }

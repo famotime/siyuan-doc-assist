@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel-shared", () => ({
-  escapeSqlLiteral: vi.fn((value: string) => value.replace(/'/g, "''")),
-  sqlPaged: vi.fn(),
-}));
-
-vi.mock("@/services/kernel", () => ({
-  updateBlockMarkdown: vi.fn(),
-}));
-
-vi.mock("@/services/image-png-converter", () => ({
-  convertLocalAssetImageToPng: vi.fn(),
-}));
-
 import { sqlPaged } from "@/services/kernel-shared";
 import { updateBlockMarkdown } from "@/services/kernel";
 import { convertLocalAssetImageToPng } from "@/services/image-png-converter";
 import { convertDocImagesToPng } from "@/services/image-png";
+
+vi.mock("@/services/kernel-shared", () => ({
+  escapeSqlLiteral: vi.fn((value: string) => value.replace(/'/g, "''")),
+  sqlPaged: vi.fn()
+}));
+
+vi.mock("@/services/kernel", () => ({
+  updateBlockMarkdown: vi.fn()
+}));
+
+vi.mock("@/services/image-png-converter", () => ({
+  convertLocalAssetImageToPng: vi.fn()
+}));
 
 const sqlPagedMock = vi.mocked(sqlPaged);
 const updateBlockMarkdownMock = vi.mocked(updateBlockMarkdown);
@@ -31,12 +31,12 @@ describe("image-png service", () => {
     sqlPagedMock.mockResolvedValue([
       {
         id: "b1",
-        markdown: "![a](assets/a.jpg)\n![g](/assets/g.gif)\n![w](/assets/w.webp?x=1)",
+        markdown: "![a](assets/a.jpg)\n![g](/assets/g.gif)\n![w](/assets/w.webp?x=1)"
       } as any,
       {
         id: "b2",
-        markdown: '<img src="/assets/a.jpg" />',
-      } as any,
+        markdown: '<img src="/assets/a.jpg" />'
+      } as any
     ]);
 
     convertLocalAssetImageToPngMock
@@ -44,13 +44,13 @@ describe("image-png service", () => {
         sourceAssetPath: "/assets/a.jpg",
         targetAssetPath: "/assets/a.png",
         converted: true,
-        savedBytes: 0,
+        savedBytes: 0
       } as any)
       .mockResolvedValueOnce({
         sourceAssetPath: "/assets/w.webp",
         targetAssetPath: "/assets/w.png",
         converted: true,
-        savedBytes: 0,
+        savedBytes: 0
       } as any);
 
     const report = await convertDocImagesToPng("doc-1");
@@ -75,7 +75,7 @@ describe("image-png service", () => {
       failedBlockCount: 0,
       replacedLinkCount: 3,
       updatedBlockCount: 2,
-      totalSavedBytes: 0,
+      totalSavedBytes: 0
     });
   });
 
@@ -83,12 +83,12 @@ describe("image-png service", () => {
     sqlPagedMock.mockResolvedValue([
       {
         id: "b1",
-        markdown: "![a](assets/a.jpg)",
+        markdown: "![a](assets/a.jpg)"
       } as any,
       {
         id: "b2",
-        markdown: '<img src="/assets/b.webp" />',
-      } as any,
+        markdown: '<img src="/assets/b.webp" />'
+      } as any
     ]);
 
     convertLocalAssetImageToPngMock
@@ -96,13 +96,13 @@ describe("image-png service", () => {
         sourceAssetPath: "/assets/a.jpg",
         targetAssetPath: "/assets/a.png",
         converted: true,
-        savedBytes: 0,
+        savedBytes: 0
       } as any)
       .mockResolvedValueOnce({
         sourceAssetPath: "/assets/b.webp",
         targetAssetPath: "/assets/b.png",
         converted: true,
-        savedBytes: 0,
+        savedBytes: 0
       } as any);
     updateBlockMarkdownMock
       .mockRejectedValueOnce(new Error("stale block"))
@@ -119,7 +119,7 @@ describe("image-png service", () => {
       failedBlockCount: 1,
       replacedLinkCount: 1,
       updatedBlockCount: 1,
-      totalSavedBytes: 0,
+      totalSavedBytes: 0
     });
   });
 });

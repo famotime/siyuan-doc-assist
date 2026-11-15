@@ -30,8 +30,8 @@ export function calculateImageSliceRects(
         x: 0,
         y: 0,
         width: safeWidth,
-        height: safeHeight,
-      },
+        height: safeHeight
+      }
     ];
   }
 
@@ -44,7 +44,7 @@ export function calculateImageSliceRects(
       x: 0,
       y: currentY,
       width: safeWidth,
-      height: sliceH,
+      height: sliceH
     });
     currentY += sliceH;
   }

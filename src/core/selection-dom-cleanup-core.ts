@@ -102,9 +102,9 @@ export function filterOutNestedSelectedBlockIds(
 
 export function resolveRangeBoundaryBlockId(root: HTMLElement, container: Node): string {
   const baseElement =
-    container.nodeType === Node.ELEMENT_NODE
-      ? (container as Element)
-      : container.parentElement;
+    container.nodeType === Node.ELEMENT_NODE ?
+        (container as Element) :
+      container.parentElement;
   if (!baseElement) {
     return "";
   }

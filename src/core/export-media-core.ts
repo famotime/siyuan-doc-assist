@@ -74,7 +74,7 @@ export function normalizeUploadFileName(name: string, fallback = "doc.md"): stri
 
 export function collectAssetLinksFromMarkdown(markdown: string): string[] {
   const matches: string[] = [];
-  const mdLinkPattern = /!?\[[^\]]*?\]\(([^)\s]+)\)/g;
+  const mdLinkPattern = /!?\[[^\]]*\]\(([^)\s]+)\)/g;
   const htmlLinkPattern = /\b(?:src|href)\s*=\s*["']([^"']+)["']/gi;
 
   let mdMatch: RegExpExecArray | null = mdLinkPattern.exec(markdown);

@@ -4,7 +4,7 @@ import {
   normalizeDocActionsByGroup,
   reorderDocActionsWithinGroup,
   canDropDocActionWithinGroup,
-  buildDocActionGroupMap,
+  buildDocActionGroupMap
 } from "@/core/dock-doc-action-order-core";
 import { reorderFavoriteActionKeys, resolveInsertBeforeFromGeometry } from "@/core/dock-doc-action-drag-core";
 import { DockDocAction } from "@/core/dock-panel-core";
@@ -87,7 +87,7 @@ const GROUP_SVG_PATHS: Record<string, string> = {
   edit:
     '<path d="m18 5-2.414-2.414A2 2 0 0 0 14.172 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9.828a2 2 0 0 0-.586-1.414z" /><path d="M21.378 12.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" /><path d="M8 18h1" />',
   image:
-    '<rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />',
+    '<rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />'
 };
 
 function createGroupIconNode(groupKey: string): SVGSVGElement | null {
@@ -154,7 +154,7 @@ function resolveInsertBefore(row: HTMLDivElement, event: DragEvent): boolean {
   return resolveInsertBeforeFromGeometry({
     top: rect.top,
     height: rect.height,
-    clientY: event.clientY,
+    clientY: event.clientY
   });
 }
 
@@ -167,7 +167,7 @@ export function renderKeyInfoDockDocActions({
   onDocActionFavoriteToggle,
   onFavoriteActionsReorder,
   onDocActionsReorder,
-  selectionPreservedActionKeys = new Set<string>(),
+  selectionPreservedActionKeys = new Set<string>()
 }: RenderDocActionsOptions) {
   const clearDropIndicator = () => {
     container
@@ -203,7 +203,7 @@ export function renderKeyInfoDockDocActions({
       onDocActionFavoriteToggle,
       onFavoriteActionsReorder,
       onDocActionsReorder,
-      selectionPreservedActionKeys,
+      selectionPreservedActionKeys
     });
   };
 
@@ -234,10 +234,10 @@ export function renderKeyInfoDockDocActions({
   const canDropToFavoriteTarget = (sourceKey: string, targetKey: string) =>
     Boolean(
       sourceKey &&
-        targetKey &&
-        sourceKey !== targetKey &&
-        favoriteActionSet.has(sourceKey) &&
-        favoriteActionSet.has(targetKey)
+      targetKey &&
+      sourceKey !== targetKey &&
+      favoriteActionSet.has(sourceKey) &&
+      favoriteActionSet.has(targetKey)
     );
 
   const buildFavoriteButton = (
@@ -482,7 +482,7 @@ export function renderKeyInfoDockDocActions({
     collapsed: favoriteCollapsed,
     onToggle: () => {
       toggleGroup(FAVORITE_DOC_ACTION_GROUP_KEY);
-    },
+    }
   });
   fragment.appendChild(favoriteSeparator);
   if (!favoriteCollapsed) {
@@ -522,7 +522,7 @@ export function renderKeyInfoDockDocActions({
         onDocActionFavoriteToggle,
         onFavoriteActionsReorder,
         onDocActionsReorder,
-        selectionPreservedActionKeys,
+        selectionPreservedActionKeys
       });
     };
     input.addEventListener("compositionstart", () => {
@@ -554,7 +554,7 @@ export function renderKeyInfoDockDocActions({
           onDocActionFavoriteToggle,
           onFavoriteActionsReorder,
           onDocActionsReorder,
-          selectionPreservedActionKeys,
+          selectionPreservedActionKeys
         });
       });
       wrapper.appendChild(clearBtn);
@@ -592,7 +592,7 @@ export function renderKeyInfoDockDocActions({
         collapsed: collapsedGroups.has(action.group),
         onToggle: () => {
           toggleGroup(action.group);
-        },
+        }
       });
       separator.addEventListener("dragover", (event) => {
         const sourceKey = resolveSourceKey(event as DragEvent);

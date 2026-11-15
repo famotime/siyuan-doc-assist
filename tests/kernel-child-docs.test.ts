@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/request", () => ({
-  requestApi: vi.fn(),
-}));
-
 import { getChildDocsByParent } from "@/services/kernel";
 import { requestApi } from "@/services/request";
+
+vi.mock("@/services/request", () => ({
+  requestApi: vi.fn()
+}));
 
 describe("kernel getChildDocsByParent", () => {
   const requestApiMock = vi.mocked(requestApi);
@@ -19,8 +19,8 @@ describe("kernel getChildDocsByParent", () => {
       .mockResolvedValueOnce([
         {
           box: "notebook-1",
-          path: "/20260201000000-parent.sy",
-        },
+          path: "/20260201000000-parent.sy"
+        }
       ])
       .mockResolvedValueOnce([
         {
@@ -28,15 +28,15 @@ describe("kernel getChildDocsByParent", () => {
           box: "notebook-1",
           hpath: "/Parent/Child A",
           updated: "20260221120000",
-          path: "/20260201000000-parent/20260202000000-child-a.sy",
+          path: "/20260201000000-parent/20260202000000-child-a.sy"
         },
         {
           id: "grand-child",
           box: "notebook-1",
           hpath: "/Parent/Child A/Grand Child",
           updated: "20260221121000",
-          path: "/20260201000000-parent/20260202000000-child-a/20260203000000-grand-child.sy",
-        },
+          path: "/20260201000000-parent/20260202000000-child-a/20260203000000-grand-child.sy"
+        }
       ]);
 
     const result = await getChildDocsByParent("parent-doc");
@@ -47,8 +47,8 @@ describe("kernel getChildDocsByParent", () => {
         id: "child-a",
         box: "notebook-1",
         hPath: "/Parent/Child A",
-        updated: "20260221120000",
-      },
+        updated: "20260221120000"
+      }
     ]);
   });
 });

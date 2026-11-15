@@ -2,9 +2,9 @@ import { KeyInfoItem } from "@/core/key-info-core";
 import { normalizeListDecoratedText } from "@/services/key-info-model";
 
 function toMergeKey(item: KeyInfoItem): string {
-  const normalizedText = item.listPrefix
-    ? normalizeListDecoratedText(item.text)
-    : item.text;
+  const normalizedText = item.listPrefix ?
+      normalizeListDecoratedText(item.text) :
+    item.text;
   return `${item.type}|${normalizedText}|${item.blockId}`;
 }
 
@@ -30,7 +30,7 @@ export function mergePreferredInlineItems(
         const match = bucket.shift() as KeyInfoItem;
         return {
           ...item,
-          raw: match.raw || item.raw,
+          raw: match.raw || item.raw
         };
       }
       return item;

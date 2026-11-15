@@ -3,7 +3,7 @@ import {
   buildAiForwardProxyHeaders,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
-  normalizeAiServiceConfig,
+  normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import { normalizeAiSummaryText } from "@/core/ai-summary-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
@@ -17,7 +17,7 @@ type ForwardProxyFn = (
   payload?: any,
   headers?: ForwardProxyHeader[],
   timeout?: number,
-  contentType?: string,
+  contentType?: string
 ) => Promise<ForwardProxyResponse>;
 
 export type TranslateDocParagraphsOptions = {
@@ -50,13 +50,13 @@ const TRANSLATION_SYSTEM_PROMPT = [
   "你是专业英文到中文翻译助手。",
   "只输出中文翻译，不要添加说明、标题、前言或结论。",
   "保持原文的 Markdown 行内格式和链接语义，保留代码、变量名、URL 和专有名词中不应翻译的部分。",
-  "如果输入中包含多句或换行，请保持自然段落结构。",
+  "如果输入中包含多句或换行，请保持自然段落结构。"
 ].join("\n");
 
 const aiParagraphTranslationLogger = createDocAssistantLogger("AiParagraphTranslation");
 
 export async function translateDocParagraphs(
-  options: TranslateDocParagraphsOptions,
+  options: TranslateDocParagraphsOptions
 ): Promise<TranslateDocParagraphsReport> {
   const normalizedDocId = (options.docId || "").trim();
   if (!normalizedDocId) {
@@ -76,7 +76,7 @@ export async function translateDocParagraphs(
      from blocks
      where root_id='${escapeSqlLiteral(normalizedDocId)}'
        and type='p'
-     order by sort asc`,
+     order by sort asc`
   );
   const paragraphs = (rows || [])
     .filter((row) => row?.id && row.type === "p" && typeof row.markdown === "string")
@@ -86,7 +86,7 @@ export async function translateDocParagraphs(
   if (!translatableItems.length) {
     return {
       ...emptyReport(),
-      scannedParagraphCount: paragraphs.length,
+      scannedParagraphCount: paragraphs.length
     };
   }
 
@@ -121,7 +121,7 @@ export async function translateDocParagraphs(
       data: translation,
       nextID: "",
       previousID: translatableItems[i].blockId,
-      parentID: "",
+      parentID: ""
     });
     insertedCount += 1;
   }
@@ -131,7 +131,7 @@ export async function translateDocParagraphs(
     translatableParagraphCount: translatableItems.length,
     translatedCount,
     failedCount,
-    insertedCount,
+    insertedCount
   };
 }
 
@@ -141,7 +141,7 @@ function emptyReport(): TranslateDocParagraphsReport {
     translatableParagraphCount: 0,
     translatedCount: 0,
     failedCount: 0,
-    insertedCount: 0,
+    insertedCount: 0
   };
 }
 
@@ -159,7 +159,7 @@ function stripBlockAttributes(markdown: string): string {
 async function requestParagraphTranslation(
   proxyFn: ForwardProxyFn,
   config: AiServiceConfig,
-  sourceMarkdown: string,
+  sourceMarkdown: string
 ): Promise<string> {
   const endpoint = `${config.baseUrl.replace(/\/+$/u, "")}/chat/completions`;
   const messages: ChatMessage[] = [
@@ -170,26 +170,26 @@ async function requestParagraphTranslation(
         "请将下面这一段英文内容翻译为中文。",
         "只输出中文翻译，不要添加说明。",
         "原段落：",
-        sourceMarkdown,
-      ].join("\n\n"),
-    },
+        sourceMarkdown
+      ].join("\n\n")
+    }
   ];
   const body = JSON.stringify({
     model: config.model,
     messages,
     max_tokens: config.maxTokens,
-    temperature: Math.min(config.temperature ?? 0.2, 0.3),
+    temperature: Math.min(config.temperature ?? 0.2, 0.3)
   });
   const timeoutMs = Math.max(
     1,
-    config.requestTimeoutSeconds || DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
+    config.requestTimeoutSeconds || DEFAULT_AI_REQUEST_TIMEOUT_SECONDS
   ) * 1000;
 
   aiParagraphTranslationLogger.debug("request", {
     endpoint,
     model: config.model,
     sourceLength: sourceMarkdown.length,
-    timeoutMs,
+    timeoutMs
   });
 
   const response = await proxyFn(
@@ -198,13 +198,13 @@ async function requestParagraphTranslation(
     body,
     buildAiForwardProxyHeaders(config),
     timeoutMs,
-    "application/json",
+    "application/json"
   );
 
   aiParagraphTranslationLogger.debug("response", {
     status: response?.status,
     elapsed: response?.elapsed,
-    bodyLength: response?.body?.length ?? 0,
+    bodyLength: response?.body?.length ?? 0
   });
 
   if (!response || response.status < 200 || response.status >= 300) {
@@ -231,13 +231,13 @@ function extractTextContent(payload: any): string {
     return normalizeAiSummaryText(
       content
         .map((item) =>
-          typeof item?.text === "string"
-            ? item.text
-            : typeof item === "string"
-              ? item
-              : "",
+          typeof item?.text === "string" ?
+            item.text :
+            typeof item === "string" ?
+              item :
+              ""
         )
-        .join("\n"),
+        .join("\n")
     );
   }
   const reasoning = message?.reasoning_content;

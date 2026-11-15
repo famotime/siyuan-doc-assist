@@ -10,7 +10,7 @@ import {
   mergeTags,
   normalizeRelatedSuggestionPayload,
   parseTagAttr,
-  TagSuggestionItem,
+  TagSuggestionItem
 } from "@/core/ai-related-suggestions-core";
 import { AiServiceConfig, isAiServiceConfigComplete, normalizeAiServiceConfig } from "@/core/ai-service-config-core";
 import { generateDocumentTagSuggestions } from "@/services/ai-summary";
@@ -50,7 +50,7 @@ export function createAiRelatedActionHandlers(
         result = await wikiProvider.invokeCommand("suggest-orphan-links-and-tags", {
           trigger: "manual",
           sourcePlugin: "siyuan-doc-assist",
-          themeDocumentId: docId,
+          themeDocumentId: docId
         });
         aiRelatedLogger.debug("suggest-orphan-links-and-tags 返回原始数据", result);
       } catch (invokeError) {
@@ -66,14 +66,14 @@ export function createAiRelatedActionHandlers(
       const links = dedupeRelatedSuggestions(result?.ok ? payload.suggestions : []);
       let tagItems = dedupeTagSuggestionItems([
         ...(payload.tagSuggestions ?? []),
-        ...links.flatMap((item) => item.tagSuggestions),
+        ...links.flatMap((item) => item.tagSuggestions)
       ]);
 
       aiRelatedLogger.debug("主命令处理结果", {
         isLinkFailed,
         failureMessage,
         linksCount: links.length,
-        primaryTagsCount: tagItems.length,
+        primaryTagsCount: tagItems.length
       });
 
       if (!tagItems.length && (isLinkFailed || !links.length)) {
@@ -82,7 +82,7 @@ export function createAiRelatedActionHandlers(
           wikiProvider,
           lensPlugin,
           docId,
-          getAiSummaryConfig: options.getAiSummaryConfig,
+          getAiSummaryConfig: options.getAiSummaryConfig
         });
         aiRelatedLogger.debug("降级策略完成，获取到的标签总数", tagItems.length);
       }
@@ -101,7 +101,7 @@ export function createAiRelatedActionHandlers(
           description: item.reason || item.confidence || undefined,
           selectable: true,
           selected: true,
-          tone: "link" as const,
+          tone: "link" as const
         })),
         ...tagItems.map((item) => ({
           id: `tag:${item.tag}`,
@@ -109,8 +109,8 @@ export function createAiRelatedActionHandlers(
           description: item.reason || item.source || undefined,
           selectable: true,
           selected: true,
-          tone: "tag" as const,
-        })),
+          tone: "tag" as const
+        }))
       ];
 
       const summaryText = buildRelatedSuggestionSummary({
@@ -118,18 +118,18 @@ export function createAiRelatedActionHandlers(
         linkCount: links.length,
         tagCount: tags.length,
         isLinkFailed,
-        failureMessage,
+        failureMessage
       });
 
       aiRelatedLogger.debug("准备弹出确认对话框", { summaryText, detailItemsCount: detailItems.length });
 
-      const ok = options.askConfirmWithVisibleDialog
-        ? await options.askConfirmWithVisibleDialog(
-          "确认添加相关链接和标签",
-          `${summaryText}\n\n确认后会写入您勾选的相关内容。是否继续？`,
-          detailItems
-        )
-        : true;
+      const ok = options.askConfirmWithVisibleDialog ?
+          await options.askConfirmWithVisibleDialog(
+            "确认添加相关链接和标签",
+            `${summaryText}\n\n确认后会写入您勾选的相关内容。是否继续？`,
+            detailItems
+          ) :
+        true;
       if (!ok) {
         aiRelatedLogger.debug("用户取消了确认对话框");
         return;
@@ -146,7 +146,7 @@ export function createAiRelatedActionHandlers(
 
       aiRelatedLogger.debug("用户选中的链接与标签", {
         selectedLinksCount: selectedLinks.length,
-        selectedTagsCount: selectedTags.length,
+        selectedTagsCount: selectedTags.length
       });
 
       if (!selectedLinks.length && !selectedTags.length) {
@@ -184,7 +184,7 @@ export function createAiRelatedActionHandlers(
       } else {
         showMessage(`已添加相关标签 ${selectedTags.length} 个`, 5000, "info");
       }
-    },
+    }
   };
 }
 
@@ -196,33 +196,33 @@ async function fetchFallbackTags(params: {
 }): Promise<TagSuggestionItem[]> {
   // 策略 1：查询脉络镜导出的可用命令列表，尝试单独的标签推荐命令（排除已失败的主命令）
   try {
-    const commands = typeof params.wikiProvider.listCommands === "function"
-      ? await params.wikiProvider.listCommands()
-      : [];
+    const commands = typeof params.wikiProvider.listCommands === "function" ?
+        await params.wikiProvider.listCommands() :
+        [];
     aiRelatedLogger.debug("[Fallback] 降级策略 1：脉络镜暴露的可用命令列表", commands);
-    const tagCmd = Array.isArray(commands)
-      ? commands.find((c: any) =>
-        c?.id !== "suggest-orphan-links-and-tags" &&
-        (c?.id === "suggest-tags" ||
-          c?.id === "suggest-orphan-tags" ||
-          c?.id === "generate-tags" ||
-          (typeof c?.id === "string" && c.id.includes("tag")))
-      )
-      : undefined;
+    const tagCmd = Array.isArray(commands) ?
+        commands.find((c: any) =>
+          c?.id !== "suggest-orphan-links-and-tags" &&
+          (c?.id === "suggest-tags" ||
+            c?.id === "suggest-orphan-tags" ||
+            c?.id === "generate-tags" ||
+            (typeof c?.id === "string" && c.id.includes("tag")))
+        ) :
+      undefined;
 
     if (tagCmd?.id) {
       aiRelatedLogger.debug(`[Fallback] 正在尝试调用降级标签命令 '${tagCmd.id}'...`);
       const res = await params.wikiProvider.invokeCommand(tagCmd.id, {
         trigger: "manual",
         sourcePlugin: "siyuan-doc-assist",
-        themeDocumentId: params.docId,
+        themeDocumentId: params.docId
       });
       aiRelatedLogger.debug(`[Fallback] 命令 '${tagCmd.id}' 返回结果`, res);
       if (res?.ok && res?.data) {
         const p = normalizeRelatedSuggestionPayload(res.data);
         const items = dedupeTagSuggestionItems([
           ...(p.tagSuggestions ?? []),
-          ...p.suggestions.flatMap((s) => s.tagSuggestions),
+          ...p.suggestions.flatMap((s) => s.tagSuggestions)
         ]);
         if (items.length) {
           aiRelatedLogger.debug(`[Fallback] 成功通过降级命令 '${tagCmd.id}' 获取到 ${items.length} 个标签`, items);
@@ -243,7 +243,7 @@ async function fetchFallbackTags(params: {
     const summary = await loadFreshNetworkLensDocumentSummary({
       networkLensPlugin: params.lensPlugin,
       documentId: params.docId,
-      documentUpdatedAt: docMeta?.updated || "",
+      documentUpdatedAt: docMeta?.updated || ""
     });
     aiRelatedLogger.debug("[Fallback] loadFreshNetworkLensDocumentSummary 结果", summary);
     if (summary?.keywords?.length) {
@@ -288,7 +288,7 @@ async function fetchFallbackTags(params: {
     aiRelatedLogger.debug("[Fallback] 解析到的有效 AI 配置状态", {
       hasConfig: Boolean(aiConfig),
       model: aiConfig?.model,
-      baseUrl: aiConfig?.baseUrl,
+      baseUrl: aiConfig?.baseUrl
     });
     if (aiConfig) {
       const docMeta = await getDocMetaByID(params.docId).catch(() => null);
@@ -296,7 +296,7 @@ async function fetchFallbackTags(params: {
       const aiTags = await generateDocumentTagSuggestions({
         config: aiConfig,
         documentTitle: docMeta?.title,
-        documentMarkdown: docMarkdown,
+        documentMarkdown: docMarkdown
       });
       if (aiTags.length) {
         const items = convertKeywordsToTagItems(aiTags, "ai-extract", "AI 提炼主题标签");
@@ -340,7 +340,7 @@ function resolveEffectiveAiConfig(params: {
     aiRelatedLogger.debug("[Fallback] 本地 AI 服务配置未完整（请在插件设置中填写 Base URL、API Key 与 Model），跳过策略 4", {
       hasBaseUrl: Boolean(config.baseUrl),
       hasApiKey: Boolean(config.apiKey),
-      hasModel: Boolean(config.model),
+      hasModel: Boolean(config.model)
     });
     return null;
   }

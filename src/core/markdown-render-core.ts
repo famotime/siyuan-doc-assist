@@ -41,7 +41,7 @@ export function renderMarkdownToHtml(
     const html = marked.parse(markdown, {
       gfm: true,
       breaks: true,
-      async: false,
+      async: false
     });
     return typeof html === "string" ? html : String(html || "");
   } catch (err) {

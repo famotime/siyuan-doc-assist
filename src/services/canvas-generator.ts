@@ -77,7 +77,7 @@ function buildHeadingSections(items: KeyInfoItem[]): HeadingSection[] {
       current = { level, title: item.text, text: item.raw };
     } else if (current) {
       const line = (item.raw || item.text || "").trim();
-      if (line) current.text += "\n" + line;
+      if (line) current.text += `\n${line}`;
     } else {
       // content before first heading — start implicit root section
       const line = (item.raw || item.text || "").trim();
@@ -125,16 +125,16 @@ function findNonOverlappingPosition(
 export function preprocessItemsForCanvas(items: KeyInfoItem[], docTitle: string): KeyInfoItem[] {
   const first = items[0];
   if (
-    first
-    && first.type === "title"
-    && /^#{1}\s/.test(first.raw || "")
-    && first.text.trim() === docTitle.trim()
+    first &&
+    first.type === "title" &&
+    /^#\s/.test(first.raw || "") &&
+    first.text.trim() === docTitle.trim()
   ) {
     return items;
   }
   return [
     { ...first!, id: `synth-h1-${Date.now()}`, type: "title" as const, text: docTitle, raw: `# ${docTitle}` },
-    ...items,
+    ...items
   ];
 }
 
@@ -149,7 +149,7 @@ export function buildCanvasFromKeyInfoItems(
     // single root node with just the title
     return {
       nodes: [{ id: createCanvasId("node-"), type: "text", text: `**${docTitle}**`, x: 0, y: 0, width: NODE_WIDTH, height: NODE_HEIGHT }],
-      edges: [],
+      edges: []
     };
   }
 
@@ -162,7 +162,7 @@ export function buildCanvasFromKeyInfoItems(
     x: 0,
     y: 0,
     width: NODE_WIDTH,
-    height: NODE_HEIGHT,
+    height: NODE_HEIGHT
   };
 
   // If the first H1 section matches the document title, skip creating a
@@ -174,14 +174,14 @@ export function buildCanvasFromKeyInfoItems(
     effectiveSections.shift();
     const body = firstH1.text.replace(/^#[^\n]*\n?/, "").trim();
     if (body) {
-      rootNode.text += "\n" + body;
+      rootNode.text += `\n${body}`;
     }
   }
 
   if (!effectiveSections.length) {
     return {
       nodes: [rootNode],
-      edges: [],
+      edges: []
     };
   }
 
@@ -201,7 +201,7 @@ export function buildCanvasFromKeyInfoItems(
     if (section.level === 0) {
       // content before first heading — append to root
       const body = section.text.trim();
-      if (body) rootNode.text += "\n" + body;
+      if (body) rootNode.text += `\n${body}`;
       continue;
     }
 
@@ -222,7 +222,7 @@ export function buildCanvasFromKeyInfoItems(
       x: rootNode.x + depth * (NODE_WIDTH + HORIZONTAL_GAP),
       y: rootNode.y + row * (NODE_HEIGHT + VERTICAL_GAP),
       width: NODE_WIDTH,
-      height: NODE_HEIGHT,
+      height: NODE_HEIGHT
     };
 
     const pos = findNonOverlappingPosition(node, existingForOverlap, NODE_HEIGHT + VERTICAL_GAP);
@@ -246,7 +246,7 @@ export function buildCanvasFromKeyInfoItems(
       startArrow: false,
       toNode: node.id,
       toSide: "left",
-      endArrow: true,
+      endArrow: true
     });
   }
 
@@ -278,7 +278,7 @@ export function parseMarkdownToKeyInfoItems(markdown: string): KeyInfoItem[] {
         raw: trimmed,
         offset: 0,
         blockSort: counter,
-        order: counter,
+        order: counter
       });
     } else {
       items.push({
@@ -288,7 +288,7 @@ export function parseMarkdownToKeyInfoItems(markdown: string): KeyInfoItem[] {
         raw: trimmed,
         offset: 0,
         blockSort: counter,
-        order: counter,
+        order: counter
       });
     }
     counter++;

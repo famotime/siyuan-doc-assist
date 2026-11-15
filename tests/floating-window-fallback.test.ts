@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, vi, test } from "vitest";
 import { openInAppFloatingFallback } from "@/services/floating-text/floating-window-fallback";
 
 type DialogOptions = {
@@ -45,7 +45,7 @@ const defaultConfig = {
   viewMode: "text",
   themeMode: "auto",
   autoPasteOnSelect: false,
-  rememberSize: false,
+  rememberSize: false
 } as any;
 
 function expectDialogClosed(): void {
@@ -58,7 +58,7 @@ beforeEach(() => {
 });
 
 describe("openInAppFloatingFallback", () => {
-  it("creates a transparent SiYuan dialog with cleaned container styles", () => {
+  test("creates a transparent SiYuan dialog with cleaned container styles", () => {
     openInAppFloatingFallback("标题", "正文内容", defaultConfig, true);
 
     expect(dialogInstances).toHaveLength(1);
@@ -78,12 +78,12 @@ describe("openInAppFloatingFallback", () => {
     expect(body.style.height).toBe("100%");
   });
 
-  it("forces markdown view mode when content contains images", () => {
+  test("forces markdown view mode when content contains images", () => {
     openInAppFloatingFallback("标题", "![图片](https://example.com/a.png)", defaultConfig, false);
     expect(dialogInstances[0].options.content).toContain("ft-markdown-view");
   });
 
-  it("closes the dialog via the inner close button", () => {
+  test("closes the dialog via the inner close button", () => {
     openInAppFloatingFallback("标题", "正文", defaultConfig, false);
 
     const innerClose = document.querySelector("#ft-btn-close");
@@ -92,14 +92,14 @@ describe("openInAppFloatingFallback", () => {
     expectDialogClosed();
   });
 
-  it("closes the dialog on Escape keydown", () => {
+  test("closes the dialog on Escape keydown", () => {
     openInAppFloatingFallback("标题", "正文", defaultConfig, false);
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expectDialogClosed();
   });
 
-  it("responds to the floating close custom event once and ignores repeated cleanup", () => {
+  test("responds to the floating close custom event once and ignores repeated cleanup", () => {
     openInAppFloatingFallback("标题", "正文", defaultConfig, false);
 
     document.dispatchEvent(new Event("doc-assistant-floating-close"));

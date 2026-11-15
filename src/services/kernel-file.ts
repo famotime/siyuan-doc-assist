@@ -21,20 +21,20 @@ export type FileTreeDoc = {
 export async function moveDocsByID(fromIDs: string[], toID: string): Promise<void> {
   await requestApi("/api/filetree/moveDocsByID", {
     fromIDs,
-    toID,
+    toID
   });
 }
 
 export async function renameDocByID(id: string, title: string): Promise<void> {
   await requestApi("/api/filetree/renameDocByID", {
     id,
-    title,
+    title
   });
 }
 
 export async function removeDocByID(id: string): Promise<void> {
   await requestApi("/api/filetree/removeDocByID", {
-    id,
+    id
   });
 }
 
@@ -71,9 +71,9 @@ export async function getFileBlob(path: string): Promise<Blob> {
   const response = await fetch("/api/file/getFile", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json"
     },
-    body: JSON.stringify({ path }),
+    body: JSON.stringify({ path })
   });
   if (!response.ok) {
     throw new Error(`读取文件失败：${response.status}`);
@@ -151,9 +151,9 @@ export async function getFileTextAllowJson(path: string): Promise<string> {
   const response = await fetch("/api/file/getFile", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json"
     },
-    body: JSON.stringify({ path }),
+    body: JSON.stringify({ path })
   });
   if (!response.ok) {
     throw new Error(`读取文件失败：${response.status}`);
@@ -205,7 +205,7 @@ export async function listDocsByPath(
 ): Promise<FileTreeDoc[]> {
   const res = await requestApi<{ files?: FileTreeDoc[] }>("/api/filetree/listDocsByPath", {
     notebook,
-    path,
+    path
   });
   return res?.files || [];
 }

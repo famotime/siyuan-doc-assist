@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
   calculateSteppedFontSize,
   escapeHtml,
@@ -12,17 +12,17 @@ import {
   MAX_FONT_SIZE,
   MIN_FONT_SIZE,
   MAX_OPACITY,
-  MIN_OPACITY,
+  MIN_OPACITY
 } from "@/core/floating-text-core";
 
 describe("floating-text-core", () => {
   describe("normalizeFloatingConfig", () => {
-    it("returns default config when input is null or undefined", () => {
+    test("returns default config when input is null or undefined", () => {
       expect(normalizeFloatingConfig(null)).toEqual(DEFAULT_FLOATING_TEXT_CONFIG);
       expect(normalizeFloatingConfig(undefined)).toEqual(DEFAULT_FLOATING_TEXT_CONFIG);
     });
 
-    it("clamps opacity between MIN_OPACITY and MAX_OPACITY", () => {
+    test("clamps opacity between MIN_OPACITY and MAX_OPACITY", () => {
       const tooLow = normalizeFloatingConfig({ opacity: 0.01 });
       expect(tooLow.opacity).toBe(MIN_OPACITY);
 
@@ -33,7 +33,7 @@ describe("floating-text-core", () => {
       expect(valid.opacity).toBe(0.72);
     });
 
-    it("clamps fontSize between MIN_FONT_SIZE and MAX_FONT_SIZE", () => {
+    test("clamps fontSize between MIN_FONT_SIZE and MAX_FONT_SIZE", () => {
       const tooLow = normalizeFloatingConfig({ fontSize: 5 });
       expect(tooLow.fontSize).toBe(MIN_FONT_SIZE);
 
@@ -44,20 +44,20 @@ describe("floating-text-core", () => {
       expect(valid.fontSize).toBe(18);
     });
 
-    it("normalizes themeMode and viewMode", () => {
+    test("normalizes themeMode and viewMode", () => {
       const validDark = normalizeFloatingConfig({ themeMode: "dark", viewMode: "markdown" });
       expect(validDark.themeMode).toBe("dark");
       expect(validDark.viewMode).toBe("markdown");
 
       const invalid = normalizeFloatingConfig({
         themeMode: "custom" as any,
-        viewMode: "other" as any,
+        viewMode: "other" as any
       });
       expect(invalid.themeMode).toBe("auto");
       expect(invalid.viewMode).toBe("text");
     });
 
-    it("normalizes autoPasteOnSelect boolean", () => {
+    test("normalizes autoPasteOnSelect boolean", () => {
       expect(normalizeFloatingConfig({ autoPasteOnSelect: true }).autoPasteOnSelect).toBe(true);
       expect(normalizeFloatingConfig({ autoPasteOnSelect: false }).autoPasteOnSelect).toBe(false);
       expect(normalizeFloatingConfig({ autoPasteOnSelect: "invalid" as any }).autoPasteOnSelect).toBe(false);
@@ -65,35 +65,35 @@ describe("floating-text-core", () => {
   });
 
   describe("calculateSteppedFontSize", () => {
-    it("increments and decrements font size correctly", () => {
+    test("increments and decrements font size correctly", () => {
       expect(calculateSteppedFontSize(16, "up", 2)).toBe(18);
       expect(calculateSteppedFontSize(16, "down", 2)).toBe(14);
     });
 
-    it("respects boundary limits", () => {
+    test("respects boundary limits", () => {
       expect(calculateSteppedFontSize(MAX_FONT_SIZE, "up", 1)).toBe(MAX_FONT_SIZE);
       expect(calculateSteppedFontSize(MIN_FONT_SIZE, "down", 1)).toBe(MIN_FONT_SIZE);
     });
   });
 
   describe("hexToRgba", () => {
-    it("converts 6-digit hex color correctly", () => {
+    test("converts 6-digit hex color correctly", () => {
       expect(hexToRgba("#000000", 0.5)).toBe("rgba(0, 0, 0, 0.5)");
       expect(hexToRgba("#ffffff", 1)).toBe("rgba(255, 255, 255, 1)");
     });
 
-    it("converts 3-digit hex color correctly", () => {
+    test("converts 3-digit hex color correctly", () => {
       expect(hexToRgba("#fff", 0.8)).toBe("rgba(255, 255, 255, 0.8)");
     });
 
-    it("clamps opacity", () => {
+    test("clamps opacity", () => {
       expect(hexToRgba("#123456", 1.5)).toBe("rgba(18, 52, 86, 1)");
       expect(hexToRgba("#123456", -0.5)).toBe("rgba(18, 52, 86, 0)");
     });
   });
 
   describe("escapeHtml", () => {
-    it("escapes special HTML characters", () => {
+    test("escapes special HTML characters", () => {
       expect(escapeHtml("<script>alert('xss')</script>&")).toBe(
         "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;&amp;"
       );
@@ -101,36 +101,36 @@ describe("floating-text-core", () => {
   });
 
   describe("simpleMarkdownToHtml", () => {
-    it("returns empty string on empty input", () => {
+    test("returns empty string on empty input", () => {
       expect(simpleMarkdownToHtml("")).toBe("");
     });
 
-    it("renders headings", () => {
+    test("renders headings", () => {
       const html = simpleMarkdownToHtml("# 标题一\n## 标题二");
       expect(html).toContain('<h1 class="ft-h1">标题一</h1>');
       expect(html).toContain('<h2 class="ft-h2">标题二</h2>');
     });
 
-    it("renders bold and inline code", () => {
+    test("renders bold and inline code", () => {
       const html = simpleMarkdownToHtml("这是 **加粗** 和 `代码`");
       expect(html).toContain("<strong>加粗</strong>");
       expect(html).toContain('<code class="ft-inline-code">代码</code>');
     });
 
-    it("renders code blocks with language", () => {
+    test("renders code blocks with language", () => {
       const md = "```ts\nconst a = 1;\n```";
       const html = simpleMarkdownToHtml(md);
       expect(html).toContain('<pre class="ft-code-block"><code class="language-ts">const a = 1;</code></pre>');
     });
 
-    it("renders todo checkboxes", () => {
+    test("renders todo checkboxes", () => {
       const md = "- [ ] 待办项 1\n- [x] 已完成项 2";
       const html = simpleMarkdownToHtml(md);
       expect(html).toContain('<div class="ft-todo-item"><input type="checkbox" disabled /> <span>待办项 1</span></div>');
       expect(html).toContain('<div class="ft-todo-item"><input type="checkbox" disabled checked/> <span>已完成项 2</span></div>');
     });
 
-    it("renders unordered and ordered lists", () => {
+    test("renders unordered and ordered lists", () => {
       const md = "- 列表项 1\n* 列表项 2\n1. 有序项 1\n2. 有序项 2";
       const html = simpleMarkdownToHtml(md);
       expect(html).toContain('<ul class="ft-ul">');
@@ -143,7 +143,7 @@ describe("floating-text-core", () => {
       expect(html).toContain('</ol>');
     });
 
-    it("formats list item prefix correctly", () => {
+    test("formats list item prefix correctly", () => {
       expect(formatListItemMarkdown("任务", "t")).toBe("- [ ] 任务");
       expect(formatListItemMarkdown("第一步", "o", 1)).toBe("1. 第一步");
       expect(formatListItemMarkdown("普通项", "u")).toBe("- 普通项");
@@ -152,42 +152,42 @@ describe("floating-text-core", () => {
   });
 
   describe("stripKramdownBlockAttributes", () => {
-    it("returns empty string on empty input", () => {
+    test("returns empty string on empty input", () => {
       expect(stripKramdownBlockAttributes("")).toBe("");
       expect(stripKramdownBlockAttributes("   ")).toBe("");
     });
 
-    it("strips IAL from unordered list item (user example)", () => {
+    test("strips IAL from unordered list item (user example)", () => {
       const raw = '- {: id="20260903224427-3tm5cbq" updated="20260903224427"}项目地址：https://github.com/cloudflare/moltworker';
       const cleaned = stripKramdownBlockAttributes(raw);
       expect(cleaned).toBe("- 项目地址：https://github.com/cloudflare/moltworker");
     });
 
-    it("strips standalone IAL lines", () => {
+    test("strips standalone IAL lines", () => {
       const raw = '第一段文本\n{: id="20260903224427-p1" updated="20260903224427"}\n\n第二段文本';
       const cleaned = stripKramdownBlockAttributes(raw);
       expect(cleaned).toBe("第一段文本\n\n第二段文本");
     });
 
-    it("strips IAL from headings", () => {
+    test("strips IAL from headings", () => {
       const raw = '# 核心标题 {: id="20260903224427-h1"}\n## 次级标题\n{: id="20260903224427-h2"}';
       const cleaned = stripKramdownBlockAttributes(raw);
       expect(cleaned).toBe("# 核心标题\n## 次级标题");
     });
 
-    it("strips IAL from ordered and task lists", () => {
+    test("strips IAL from ordered and task lists", () => {
       const raw = '1. {: id="20260903224427-o1"}第一步\n- [ ] {: id="20260903224427-t1"}待办事项';
       const cleaned = stripKramdownBlockAttributes(raw);
       expect(cleaned).toBe("1. 第一步\n- [ ] 待办事项");
     });
 
-    it("strips IAL from blockquotes", () => {
+    test("strips IAL from blockquotes", () => {
       const raw = '> {: id="20260903224427-q1"}引用文字内容';
       const cleaned = stripKramdownBlockAttributes(raw);
       expect(cleaned).toBe("> 引用文字内容");
     });
 
-    it("preserves code block content without stripping fake IAL inside", () => {
+    test("preserves code block content without stripping fake IAL inside", () => {
       const raw = '```markdown\n- {: id="code-example"}示例代码\n```';
       const cleaned = stripKramdownBlockAttributes(raw);
       expect(cleaned).toBe('```markdown\n- {: id="code-example"}示例代码\n```');
@@ -195,41 +195,41 @@ describe("floating-text-core", () => {
   });
 
   describe("resolveFloatingCopyText", () => {
-    it("returns selected text when valid selection exists", async () => {
+    test("returns selected text when valid selection exists", async () => {
       const { resolveFloatingCopyText } = await import("@/core/floating-text-core");
       const res = resolveFloatingCopyText("选中的局部片段", "这是完整的全文内容");
       expect(res.isSelected).toBe(true);
       expect(res.text).toBe("选中的局部片段");
     });
 
-    it("falls back to full text when selection is empty or whitespace", async () => {
+    test("falls back to full text when selection is empty or whitespace", async () => {
       const { resolveFloatingCopyText } = await import("@/core/floating-text-core");
       expect(resolveFloatingCopyText("", "完整内容")).toEqual({
         text: "完整内容",
-        isSelected: false,
+        isSelected: false
       });
       expect(resolveFloatingCopyText("   \n\t  ", "完整内容")).toEqual({
         text: "完整内容",
-        isSelected: false,
+        isSelected: false
       });
       expect(resolveFloatingCopyText(null, "完整内容")).toEqual({
         text: "完整内容",
-        isSelected: false,
+        isSelected: false
       });
       expect(resolveFloatingCopyText(undefined, "完整内容")).toEqual({
         text: "完整内容",
-        isSelected: false,
+        isSelected: false
       });
     });
   });
 
   describe("buildFloatingWindowHtml clipboard support", () => {
-    it("generates html containing electron clipboard, getSelectedText and selection copy logic", async () => {
+    test("generates html containing electron clipboard, getSelectedText and selection copy logic", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const html = buildFloatingWindowHtml({
         title: "测试标题",
         text: "测试复制文本内容",
-        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        config: DEFAULT_FLOATING_TEXT_CONFIG
       });
 
       expect(html).toContain("electronClipboard");
@@ -242,12 +242,12 @@ describe("floating-text-core", () => {
       expect(html).not.toContain("剪贴板不可用");
     });
 
-    it("generates html with editable text view and dynamic markdown preview support", async () => {
+    test("generates html with editable text view and dynamic markdown preview support", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const html = buildFloatingWindowHtml({
         title: "可编辑测试",
         text: "# 可编辑初始文本",
-        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        config: DEFAULT_FLOATING_TEXT_CONFIG
       });
 
       expect(html).toContain('contenteditable="plaintext-only"');
@@ -256,12 +256,12 @@ describe("floating-text-core", () => {
       expect(html).toContain("simpleMarkdownToHtml");
     });
 
-    it("generates html with opacity labeled as 不透明度 and supports persistent config sync", async () => {
+    test("generates html with opacity labeled as 不透明度 and supports persistent config sync", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const html = buildFloatingWindowHtml({
         title: "不透明度设置测试",
         text: "测试内容",
-        config: { ...DEFAULT_FLOATING_TEXT_CONFIG, opacity: 0.75 },
+        config: { ...DEFAULT_FLOATING_TEXT_CONFIG, opacity: 0.75 }
       });
 
       // 验证抽屉文案为“不透明度”
@@ -278,26 +278,26 @@ describe("floating-text-core", () => {
       expect(html).toContain("shouldRememberSize");
     });
 
-    it("injects targetHostWebContentsId into script when provided", async () => {
+    test("injects targetHostWebContentsId into script when provided", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const html = buildFloatingWindowHtml({
         title: "IPC目标测试",
         text: "测试内容",
         config: DEFAULT_FLOATING_TEXT_CONFIG,
-        hostWebContentsId: 88,
+        hostWebContentsId: 88
       });
 
       expect(html).toContain("const targetHostWebContentsId = 88;");
       expect(html).toContain("siyuan-doc-assist-save-floating-config");
     });
 
-    it("script content has valid javascript syntax", async () => {
+    test("script content has valid javascript syntax", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const complexText = '# 标题\n\n这是 "引号" 和 `代码` 以及换行\n```ts\nconst a = "hello\\nworld";\n```\n- [ ] 待办\n> 引用';
       const html = buildFloatingWindowHtml({
         title: "复杂语法检查 \"'<>",
         text: complexText,
-        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        config: DEFAULT_FLOATING_TEXT_CONFIG
       });
       const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
       expect(scriptMatch).toBeTruthy();
@@ -306,13 +306,13 @@ describe("floating-text-core", () => {
       expect(() => new vm.Script(code, { filename: "floating-script.js" })).not.toThrow();
     });
 
-    it("injects base tag when baseUrl is provided in buildFloatingWindowHtml", async () => {
+    test("injects base tag when baseUrl is provided in buildFloatingWindowHtml", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const html = buildFloatingWindowHtml({
         title: "BaseUrl测试",
         text: "![示例图片](assets/2026-test.png)",
         config: DEFAULT_FLOATING_TEXT_CONFIG,
-        baseUrl: "http://127.0.0.1:6806",
+        baseUrl: "http://127.0.0.1:6806"
       });
 
       expect(html).toContain('<base href="http://127.0.0.1:6806/">');
@@ -321,12 +321,12 @@ describe("floating-text-core", () => {
       expect(html).toContain(".ft-markdown-view img");
     });
 
-    it("generates html with explicit outline SVG symbols, tooltips with kbd hints and popover panel", async () => {
+    test("generates html with explicit outline SVG symbols, tooltips with kbd hints and popover panel", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const html = buildFloatingWindowHtml({
         title: "设计规范测试",
         text: "这是测试文本内容",
-        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        config: DEFAULT_FLOATING_TEXT_CONFIG
       });
 
       // 验证包含统一显式线框 SVG 符号库
@@ -367,12 +367,12 @@ describe("floating-text-core", () => {
       expect(html).toContain("triggerCopyFeedback");
     });
 
-    it("generates html with pin/unpin toggle button, state handlers and IPC broadcast", async () => {
+    test("generates html with pin/unpin toggle button, state handlers and IPC broadcast", async () => {
       const { buildFloatingWindowHtml } = await import("@/ui/floating-text/floating-window-template");
       const html = buildFloatingWindowHtml({
         title: "置顶切换测试",
         text: "这是测试文本",
-        config: DEFAULT_FLOATING_TEXT_CONFIG,
+        config: DEFAULT_FLOATING_TEXT_CONFIG
       });
 
       expect(html).toContain('id="ft-btn-pin"');
@@ -389,7 +389,7 @@ describe("floating-text-core", () => {
   });
 
   describe("hasImageMarkdown", () => {
-    it("identifies markdown image and html img tags", () => {
+    test("identifies markdown image and html img tags", () => {
       expect(hasImageMarkdown("![配图](assets/foo.png)")).toBe(true);
       expect(hasImageMarkdown('这是文字 <img src="assets/foo.png" /> 结束')).toBe(true);
       expect(hasImageMarkdown("普通纯文本")).toBe(false);
@@ -399,7 +399,7 @@ describe("floating-text-core", () => {
   });
 
   describe("simpleMarkdownToHtml image support", () => {
-    it("renders image syntax to img tag with loading lazy", () => {
+    test("renders image syntax to img tag with loading lazy", () => {
       const md = "这是段落内容\n![测试图](assets/example.png)\n结尾";
       const html = simpleMarkdownToHtml(md);
       expect(html).toContain('<img src="assets/example.png" alt="测试图" class="ft-image" loading="lazy" />');

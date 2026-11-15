@@ -15,7 +15,7 @@ function item(partial: Partial<KeyInfoItem>): KeyInfoItem {
     blockSort: partial.blockSort ?? 0,
     order: partial.order ?? 0,
     listItem: partial.listItem,
-    listPrefix: partial.listPrefix,
+    listPrefix: partial.listPrefix
   };
 }
 
@@ -29,10 +29,10 @@ describe("key-info-dock list prefix", () => {
       items: [
         item({ id: "a", text: "测试", listItem: true, listPrefix: "- " }),
         item({ id: "b", text: "段落测试", listItem: false }),
-        item({ id: "c", text: "有序测试", listItem: true, listPrefix: "3. " }),
+        item({ id: "c", text: "有序测试", listItem: true, listPrefix: "3. " })
       ],
       loading: false,
-      isRefreshing: false,
+      isRefreshing: false
     });
 
     const texts = Array.from(host.querySelectorAll(".doc-assistant-keyinfo__text")).map((el) =>

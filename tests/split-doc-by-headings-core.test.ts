@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { splitDocByHeadingsCore, type SplitSection } from "@/core/split-doc-by-headings-core";
+import { splitDocByHeadingsCore } from "@/core/split-doc-by-headings-core";
 import type { ChildBlockMeta } from "@/services/kernel-block";
 
 function block(id: string, type: string, markdown: string): ChildBlockMeta {
@@ -10,7 +10,7 @@ describe("splitDocByHeadingsCore", () => {
   test("returns empty sections when no headings exist", () => {
     const blocks: ChildBlockMeta[] = [
       block("b1", "p", "paragraph one"),
-      block("b2", "p", "paragraph two"),
+      block("b2", "p", "paragraph two")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.sections).toEqual([]);
@@ -25,7 +25,7 @@ describe("splitDocByHeadingsCore", () => {
       block("b3", "h", "### Sub A1"),
       block("b4", "p", "sub content"),
       block("b5", "h", "## Heading B"),
-      block("b6", "p", "content B"),
+      block("b6", "p", "content B")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.highestLevel).toBe(2);
@@ -39,24 +39,24 @@ describe("splitDocByHeadingsCore", () => {
       block("b3", "p", "para 1b"),
       block("b4", "h", "## Section Two"),
       block("b5", "p", "para 2a"),
-      block("b6", "h", "## Section Three"),
+      block("b6", "h", "## Section Three")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.sections).toHaveLength(3);
     expect(result.sections[0]).toMatchObject({
       title: "Section One",
       blockIds: ["b1", "b2", "b3"],
-      markdown: "para 1a\n\npara 1b",
+      markdown: "para 1a\n\npara 1b"
     });
     expect(result.sections[1]).toMatchObject({
       title: "Section Two",
       blockIds: ["b4", "b5"],
-      markdown: "para 2a",
+      markdown: "para 2a"
     });
     expect(result.sections[2]).toMatchObject({
       title: "Section Three",
       blockIds: ["b6"],
-      markdown: "",
+      markdown: ""
     });
   });
 
@@ -66,7 +66,7 @@ describe("splitDocByHeadingsCore", () => {
       block("b1", "h", "## Section One"),
       block("b2", "p", "content"),
       block("b3", "h", "## Section Two"),
-      block("b4", "p", "more content"),
+      block("b4", "p", "more content")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.preHeadingBlockIds).toEqual(["b0"]);
@@ -77,7 +77,7 @@ describe("splitDocByHeadingsCore", () => {
   test("handles only one highest-level heading (single section)", () => {
     const blocks: ChildBlockMeta[] = [
       block("b1", "h", "## Only Section"),
-      block("b2", "p", "content"),
+      block("b2", "p", "content")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.sections).toHaveLength(1);
@@ -89,7 +89,7 @@ describe("splitDocByHeadingsCore", () => {
       block("b1", "h", "## **Bold Title**"),
       block("b2", "p", "content"),
       block("b3", "h", "## Normal Title"),
-      block("b4", "p", "more"),
+      block("b4", "p", "more")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.sections[0].title).toBe("Bold Title");
@@ -105,7 +105,7 @@ describe("splitDocByHeadingsCore", () => {
       block("b5", "h", "## Chapter 2"),
       block("b6", "p", "intro 2"),
       block("b7", "h", "### Detail 2.1"),
-      block("b8", "p", "more detail"),
+      block("b8", "p", "more detail")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.sections).toHaveLength(2);
@@ -121,7 +121,7 @@ describe("splitDocByHeadingsCore", () => {
       block("b1", "h", "# Title One"),
       block("b2", "p", "content one"),
       block("b3", "h", "# Title Two"),
-      block("b4", "p", "content two"),
+      block("b4", "p", "content two")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.highestLevel).toBe(1);
@@ -134,7 +134,7 @@ describe("splitDocByHeadingsCore", () => {
       block("b1", "h", "  ## Spaced Heading"),
       block("b2", "p", "content"),
       block("b3", "h", "## Normal"),
-      block("b4", "p", "more"),
+      block("b4", "p", "more")
     ];
     const result = splitDocByHeadingsCore(blocks);
     expect(result.sections[0].title).toBe("Spaced Heading");

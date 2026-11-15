@@ -14,9 +14,10 @@ import { extractFloatingMarkdownFromSelection } from "@/services/floating-text/f
 import { extractWebLinksFromMarkdown, sanitizeDocTitle } from "@/core/link-to-doc-core";
 import {
   clipWebLinksToDocs,
-  fetchLinkTitles,
-  type WebLinkItemWithTitle,
+  fetchLinkTitles
+
 } from "@/services/link-to-doc-service";
+import type { WebLinkItemWithTitle } from "@/services/link-to-doc-service";
 import { openLinkToDocDialog } from "@/ui/link-to-doc-dialog";
 
 type CreateOrganizeActionHandlersOptions = {
@@ -105,7 +106,7 @@ export function createOrganizeActionHandlers(
         `移动完成：成功 ${report.successIds.length}`,
         `跳过 ${report.skippedIds.length}`,
         `重命名 ${report.renamed.length}`,
-        `失败 ${report.failed.length}`,
+        `失败 ${report.failed.length}`
       ].join("，");
       showMessage(message, 9000, report.failed.length ? "error" : "info");
     },
@@ -129,7 +130,7 @@ export function createOrganizeActionHandlers(
         `移动完成：成功 ${report.successIds.length}`,
         `跳过 ${report.skippedIds.length}`,
         `重命名 ${report.renamed.length}`,
-        `失败 ${report.failed.length}`,
+        `失败 ${report.failed.length}`
       ].join("，");
       showMessage(message, 9000, report.failed.length ? "error" : "info");
     },
@@ -140,12 +141,12 @@ export function createOrganizeActionHandlers(
     },
     "create-top100-large-documents-report": async (docId) => {
       const result = await createTop100LargeDocumentsReport({
-        currentDocId: docId,
+        currentDocId: docId
       });
       openDocByProtocol(result.id);
       showMessage(`已输出 Top100 大文件清单：${result.title}（${result.docCount} 篇）`, 5000, "info");
     },
-    dedupe: async (docId) => {
+    "dedupe": async (docId) => {
       const candidates = await findDuplicateCandidates(docId, 0.85);
       if (!candidates.length) {
         showMessage("未识别到重复文档", 5000, "info");
@@ -158,7 +159,7 @@ export function createOrganizeActionHandlers(
         onOpenAll: (docs) => {
           openDocsByProtocol(docs.map((doc) => doc.id));
         },
-        onInsertLinks: (docs) => insertDocLinks(docId, docs, options.ensureDocWritable),
+        onInsertLinks: (docs) => insertDocLinks(docId, docs, options.ensureDocWritable)
       });
       showMessage(`识别到 ${candidates.length} 组重复候选`, 5000, "info");
     },
@@ -265,7 +266,7 @@ export function createOrganizeActionHandlers(
         itemsWithTitles = links.map((l) => ({
           ...l,
           title: l.fallbackTitle || sanitizeDocTitle("", l.url),
-          hasFetchedTitle: false,
+          hasFetchedTitle: false
         }));
       } finally {
         options.setBusy?.(false);
@@ -301,8 +302,8 @@ export function createOrganizeActionHandlers(
           } finally {
             options.setBusy?.(false);
           }
-        },
+        }
       });
-    },
+    }
   };
 }

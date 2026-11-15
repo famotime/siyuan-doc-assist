@@ -14,6 +14,6 @@ export function createAiActionHandlers(
     ...createAiMarkerActionHandlers(options),
     ...createAiMediaActionHandlers(options),
     ...createAiRelatedActionHandlers(options),
-    ...createAiWikiActionHandlers(options),
+    ...createAiWikiActionHandlers(options)
   };
 }

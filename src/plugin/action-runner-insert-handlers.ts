@@ -4,14 +4,14 @@ import {
   getBlockKramdowns,
   getChildBlocksByParentId,
   renameDocByID,
-  updateBlockMarkdown,
+  updateBlockMarkdown
 } from "@/services/kernel";
 import {
   filterDocRefsByExistingLinks,
   getBacklinkDocs,
   getChildDocs,
   toBacklinkMarkdown,
-  toChildDocMarkdown,
+  toChildDocMarkdown
 } from "@/services/link-resolver";
 import { getSelectedBlockIds, resolveCurrentBlockId } from "@/plugin/action-runner-context";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
@@ -19,7 +19,7 @@ import { ProtyleLike } from "@/plugin/doc-context";
 import {
   convertTextToLinkInMarkdown,
   findCandidatesInMarkdown,
-  TextToLinkCandidate,
+  TextToLinkCandidate
 } from "@/core/text-to-link-core";
 import { openTextToLinkDialog } from "@/ui/text-to-link-dialog";
 import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
@@ -198,7 +198,7 @@ export function createInsertActionHandlers(deps?: {
             return { markdown: res.markdown, changedCount: res.replacedCount };
           },
           updateBlockMarkdown,
-          protyle,
+          protyle
         });
 
         if (report.changedCount > 0) {
@@ -222,7 +222,7 @@ export function createInsertActionHandlers(deps?: {
               return { markdown: res.markdown, changedCount: res.replacedCount };
             },
             updateBlockMarkdown,
-            protyle,
+            protyle
           });
 
           if (report.changedCount > 0) {
@@ -230,9 +230,9 @@ export function createInsertActionHandlers(deps?: {
           } else {
             showMessage("未进行任何转换", 4000, "info");
           }
-        },
+        }
       });
-    },
+    }
   };
 }
 

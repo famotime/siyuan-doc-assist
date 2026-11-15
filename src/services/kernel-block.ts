@@ -3,7 +3,7 @@ import { createDocAssistantLogger } from "@/core/logger-core";
 import { inClause, sqlPaged } from "@/services/kernel-shared";
 import {
   parseKernelTextRows,
-  requestBatchRowsWithSingleFallback,
+  requestBatchRowsWithSingleFallback
 } from "@/services/kernel-adapter-core";
 
 type BlockKramdownRes = {
@@ -57,7 +57,7 @@ function toOrderedChildBlockRefs(childList: ChildBlockListItem[] | null | undefi
   return (childList || [])
     .map((item) => ({
       id: item?.id || "",
-      type: item?.type || "",
+      type: item?.type || ""
     }))
     .filter((item) => item.id)
     .filter((item) => {
@@ -72,14 +72,14 @@ function toOrderedChildBlockRefs(childList: ChildBlockListItem[] | null | undefi
 function toBlockKramdownRows(payload: unknown): BlockKramdownRes[] {
   return parseKernelTextRows(payload, "kramdown").map((row) => ({
     id: row.id,
-    kramdown: row.text,
+    kramdown: row.text
   }));
 }
 
 function toBlockDomRows(payload: unknown): BlockDomRes[] {
   return parseKernelTextRows(payload, "dom").map((row) => ({
     id: row.id,
-    dom: row.text,
+    dom: row.text
   }));
 }
 
@@ -91,7 +91,7 @@ export async function getBlockKramdowns(
     chunkSize: 50,
     requestBatch: (chunk) =>
       requestApi<any>("/api/block/getBlockKramdowns", {
-        ids: chunk,
+        ids: chunk
       }),
     parseBatchRows: toBlockKramdownRows,
     requestSingle: getBlockKramdown,
@@ -100,16 +100,16 @@ export async function getBlockKramdowns(
       styleLogger.debug("getBlockKramdowns failed, fallback to single", {
         chunkSize: chunk.length,
         sample: chunk.slice(0, 8),
-        message,
+        message
       });
     },
     onSingleError: (error, id) => {
       const message = error instanceof Error ? error.message : String(error);
       styleLogger.debug("getBlockKramdown fallback failed", {
         id,
-        message,
+        message
       });
-    },
+    }
   });
 }
 
@@ -121,7 +121,7 @@ export async function getBlockKramdown(
     return null;
   }
   const res = await requestApi<any>("/api/block/getBlockKramdown", {
-    id: normalized,
+    id: normalized
   });
   const rows = toBlockKramdownRows(res);
   if (rows.length) {
@@ -131,7 +131,7 @@ export async function getBlockKramdown(
   if (typeof res === "string") {
     return {
       id: normalized,
-      kramdown: res,
+      kramdown: res
     };
   }
   return null;
@@ -143,7 +143,7 @@ export async function getBlockDOMs(ids: string[]): Promise<BlockDomRes[]> {
     chunkSize: 50,
     requestBatch: (chunk) =>
       requestApi<any>("/api/block/getBlockDOMs", {
-        ids: chunk,
+        ids: chunk
       }),
     parseBatchRows: toBlockDomRows,
     requestSingle: getBlockDOM,
@@ -152,16 +152,16 @@ export async function getBlockDOMs(ids: string[]): Promise<BlockDomRes[]> {
       styleLogger.debug("getBlockDOMs failed, fallback to single", {
         chunkSize: chunk.length,
         sample: chunk.slice(0, 8),
-        message,
+        message
       });
     },
     onSingleError: (error, id) => {
       const message = error instanceof Error ? error.message : String(error);
       styleLogger.debug("getBlockDOM fallback failed", {
         id,
-        message,
+        message
       });
-    },
+    }
   });
 }
 
@@ -171,7 +171,7 @@ export async function getBlockDOM(id: string): Promise<BlockDomRes | null> {
     return null;
   }
   const res = await requestApi<any>("/api/block/getBlockDOM", {
-    id: normalized,
+    id: normalized
   });
   const rows = toBlockDomRows(res);
   if (rows.length) {
@@ -181,7 +181,7 @@ export async function getBlockDOM(id: string): Promise<BlockDomRes | null> {
   if (typeof res === "string") {
     return {
       id: normalized,
-      dom: res,
+      dom: res
     };
   }
   return null;
@@ -194,7 +194,7 @@ export async function appendBlock(
   return requestApi("/api/block/appendBlock", {
     dataType: "markdown",
     data,
-    parentID,
+    parentID
   });
 }
 
@@ -208,7 +208,7 @@ export async function insertBlockBefore(
     data,
     nextID,
     previousID: "",
-    parentID,
+    parentID
   });
 }
 
@@ -224,7 +224,7 @@ export async function deleteBlocksByIds(
   if (!normalizedIds.length) {
     return {
       deletedCount: 0,
-      failedIds: [],
+      failedIds: []
     };
   }
 
@@ -244,7 +244,7 @@ export async function deleteBlocksByIds(
         setTimeout(() => {
           reject(new Error(`delete block timeout: ${id}`));
         }, timeoutMs);
-      }),
+      })
     ]);
   }
 
@@ -262,7 +262,7 @@ export async function deleteBlocksByIds(
         blankLinesLogger.debug("delete block failed", {
           id,
           message,
-          timeoutMs,
+          timeoutMs
         });
       }
     }
@@ -271,7 +271,7 @@ export async function deleteBlocksByIds(
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
   return {
     deletedCount,
-    failedIds,
+    failedIds
   };
 }
 
@@ -282,7 +282,7 @@ export async function updateBlockMarkdown(
   await requestApi("/api/block/updateBlock", {
     dataType: "markdown",
     data,
-    id,
+    id
   });
 }
 
@@ -293,7 +293,7 @@ export async function updateBlockDom(
   await requestApi("/api/block/updateBlock", {
     dataType: "dom",
     data,
-    id,
+    id
   });
 }
 
@@ -304,7 +304,7 @@ export async function getChildBlocksByParentId(
     return [];
   }
   const childList = await requestApi<ChildBlockListItem[]>("/api/block/getChildBlocks", {
-    id: parentId,
+    id: parentId
   });
   const orderedRefs = toOrderedChildBlockRefs(childList);
   const childTypeMap = new Map(
@@ -314,7 +314,7 @@ export async function getChildBlocksByParentId(
   if (!orderedIds.length) {
     blankLinesLogger.debug("child blocks empty", {
       parentId,
-      apiCount: childList?.length || 0,
+      apiCount: childList?.length || 0
     });
     return [];
   }
@@ -331,7 +331,7 @@ export async function getChildBlocksByParentId(
       type: row.type,
       content: row.content || "",
       markdown: row.markdown || "",
-      resolved: true,
+      resolved: true
     });
   }
   const missingIds = orderedIds.filter((id) => !rowMap.has(id));
@@ -351,7 +351,7 @@ export async function getChildBlocksByParentId(
         type,
         content: "",
         markdown,
-        resolved,
+        resolved
       });
     }
   }
@@ -362,7 +362,7 @@ export async function getChildBlocksByParentId(
     sqlCount: rows.length,
     missingCount: missingIds.length,
     unresolvedCount,
-    sample: orderedIds.slice(0, 8),
+    sample: orderedIds.slice(0, 8)
   });
   return orderedIds
     .map((id) => rowMap.get(id))
@@ -389,7 +389,7 @@ export async function getBlocksByIds(
       type: row.type,
       content: row.content || "",
       markdown: row.markdown || "",
-      resolved: true,
+      resolved: true
     });
   }
   const missingIds = normalizedIds.filter((id) => !rowMap.has(id));
@@ -401,7 +401,7 @@ export async function getBlocksByIds(
         type: "p",
         content: "",
         markdown: item.kramdown || "",
-        resolved: true,
+        resolved: true
       });
     }
   }
@@ -417,7 +417,7 @@ export async function getChildBlockRefsByParentId(
     return [];
   }
   const childList = await requestApi<ChildBlockListItem[]>("/api/block/getChildBlocks", {
-    id: parentId,
+    id: parentId
   });
   return toOrderedChildBlockRefs(childList);
 }
@@ -430,9 +430,9 @@ export async function renderKramdownToBlockDOM(
   try {
     const lute =
       protyle?.lute ||
-      (typeof window !== "undefined" && (window as any).Lute?.New
-        ? (window as any).Lute.New()
-        : null);
+      (typeof window !== "undefined" && (window as any).Lute?.New ?
+          (window as any).Lute.New() :
+        null);
     if (lute && typeof lute.Md2BlockDOM === "function") {
       const dom = lute.Md2BlockDOM(kramdown);
       if (typeof dom === "string" && dom.trim()) {

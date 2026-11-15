@@ -7,14 +7,14 @@ export interface WikiCommandInvokeContext {
 }
 
 export type WikiCommandInvokeErrorCode =
-  | "command-not-found"
-  | "wiki-not-configured"
-  | "ai-not-configured"
-  | "execution-failed";
+  | "command-not-found" |
+  "wiki-not-configured" |
+  "ai-not-configured" |
+  "execution-failed";
 
 export type WikiCommandInvokeResult =
-  | { ok: true; message?: string; data?: unknown }
-  | { ok: false; message?: string; errorCode: WikiCommandInvokeErrorCode };
+  | { ok: true; message?: string; data?: unknown } |
+  { ok: false; message?: string; errorCode: WikiCommandInvokeErrorCode };
 
 export interface WikiPublicCommand {
   id: string;
@@ -31,6 +31,6 @@ export interface WikiCommandProvider {
   listCommands: () => Promise<WikiPublicCommand[]> | WikiPublicCommand[];
   invokeCommand: (
     commandId: string,
-    context: WikiCommandInvokeContext,
+    context: WikiCommandInvokeContext
   ) => Promise<WikiCommandInvokeResult> | WikiCommandInvokeResult;
 }

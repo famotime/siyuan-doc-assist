@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildDuplicateGroups,
   normalizeTitle,
-  suggestKeepDocId,
+  suggestKeepDocId
 } from "@/core/dedupe-core";
 
 describe("dedupe-core", () => {
@@ -29,7 +29,7 @@ describe("dedupe-core", () => {
     const docs = [
       { id: "1", title: "Weekly Plan", updated: "20260101101010" },
       { id: "2", title: "Weekly-Plan", updated: "20260101101011" },
-      { id: "3", title: "Project Log", updated: "20260101101012" },
+      { id: "3", title: "Project Log", updated: "20260101101012" }
     ];
 
     const groups = buildDuplicateGroups(docs, 0.85);
@@ -41,7 +41,7 @@ describe("dedupe-core", () => {
     const keep = suggestKeepDocId([
       { id: "1", updated: "20260101101010" },
       { id: "2", updated: "20260101101011" },
-      { id: "3", updated: "20250101101011" },
+      { id: "3", updated: "20250101101011" }
     ]);
 
     expect(keep).toBe("2");
@@ -52,7 +52,7 @@ describe("dedupe-core", () => {
       [
         { id: "1", updated: "20260101101010" },
         { id: "2", updated: "20260101101011" },
-        { id: "3", updated: "20250101101011" },
+        { id: "3", updated: "20250101101011" }
       ],
       "earliest"
     );

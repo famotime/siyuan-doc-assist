@@ -4,7 +4,7 @@ import {
   extractInlineMemoHint,
   normalizeInlineVisibleText,
   parseRemarkText,
-  resolveSpanFormatType,
+  resolveSpanFormatType
 } from "@/services/key-info-model";
 
 describe("key info model", () => {
@@ -24,7 +24,7 @@ describe("key info model", () => {
   });
 
   test("parses remark text and memo hints", () => {
-    expect(parseRemarkText("正文（备注）")) .toEqual({ marked: "正文", memo: "备注" });
+    expect(parseRemarkText("正文（备注）")).toEqual({ marked: "正文", memo: "备注" });
     expect(extractInlineMemoHint('{: memo="重要备注"}')).toBe("重要备注");
   });
 });

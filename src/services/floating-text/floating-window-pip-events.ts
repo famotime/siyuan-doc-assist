@@ -6,12 +6,12 @@
 import {
   calculateSteppedFontSize,
   FloatingTextConfig,
-  resolveFloatingCopyText,
+  resolveFloatingCopyText
 } from "@/core/floating-text-core";
 import { renderMarkdownToHtml } from "@/core/markdown-render-core";
 import {
   loadFloatingTextConfig,
-  saveFloatingTextConfig,
+  saveFloatingTextConfig
 } from "@/services/floating-text/floating-text-storage";
 
 export function bindPipWindowEvents(
@@ -361,7 +361,7 @@ export function bindPipWindowEvents(
 
   // 6. 不透明度滑块
   slider?.addEventListener("input", () => {
-    const val = parseInt(slider.value, 10);
+    const val = Number.parseInt(slider.value, 10);
     const op = val / 100;
     if (appEl) {
       appEl.style.setProperty("--ft-opacity", `${op}`);
@@ -372,7 +372,7 @@ export function bindPipWindowEvents(
   });
 
   slider?.addEventListener("change", () => {
-    const val = parseInt(slider.value, 10);
+    const val = Number.parseInt(slider.value, 10);
     updateOpacity(val / 100);
   });
 
@@ -396,7 +396,7 @@ export function bindPipWindowEvents(
       if (cur.rememberSize) {
         saveFloatingTextConfig({
           width: pipWindow.innerWidth,
-          height: pipWindow.innerHeight,
+          height: pipWindow.innerHeight
         });
       }
     }, 400);

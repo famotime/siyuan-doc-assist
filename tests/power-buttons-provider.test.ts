@@ -1,33 +1,33 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, vi, test } from "vitest";
 import { createPowerButtonsProvider } from "@/plugin/power-buttons-provider";
 
 describe("power buttons provider", () => {
-  it("exposes protocol v2 and target-doc capabilities for supported public commands", async () => {
+  test("exposes protocol v2 and target-doc capabilities for supported public commands", async () => {
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
-      runAction: vi.fn().mockResolvedValue(undefined),
+      runAction: vi.fn().mockResolvedValue(undefined)
     });
 
     const commands = await provider.listCommands();
-    const cleanAiOutput = commands.find(command => command.id === "clean-ai-output");
-    const toggleSelectedPunctuation = commands.find(command => command.id === "toggle-selected-punctuation");
+    const cleanAiOutput = commands.find((command) => command.id === "clean-ai-output");
+    const toggleSelectedPunctuation = commands.find((command) => command.id === "toggle-selected-punctuation");
 
     expect(provider.protocolVersion).toBe(2);
     expect(cleanAiOutput).toEqual(expect.objectContaining({
       supportsTargetDoc: true,
-      supportsSelection: false,
+      supportsSelection: false
     }));
     expect(toggleSelectedPunctuation).toBeUndefined();
   });
 
-  it("lists only explicit public commands", async () => {
+  test("lists only explicit public commands", async () => {
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
-      runAction: vi.fn().mockResolvedValue(undefined),
+      runAction: vi.fn().mockResolvedValue(undefined)
     });
 
     const commands = await provider.listCommands();
-    const commandIds = commands.map(command => command.id);
+    const commandIds = commands.map((command) => command.id);
 
     expect(commandIds).toContain("insert-doc-summary");
     expect(commandIds).toContain("add-related-links-and-tags");
@@ -37,14 +37,14 @@ describe("power buttons provider", () => {
     expect(commandIds).not.toContain("toggle-selected-punctuation");
   });
 
-  it("exposes the cleanup and organize batch synced with siyuan-mate catalog", async () => {
+  test("exposes the cleanup and organize batch synced with siyuan-mate catalog", async () => {
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
-      runAction: vi.fn().mockResolvedValue(undefined),
+      runAction: vi.fn().mockResolvedValue(undefined)
     });
 
     const commands = await provider.listCommands();
-    const commandIds = commands.map(command => command.id);
+    const commandIds = commands.map((command) => command.id);
 
     for (const id of [
       "clean-emoji",
@@ -56,80 +56,80 @@ describe("power buttons provider", () => {
       "dedupe",
       "split-doc-by-headings",
       "create-doc-concept-map",
-      "generate-better-titles",
+      "generate-better-titles"
     ]) {
       expect(commandIds).toContain(id);
-      expect(commands.find(command => command.id === id)).toEqual(expect.objectContaining({
+      expect(commands.find((command) => command.id === id)).toEqual(expect.objectContaining({
         supportsTargetDoc: true,
-        supportsSelection: false,
+        supportsSelection: false
       }));
     }
   });
 
-  it("routes clean-emoji invocations to runAction instead of command-not-found", async () => {
+  test("routes clean-emoji invocations to runAction instead of command-not-found", async () => {
     const runAction = vi.fn().mockResolvedValue({ ok: true, alreadyNotified: true });
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
-      runAction,
+      runAction
     });
 
     const res = await provider.invokeCommand("clean-emoji", {
       trigger: "button-click",
       sourcePlugin: "siyuan-mate",
-      docId: "doc-target",
+      docId: "doc-target"
     } as any);
 
     expect(res).toEqual({ ok: true, alreadyNotified: true });
     expect(runAction).toHaveBeenCalledWith("clean-emoji", expect.objectContaining({
       sourcePlugin: "siyuan-mate",
-      docId: "doc-target",
+      docId: "doc-target"
     }));
   });
 
-  it("keeps the public provider surface stable even when local UI actions are hidden", async () => {
+  test("keeps the public provider surface stable even when local UI actions are hidden", async () => {
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
-      runAction: vi.fn().mockResolvedValue(undefined),
+      runAction: vi.fn().mockResolvedValue(undefined)
     });
 
-    const commandIds = (await provider.listCommands()).map(command => command.id);
+    const commandIds = (await provider.listCommands()).map((command) => command.id);
 
     expect(commandIds).toContain("insert-doc-summary");
     expect(commandIds).toContain("clean-ai-output");
   });
 
-  it("routes public commands to runAction and rejects unknown commands", async () => {
+  test("routes public commands to runAction and rejects unknown commands", async () => {
     const runAction = vi.fn().mockResolvedValue({ ok: true, alreadyNotified: true });
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
-      runAction,
+      runAction
     });
 
     const ok = await provider.invokeCommand("export-current", {
       trigger: "button-click",
-      sourcePlugin: "siyuan-power-buttons",
+      sourcePlugin: "siyuan-power-buttons"
     });
     const missing = await provider.invokeCommand("missing-command", {
       trigger: "button-click",
-      sourcePlugin: "siyuan-power-buttons",
+      sourcePlugin: "siyuan-power-buttons"
     });
 
     expect(runAction).toHaveBeenCalledWith("export-current", {
       trigger: "button-click",
-      sourcePlugin: "siyuan-power-buttons",
+      sourcePlugin: "siyuan-power-buttons"
     });
     expect(ok).toEqual({ ok: true, alreadyNotified: true });
     expect(missing).toEqual(expect.objectContaining({
       ok: false,
-      errorCode: "command-not-found",
+      errorCode: "command-not-found"
     }));
   });
 
-  it("passes workflow-step doc context to runAction", async () => {
+  test("passes workflow-step doc context to runAction", async () => {
     const runAction = vi.fn().mockResolvedValue({ ok: true, alreadyNotified: true });
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
-      runAction,
+      runAction
     });
 
     await provider.invokeCommand("clean-ai-output", {
@@ -139,7 +139,7 @@ describe("power buttons provider", () => {
       docId: "doc-target",
       scope: "related-docs",
       workflowId: "wf-1",
-      stepIndex: 2,
+      stepIndex: 2
     } as any);
 
     expect(runAction).toHaveBeenCalledWith("clean-ai-output", {
@@ -149,31 +149,31 @@ describe("power buttons provider", () => {
       docId: "doc-target",
       scope: "related-docs",
       workflowId: "wf-1",
-      stepIndex: 2,
+      stepIndex: 2
     });
   });
 
-  it("returns structured failure when current document context is unavailable", async () => {
+  test("returns structured failure when current document context is unavailable", async () => {
     const provider = createPowerButtonsProvider({
       pluginVersion: "1.4.5",
       runAction: vi.fn().mockResolvedValue({
         ok: false,
         errorCode: "context-unavailable",
         message: "未找到当前文档",
-        alreadyNotified: true,
-      }),
+        alreadyNotified: true
+      })
     });
 
     const result = await provider.invokeCommand("export-current", {
       trigger: "button-click",
-      sourcePlugin: "siyuan-power-buttons",
+      sourcePlugin: "siyuan-power-buttons"
     });
 
     expect(result).toEqual({
       ok: false,
       errorCode: "context-unavailable",
       message: "未找到当前文档",
-      alreadyNotified: true,
+      alreadyNotified: true
     });
   });
 });

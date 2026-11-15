@@ -2,48 +2,48 @@
 
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { DEFAULT_GESTURE_BINDINGS } from "@/core/gesture-recognition-core";
+import { createMouseGestureController } from "@/plugin/mouse-gesture-controller";
+
 const { showMessageMock, trailMocks } = vi.hoisted(() => ({
   showMessageMock: vi.fn(),
   trailMocks: {
     showGestureTrail: vi.fn(),
     drawGestureTrail: vi.fn(),
     hideGestureTrail: vi.fn(),
-    destroyGestureTrail: vi.fn(),
-  },
+    destroyGestureTrail: vi.fn()
+  }
 }));
 
 vi.mock("siyuan", () => ({
-  showMessage: showMessageMock,
+  showMessage: showMessageMock
 }));
 
 const {
   closeDocTabMock,
   fetchSiblingDocsMock,
   findProtyleByElementMock,
-  openDocTabMock,
+  openDocTabMock
 } = vi.hoisted(() => ({
   closeDocTabMock: vi.fn(),
   fetchSiblingDocsMock: vi.fn(),
   findProtyleByElementMock: vi.fn(),
-  openDocTabMock: vi.fn(),
+  openDocTabMock: vi.fn()
 }));
 
 vi.mock("@/services/doc-navigation", () => ({
   closeDocTab: closeDocTabMock,
   fetchSiblingDocs: fetchSiblingDocsMock,
   findProtyleByElement: findProtyleByElementMock,
-  openDocTab: openDocTabMock,
+  openDocTab: openDocTabMock
 }));
 
 vi.mock("@/ui/gesture-trail-overlay", () => ({
   showGestureTrail: trailMocks.showGestureTrail,
   drawGestureTrail: trailMocks.drawGestureTrail,
   hideGestureTrail: trailMocks.hideGestureTrail,
-  destroyGestureTrail: trailMocks.destroyGestureTrail,
+  destroyGestureTrail: trailMocks.destroyGestureTrail
 }));
-
-import { DEFAULT_GESTURE_BINDINGS } from "@/core/gesture-recognition-core";
-import { createMouseGestureController } from "@/plugin/mouse-gesture-controller";
 
 const drawnHints = () => trailMocks.drawGestureTrail.mock.calls.map((call) => String(call[1]));
 
@@ -56,7 +56,7 @@ function dispatchMouse(
     cancelable: true,
     button: options.button ?? 0,
     clientX: options.x,
-    clientY: options.y,
+    clientY: options.y
   });
   (options.target ?? document).dispatchEvent(event);
   return event;
@@ -72,7 +72,7 @@ describe("mouse gesture controller", () => {
     const controller = createMouseGestureController({
       getApp: () => ({ app: true }),
       isEnabled: () => enabled,
-      getBindings: () => ({ ...DEFAULT_GESTURE_BINDINGS }),
+      getBindings: () => ({ ...DEFAULT_GESTURE_BINDINGS })
     });
     controller.bind();
     return controller;
@@ -106,7 +106,7 @@ describe("mouse gesture controller", () => {
 
     fakeProtyle = {
       block: { rootID: "doc-1" },
-      model: { parent: { close: vi.fn() } },
+      model: { parent: { close: vi.fn() } }
     };
     findProtyleByElementMock.mockImplementation(
       (target: HTMLElement | null) => (target?.closest(".protyle") ? fakeProtyle : undefined)
@@ -116,7 +116,7 @@ describe("mouse gesture controller", () => {
   test("right-drag left inside the editor switches to the previous sibling doc (moving style)", async () => {
     fetchSiblingDocsMock.mockResolvedValue([
       { id: "doc-a", name: "A" },
-      { id: "doc-1", name: "B" },
+      { id: "doc-1", name: "B" }
     ]);
 
     const controller = createBoundController();
@@ -138,7 +138,7 @@ describe("mouse gesture controller", () => {
     fetchSiblingDocsMock.mockResolvedValue([
       { id: "doc-a", name: "A" },
       { id: "doc-b", name: "B" },
-      { id: "doc-c", name: "C" },
+      { id: "doc-c", name: "C" }
     ]);
 
     const controller = createBoundController();
@@ -199,7 +199,7 @@ describe("mouse gesture controller", () => {
     const controller2 = createMouseGestureController({
       getApp: () => ({}),
       isEnabled: () => enabled,
-      getBindings: () => ({ ...DEFAULT_GESTURE_BINDINGS }),
+      getBindings: () => ({ ...DEFAULT_GESTURE_BINDINGS })
     });
     controller2.bind();
     dispatchMouse("mousedown", { x: 300, y: 300, button: 2, target: elsewhere });

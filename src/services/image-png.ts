@@ -1,7 +1,7 @@
 import {
   collectLocalImageAssetPathsFromMarkdown,
   isConvertibleImageAssetPath,
-  rewriteMarkdownImageAssetLinks,
+  rewriteMarkdownImageAssetLinks
 } from "@/core/image-webp-core";
 import { updateBlockMarkdown } from "@/services/kernel";
 import { escapeSqlLiteral, sqlPaged } from "@/services/kernel-shared";
@@ -31,7 +31,7 @@ const EMPTY_REPORT: ConvertDocImagesToPngReport = {
   failedBlockCount: 0,
   replacedLinkCount: 0,
   updatedBlockCount: 0,
-  totalSavedBytes: 0,
+  totalSavedBytes: 0
 };
 
 export async function convertDocImagesToPng(docId: string): Promise<ConvertDocImagesToPngReport> {
@@ -120,6 +120,6 @@ export async function convertDocImagesToPng(docId: string): Promise<ConvertDocIm
     failedBlockCount,
     replacedLinkCount,
     updatedBlockCount,
-    totalSavedBytes,
+    totalSavedBytes
   };
 }

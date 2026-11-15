@@ -1,10 +1,10 @@
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 
 export type HiddenPluginSettingKey =
-  | "ai-service"
-  | "debug-mode"
-  | "floating-text"
-  | "mouse-gesture";
+  | "ai-service" |
+  "debug-mode" |
+  "floating-text" |
+  "mouse-gesture";
 
 export type AlphaFeatureHideConfig = {
   hiddenActionKeys: ActionKey[];
@@ -37,11 +37,11 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
     "set-selection-as-title",
     // "toggle-heading-bold",
     "export-keymap",
-    "import-keymap",
+    "import-keymap"
   ],
   hiddenSettingKeys: [
     // "ai-service"
-  ],
+  ]
 };
 
 export function getHiddenActionKeys(

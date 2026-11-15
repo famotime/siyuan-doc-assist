@@ -39,7 +39,7 @@ export function buildBetterTitlesMessages(params: {
     "3. 每个标题长度建议在 40 字以内，不得含有前后双引号、序号前缀（如“1.”、“标题一”）或多余的说明文字；",
     "4. 必须输出严格合法的 JSON 格式，结构如下：",
     '{"catchy": ["勾人标题1", "勾人标题2", "勾人标题3"], "summary": ["平实标题1", "平实标题2", "平实标题3"]}',
-    "不要输出任何 JSON 以外的文字、开场白或解释说明。",
+    "不要输出任何 JSON 以外的文字、开场白或解释说明。"
   ].join("\n");
 
   const userParts: string[] = [];
@@ -51,12 +51,12 @@ export function buildBetterTitlesMessages(params: {
   return [
     {
       role: "system",
-      content: systemPrompt,
+      content: systemPrompt
     },
     {
       role: "user",
-      content: userParts.join("\n\n"),
-    },
+      content: userParts.join("\n\n")
+    }
   ];
 }
 
@@ -71,7 +71,7 @@ export function cleanCandidateTitle(title: string): string {
   text = text.replace(/^\*+|\*+$/gu, "").replace(/^`+|`+$/gu, "");
 
   // 去除开头的序号或列表标记，例如 "1. ", "1、", "- ", "[1] ", "标题1: ", "【标题1】", "标题一："
-  text = text.replace(/^(?:(?:\[?\d+[\].)、:\-\s]+)|(?:[-*•]\s+)|(?:[【\[]?标题\s*[一二三四五六七八九十\d]+[】\]]?[：:\s]*))/u, "");
+  text = text.replace(/^(?:\[?\d+[\].)、:\-\s]+|[-*•]\s+|[【[]?标题\s*[一二三四五六七八九十\d]+[】\]]?[：:\s]*)/u, "");
 
   // 去除两端可能残留的外层引号
   text = text.replace(/^["'“‘]+|["'”’]+$/gu, "").trim();
@@ -85,7 +85,7 @@ export function cleanCandidateTitle(title: string): string {
 export function parseBetterTitlesResponse(rawText: string): BetterTitlesResult {
   const result: BetterTitlesResult = {
     catchy: [],
-    summary: [],
+    summary: []
   };
 
   if (!rawText || !rawText.trim()) {
@@ -128,11 +128,11 @@ export function parseBetterTitlesResponse(rawText: string): BetterTitlesResult {
 
   for (const line of lines) {
     // 检查分类标题行
-    if (/(?:勾人|吸引|好奇|欲望|catchy)/ui.test(line)) {
+    if (/勾人|吸引|好奇|欲望|catchy/iu.test(line)) {
       currentCategory = "catchy";
       continue;
     }
-    if (/(?:平实|概括|总结|一句话|summary)/ui.test(line)) {
+    if (/平实|概括|总结|一句话|summary/iu.test(line)) {
       currentCategory = "summary";
       continue;
     }

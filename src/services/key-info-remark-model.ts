@@ -41,7 +41,7 @@ export function parseRemarkText(value: string): { marked: string; memo: string }
   if (pairMatch) {
     return {
       marked: cleanInlineText(pairMatch[1] || ""),
-      memo: cleanInlineText(pairMatch[2] || ""),
+      memo: cleanInlineText(pairMatch[2] || "")
     };
   }
   return { marked: cleaned, memo: "" };

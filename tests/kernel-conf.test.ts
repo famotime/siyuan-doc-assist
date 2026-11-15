@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { mergeKeymap, type KeymapData } from "@/services/kernel-conf";
+import { mergeKeymap } from "@/services/kernel-conf";
+import type { KeymapData } from "@/services/kernel-conf";
 
 function makeKeymap(overrides: Partial<KeymapData> = {}): KeymapData {
   return {
@@ -8,14 +9,14 @@ function makeKeymap(overrides: Partial<KeymapData> = {}): KeymapData {
       heading: { heading1: { custom: "", default: "⌘1" } },
       insert: { bold: { custom: "", default: "⌘B" }, italic: { custom: "", default: "⌘I" } },
       list: { indent: { custom: "", default: "Tab" } },
-      table: { "insert-row-below": { custom: "", default: "⌘⏎" } },
+      table: { "insert-row-below": { custom: "", default: "⌘⏎" } }
     },
     general: {
       search: { custom: "", default: "⌘F" },
-      config: { custom: "", default: "⌘," },
+      config: { custom: "", default: "⌘," }
     },
     plugin: {},
-    ...overrides,
+    ...overrides
   };
 }
 
@@ -25,8 +26,8 @@ describe("mergeKeymap", () => {
     const source = makeKeymap({
       editor: {
         ...makeKeymap().editor,
-        general: { undo: { custom: "⌘U", default: "⌘Z" }, redo: { custom: "", default: "⌘⇧Z" } },
-      },
+        general: { undo: { custom: "⌘U", default: "⌘Z" }, redo: { custom: "", default: "⌘⇧Z" } }
+      }
     });
 
     const merged = mergeKeymap(target, source);
@@ -42,9 +43,9 @@ describe("mergeKeymap", () => {
         general: {
           undo: { custom: "", default: "⌘Z" },
           redo: { custom: "", default: "⌘⇧Z" },
-          extraAction: { custom: "⌘E", default: "" },
-        },
-      },
+          extraAction: { custom: "⌘E", default: "" }
+        }
+      }
     });
 
     const merged = mergeKeymap(target, source);
@@ -59,10 +60,10 @@ describe("mergeKeymap", () => {
         heading: {},
         insert: {},
         list: {},
-        table: {},
+        table: {}
       },
       general: {},
-      plugin: {},
+      plugin: {}
     };
 
     const merged = mergeKeymap(target, source);
@@ -74,14 +75,14 @@ describe("mergeKeymap", () => {
   test("插件快捷键仅在目标实例也存在同名插件时才合并", () => {
     const target = makeKeymap({
       plugin: {
-        "plugin-a": { cmd1: { custom: "", default: "⌘1" } },
-      },
+        "plugin-a": { cmd1: { custom: "", default: "⌘1" } }
+      }
     });
     const source = makeKeymap({
       plugin: {
         "plugin-a": { cmd1: { custom: "⌘9", default: "⌘1" }, cmd2: { custom: "⌘8", default: "" } },
-        "plugin-b": { cmd3: { custom: "⌘7", default: "" } },
-      },
+        "plugin-b": { cmd3: { custom: "⌘7", default: "" } }
+      }
     });
 
     const merged = mergeKeymap(target, source);
@@ -97,8 +98,8 @@ describe("mergeKeymap", () => {
     const source = makeKeymap({
       general: {
         search: { custom: "⌘⇧F", default: "⌘F" },
-        newFeature: { custom: "⌘N", default: "" },
-      },
+        newFeature: { custom: "⌘N", default: "" }
+      }
     });
 
     const merged = mergeKeymap(target, source);

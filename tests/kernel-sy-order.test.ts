@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/request", () => ({
-  requestApi: vi.fn(),
-}));
-
 import { getDocTreeOrderFromSy } from "@/services/kernel";
 import { requestApi } from "@/services/request";
+
+vi.mock("@/services/request", () => ({
+  requestApi: vi.fn()
+}));
 
 describe("kernel getDocTreeOrderFromSy", () => {
   const requestApiMock = vi.mocked(requestApi);
@@ -32,8 +32,8 @@ describe("kernel getDocTreeOrderFromSy", () => {
               box: "nb",
               path: "/20250615202038-dc41und.sy",
               hpath: "/doc",
-              updated: "20260222000000",
-            },
+              updated: "20260222000000"
+            }
           ];
         }
         return [];
@@ -41,7 +41,7 @@ describe("kernel getDocTreeOrderFromSy", () => {
       if (url === "/api/filetree/getPathByID") {
         return {
           notebook: "nb",
-          path: "/20250615202038-dc41und.sy",
+          path: "/20250615202038-dc41und.sy"
         };
       }
       return null as any;
@@ -53,14 +53,14 @@ describe("kernel getDocTreeOrderFromSy", () => {
         Type: "NodeDocument",
         Children: [
           { ID: "h-1", Type: "NodeHeading" },
-          { ID: "h-2", Type: "NodeHeading" },
-        ],
+          { ID: "h-2", Type: "NodeHeading" }
+        ]
       });
       return new Response(body, {
         status: 200,
         headers: {
-          "content-type": "application/json;charset=utf-8",
-        },
+          "content-type": "application/json;charset=utf-8"
+        }
       });
     }) as any;
 
@@ -78,7 +78,7 @@ describe("kernel getDocTreeOrderFromSy", () => {
       if (url === "/api/filetree/getPathByID") {
         return {
           notebook: "nb",
-          path: "/20250615202038-dc41und.sy",
+          path: "/20250615202038-dc41und.sy"
         };
       }
       return null as any;
@@ -88,13 +88,13 @@ describe("kernel getDocTreeOrderFromSy", () => {
       const body = JSON.stringify({
         ID: "doc-1",
         Type: "NodeDocument",
-        Children: [{ ID: "h-1", Type: "NodeHeading" }],
+        Children: [{ ID: "h-1", Type: "NodeHeading" }]
       });
       return new Response(body, {
         status: 200,
         headers: {
-          "content-type": "application/json;charset=utf-8",
-        },
+          "content-type": "application/json;charset=utf-8"
+        }
       });
     }) as any;
 
@@ -106,7 +106,7 @@ describe("kernel getDocTreeOrderFromSy", () => {
       path: "/20250615202038-dc41und.sy",
       hPath: "/doc",
       updated: "20260222000000",
-      title: "doc",
+      title: "doc"
     });
     const sqlCalls = requestApiMock.mock.calls.filter((args) => args[0] === "/api/query/sql");
 
@@ -128,8 +128,8 @@ describe("kernel getDocTreeOrderFromSy", () => {
               box: "nb",
               path: "/20250615202038-dc41und.sy",
               hpath: "/doc",
-              updated: "20260222000000",
-            },
+              updated: "20260222000000"
+            }
           ];
         }
         return [];
@@ -137,7 +137,7 @@ describe("kernel getDocTreeOrderFromSy", () => {
       if (url === "/api/filetree/getPathByID") {
         return {
           notebook: "nb",
-          path: "/20250615202038-dc41und.sy",
+          path: "/20250615202038-dc41und.sy"
         };
       }
       return null as any;
@@ -148,13 +148,13 @@ describe("kernel getDocTreeOrderFromSy", () => {
         JSON.stringify({
           code: 404,
           msg: "not found",
-          data: null,
+          data: null
         }),
         {
           status: 202,
           headers: {
-            "content-type": "application/json;charset=utf-8",
-          },
+            "content-type": "application/json;charset=utf-8"
+          }
         }
       );
     }) as any;
@@ -176,8 +176,8 @@ describe("kernel getDocTreeOrderFromSy", () => {
               box: "nb",
               path: "/20250615202038-dc41und.sy",
               hpath: "/doc",
-              updated: "20260222000000",
-            },
+              updated: "20260222000000"
+            }
           ];
         }
         return [];
@@ -185,7 +185,7 @@ describe("kernel getDocTreeOrderFromSy", () => {
       if (url === "/api/filetree/getPathByID") {
         return {
           notebook: "nb",
-          path: "/20250615202038-dc41und.sy",
+          path: "/20250615202038-dc41und.sy"
         };
       }
       return null as any;
@@ -195,18 +195,18 @@ describe("kernel getDocTreeOrderFromSy", () => {
       const sy = JSON.stringify({
         ID: "doc-1",
         Type: "NodeDocument",
-        Children: [{ ID: "h-1", Type: "NodeHeading" }],
+        Children: [{ ID: "h-1", Type: "NodeHeading" }]
       });
       const body = JSON.stringify({
         code: 0,
         msg: "",
-        data: sy,
+        data: sy
       });
       return new Response(body, {
         status: 200,
         headers: {
-          "content-type": "application/json;charset=utf-8",
-        },
+          "content-type": "application/json;charset=utf-8"
+        }
       });
     }) as any;
 
@@ -228,8 +228,8 @@ describe("kernel getDocTreeOrderFromSy", () => {
               box: "nb",
               path: "/20250615202038-dc41und.sy",
               hpath: "/doc",
-              updated: "20260222000000",
-            },
+              updated: "20260222000000"
+            }
           ];
         }
         return [];
@@ -237,7 +237,7 @@ describe("kernel getDocTreeOrderFromSy", () => {
       if (url === "/api/filetree/getPathByID") {
         return {
           notebook: "nb",
-          path: "/20250615202038-dc41und.sy",
+          path: "/20250615202038-dc41und.sy"
         };
       }
       return null as any;
@@ -250,14 +250,14 @@ describe("kernel getDocTreeOrderFromSy", () => {
         data: {
           ID: "doc-1",
           Type: "NodeDocument",
-          Children: [{ ID: "h-2", Type: "NodeHeading" }],
-        },
+          Children: [{ ID: "h-2", Type: "NodeHeading" }]
+        }
       });
       return new Response(body, {
         status: 200,
         headers: {
-          "content-type": "application/json;charset=utf-8",
-        },
+          "content-type": "application/json;charset=utf-8"
+        }
       });
     }) as any;
 

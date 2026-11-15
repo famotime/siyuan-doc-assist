@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, vi, test } from "vitest";
 import { extractFloatingMarkdownFromSelection } from "@/services/floating-text/floating-selection-helper";
 import * as kernel from "@/services/kernel";
 import * as actionRunnerContext from "@/plugin/action-runner-context";
 
 describe("floating-selection-helper", () => {
-  it("prioritizes block selection when selectedBlockIds exist", async () => {
+  test("prioritizes block selection when selectedBlockIds exist", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue(["block-1", "block-2"]);
     vi.spyOn(kernel, "getBlockKramdowns").mockResolvedValue([
       { id: "block-1", kramdown: '- {: id="block-1"}列表项 1' },
-      { id: "block-2", kramdown: '- {: id="block-2"}列表项 2' },
+      { id: "block-2", kramdown: '- {: id="block-2"}列表项 2' }
     ]);
 
     const result = await extractFloatingMarkdownFromSelection(undefined);
@@ -17,20 +17,20 @@ describe("floating-selection-helper", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns plain text when range selection is outside list items", async () => {
+  test("returns plain text when range selection is outside list items", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
 
     const mockRange = {
       toString: () => "普通划选文本",
       cloneRange: () => mockRange,
       startContainer: document.createTextNode("普通划选文本"),
-      endContainer: document.createTextNode("普通划选文本"),
+      endContainer: document.createTextNode("普通划选文本")
     } as any;
 
     const mockProtyle = {
       toolbar: {
-        range: mockRange,
-      },
+        range: mockRange
+      }
     } as any;
 
     const result = await extractFloatingMarkdownFromSelection(mockProtyle);
@@ -38,7 +38,7 @@ describe("floating-selection-helper", () => {
     vi.restoreAllMocks();
   });
 
-  it("extracts multi-item list markdown when selection spans across list items", async () => {
+  test("extracts multi-item list markdown when selection spans across list items", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
 
     // 构造包含两个列表项的 DOM 树
@@ -66,18 +66,18 @@ describe("floating-selection-helper", () => {
       toString: () => "第一项文本\n第二项文本",
       cloneRange: () => mockRange,
       startContainer: textNode1,
-      endContainer: textNode2,
+      endContainer: textNode2
     } as any;
 
     const mockProtyle = {
       toolbar: {
-        range: mockRange,
-      },
+        range: mockRange
+      }
     } as any;
 
     vi.spyOn(kernel, "getBlockKramdowns").mockResolvedValue([
       { id: "li-1", kramdown: '- {: id="li-1"}第一项文本' },
-      { id: "li-2", kramdown: '- {: id="li-2"}第二项文本' },
+      { id: "li-2", kramdown: '- {: id="li-2"}第二项文本' }
     ]);
 
     const result = await extractFloatingMarkdownFromSelection(mockProtyle);
@@ -87,7 +87,7 @@ describe("floating-selection-helper", () => {
     vi.restoreAllMocks();
   });
 
-  it("extracts single list item markdown when selection covers the list item", async () => {
+  test("extracts single list item markdown when selection covers the list item", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
 
     const listEl = document.createElement("div");
@@ -106,17 +106,17 @@ describe("floating-selection-helper", () => {
       toString: () => "单条列表内容",
       cloneRange: () => mockRange,
       startContainer: textNode,
-      endContainer: textNode,
+      endContainer: textNode
     } as any;
 
     const mockProtyle = {
       toolbar: {
-        range: mockRange,
-      },
+        range: mockRange
+      }
     } as any;
 
     vi.spyOn(kernel, "getBlockKramdowns").mockResolvedValue([
-      { id: "single-li", kramdown: '- {: id="single-li"}单条列表内容' },
+      { id: "single-li", kramdown: '- {: id="single-li"}单条列表内容' }
     ]);
 
     const result = await extractFloatingMarkdownFromSelection(mockProtyle);
@@ -126,7 +126,7 @@ describe("floating-selection-helper", () => {
     vi.restoreAllMocks();
   });
 
-  it("falls back to formatting list item prefix if getBlockKramdowns fails", async () => {
+  test("falls back to formatting list item prefix if getBlockKramdowns fails", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
 
     const listEl = document.createElement("div");
@@ -145,13 +145,13 @@ describe("floating-selection-helper", () => {
       toString: () => "买牛奶",
       cloneRange: () => mockRange,
       startContainer: textNode,
-      endContainer: textNode,
+      endContainer: textNode
     } as any;
 
     const mockProtyle = {
       toolbar: {
-        range: mockRange,
-      },
+        range: mockRange
+      }
     } as any;
 
     vi.spyOn(kernel, "getBlockKramdowns").mockRejectedValue(new Error("API Error"));
@@ -163,7 +163,7 @@ describe("floating-selection-helper", () => {
     vi.restoreAllMocks();
   });
 
-  it("extracts markdown image when range contains an image span", async () => {
+  test("extracts markdown image when range contains an image span", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
     vi.spyOn(actionRunnerContext, "getSelectedImageAssetPaths").mockReturnValue([]);
 
@@ -177,8 +177,8 @@ describe("floating-selection-helper", () => {
 
     const mockProtyle = {
       toolbar: {
-        range,
-      },
+        range
+      }
     } as any;
 
     const result = await extractFloatingMarkdownFromSelection(mockProtyle);
@@ -190,10 +190,10 @@ describe("floating-selection-helper", () => {
     vi.restoreAllMocks();
   });
 
-  it("extracts image markdown when an image is individually selected without text range", async () => {
+  test("extracts image markdown when an image is individually selected without text range", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
     vi.spyOn(actionRunnerContext, "getSelectedImageAssetPaths").mockReturnValue([
-      "assets/solo-image.png",
+      "assets/solo-image.png"
     ]);
 
     const result = await extractFloatingMarkdownFromSelection(undefined);
@@ -201,7 +201,7 @@ describe("floating-selection-helper", () => {
     vi.restoreAllMocks();
   });
 
-  it("extracts markdown from explicitBlocks elements when text range is missing", async () => {
+  test("extracts markdown from explicitBlocks elements when text range is missing", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
     vi.spyOn(actionRunnerContext, "getSelectedImageAssetPaths").mockReturnValue([]);
 
@@ -209,7 +209,7 @@ describe("floating-selection-helper", () => {
     blockEl.setAttribute("data-node-id", "target-block-1");
 
     vi.spyOn(kernel, "getBlockKramdowns").mockResolvedValue([
-      { id: "target-block-1", kramdown: '目标块文本内容{: id="target-block-1"}' },
+      { id: "target-block-1", kramdown: '目标块文本内容{: id="target-block-1"}' }
     ]);
 
     const result = await extractFloatingMarkdownFromSelection(undefined, null, [blockEl]);
@@ -217,7 +217,7 @@ describe("floating-selection-helper", () => {
     vi.restoreAllMocks();
   });
 
-  it("prefers active text range over explicitBlocks when text range is present", async () => {
+  test("prefers active text range over explicitBlocks when text range is present", async () => {
     vi.spyOn(actionRunnerContext, "getSelectedBlockIds").mockReturnValue([]);
     vi.spyOn(actionRunnerContext, "getSelectedImageAssetPaths").mockReturnValue([]);
 
@@ -226,7 +226,7 @@ describe("floating-selection-helper", () => {
       cloneRange: () => mockRange,
       startContainer: document.createTextNode("划选的局部文本"),
       endContainer: document.createTextNode("划选的局部文本"),
-      collapsed: false,
+      collapsed: false
     } as any;
 
     const blockEl = document.createElement("div");

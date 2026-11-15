@@ -3,11 +3,11 @@ import { ProtyleLike } from "@/plugin/doc-context";
 
 export type ActionHandlerResult =
   | {
-      ok?: boolean;
-      errorCode?: "context-unavailable" | "not-supported" | "execution-failed";
-      message?: string;
-    }
-  | void;
+    ok?: boolean;
+    errorCode?: "context-unavailable" | "not-supported" | "execution-failed";
+    message?: string;
+  } |
+  void;
 
 export type ActionHandler = (docId: string, protyle?: ProtyleLike) => Promise<ActionHandlerResult>;
 

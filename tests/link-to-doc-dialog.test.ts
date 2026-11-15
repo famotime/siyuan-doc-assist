@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, vi, test } from "vitest";
 import { openLinkToDocDialog } from "@/ui/link-to-doc-dialog";
 import { showMessage } from "siyuan";
 
@@ -14,7 +14,7 @@ vi.mock("siyuan", () => {
   }
   return {
     Dialog: MockDialog,
-    showMessage: vi.fn(),
+    showMessage: vi.fn()
   };
 });
 
@@ -28,27 +28,27 @@ describe("link-to-doc-dialog", () => {
       url: "https://example.com/1",
       originalUrl: "https://example.com/1",
       title: "网页一",
-      hasFetchedTitle: true,
+      hasFetchedTitle: true
     },
     {
       url: "https://example.com/2",
       originalUrl: "https://example.com/2",
       title: "网页二",
-      hasFetchedTitle: true,
+      hasFetchedTitle: true
     },
     {
       url: "https://example.com/3",
       originalUrl: "https://example.com/3",
       title: "网页三",
-      hasFetchedTitle: false,
-    },
+      hasFetchedTitle: false
+    }
   ];
 
-  it("renders candidates with all checked by default", () => {
+  test("renders candidates with all checked by default", () => {
     const confirmSpy = vi.fn();
     const dialog = openLinkToDocDialog({
       items: mockItems,
-      onConfirm: confirmSpy,
+      onConfirm: confirmSpy
     });
 
     const root = dialog.element;
@@ -62,11 +62,11 @@ describe("link-to-doc-dialog", () => {
     expect(countEl?.textContent).toContain("共检测到 3 个网页链接，已勾选 3 项");
   });
 
-  it("handles clear all and select all buttons", () => {
+  test("handles clear all and select all buttons", () => {
     const confirmSpy = vi.fn();
     const dialog = openLinkToDocDialog({
       items: mockItems,
-      onConfirm: confirmSpy,
+      onConfirm: confirmSpy
     });
 
     const root = dialog.element;
@@ -96,11 +96,11 @@ describe("link-to-doc-dialog", () => {
     expect(countEl?.textContent).toContain("已勾选 3 项");
   });
 
-  it("confirms selected items when confirm button clicked", async () => {
+  test("confirms selected items when confirm button clicked", async () => {
     const confirmSpy = vi.fn();
     const dialog = openLinkToDocDialog({
       items: mockItems,
-      onConfirm: confirmSpy,
+      onConfirm: confirmSpy
     });
 
     const root = dialog.element;
@@ -119,11 +119,11 @@ describe("link-to-doc-dialog", () => {
     expect(dialog.destroy).toHaveBeenCalled();
   });
 
-  it("prevents confirm if no items are selected", async () => {
+  test("prevents confirm if no items are selected", async () => {
     const confirmSpy = vi.fn();
     const dialog = openLinkToDocDialog({
       items: mockItems,
-      onConfirm: confirmSpy,
+      onConfirm: confirmSpy
     });
 
     const root = dialog.element;

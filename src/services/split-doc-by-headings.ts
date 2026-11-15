@@ -2,7 +2,7 @@ import {
   getDocMetaByID,
   getChildBlocksByParentId,
   createDocWithMd,
-  deleteBlocksByIds,
+  deleteBlocksByIds
 } from "@/services/kernel";
 import { splitDocByHeadingsCore } from "@/core/split-doc-by-headings-core";
 
@@ -48,6 +48,6 @@ export async function splitDocByHeadings(docId: string): Promise<SplitReport> {
   return {
     sectionCount: sections.length,
     createdDocIds,
-    deletedBlockCount: deleteResult.deletedCount,
+    deletedBlockCount: deleteResult.deletedCount
   };
 }

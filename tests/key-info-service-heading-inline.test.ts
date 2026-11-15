@@ -2,22 +2,22 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { filterKeyInfoItems } from "@/core/key-info-core";
 
-vi.mock("@/services/kernel", () => ({
-  getBlockKramdowns: vi.fn(),
-  getDocMetaByID: vi.fn(),
-  getDocTreeOrderFromSy: vi.fn(),
-  getRootDocRawMarkdown: vi.fn(),
-  sql: vi.fn(),
-}));
-
 import { getDocKeyInfo } from "@/services/key-info";
 import {
   getBlockKramdowns,
   getDocMetaByID,
   getDocTreeOrderFromSy,
   getRootDocRawMarkdown,
-  sql,
+  sql
 } from "@/services/kernel";
+
+vi.mock("@/services/kernel", () => ({
+  getBlockKramdowns: vi.fn(),
+  getDocMetaByID: vi.fn(),
+  getDocTreeOrderFromSy: vi.fn(),
+  getRootDocRawMarkdown: vi.fn(),
+  sql: vi.fn()
+}));
 
 const sqlMock = vi.mocked(sql);
 const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
@@ -89,8 +89,8 @@ describe("key-info service heading inline merge", () => {
         content: "正文",
         markdown: "正文",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     await getDocKeyInfo("doc-1");
@@ -112,7 +112,7 @@ describe("key-info service heading inline merge", () => {
         content: "标题一",
         markdown: "# **标题一**",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p1",
@@ -122,8 +122,8 @@ describe("key-info service heading inline merge", () => {
         content: "正文",
         markdown: "正文 **正文加粗** 与 #正文标签",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -154,7 +154,7 @@ describe("key-info service heading inline merge", () => {
           content: "标题一",
           markdown: "# 标题一",
           memo: "",
-          tag: "",
+          tag: ""
         },
         {
           id: "p1",
@@ -164,8 +164,8 @@ describe("key-info service heading inline merge", () => {
           content: "正文",
           markdown: "正文",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -175,7 +175,7 @@ describe("key-info service heading inline merge", () => {
           content: "标题加粗",
           markdown: "**标题加粗**",
           type: "strong",
-          block_sort: 1,
+          block_sort: 1
         },
         {
           id: "s-p",
@@ -184,8 +184,8 @@ describe("key-info service heading inline merge", () => {
           content: "正文加粗",
           markdown: "**正文加粗**",
           type: "strong",
-          block_sort: 2,
-        },
+          block_sort: 2
+        }
       ]
     );
 
@@ -213,7 +213,7 @@ describe("key-info service heading inline merge", () => {
         content: "1 第一节",
         markdown: "# 1 第一节",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "h-10",
@@ -223,8 +223,8 @@ describe("key-info service heading inline merge", () => {
         content: "10 第十节",
         markdown: "# 10 第十节",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const fakeProtyle = {
@@ -236,14 +236,14 @@ describe("key-info service heading inline merge", () => {
                 {
                   dataset: { nodeId: "h-10" },
                   getAttribute: (name: string) =>
-                    name === "data-node-id" ? "h-10" : null,
-                },
+                    name === "data-node-id" ? "h-10" : null
+                }
               ];
             }
             return [];
-          },
-        },
-      },
+          }
+        }
+      }
     };
 
     const result = await getDocKeyInfo("doc-1", fakeProtyle as any);
@@ -265,7 +265,7 @@ describe("key-info service heading inline merge", () => {
         content: "第一节",
         markdown: "# 第一节",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "h-2",
@@ -276,7 +276,7 @@ describe("key-info service heading inline merge", () => {
         content: "第二节",
         markdown: "# 第二节",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p-1",
@@ -287,7 +287,7 @@ describe("key-info service heading inline merge", () => {
         content: "A",
         markdown: "**A**",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p-2",
@@ -298,8 +298,8 @@ describe("key-info service heading inline merge", () => {
         content: "B",
         markdown: "**B**",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -311,7 +311,7 @@ describe("key-info service heading inline merge", () => {
       "title:第一节",
       "bold:A",
       "title:第二节",
-      "bold:B",
+      "bold:B"
     ]);
   });
 
@@ -326,7 +326,7 @@ describe("key-info service heading inline merge", () => {
         content: "第一节",
         markdown: "# 第一节",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p-1",
@@ -337,7 +337,7 @@ describe("key-info service heading inline merge", () => {
         content: "A",
         markdown: "**A**",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "h-2",
@@ -348,7 +348,7 @@ describe("key-info service heading inline merge", () => {
         content: "第二节",
         markdown: "# 第二节",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p-2",
@@ -359,15 +359,15 @@ describe("key-info service heading inline merge", () => {
         content: "B",
         markdown: "**B**",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
     getDocTreeOrderFromSyMock.mockResolvedValue(
       new Map([
         ["h-1", 0],
         ["p-1", 1],
         ["h-2", 2],
-        ["p-2", 3],
+        ["p-2", 3]
       ])
     );
 
@@ -380,7 +380,7 @@ describe("key-info service heading inline merge", () => {
       "title:第一节",
       "bold:A",
       "title:第二节",
-      "bold:B",
+      "bold:B"
     ]);
   });
 
@@ -395,7 +395,7 @@ describe("key-info service heading inline merge", () => {
         content: "前文段落",
         markdown: "前文内容",
         memo: "",
-        tag: "前文标签",
+        tag: "前文标签"
       },
       {
         id: "h-2",
@@ -406,13 +406,13 @@ describe("key-info service heading inline merge", () => {
         content: "后文标题",
         markdown: "## 后文标题",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
     getDocTreeOrderFromSyMock.mockResolvedValue(
       new Map([
         ["p-1", 0],
-        ["h-2", 1],
+        ["h-2", 1]
       ])
     );
 
@@ -423,7 +423,7 @@ describe("key-info service heading inline merge", () => {
 
     expect(sequence).toEqual([
       "tag:前文标签",
-      "title:后文标题",
+      "title:后文标题"
     ]);
   });
 
@@ -438,7 +438,7 @@ describe("key-info service heading inline merge", () => {
         content: "第一节",
         markdown: "# 第一节",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "h-2",
@@ -449,7 +449,7 @@ describe("key-info service heading inline merge", () => {
         content: "第二节",
         markdown: "# 第二节",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "h-3",
@@ -460,8 +460,8 @@ describe("key-info service heading inline merge", () => {
         content: "第三节",
         markdown: "# 第三节",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
     // only 1/3 blocks hit, below 0.85 threshold
     getDocTreeOrderFromSyMock.mockResolvedValue(
@@ -476,7 +476,7 @@ describe("key-info service heading inline merge", () => {
     expect(titles).toEqual([
       "第二节",
       "第三节",
-      "第一节",
+      "第一节"
     ]);
   });
 
@@ -491,7 +491,7 @@ describe("key-info service heading inline merge", () => {
         content: "文档标题",
         markdown: "## 译者后记\n==末尾高亮==\n#末尾标签",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "h-1",
@@ -502,7 +502,7 @@ describe("key-info service heading inline merge", () => {
         content: "推荐序",
         markdown: "## 推荐序",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "h-2",
@@ -513,14 +513,14 @@ describe("key-info service heading inline merge", () => {
         content: "译者后记",
         markdown: "## 译者后记",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
     getDocTreeOrderFromSyMock.mockResolvedValue(
       new Map([
         ["doc-1", 0],
         ["h-1", 1],
-        ["h-2", 2],
+        ["h-2", 2]
       ])
     );
 
@@ -554,8 +554,8 @@ describe("key-info service heading inline merge", () => {
         content: "正文",
         markdown: "==[官网](https://example.com)==\n==示例 `pnpm test` [文档](https://example.com/doc)==",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -582,8 +582,8 @@ describe("key-info service heading inline merge", () => {
           markdown:
             "截至2025年9月底（[国务院. 《碳达峰碳中和的中国行动》白皮书. 2025年11月.](zotero://open-pdf/library/items/DPPC88A3?sel=p%3Anth-child(132)&annotation=5WANS33B)）",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -593,8 +593,8 @@ describe("key-info service heading inline merge", () => {
           content: "&annotation=5WANS33B)",
           markdown:
             "[国务院. 《碳达峰碳中和的中国行动》白皮书. 2025年11月.](zotero://open-pdf/library/items/DPPC88A3?sel=p%3Anth-child(132)&amp;annotation=5WANS33B)",
-          type: "a textmark",
-        },
+          type: "a textmark"
+        }
       ]
     );
 
@@ -617,8 +617,8 @@ describe("key-info service heading inline merge", () => {
           content: "引用",
           markdown: "正文",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -628,8 +628,8 @@ describe("key-info service heading inline merge", () => {
           content: "&annotation=ME7EFWUJ)",
           markdown:
             "**[文档处理插件](zotero://open-pdf/library/items/6T2NM4W3?page=22&amp;annotation=ME7EFWUJ)**",
-          type: "a strong",
-        },
+          type: "a strong"
+        }
       ]
     );
 
@@ -654,8 +654,8 @@ describe("key-info service heading inline merge", () => {
           content: "正文",
           markdown: "#🔍待查#",
           memo: "",
-          tag: "🔍待查",
-        },
+          tag: "🔍待查"
+        }
       ],
       [
         {
@@ -665,8 +665,8 @@ describe("key-info service heading inline merge", () => {
           content: "🔍待查#",
           markdown: "#🔍待查#",
           type: "tag",
-          block_sort: 1,
-        },
+          block_sort: 1
+        }
       ]
     );
 
@@ -677,7 +677,7 @@ describe("key-info service heading inline merge", () => {
     expect(tags[0]).toEqual(
       expect.objectContaining({
         text: "🔍待查",
-        raw: "#🔍待查",
+        raw: "#🔍待查"
       })
     );
   });
@@ -693,8 +693,8 @@ describe("key-info service heading inline merge", () => {
         content: "引用",
         markdown: '==((20260228222318-0xudh3j "料袋凯"))==',
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -722,8 +722,8 @@ describe("key-info service heading inline merge", () => {
           content: "原文标注内容",
           markdown: "原文标注内容",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -734,8 +734,8 @@ describe("key-info service heading inline merge", () => {
           markdown: "原文标注内容",
           type: "inline-memo",
           ial: `inline-memo="备注内容"`,
-          block_sort: 1,
-        },
+          block_sort: 1
+        }
       ]
     );
 
@@ -758,8 +758,8 @@ describe("key-info service heading inline merge", () => {
           content: "123456789",
           markdown: "**123****==456==****789**",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -769,7 +769,7 @@ describe("key-info service heading inline merge", () => {
           content: "123",
           markdown: "**123**",
           type: "strong",
-          block_sort: 1,
+          block_sort: 1
         },
         {
           id: "s-h-1",
@@ -778,7 +778,7 @@ describe("key-info service heading inline merge", () => {
           content: "456",
           markdown: "==456==",
           type: "mark",
-          block_sort: 1,
+          block_sort: 1
         },
         {
           id: "s-b-2",
@@ -787,7 +787,7 @@ describe("key-info service heading inline merge", () => {
           content: "456",
           markdown: "**==456==**",
           type: "strong",
-          block_sort: 1,
+          block_sort: 1
         },
         {
           id: "s-b-3",
@@ -796,8 +796,8 @@ describe("key-info service heading inline merge", () => {
           content: "789",
           markdown: "**789**",
           type: "strong",
-          block_sort: 1,
-        },
+          block_sort: 1
+        }
       ]
     );
 
@@ -828,8 +828,8 @@ describe("key-info service heading inline merge", () => {
           content: "第一处 中间 第二处",
           markdown: "==第一处== 中间 ==第二处==",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -840,7 +840,7 @@ describe("key-info service heading inline merge", () => {
           markdown: "==第一处==",
           type: "mark",
           block_sort: 1,
-          start_offset: 0,
+          start_offset: 0
         },
         {
           id: "s-h-2",
@@ -850,8 +850,8 @@ describe("key-info service heading inline merge", () => {
           markdown: "==第二处==",
           type: "mark",
           block_sort: 1,
-          start_offset: 8,
-        },
+          start_offset: 8
+        }
       ]
     );
 
@@ -874,8 +874,8 @@ describe("key-info service heading inline merge", () => {
         markdown:
           '默认字体颜色 1，<span data-type="text" style="color: var(--b3-font-color1);">字体颜色 2</span>，<span data-type="text" style="color: var(--b3-font-color2);">字体颜色 3</span>，<span data-type="text" style="color: var(--b3-font-color3);">字体颜色 4</span>，<span data-type="text" style="color: var(--b3-font-color4);">字体颜色 5</span>',
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const root = document.createElement("div");
@@ -911,7 +911,7 @@ describe("key-info service heading inline merge", () => {
         markdown:
           '一系列的「对话录」就是柏拉图一生思考的结晶。这种方法不限于对人思维敏锐性的训练，而是一种需要想象力的技术性工作。\n{: style="color: var(--b3-font-color8);" id="p-1"}',
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p-2",
@@ -923,8 +923,8 @@ describe("key-info service heading inline merge", () => {
         markdown:
           '另一整段背景高亮文本。\n{: style="background-color: var(--b3-font-background8);" id="p-2"}',
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const root = document.createElement("div");
@@ -945,7 +945,7 @@ describe("key-info service heading inline merge", () => {
           item.blockId === "p-1" &&
           item.type === "highlight" &&
           item.text ===
-            "一系列的「对话录」就是柏拉图一生思考的结晶。这种方法不限于对人思维敏锐性的训练，而是一种需要想象力的技术性工作。"
+          "一系列的「对话录」就是柏拉图一生思考的结晶。这种方法不限于对人思维敏锐性的训练，而是一种需要想象力的技术性工作。"
       )
     ).toBe(true);
     expect(
@@ -966,7 +966,7 @@ describe("key-info service heading inline merge", () => {
         content: "bold",
         markdown: "**加粗一** 中间 **加粗二**",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "i-1",
@@ -977,7 +977,7 @@ describe("key-info service heading inline merge", () => {
         content: "italic",
         markdown: "*斜体一* 中间 *斜体二*",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "u-1",
@@ -988,7 +988,7 @@ describe("key-info service heading inline merge", () => {
         content: "underline",
         markdown: "<u>下划一</u> 中间 <u>下划二</u>",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "h-1",
@@ -999,7 +999,7 @@ describe("key-info service heading inline merge", () => {
         content: "highlight",
         markdown: "==高亮一== 中间 ==高亮二==",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "r-1",
@@ -1010,7 +1010,7 @@ describe("key-info service heading inline merge", () => {
         content: "remark",
         markdown: "%%备注一%% 中间 %%备注二%%",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "t-1",
@@ -1021,7 +1021,7 @@ describe("key-info service heading inline merge", () => {
         content: "tag",
         markdown: "#标签一 #标签二",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "l-1",
@@ -1032,7 +1032,7 @@ describe("key-info service heading inline merge", () => {
         content: "link",
         markdown: "[链接一](https://example.com/1) 中间 [链接二](https://example.com/2)",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "f-1",
@@ -1043,8 +1043,8 @@ describe("key-info service heading inline merge", () => {
         content: "ref",
         markdown: '((20260202121212-bcdefg2 "引用一")) 中间 ((20260303131313-cdefgh3 "引用二"))',
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -1076,8 +1076,8 @@ describe("key-info service heading inline merge", () => {
         markdown:
           '「实用测试」听上去**并不复杂**，对许多人也具有相当的吸引力。不过，「实用测试」也受到了很多哲学层面的非议。我们对此不详加讨论。简单地说，威廉・詹姆斯认为思想产生的结果的实际效用，决定了思想的==意义和正确与否。==一个问题即使无法被现实地加以解决，但它若可以影响人类的行为，**那它就是一个「真」问题**。由此可见，威廉强调的是结果而不是原因。在《宗教经验之种种》中，他确定无疑地**说，宗教**信仰与其他大脑状态无异，同样是受神经系统节制的。而且「它的重要性不应用它的==原因来评==价，而应用它的结果来评价」。所以，宗教即使不是绝对的「真理」，对每一个个体和人类整体来说，它仍然是有**价值的**。「真理」并非绝对领域，而是一个功能性的概念。思想作为工具才能体现价值，人们也只能用「工具主义」<span data-type="text" style="color: var(--b3-font-color8);">来评论它</span>{: style="color: var(--b3-font-color8);"}们。总而言之，「对人类有用的思想才称得上『真理』」。威廉・詹姆斯笔下的道德理想纯粹而至高无上；「有用」绝不是指经济利益；将作者的「实用主义」庸俗化地理解为「有用即有价值」显然是以偏概全的。',
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -1101,8 +1101,8 @@ describe("key-info service heading inline merge", () => {
           content: "正文内容正文内容",
           markdown: "正文内容正文内容",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -1112,7 +1112,7 @@ describe("key-info service heading inline merge", () => {
           content: "正文内容正文内容",
           markdown: "正文内容正文内容",
           type: "inline-memo",
-          block_sort: 1,
+          block_sort: 1
         },
         {
           id: "s-memo-strong",
@@ -1122,8 +1122,8 @@ describe("key-info service heading inline merge", () => {
           markdown: "内容正文",
           type: "inline-memo",
           ial: `inline-memo="XXXXX"`,
-          block_sort: 1,
-        },
+          block_sort: 1
+        }
       ]
     );
 
@@ -1146,8 +1146,8 @@ describe("key-info service heading inline merge", () => {
           content: "文档内容",
           markdown: "-文档<sup>（是是是）</sup>更新版本号",
           memo: "文档是是是",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -1158,8 +1158,8 @@ describe("key-info service heading inline merge", () => {
           markdown: "文档",
           type: "inline-memo",
           ial: `inline-memo="是是是"`,
-          block_sort: 1,
-        },
+          block_sort: 1
+        }
       ]
     );
 
@@ -1182,8 +1182,8 @@ describe("key-info service heading inline merge", () => {
           content: "正文",
           markdown: "正文",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -1193,8 +1193,8 @@ describe("key-info service heading inline merge", () => {
           content: "下划重点",
           markdown: "<u>下划重点</u>",
           type: "u",
-          block_sort: 1,
-        },
+          block_sort: 1
+        }
       ]
     );
 

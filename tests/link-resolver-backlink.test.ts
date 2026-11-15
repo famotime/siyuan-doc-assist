@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel", () => ({
-  getBacklink2: vi.fn(),
-  getBacklinkSourceDocIdsFromMarkdown: vi.fn(),
-  getBacklinkSourceDocIdsFromRefs: vi.fn(),
-  getDocMetasByIDs: vi.fn(),
-}));
-
 import { getBacklinkDocs } from "@/services/link-resolver";
 import {
   getBacklink2,
   getBacklinkSourceDocIdsFromMarkdown,
   getBacklinkSourceDocIdsFromRefs,
-  getDocMetasByIDs,
+  getDocMetasByIDs
 } from "@/services/kernel";
+
+vi.mock("@/services/kernel", () => ({
+  getBacklink2: vi.fn(),
+  getBacklinkSourceDocIdsFromMarkdown: vi.fn(),
+  getBacklinkSourceDocIdsFromRefs: vi.fn(),
+  getDocMetasByIDs: vi.fn()
+}));
 
 describe("link-resolver backlinks", () => {
   const getBacklink2Mock = vi.mocked(getBacklink2);
@@ -35,12 +35,12 @@ describe("link-resolver backlinks", () => {
           box: "box-d",
           hPath: "/Root/Doc D",
           name: "Doc D",
-          updated: "20260405100000",
-        },
+          updated: "20260405100000"
+        }
       ],
       linkRefsCount: 0,
       backmentions: [],
-      mentionsCount: 0,
+      mentionsCount: 0
     } as any);
     getDocMetasByIDsMock.mockResolvedValue([
       {
@@ -48,22 +48,22 @@ describe("link-resolver backlinks", () => {
         box: "box-a",
         hPath: "/Root/Doc A",
         updated: "20260405110000",
-        title: "Doc A",
+        title: "Doc A"
       },
       {
         id: "doc-b",
         box: "box-b",
         hPath: "/Root/Doc B",
         updated: "20260405120000",
-        title: "Doc B",
+        title: "Doc B"
       },
       {
         id: "doc-c",
         box: "box-c",
         hPath: "/Root/Doc C",
         updated: "20260405130000",
-        title: "Doc C",
-      },
+        title: "Doc C"
+      }
     ] as any);
 
     const result = await getBacklinkDocs("current-doc");
@@ -79,7 +79,7 @@ describe("link-resolver backlinks", () => {
         hPath: "/Root/Doc A",
         name: "Doc A",
         updated: "20260405110000",
-        source: "backlink",
+        source: "backlink"
       },
       {
         id: "doc-b",
@@ -87,7 +87,7 @@ describe("link-resolver backlinks", () => {
         hPath: "/Root/Doc B",
         name: "Doc B",
         updated: "20260405120000",
-        source: "backlink",
+        source: "backlink"
       },
       {
         id: "doc-c",
@@ -95,7 +95,7 @@ describe("link-resolver backlinks", () => {
         hPath: "/Root/Doc C",
         name: "Doc C",
         updated: "20260405130000",
-        source: "backlink",
+        source: "backlink"
       },
       {
         id: "doc-d",
@@ -103,8 +103,8 @@ describe("link-resolver backlinks", () => {
         hPath: "/Root/Doc D",
         name: "Doc D",
         updated: "20260405100000",
-        source: "backlink",
-      },
+        source: "backlink"
+      }
     ]);
   });
 
@@ -118,12 +118,12 @@ describe("link-resolver backlinks", () => {
           box: "box-z",
           hPath: "/Root/Doc Z",
           name: "Doc Z",
-          updated: "20260405150000",
-        },
+          updated: "20260405150000"
+        }
       ],
       linkRefsCount: 0,
       backmentions: [],
-      mentionsCount: 0,
+      mentionsCount: 0
     } as any);
     getDocMetasByIDsMock.mockResolvedValue([] as any);
 
@@ -136,8 +136,8 @@ describe("link-resolver backlinks", () => {
         hPath: "/Root/Doc Z",
         name: "Doc Z",
         updated: "20260405150000",
-        source: "backlink",
-      },
+        source: "backlink"
+      }
     ]);
   });
 });

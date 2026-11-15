@@ -1,13 +1,13 @@
 import { buildDockDocActions } from "@/core/dock-panel-core";
 import {
   DocActionEnabledState,
-  DocMenuRegistrationState,
+  DocMenuRegistrationState
 } from "@/core/doc-menu-registration-core";
 import { ActionConfig, ActionKey, formatActionTooltip } from "@/plugin/actions";
 import {
   createCheckbox,
   createCollapseButton,
-  createElement,
+  createElement
 } from "@/ui/plugin-settings-shared";
 
 type MenuRegistrationGroup = {
@@ -43,7 +43,7 @@ function buildMenuRegistrationGroups(
     groups.push({
       key: action.group,
       label: action.groupLabel,
-      actions: [action],
+      actions: [action]
     });
   });
   return groups;
@@ -127,7 +127,7 @@ export function createMenuRegistrationPanel(
       }
       syncAllSwitches();
       await options.onToggleAllEnabled(checked);
-    },
+    }
   });
 
   const allMenuSwitch = createCheckbox({
@@ -143,7 +143,7 @@ export function createMenuRegistrationPanel(
       }
       syncAllSwitches();
       await options.onToggleAllMenu(checked);
-    },
+    }
   });
 
   const panel = createElement(
@@ -214,7 +214,7 @@ export function createMenuRegistrationPanel(
     createCollapseButton({
       key: "menu-registration-groups",
       label: "操作命令配置",
-      content: groupsWrap,
+      content: groupsWrap
     })
   );
   summary.append(summaryText, summaryControls);
@@ -308,7 +308,7 @@ export function createMenuRegistrationPanel(
           syncActionRow(action.key);
           syncAllSwitches();
           await options.onToggleSingleEnabled(action.key, checked);
-        },
+        }
       });
       enabledSwitches.set(action.key, enabledCheckbox);
       enabledItem.append(enabledLabel, enabledCheckbox);
@@ -321,9 +321,9 @@ export function createMenuRegistrationPanel(
         "doc-assistant-settings__action-switch-item"
       );
       menuItem.dataset.disabled = isMenuDisabled ? "true" : "false";
-      menuItem.title = !isEnabled
-        ? "需先启用命令，才可注册到文档菜单"
-        : action.menuToggleDisabledReason || "是否注册到文档菜单";
+      menuItem.title = !isEnabled ?
+        "需先启用命令，才可注册到文档菜单" :
+        action.menuToggleDisabledReason || "是否注册到文档菜单";
       const menuLabel = createElement(
         "span",
         "doc-assistant-settings__action-switch-label",
@@ -337,7 +337,7 @@ export function createMenuRegistrationPanel(
           menuState[action.key] = checked;
           syncAllSwitches();
           await options.onToggleSingleMenu(action.key, checked);
-        },
+        }
       });
       menuSwitches.set(action.key, menuCheckbox);
       menuSwitchWraps.set(action.key, menuItem);

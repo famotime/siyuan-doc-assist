@@ -4,7 +4,7 @@ import {
   filterKeyInfoItems,
   KEY_INFO_TYPE_PRIORITY,
   buildKeyInfoMarkdown,
-  extractKeyInfoFromMarkdown,
+  extractKeyInfoFromMarkdown
 } from "@/core/key-info-core";
 
 describe("key-info-core", () => {
@@ -12,7 +12,7 @@ describe("key-info-core", () => {
     const markdown = [
       "# 主标题",
       "正文包含 **加粗**、*斜体*、==高亮==、%%备注%%、#标签。",
-      "另一个 <mark>标记</mark>。",
+      "另一个 <mark>标记</mark>。"
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -39,7 +39,7 @@ describe("key-info-core", () => {
   test("extracts underline content separately from italic and excludes code from default filter", () => {
     const markdown = [
       "正文包含 _斜体_、<u>下划线</u>、<ins>强调下划</ins>。",
-      "再来一个 <span data-type=\"u\">编辑态下划</span>。",
+      "再来一个 <span data-type=\"u\">编辑态下划</span>。"
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -62,7 +62,7 @@ describe("key-info-core", () => {
       "==高亮==",
       "%%备注%%",
       "#标签",
-      "```",
+      "```"
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -73,7 +73,7 @@ describe("key-info-core", () => {
     const markdown = [
       "# **标题一**",
       "## ==标题二==",
-      "正文 **正文加粗** 与 #正文标签。",
+      "正文 **正文加粗** 与 #正文标签。"
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -120,7 +120,7 @@ describe("key-info-core", () => {
       "文档链接 [文档别名](siyuan://blocks/20260202121212-bcdefg2)",
       "自动链接 <https://example.com/plain>",
       '块引用 ((20260202121212-bcdefg2 "引用别名"))',
-      '双向链接 [[20260303131313-cdefgh3 "双向别名"]]',
+      '双向链接 [[20260303131313-cdefgh3 "双向别名"]]'
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -138,7 +138,7 @@ describe("key-info-core", () => {
       "[**加粗链接**](https://example.com)",
       '[==高亮文档链接==](siyuan://blocks/20260202121212-bcdefg2)',
       '((20260202121212-bcdefg2 "**引用加粗**"))',
-      '[[20260303131313-cdefgh3 "*引用斜体*"]]',
+      '[[20260303131313-cdefgh3 "*引用斜体*"]]'
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -169,7 +169,7 @@ describe("key-info-core", () => {
       "[code](https://example.com)",
       '((20260202121212-bcdefg2 "引用"))',
       '[[20260303131313-cdefgh3 "双向别名"]]',
-      "```",
+      "```"
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -181,7 +181,7 @@ describe("key-info-core", () => {
     const markdown = [
       "正文 \\*不是斜体\\* 与 \\_也不是斜体\\_。",
       "正文 \\*\\*不是加粗\\*\\* 与 \\_\\_也不是加粗\\_\\_。",
-      "正文 *有效斜体* 与 **有效加粗**。",
+      "正文 *有效斜体* 与 **有效加粗**。"
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -196,7 +196,7 @@ describe("key-info-core", () => {
     const markdown = [
       "正文 <strong>*</strong> 与 <em>\\</em> 与 <mark>=</mark>。",
       "正文 **   **、*\\t*、== = ==。",
-      "正文 **有效**、*有效*、==有效==。",
+      "正文 **有效**、*有效*、==有效==。"
     ].join("\n");
 
     const items = extractKeyInfoFromMarkdown(markdown);
@@ -214,19 +214,19 @@ describe("key-info-core", () => {
     const markdown = buildKeyInfoMarkdown([
       { text: "加粗", raw: "**加粗**", listItem: true },
       { text: "斜体", raw: "*斜体*" },
-      { text: "已有前缀", raw: "- ==已有前缀==", listItem: true },
+      { text: "已有前缀", raw: "- ==已有前缀==", listItem: true }
     ]);
 
     expect(markdown.split("\n")).toEqual([
       "- **加粗**",
       "*斜体*",
-      "- ==已有前缀==",
+      "- ==已有前缀=="
     ]);
   });
 
   test("preserves explicit ordered list prefix when exporting markdown", () => {
     const markdown = buildKeyInfoMarkdown([
-      { text: "有序内容", raw: "**有序内容**", listPrefix: "3. " },
+      { text: "有序内容", raw: "**有序内容**", listPrefix: "3. " }
     ]);
 
     expect(markdown).toBe("3. **有序内容**");
@@ -242,7 +242,7 @@ describe("key-info-core", () => {
         offset: 0,
         blockId: "h1",
         blockSort: 0,
-        order: 0,
+        order: 0
       },
       {
         id: "h1-inline-1",
@@ -252,15 +252,15 @@ describe("key-info-core", () => {
         offset: 0,
         blockId: "h1",
         blockSort: 0,
-        order: 1,
-      },
+        order: 1
+      }
     ];
 
     expect(filterKeyInfoItems(items, ["title", "highlight"]).map((item) => item.type)).toEqual([
-      "title",
+      "title"
     ]);
     expect(filterKeyInfoItems(items, ["highlight"]).map((item) => item.type)).toEqual([
-      "highlight",
+      "highlight"
     ]);
   });
 
@@ -274,7 +274,7 @@ describe("key-info-core", () => {
       offset: 0,
       blockId: "p1",
       blockSort: 0,
-      order: 0,
+      order: 0
     };
 
     expect(filterKeyInfoItems([item], ["highlight"])).toHaveLength(1);

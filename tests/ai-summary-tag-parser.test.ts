@@ -19,7 +19,7 @@ describe("parseTagsFromAiResponse", () => {
     expect(parseTagsFromAiResponse(aiText)).toEqual([
       "卡车司机",
       "自由与代价",
-      "阶层固化与生存挣扎",
+      "阶层固化与生存挣扎"
     ]);
   });
 
@@ -41,7 +41,7 @@ describe("parseTagsFromAiResponse", () => {
     expect(parseTagsFromAiResponse(aiText)).toEqual([
       "卡车司机",
       "自由与代价",
-      "阶层固化",
+      "阶层固化"
     ]);
   });
 });

@@ -9,7 +9,7 @@ import {
   extractCleanTagsFromTitleAndContent,
   mergeTags,
   normalizeRelatedSuggestionPayload,
-  parseTagAttr,
+  parseTagAttr
 } from "@/core/ai-related-suggestions-core";
 
 describe("ai related suggestions core", () => {
@@ -21,10 +21,10 @@ describe("ai related suggestions core", () => {
           targetDocumentId: " doc-1 ",
           targetTitle: " 标题 ",
           confidence: " high ",
-          tagSuggestions: [{ tag: " AI ", source: " existing " }, { tag: "" }],
+          tagSuggestions: [{ tag: " AI ", source: " existing " }, { tag: "" }]
         },
-        { targetDocumentId: "missing-title" },
-      ],
+        { targetDocumentId: "missing-title" }
+      ]
     })).toEqual({
       summary: "建议",
       suggestions: [
@@ -33,10 +33,10 @@ describe("ai related suggestions core", () => {
           targetTitle: "标题",
           confidence: "high",
           reason: undefined,
-          tagSuggestions: [{ tag: "AI", source: "existing", reason: undefined }],
-        },
+          tagSuggestions: [{ tag: "AI", source: "existing", reason: undefined }]
+        }
       ],
-      tagSuggestions: [],
+      tagSuggestions: []
     });
   });
 
@@ -44,17 +44,17 @@ describe("ai related suggestions core", () => {
     const suggestions = [
       { targetDocumentId: "a", targetTitle: "A", tagSuggestions: [] },
       { targetDocumentId: "a", targetTitle: "A2", tagSuggestions: [] },
-      { targetDocumentId: "b", targetTitle: "B", tagSuggestions: [] },
+      { targetDocumentId: "b", targetTitle: "B", tagSuggestions: [] }
     ];
 
     expect(dedupeRelatedSuggestions(suggestions).map((item) => item.targetTitle)).toEqual(["A", "B"]);
     expect(dedupeTagSuggestionItems([
       { tag: "AI", source: "existing" },
       { tag: "ai", source: "new" },
-      { tag: "知识管理" },
+      { tag: "知识管理" }
     ])).toEqual([
       { tag: "AI", source: "existing" },
-      { tag: "知识管理" },
+      { tag: "知识管理" }
     ]);
   });
 
@@ -67,7 +67,7 @@ describe("ai related suggestions core", () => {
   test("converts keywords to tag suggestion items", () => {
     expect(convertKeywordsToTagItems([" AI ", "AI", "知识库"])).toEqual([
       { tag: "AI", source: "network-lens-index", reason: "文档关键概念" },
-      { tag: "知识库", source: "network-lens-index", reason: "文档关键概念" },
+      { tag: "知识库", source: "network-lens-index", reason: "文档关键概念" }
     ]);
   });
 
@@ -76,12 +76,12 @@ describe("ai related suggestions core", () => {
       linkCount: 0,
       tagCount: 2,
       isLinkFailed: true,
-      failureMessage: "AI 补链请求失败",
+      failureMessage: "AI 补链请求失败"
     })).toBe("（补链提示：AI 补链请求失败）\n已自动生成相关标签 2 个。");
 
     expect(buildRelatedSuggestionSummary({
       linkCount: 1,
-      tagCount: 2,
+      tagCount: 2
     })).toBe("AI 建议添加相关链接 1 个、标签 2 个。");
   });
 
@@ -113,7 +113,7 @@ describe("ai related suggestions core", () => {
       "改变人生",
       "建立清晰的晨间习惯",
       "时间管理与执行力",
-      "保持专注与自律",
+      "保持专注与自律"
     ]);
   });
 });

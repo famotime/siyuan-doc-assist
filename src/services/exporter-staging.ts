@@ -46,12 +46,12 @@ export async function stageAssetsToTempDir(
       skippedAssetCount += 1;
       exporterLogger.warn("skip missing export asset", {
         assetPath,
-        reason: toErrorMessage(error),
+        reason: toErrorMessage(error)
       });
     }
   }
   return {
     stagedCount,
-    skippedAssetCount,
+    skippedAssetCount
   };
 }

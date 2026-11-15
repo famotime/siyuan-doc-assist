@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, test, vi } from "vitest";
 
+import DocAssistPlugin from "@/plugin/plugin-lifecycle";
+
 const { dialogInstances, confirmMock, MockDialog } = vi.hoisted(() => {
   const dialogInstances: HTMLElement[] = [];
   class MockDialog {
@@ -10,13 +12,14 @@ const { dialogInstances, confirmMock, MockDialog } = vi.hoisted(() => {
       this.element.innerHTML = options.content || "";
       dialogInstances.push(this.element);
     }
+
     destroy() {}
   }
 
   return {
     dialogInstances,
     confirmMock: vi.fn(),
-    MockDialog,
+    MockDialog
   };
 });
 
@@ -25,18 +28,16 @@ vi.mock("siyuan", async () => {
   return {
     ...actual,
     Dialog: MockDialog,
-    confirm: confirmMock,
+    confirm: confirmMock
   };
 });
-
-import DocAssistPlugin from "@/plugin/plugin-lifecycle";
 
 describe("plugin confirm detail dialog", () => {
   test("renders detail list behind an open-detail button label", async () => {
     const plugin = new DocAssistPlugin({} as any);
     const promise = (plugin as any).askConfirm("确认标记口水内容", "AI 判定可标记 2 段。", [
       { label: "栏目说明：以下内容整理自公开资料，仅供快速浏览。" },
-      { label: "关注公众号“示例”，回复关键词领取资料。" },
+      { label: "关注公众号“示例”，回复关键词领取资料。" }
     ]);
 
     const dialogElement = dialogInstances[0];
@@ -52,7 +53,7 @@ describe("plugin confirm detail dialog", () => {
     const plugin = new DocAssistPlugin({} as any);
     const detailItems = [
       { id: "link:target-1", label: "链接：AI 索引", selectable: true, selected: true, tone: "link" },
-      { id: "tag:AI", label: "标签：AI", selectable: true, selected: true, tone: "tag" },
+      { id: "tag:AI", label: "标签：AI", selectable: true, selected: true, tone: "tag" }
     ];
     const promise = (plugin as any).askConfirm("确认添加相关链接和标签", "请选择要写入的建议。", detailItems);
 
@@ -71,7 +72,7 @@ describe("plugin confirm detail dialog", () => {
     await expect(promise).resolves.toBe(true);
     expect(detailItems).toEqual([
       expect.objectContaining({ id: "link:target-1", selected: false }),
-      expect.objectContaining({ id: "tag:AI", selected: true }),
+      expect.objectContaining({ id: "tag:AI", selected: true })
     ]);
   });
 });

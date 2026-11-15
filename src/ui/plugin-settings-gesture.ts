@@ -10,7 +10,7 @@ import {
   MOUSE_GESTURE_ACTION_KEYS,
   MOUSE_GESTURE_ACTION_LABELS,
   MouseGestureActionKey,
-  serializeDirections,
+  serializeDirections
 } from "@/core/gesture-recognition-core";
 import { createGestureCapture } from "@/ui/gesture-capture";
 import { createElement } from "@/ui/plugin-settings-shared";
@@ -81,9 +81,9 @@ export function createGestureSettingsPanel(
       if (!recording) {
         return;
       }
-      const hint = state.directions.length
-        ? formatDirectionHint(state.directions)
-        : "划动中…";
+      const hint = state.directions.length ?
+          formatDirectionHint(state.directions) :
+        "划动中…";
       setRecordButtonLabels(recording, hint);
     },
     onStrokeEnd: (state) => {
@@ -116,7 +116,7 @@ export function createGestureSettingsPanel(
     },
     onStrokeCancel: () => {
       finishRecording();
-    },
+    }
   });
 
   // 总开关行

@@ -1,21 +1,21 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel", () => ({
-  getChildDocTitles: vi.fn(),
-  getDocMetaByID: vi.fn(),
-  getDocMetasByIDs: vi.fn(),
-  moveDocsByID: vi.fn(),
-  renameDocByID: vi.fn(),
-}));
-
 import {
   getChildDocTitles,
   getDocMetaByID,
   getDocMetasByIDs,
   moveDocsByID,
-  renameDocByID,
+  renameDocByID
 } from "@/services/kernel";
 import { moveDocsAsChildren } from "@/services/mover";
+
+vi.mock("@/services/kernel", () => ({
+  getChildDocTitles: vi.fn(),
+  getDocMetaByID: vi.fn(),
+  getDocMetasByIDs: vi.fn(),
+  moveDocsByID: vi.fn(),
+  renameDocByID: vi.fn()
+}));
 
 const getChildDocTitlesMock = vi.mocked(getChildDocTitles);
 const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
@@ -30,7 +30,7 @@ describe("mover service", () => {
     getDocMetaByIDMock.mockResolvedValue({
       id: "parent-doc",
       box: "notebook",
-      path: "/parent-doc.sy",
+      path: "/parent-doc.sy"
     } as any);
     getDocMetasByIDsMock.mockResolvedValue([]);
     moveDocsByIDMock.mockResolvedValue(undefined as any);
@@ -43,13 +43,13 @@ describe("mover service", () => {
       {
         id: "doc-a",
         title: "标题A",
-        parentId: "another-parent",
+        parentId: "another-parent"
       },
       {
         id: "doc-b",
         title: "标题B",
-        parentId: "another-parent",
-      },
+        parentId: "another-parent"
+      }
     ] as any);
 
     const result = await moveDocsAsChildren("parent-doc", [
@@ -57,7 +57,7 @@ describe("mover service", () => {
       "doc-a",
       "parent-doc",
       "missing-doc",
-      "doc-b",
+      "doc-b"
     ]);
 
     expect(renameDocByIDMock).toHaveBeenCalledWith("doc-a", "标题A (1)");
@@ -67,7 +67,7 @@ describe("mover service", () => {
     expect(result.skippedIds).toEqual(["parent-doc"]);
     expect(result.renamed).toEqual([{ id: "doc-a", title: "标题A (1)" }]);
     expect(result.failed).toEqual([
-      { id: "missing-doc", error: "Document metadata not found" },
+      { id: "missing-doc", error: "Document metadata not found" }
     ]);
   });
 
@@ -76,8 +76,8 @@ describe("mover service", () => {
       {
         id: "doc-a",
         title: "标题A",
-        parentId: "parent-doc",
-      },
+        parentId: "parent-doc"
+      }
     ] as any);
 
     const result = await moveDocsAsChildren("parent-doc", ["doc-a"]);
@@ -95,8 +95,8 @@ describe("mover service", () => {
       {
         id: "doc-a",
         title: "标题A",
-        parentId: "another-parent",
-      },
+        parentId: "another-parent"
+      }
     ] as any);
     renameDocByIDMock.mockRejectedValue(new Error("readonly mode"));
 
@@ -114,15 +114,15 @@ describe("mover service", () => {
         title: "标题A",
         parentId: "other-parent",
         box: "notebook",
-        path: "/parent-doc/child-a.sy",
+        path: "/parent-doc/child-a.sy"
       },
       {
         id: "doc-b",
         title: "标题B",
         parentId: "other-parent",
         box: "notebook",
-        path: "/another-root/doc-b.sy",
-      },
+        path: "/another-root/doc-b.sy"
+      }
     ] as any);
 
     const result = await moveDocsAsChildren("parent-doc", ["doc-a", "doc-b"]);

@@ -4,7 +4,7 @@ import {
   buildPunctuationUpdates,
   convertSingleLineBreaksToParagraphMarks,
   countSingleLineBreaks,
-  removeSpaceLikeChars,
+  removeSpaceLikeChars
 } from "@/core/selection-text-transform-core";
 
 describe("selection text transform core", () => {
@@ -16,7 +16,7 @@ describe("selection text transform core", () => {
   test("detects paragraph-to-line mode for multiple paragraph blocks without single breaks", () => {
     expect(buildLinebreakToggleMode([
       { type: "p", markdown: "第一段" },
-      { type: "paragraph", markdown: "第二段" },
+      { type: "paragraph", markdown: "第二段" }
     ])).toBe("paragraph-to-line");
     expect(buildLinebreakToggleMode([{ type: "p", markdown: "第一行\n第二行" }])).toBe("linebreak-to-paragraph");
   });

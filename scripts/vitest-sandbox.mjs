@@ -1,9 +1,11 @@
 import { createRequire } from "node:module";
+import process from "node:process";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
 const childProcess = require("node:child_process");
+
 const originalExec = childProcess.exec;
 
 childProcess.exec = (command, options, callback) => {
@@ -17,7 +19,7 @@ childProcess.exec = (command, options, callback) => {
     return {
       kill() {},
       ref() {},
-      unref() {},
+      unref() {}
     };
   }
 
@@ -31,8 +33,7 @@ const vitestCliPath = resolve(
 );
 const vitestConfigPath = resolve(import.meta.dirname, "..", "vitest.config.mjs");
 
-const forwardedArgs = process.argv.slice(2).filter((arg, index) => !(index === 1 && arg === "--"))
-  .filter((arg, index) => !(index === 0 && arg === "--"));
+const forwardedArgs = process.argv.slice(2).filter((arg, index) => !(index === 1 && arg === "--")).filter((arg, index) => !(index === 0 && arg === "--"));
 const hasPoolArg = forwardedArgs.some((arg) => arg === "--pool" || arg.startsWith("--pool="));
 const hasConfigArg = forwardedArgs.some((arg) => arg === "--config" || arg.startsWith("--config="));
 const hasConfigLoaderArg = forwardedArgs.some(

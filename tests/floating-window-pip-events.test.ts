@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, vi, test } from "vitest";
 import { bindPipWindowEvents } from "@/services/floating-text/floating-window-pip-events";
 import {
   loadFloatingTextConfig,
-  saveFloatingTextConfig,
+  saveFloatingTextConfig
 } from "@/services/floating-text/floating-text-storage";
 
 vi.mock("@/services/floating-text/floating-text-storage", () => ({
   loadFloatingTextConfig: vi.fn(() => ({ rememberSize: false })),
-  saveFloatingTextConfig: vi.fn(),
+  saveFloatingTextConfig: vi.fn()
 }));
 
 const saveMock = saveFloatingTextConfig as unknown as ReturnType<typeof vi.fn>;
@@ -63,7 +63,7 @@ function createPipWindow(): any {
     screenX: 10,
     screenY: 20,
     getSelection: () => null,
-    navigator: {},
+    navigator: {}
   };
 }
 
@@ -74,11 +74,11 @@ beforeEach(() => {
 });
 
 describe("bindPipWindowEvents", () => {
-  it("initializes word count and keeps text view editable", () => {
+  test("initializes word count and keeps text view editable", () => {
     const pip = createPipWindow();
     bindPipWindowEvents(pip, "初始文本内容", {
       fontSize: 15,
-      viewMode: "text",
+      viewMode: "text"
     } as any);
 
     const textView = pip.document.getElementById("ft-text-view")!;
@@ -89,7 +89,7 @@ describe("bindPipWindowEvents", () => {
     expect(wordCount.style.display).toBe("inline-block");
   });
 
-  it("closes the pip window from the close button", () => {
+  test("closes the pip window from the close button", () => {
     const pip = createPipWindow();
     bindPipWindowEvents(pip, "text", { fontSize: 15, viewMode: "text" } as any);
 
@@ -97,7 +97,7 @@ describe("bindPipWindowEvents", () => {
     expect(pip.close).toHaveBeenCalledTimes(1);
   });
 
-  it("closes the pip window on Escape without an open popover", () => {
+  test("closes the pip window on Escape without an open popover", () => {
     const pip = createPipWindow();
     bindPipWindowEvents(pip, "text", { fontSize: 15, viewMode: "text" } as any);
 
@@ -107,7 +107,7 @@ describe("bindPipWindowEvents", () => {
     expect(pip.close).toHaveBeenCalledTimes(1);
   });
 
-  it("closes the popover first on Escape when it is open", () => {
+  test("closes the popover first on Escape when it is open", () => {
     const pip = createPipWindow();
     bindPipWindowEvents(pip, "text", { fontSize: 15, viewMode: "text" } as any);
     const popover = pip.document.getElementById("ft-popover")!;
@@ -123,7 +123,7 @@ describe("bindPipWindowEvents", () => {
     expect(pip.close).not.toHaveBeenCalled();
   });
 
-  it("increases font size via button and persists the config", () => {
+  test("increases font size via button and persists the config", () => {
     const pip = createPipWindow();
     bindPipWindowEvents(pip, "text", { fontSize: 15, viewMode: "text" } as any);
 
@@ -132,7 +132,7 @@ describe("bindPipWindowEvents", () => {
     expect(pip.document.getElementById("ft-font-label")!.textContent).toBe("16px");
   });
 
-  it("toggles view mode with Ctrl+M and shows the markdown view", () => {
+  test("toggles view mode with Ctrl+M and shows the markdown view", () => {
     const pip = createPipWindow();
     bindPipWindowEvents(pip, "text", { fontSize: 15, viewMode: "text" } as any);
 
@@ -144,7 +144,7 @@ describe("bindPipWindowEvents", () => {
     expect(saveMock).toHaveBeenCalledWith({ viewMode: "markdown" });
   });
 
-  it("copies the whole text via the copy button and shows success feedback", async () => {
+  test("copies the whole text via the copy button and shows success feedback", async () => {
     const pip = createPipWindow();
     const writeText = vi.fn().mockResolvedValue(undefined);
     (pip.navigator as any).clipboard = { writeText };
@@ -158,7 +158,7 @@ describe("bindPipWindowEvents", () => {
     expect(copyTooltip.innerHTML).toContain("已复制全部内容");
   });
 
-  it("updates opacity label on slider input and persists on change", () => {
+  test("updates opacity label on slider input and persists on change", () => {
     const pip = createPipWindow();
     bindPipWindowEvents(pip, "text", { fontSize: 15, viewMode: "text" } as any);
     const slider = pip.document.getElementById("ft-opacity-slider") as HTMLInputElement;
@@ -171,7 +171,7 @@ describe("bindPipWindowEvents", () => {
     expect(saveMock).toHaveBeenCalledWith({ opacity: 0.5 });
   });
 
-  it("remembers window size on resize only when rememberSize is enabled", () => {
+  test("remembers window size on resize only when rememberSize is enabled", () => {
     vi.useFakeTimers();
     try {
       loadMock.mockReturnValue({ rememberSize: true } as any);

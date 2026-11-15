@@ -2,13 +2,13 @@ import { describe, expect, test } from "vitest";
 import {
   getParentDocPath,
   pickSiblingDoc,
-  SiblingDocRef,
+  SiblingDocRef
 } from "@/core/doc-navigation-core";
 
 const SIBLINGS: SiblingDocRef[] = [
   { id: "doc-a", name: "A" },
   { id: "doc-b", name: "B" },
-  { id: "doc-c", name: "C" },
+  { id: "doc-c", name: "C" }
 ];
 
 describe("doc navigation core", () => {
@@ -22,22 +22,22 @@ describe("doc navigation core", () => {
   test("picks next/previous sibling without wrap", () => {
     expect(pickSiblingDoc(SIBLINGS, "doc-a", "next")).toEqual({
       doc: { id: "doc-b", name: "B" },
-      wrapped: false,
+      wrapped: false
     });
     expect(pickSiblingDoc(SIBLINGS, "doc-b", "previous")).toEqual({
       doc: { id: "doc-a", name: "A" },
-      wrapped: false,
+      wrapped: false
     });
   });
 
   test("wraps around at both ends", () => {
     expect(pickSiblingDoc(SIBLINGS, "doc-c", "next")).toEqual({
       doc: { id: "doc-a", name: "A" },
-      wrapped: true,
+      wrapped: true
     });
     expect(pickSiblingDoc(SIBLINGS, "doc-a", "previous")).toEqual({
       doc: { id: "doc-c", name: "C" },
-      wrapped: true,
+      wrapped: true
     });
   });
 
@@ -49,11 +49,11 @@ describe("doc navigation core", () => {
   test("falls back to endpoints when current doc is missing from the list", () => {
     expect(pickSiblingDoc(SIBLINGS, "doc-z", "next")).toEqual({
       doc: { id: "doc-a", name: "A" },
-      wrapped: false,
+      wrapped: false
     });
     expect(pickSiblingDoc(SIBLINGS, "doc-z", "previous")).toEqual({
       doc: { id: "doc-c", name: "C" },
-      wrapped: false,
+      wrapped: false
     });
   });
 

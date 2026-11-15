@@ -6,7 +6,7 @@ describe("list-block-merge-core", () => {
     const previewUnordered = buildMergeSelectedListBlocksPreview([
       { id: "a", type: "p", markdown: "第一段" },
       { id: "b", type: "i", markdown: "- 第二项" },
-      { id: "c", type: "l", markdown: "- 第三项\n  1. 第四项\n    第四项说明" },
+      { id: "c", type: "l", markdown: "- 第三项\n  1. 第四项\n    第四项说明" }
     ]);
 
     expect(previewUnordered.supportedBlockCount).toBe(3);
@@ -21,7 +21,7 @@ describe("list-block-merge-core", () => {
     const previewOrdered = buildMergeSelectedListBlocksPreview([
       { id: "a", type: "p", markdown: "第一段" },
       { id: "b", type: "i", markdown: "1. 第二项" },
-      { id: "c", type: "l", markdown: "- 第三项\n  1. 第四项\n    第四项说明" },
+      { id: "c", type: "l", markdown: "- 第三项\n  1. 第四项\n    第四项说明" }
     ]);
 
     expect(previewOrdered.mergedMarkdown).toBe(
@@ -31,7 +31,7 @@ describe("list-block-merge-core", () => {
 
   test("keeps multi-line paragraph body as one list item continuation", () => {
     const preview = buildMergeSelectedListBlocksPreview([
-      { id: "a", type: "NodeParagraph", markdown: "第一行\n第二行" },
+      { id: "a", type: "NodeParagraph", markdown: "第一行\n第二行" }
     ]);
 
     expect(preview.resultItemCount).toBe(1);
@@ -43,8 +43,8 @@ describe("list-block-merge-core", () => {
       {
         id: "a",
         type: "NodeList",
-        markdown: "- 父项\n  - 子项\n    子项说明\n- 末项",
-      },
+        markdown: "- 父项\n  - 子项\n    子项说明\n- 末项"
+      }
     ]);
 
     expect(preview.resultItemCount).toBe(3);
@@ -57,7 +57,7 @@ describe("list-block-merge-core", () => {
       { id: "b", type: "p", markdown: "文章配图、知识解释图、概念拆解图" },
       { id: "c", type: "p", markdown: "  •  " },
       { id: "d", type: "p", markdown: "工作汇报配图、项目状态图" },
-      { id: "e", type: "p", markdown: "•\n产品机制图、系统架构图\n•" },
+      { id: "e", type: "p", markdown: "•\n产品机制图、系统架构图\n•" }
     ]);
 
     expect(preview.resultItemCount).toBe(3);

@@ -5,7 +5,7 @@ import {
   removeMarkdownImageAssetLinks,
   rewriteMarkdownImageAssetLinks,
   toPngAssetPath,
-  toWebpAssetPath,
+  toWebpAssetPath
 } from "@/core/image-webp-core";
 
 describe("image-webp-core", () => {
@@ -15,12 +15,12 @@ describe("image-webp-core", () => {
       "![b](/assets/photo.png?x=1#hash)",
       '<img src="/assets/COVER.JPG" />',
       "![remote](https://example.com/a.png)",
-      "![video](/assets/a.mp4)",
+      "![video](/assets/a.mp4)"
     ].join("\n");
 
     expect(collectLocalImageAssetPathsFromMarkdown(markdown)).toEqual([
       "/assets/photo.png",
-      "/assets/COVER.JPG",
+      "/assets/COVER.JPG"
     ]);
   });
 
@@ -30,12 +30,12 @@ describe("image-webp-core", () => {
       "![jpg](/assets/b.jpg)",
       "![webp](/assets/c.webp)",
       "![gif](/assets/d.gif)",
-      "![svg](/assets/e.svg)",
+      "![svg](/assets/e.svg)"
     ].join("\n");
 
     expect(collectConvertibleLocalImageAssetPathsFromMarkdown(markdown)).toEqual([
       "/assets/a.png",
-      "/assets/b.jpg",
+      "/assets/b.jpg"
     ]);
   });
 
@@ -43,12 +43,12 @@ describe("image-webp-core", () => {
     const markdown = [
       "![a](assets/a.png?raw=1#x)",
       "![b](/assets/b.jpeg)",
-      '<img src="/assets/a.png?x=1" />',
+      '<img src="/assets/a.png?x=1" />'
     ].join("\n");
 
     const result = rewriteMarkdownImageAssetLinks(markdown, {
       "/assets/a.png": "/assets/a.webp",
-      "/assets/b.jpeg": "/assets/b.webp",
+      "/assets/b.jpeg": "/assets/b.webp"
     });
 
     expect(result.replacedCount).toBe(3);
@@ -72,7 +72,7 @@ describe("image-webp-core", () => {
       "A ![a](assets/a.png) B",
       '<img src="/assets/b.jpg?x=1" />',
       "![remote](https://example.com/x.png)",
-      "![video](/assets/v.mp4)",
+      "![video](/assets/v.mp4)"
     ].join("\n");
     const result = removeMarkdownImageAssetLinks(markdown);
 

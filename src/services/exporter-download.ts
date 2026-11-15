@@ -35,9 +35,9 @@ export async function triggerWorkspaceFileDownload(relativePath: string, downloa
     response = await fetch(request.url, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
-      body: request.body,
+      body: request.body
     });
   }
   if (!response.ok) {

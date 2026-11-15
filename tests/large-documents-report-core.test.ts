@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildLargeDocumentsReportMarkdown,
   formatLargeDocumentBytes,
-  rankLargeDocuments,
+  rankLargeDocuments
 } from "@/core/large-documents-report-core";
 
 describe("large documents report core", () => {
@@ -15,7 +15,7 @@ describe("large documents report core", () => {
         updated: "20260427120000",
         documentBytes: 100,
         assetBytes: 300,
-        assetCount: 2,
+        assetCount: 2
       },
       {
         documentId: "20260426112233-doca",
@@ -24,8 +24,8 @@ describe("large documents report core", () => {
         updated: "20260427130000",
         documentBytes: 200,
         assetBytes: 200,
-        assetCount: 1,
-      },
+        assetCount: 1
+      }
     ]);
 
     expect(ranked.map((item) => item.documentId)).toEqual(["20260426112233-doca", "doc-b"]);
@@ -33,7 +33,7 @@ describe("large documents report core", () => {
     const markdown = buildLargeDocumentsReportMarkdown({
       notebookLabel: "知识库",
       generatedAt: "2026-04-27 13:30:15",
-      items: ranked,
+      items: ranked
     });
 
     expect(formatLargeDocumentBytes(1024)).toBe("1.0 KB");

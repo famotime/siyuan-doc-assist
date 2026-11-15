@@ -1,12 +1,12 @@
 import { ProtyleLike } from "@/plugin/doc-context";
 import {
   getSelectedBlockIds,
-  getSelectedImageAssetPaths,
+  getSelectedImageAssetPaths
 } from "@/plugin/action-runner-context";
 import { getBlockKramdowns } from "@/services/kernel";
 import {
   formatListItemMarkdown,
-  stripKramdownBlockAttributes,
+  stripKramdownBlockAttributes
 } from "@/core/floating-text-core";
 
 function resolveRangeBlockElement(container: Node | null): HTMLElement | null {
@@ -14,9 +14,9 @@ function resolveRangeBlockElement(container: Node | null): HTMLElement | null {
     return null;
   }
   const baseElement =
-    container.nodeType === Node.ELEMENT_NODE
-      ? (container as Element)
-      : container.parentElement;
+    container.nodeType === Node.ELEMENT_NODE ?
+        (container as Element) :
+      container.parentElement;
   if (!baseElement) {
     return null;
   }
@@ -161,11 +161,11 @@ export async function extractFloatingMarkdownFromSelection(
   if (!selectedText && explicitBlocks && explicitBlocks.length > 0) {
     const blockIds = explicitBlocks
       .map((item) =>
-        typeof item === "string"
-          ? item.trim()
-          : (item.getAttribute?.("data-node-id") ||
-             (item as HTMLElement).dataset?.nodeId ||
-             "").trim()
+        typeof item === "string" ?
+            item.trim() :
+            (item.getAttribute?.("data-node-id") ||
+              (item as HTMLElement).dataset?.nodeId ||
+              "").trim()
       )
       .filter(Boolean);
 
@@ -221,9 +221,9 @@ export async function extractFloatingMarkdownFromSelection(
           const endIndex = allItems.indexOf(endListItem);
           if (startIndex !== -1 && endIndex !== -1) {
             const [fromIdx, toIdx] =
-              startIndex <= endIndex
-                ? [startIndex, endIndex]
-                : [endIndex, startIndex];
+              startIndex <= endIndex ?
+                  [startIndex, endIndex] :
+                  [endIndex, startIndex];
             involvedItems = allItems.slice(fromIdx, toIdx + 1);
           }
         }

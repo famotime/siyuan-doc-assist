@@ -1,28 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel", () => ({
-  exportMdContent: vi.fn(),
-  exportMds: vi.fn(),
-  exportResources: vi.fn(),
-  getFileBlob: vi.fn(),
-  putBlobFile: vi.fn(),
-  putFile: vi.fn(),
-  removeFile: vi.fn(),
-}));
-
-vi.mock("@/services/link-resolver", () => ({
-  getChildDocs: vi.fn(),
-}));
-
-vi.mock("@/services/key-info", () => ({
-  getDocKeyInfo: vi.fn(),
-}));
-
 import {
   exportCurrentDocMarkdown,
   exportDocAndChildDocsAsMarkdownZip,
   exportDocIdsAsMarkdownZip,
-  exportDocAndChildKeyInfoAsZip,
+  exportDocAndChildKeyInfoAsZip
 } from "@/services/exporter";
 import { buildDefaultKeyInfoFilter } from "@/core/key-info-core";
 import { getChildDocs } from "@/services/link-resolver";
@@ -34,8 +16,26 @@ import {
   getFileBlob,
   putBlobFile,
   putFile,
-  removeFile,
+  removeFile
 } from "@/services/kernel";
+
+vi.mock("@/services/kernel", () => ({
+  exportMdContent: vi.fn(),
+  exportMds: vi.fn(),
+  exportResources: vi.fn(),
+  getFileBlob: vi.fn(),
+  putBlobFile: vi.fn(),
+  putFile: vi.fn(),
+  removeFile: vi.fn()
+}));
+
+vi.mock("@/services/link-resolver", () => ({
+  getChildDocs: vi.fn()
+}));
+
+vi.mock("@/services/key-info", () => ({
+  getDocKeyInfo: vi.fn()
+}));
 
 describe("export docs zip download", () => {
   const exportMdContentMock = vi.mocked(exportMdContent);
@@ -57,24 +57,24 @@ describe("export docs zip download", () => {
     const anchor = {
       click: vi.fn(),
       download: "",
-      href: "",
+      href: ""
     };
 
     (globalThis as any).document = {
-      createElement: vi.fn(() => anchor),
+      createElement: vi.fn(() => anchor)
     };
 
     (globalThis as any).URL = {
       createObjectURL: vi.fn(() => "blob://zip"),
-      revokeObjectURL: vi.fn(),
+      revokeObjectURL: vi.fn()
     };
 
     globalThis.fetch = vi.fn(async () => {
       return new Response(new Blob(["zip"]), {
         status: 200,
         headers: {
-          "content-type": "application/zip",
-        },
+          "content-type": "application/zip"
+        }
       });
     }) as any;
 
@@ -82,23 +82,23 @@ describe("export docs zip download", () => {
       if (id === "doc1") {
         return {
           hPath: "/folder/doc1",
-          content: "![img](assets/image-20260201-a.png)",
+          content: "![img](assets/image-20260201-a.png)"
         } as any;
       }
       return {
         hPath: "/folder/doc2",
-        content: "doc2 content",
+        content: "doc2 content"
       } as any;
     });
     exportResourcesMock.mockResolvedValue({
-      path: "temp/export/my-pack.zip",
+      path: "temp/export/my-pack.zip"
     } as any);
     getFileBlobMock.mockResolvedValue(new Blob(["asset"]));
     getChildDocsMock.mockResolvedValue([]);
     getDocKeyInfoMock.mockImplementation(async (docId: string) => ({
       docId,
       docTitle: docId,
-      items: [],
+      items: []
     }));
   });
 
@@ -116,7 +116,7 @@ describe("export docs zip download", () => {
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "/api/file/getFile",
       expect.objectContaining({
-        method: "POST",
+        method: "POST"
       })
     );
 
@@ -129,13 +129,13 @@ describe("export docs zip download", () => {
       refMode: 3,
       embedMode: 0,
       addTitle: false,
-      yfm: false,
+      yfm: false
     });
     expect(exportMdContentMock).toHaveBeenNthCalledWith(2, "doc2", {
       refMode: 3,
       embedMode: 0,
       addTitle: false,
-      yfm: false,
+      yfm: false
     });
     expect(putFileMock).toHaveBeenCalled();
     expect(putBlobFileMock).toHaveBeenCalled();
@@ -158,7 +158,7 @@ describe("export docs zip download", () => {
       zip: "temp/export/my-pack.zip",
       docCount: 2,
       skippedDocCount: 0,
-      skippedAssetCount: 0,
+      skippedAssetCount: 0
     });
   });
 
@@ -170,12 +170,12 @@ describe("export docs zip download", () => {
       if (id === "doc1") {
         return {
           hPath: "/folder/主文档",
-          content: "![ok](assets/ok.png)\n![lost](assets/lost.png)\n主文档内容",
+          content: "![ok](assets/ok.png)\n![lost](assets/lost.png)\n主文档内容"
         } as any;
       }
       return {
         hPath: "/folder/子文档",
-        content: "子文档内容",
+        content: "子文档内容"
       } as any;
     });
     getFileBlobMock.mockImplementation(async (path: string) => {
@@ -199,14 +199,14 @@ describe("export docs zip download", () => {
       zip: "temp/export/my-pack.zip",
       docCount: 2,
       skippedDocCount: 1,
-      skippedAssetCount: 1,
+      skippedAssetCount: 1
     });
   });
 
   test("prefixes current doc title into exported markdown body", async () => {
     exportMdContentMock.mockResolvedValueOnce({
       hPath: "/folder/当前文档",
-      content: "正文第一段\n正文第二段",
+      content: "正文第一段\n正文第二段"
     } as any);
 
     const result = await exportCurrentDocMarkdown("doc1");
@@ -218,23 +218,23 @@ describe("export docs zip download", () => {
     expect(anchor.download).toBe("当前文档.md");
     expect(result).toEqual({
       mode: "md",
-      fileName: "当前文档.md",
+      fileName: "当前文档.md"
     });
   });
 
   test("downloads zip from export route via GET when kernel returns an export path", async () => {
     exportMdContentMock.mockResolvedValueOnce({
       hPath: "/folder/当前文档",
-      content: "![img](assets/main.png)\n正文",
+      content: "![img](assets/main.png)\n正文"
     } as any);
     exportResourcesMock.mockResolvedValueOnce({
-      path: "/export/bundles/current-doc.zip",
+      path: "/export/bundles/current-doc.zip"
     } as any);
 
     const result = await exportCurrentDocMarkdown("doc1");
 
     expect(globalThis.fetch).toHaveBeenCalledWith("/export/bundles/current-doc.zip", {
-      method: "GET",
+      method: "GET"
     });
     const anchor = (globalThis as any).document.createElement.mock.results[0].value;
     expect(anchor.download).toBe("当前文档.zip");
@@ -242,7 +242,7 @@ describe("export docs zip download", () => {
       mode: "zip",
       fileName: "当前文档.zip",
       zipPath: "/export/bundles/current-doc.zip",
-      skippedAssetCount: 0,
+      skippedAssetCount: 0
     });
   });
 
@@ -256,7 +256,7 @@ describe("export docs zip download", () => {
   test("prefixes each exported doc title into zip markdown body", async () => {
     exportMdContentMock.mockImplementationOnce(async () => ({
       hPath: "/folder/批量文档",
-      content: "批量正文",
+      content: "批量正文"
     }));
 
     await exportDocIdsAsMarkdownZip(["doc1"], "my-pack");
@@ -270,7 +270,7 @@ describe("export docs zip download", () => {
   test("exports current and child docs key info zip with filter applied", async () => {
     getChildDocsMock.mockResolvedValue([
       { id: "child-1" } as any,
-      { id: "child-2" } as any,
+      { id: "child-2" } as any
     ]);
     getDocKeyInfoMock.mockImplementation(async (docId: string) => {
       if (docId === "doc1") {
@@ -279,8 +279,8 @@ describe("export docs zip download", () => {
           docTitle: "主文档",
           items: [
             { type: "bold", raw: "**A**", text: "A", id: "1", blockSort: 1, order: 1 },
-            { type: "tag", raw: "#t", text: "t", id: "2", blockSort: 1, order: 2 },
-          ],
+            { type: "tag", raw: "#t", text: "t", id: "2", blockSort: 1, order: 2 }
+          ]
         } as any;
       }
       return {
@@ -288,14 +288,14 @@ describe("export docs zip download", () => {
         docTitle: docId,
         items: [
           { type: "bold", raw: "**B**", text: "B", id: "3", blockSort: 1, order: 1 },
-          { type: "remark", raw: "%%R%%", text: "R", id: "4", blockSort: 1, order: 2 },
-        ],
+          { type: "remark", raw: "%%R%%", text: "R", id: "4", blockSort: 1, order: 2 }
+        ]
       } as any;
     });
 
     const result = await exportDocAndChildKeyInfoAsZip({
       docId: "doc1",
-      filter: ["bold"],
+      filter: ["bold"]
     });
 
     expect(getDocKeyInfoMock).toHaveBeenCalledTimes(3);
@@ -310,36 +310,36 @@ describe("export docs zip download", () => {
       zip: "temp/export/my-pack.zip",
       docCount: 3,
       itemCount: 3,
-      skippedDocCount: 0,
+      skippedDocCount: 0
     });
   });
 
   test("exports current doc with child docs markdown zip and related assets", async () => {
     getChildDocsMock.mockResolvedValue([
       { id: "child-1" } as any,
-      { id: "child-2" } as any,
+      { id: "child-2" } as any
     ]);
     exportMdContentMock.mockImplementation(async (id: string) => {
       if (id === "doc1") {
         return {
           hPath: "/folder/主文档",
-          content: "![main](assets/main.png)\n主文档内容",
+          content: "![main](assets/main.png)\n主文档内容"
         } as any;
       }
       if (id === "child-1") {
         return {
           hPath: "/folder/子文档一",
-          content: "![child](assets/child.png)\n子文档一内容",
+          content: "![child](assets/child.png)\n子文档一内容"
         } as any;
       }
       return {
         hPath: "/folder/子文档二",
-        content: "![main](assets/main.png)\n子文档二内容",
+        content: "![main](assets/main.png)\n子文档二内容"
       } as any;
     });
 
     const result = await exportDocAndChildDocsAsMarkdownZip({
-      docId: "doc1",
+      docId: "doc1"
     });
 
     expect(getChildDocsMock).toHaveBeenCalledTimes(1);
@@ -349,19 +349,19 @@ describe("export docs zip download", () => {
       refMode: 3,
       embedMode: 0,
       addTitle: false,
-      yfm: false,
+      yfm: false
     });
     expect(exportMdContentMock).toHaveBeenNthCalledWith(2, "child-1", {
       refMode: 3,
       embedMode: 0,
       addTitle: false,
-      yfm: false,
+      yfm: false
     });
     expect(exportMdContentMock).toHaveBeenNthCalledWith(3, "child-2", {
       refMode: 3,
       embedMode: 0,
       addTitle: false,
-      yfm: false,
+      yfm: false
     });
     expect(putFileMock).toHaveBeenCalledTimes(3);
     expect(putBlobFileMock).toHaveBeenCalledTimes(2);
@@ -376,7 +376,7 @@ describe("export docs zip download", () => {
       zip: "temp/export/my-pack.zip",
       docCount: 3,
       skippedDocCount: 0,
-      skippedAssetCount: 0,
+      skippedAssetCount: 0
     });
   });
 
@@ -388,13 +388,13 @@ describe("export docs zip download", () => {
       items: [
         { type: "bold", raw: "**A**", text: "A", id: "1", blockSort: 1, order: 1 },
         { type: "underline", raw: "<u>U</u>", text: "U", id: "2", blockSort: 1, order: 2 },
-        { type: "code", raw: "`C`", text: "C", id: "3", blockSort: 1, order: 3 },
-      ],
+        { type: "code", raw: "`C`", text: "C", id: "3", blockSort: 1, order: 3 }
+      ]
     } as any);
 
     const result = await exportDocAndChildKeyInfoAsZip({
       docId: "doc1",
-      filter: buildDefaultKeyInfoFilter(),
+      filter: buildDefaultKeyInfoFilter()
     });
 
     expect(putFileMock).toHaveBeenCalledTimes(1);
@@ -411,19 +411,19 @@ describe("export docs zip download", () => {
       docTitle: "主文档",
       items: [
         { type: "title", raw: "# 标题", text: "标题", id: "h1-heading-0", blockId: "h1", blockSort: 1, order: 1 },
-        { type: "highlight", raw: "==标题==", text: "标题", id: "h1-inline-1", blockId: "h1", blockSort: 1, order: 2 },
-      ],
+        { type: "highlight", raw: "==标题==", text: "标题", id: "h1-inline-1", blockId: "h1", blockSort: 1, order: 2 }
+      ]
     } as any);
 
     await exportDocAndChildKeyInfoAsZip({
       docId: "doc1",
-      filter: ["title", "highlight"],
+      filter: ["title", "highlight"]
     });
     expect(String(putFileMock.mock.calls.at(-1)?.[1] || "")).toBe("# 标题");
 
     await exportDocAndChildKeyInfoAsZip({
       docId: "doc1",
-      filter: ["highlight"],
+      filter: ["highlight"]
     });
     expect(String(putFileMock.mock.calls.at(-1)?.[1] || "")).toBe("==标题==");
   });

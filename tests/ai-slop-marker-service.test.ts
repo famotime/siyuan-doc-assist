@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import {
   createAiSlopMarkerService,
-  createAiKeyContentMarkerService,
+  createAiKeyContentMarkerService
 } from "@/services/ai-slop-marker";
 import { buildIrrelevantParagraphMessages } from "@/services/ai-slop-marker-prompts";
 
@@ -11,8 +11,8 @@ describe("ai slop marker service", () => {
       documentTitle: "示例文档",
       paragraphs: [
         { id: "p1", markdown: "关注公众号获取资料。" },
-        { id: "p2", markdown: "这里是正文论点。" },
-      ],
+        { id: "p2", markdown: "这里是正文论点。" }
+      ]
     });
 
     const systemPrompt = String(messages[0]?.content || "");
@@ -31,11 +31,11 @@ describe("ai slop marker service", () => {
         choices: [
           {
             message: {
-              content: "```json\n{\"paragraphIds\":[\"p3\",\"missing\",\"p1\",\"p3\"]}\n```",
-            },
-          },
-        ],
-      }),
+              content: "```json\n{\"paragraphIds\":[\"p3\",\"missing\",\"p1\",\"p3\"]}\n```"
+            }
+          }
+        ]
+      })
     });
     const service = createAiSlopMarkerService({ forwardProxy });
 
@@ -45,14 +45,14 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentTitle: "AI 口水内容测试",
       paragraphs: [
         { id: "p1", markdown: "栏目说明：以下是栏目介绍。" },
         { id: "p2", markdown: "这是正文重点。" },
-        { id: "p3", markdown: "文末广告：欢迎关注公众号。" },
-      ],
+        { id: "p3", markdown: "文末广告：欢迎关注公众号。" }
+      ]
     });
 
     expect(result).toEqual(["p3", "p1"]);
@@ -62,7 +62,7 @@ describe("ai slop marker service", () => {
       expect.stringContaining("\"model\":\"gpt-4.1-mini\""),
       [
         { Authorization: "Bearer sk-test" },
-        { Accept: "application/json" },
+        { Accept: "application/json" }
       ],
       45000,
       "application/json"
@@ -82,22 +82,22 @@ describe("ai slop marker service", () => {
                 paragraphs: [
                   {
                     paragraphId: "p1",
-                    segments: ["关注公众号获取资料", "关注公众号获取资料", "不存在片段"],
+                    segments: ["关注公众号获取资料", "关注公众号获取资料", "不存在片段"]
                   },
                   {
                     id: "p2",
-                    snippets: ["欢迎加入交流群"],
+                    snippets: ["欢迎加入交流群"]
                   },
                   {
                     paragraphId: "missing",
-                    segments: ["忽略我"],
-                  },
-                ],
-              }),
-            },
-          },
-        ],
-      }),
+                    segments: ["忽略我"]
+                  }
+                ]
+              })
+            }
+          }
+        ]
+      })
     });
     const service = createAiSlopMarkerService({ forwardProxy });
 
@@ -107,17 +107,17 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       paragraphs: [
         { id: "p1", markdown: "这里是正文。关注公众号获取资料。" },
-        { id: "p2", markdown: "欢迎加入交流群。" },
-      ],
+        { id: "p2", markdown: "欢迎加入交流群。" }
+      ]
     });
 
     expect(result).toEqual([
       { paragraphId: "p1", segments: ["关注公众号获取资料"] },
-      { paragraphId: "p2", segments: ["欢迎加入交流群"] },
+      { paragraphId: "p2", segments: ["欢迎加入交流群"] }
     ]);
   });
 
@@ -128,11 +128,11 @@ describe("ai slop marker service", () => {
         choices: [
           {
             message: {
-              content: "{\"segmentIds\":[\"s2\"]}",
-            },
-          },
-        ],
-      }),
+              content: "{\"segmentIds\":[\"s2\"]}"
+            }
+          }
+        ]
+      })
     });
     const service = createAiSlopMarkerService({ forwardProxy });
 
@@ -142,14 +142,14 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "mimo-v2-omni",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       paragraphs: [
         {
           id: "p1",
-          markdown: "这里是核心正文。关注公众号“示例”，回复关键词领取资料。后续继续说明正文重点。",
-        },
-      ],
+          markdown: "这里是核心正文。关注公众号“示例”，回复关键词领取资料。后续继续说明正文重点。"
+        }
+      ]
     });
 
     const body = JSON.parse(String(forwardProxy.mock.calls[0]?.[2] || "{}"));
@@ -161,8 +161,8 @@ describe("ai slop marker service", () => {
     expect(result).toEqual([
       {
         paragraphId: "p1",
-        segments: ["关注公众号“示例”，回复关键词领取资料。"],
-      },
+        segments: ["关注公众号“示例”，回复关键词领取资料。"]
+      }
     ]);
   });
 
@@ -173,11 +173,11 @@ describe("ai slop marker service", () => {
         choices: [
           {
             message: {
-              content: "{\"segmentIds\":[\"s1\"]}",
-            },
-          },
-        ],
-      }),
+              content: "{\"segmentIds\":[\"s1\"]}"
+            }
+          }
+        ]
+      })
     });
     const service = createAiSlopMarkerService({ forwardProxy });
 
@@ -187,14 +187,14 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "mimo-v2-omni",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       paragraphs: [
         {
           id: "p1",
-          markdown: "**关注公众号“示例”**，回复关键词领取资料。这里是正文。",
-        },
-      ],
+          markdown: "**关注公众号“示例”**，回复关键词领取资料。这里是正文。"
+        }
+      ]
     });
 
     const body = JSON.parse(String(forwardProxy.mock.calls[0]?.[2] || "{}"));
@@ -204,8 +204,8 @@ describe("ai slop marker service", () => {
     expect(result).toEqual([
       {
         paragraphId: "p1",
-        segments: ["**关注公众号“示例”**，回复关键词领取资料。"],
-      },
+        segments: ["**关注公众号“示例”**，回复关键词领取资料。"]
+      }
     ]);
   });
 
@@ -216,11 +216,11 @@ describe("ai slop marker service", () => {
         choices: [
           {
             message: {
-              content: "{\"paragraphIds\":[\"p2\",\"missing\",\"p1\",\"p2\"]}",
-            },
-          },
-        ],
-      }),
+              content: "{\"paragraphIds\":[\"p2\",\"missing\",\"p1\",\"p2\"]}"
+            }
+          }
+        ]
+      })
     });
     const service = createAiSlopMarkerService({ forwardProxy });
 
@@ -230,17 +230,17 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       paragraphs: [
         { id: "p1", markdown: "第一段" },
-        { id: "p2", markdown: "第二段" },
-      ],
+        { id: "p2", markdown: "第二段" }
+      ]
     });
 
     expect(result).toEqual([
       { paragraphId: "p2", segments: [] },
-      { paragraphId: "p1", segments: [] },
+      { paragraphId: "p1", segments: [] }
     ]);
   });
 
@@ -251,11 +251,11 @@ describe("ai slop marker service", () => {
         choices: [
           {
             message: {
-              content: "{\"paragraphIds\":[]}",
-            },
-          },
-        ],
-      }),
+              content: "{\"paragraphIds\":[]}"
+            }
+          }
+        ]
+      })
     });
     const service = createAiSlopMarkerService({ forwardProxy });
 
@@ -266,12 +266,12 @@ describe("ai slop marker service", () => {
         apiKey: "sk-test",
         model: "mimo-v2-omni",
         requestTimeoutSeconds: 45,
-        maxTokens: 4096,
+        maxTokens: 4096
       },
       paragraphs: Array.from({ length: 40 }, (_, index) => ({
         id: `20260517103907-${String(index).padStart(7, "0")}`,
-        markdown: `第 ${index + 1} 段候选内容`,
-      })),
+        markdown: `第 ${index + 1} 段候选内容`
+      }))
     });
 
     const body = JSON.parse(String(forwardProxy.mock.calls[0]?.[2] || "{}"));
@@ -280,7 +280,7 @@ describe("ai slop marker service", () => {
 
   test("throws a readable error when config is incomplete", async () => {
     const service = createAiSlopMarkerService({
-      forwardProxy: vi.fn(),
+      forwardProxy: vi.fn()
     });
 
     await expect(service.detectIrrelevantParagraphIds({
@@ -289,9 +289,9 @@ describe("ai slop marker service", () => {
         baseUrl: "",
         apiKey: "",
         model: "",
-        requestTimeoutSeconds: 30,
+        requestTimeoutSeconds: 30
       },
-      paragraphs: [{ id: "p1", markdown: "正文" }],
+      paragraphs: [{ id: "p1", markdown: "正文" }]
     })).rejects.toThrow("AI 服务配置不完整");
   });
 
@@ -305,12 +305,12 @@ describe("ai slop marker service", () => {
               content: [
                 { text: "```json\n" },
                 { text: "{\"paragraphIds\":[\"p2\",\"missing\"]}" },
-                { text: "\n```" },
-              ],
-            },
-          },
-        ],
-      }),
+                { text: "\n```" }
+              ]
+            }
+          }
+        ]
+      })
     });
     const service = createAiSlopMarkerService({ forwardProxy });
 
@@ -320,12 +320,12 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       paragraphs: [
         { id: "p1", markdown: "第一段" },
-        { id: "p2", markdown: "第二段" },
-      ],
+        { id: "p2", markdown: "第二段" }
+      ]
     });
 
     expect(result).toEqual(["p2"]);
@@ -339,12 +339,12 @@ describe("ai slop marker service", () => {
           choices: [
             {
               message: {
-                content: "{\"paragraphIds\":[\"20260517103907-jfmqfut\",\"2026051",
-              },
-            },
-          ],
-        }),
-      }),
+                content: "{\"paragraphIds\":[\"20260517103907-jfmqfut\",\"2026051"
+              }
+            }
+          ]
+        })
+      })
     });
 
     await expect(service.detectIrrelevantParagraphIds({
@@ -353,11 +353,11 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "mimo-v2-omni",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       paragraphs: [
-        { id: "20260517103907-jfmqfut", markdown: "第一段" },
-      ],
+        { id: "20260517103907-jfmqfut", markdown: "第一段" }
+      ]
     })).rejects.toThrow("可能被模型截断");
   });
 
@@ -368,11 +368,11 @@ describe("ai slop marker service", () => {
         choices: [
           {
             message: {
-              content: "```json\n{\"paragraphs\":[{\"paragraphId\":\"p2\",\"highlights\":[\"检索增强生成\",\"评测闭环\"]},{\"paragraphId\":\"missing\",\"highlights\":[\"忽略我\"]},{\"paragraphId\":\"p2\",\"highlights\":[\"检索增强生成\",\"评测闭环\",\"额外提示\"]},{\"paragraphId\":\"p3\",\"highlights\":[\"  \",123,\"小范围试点\"]}]}\n```",
-            },
-          },
-        ],
-      }),
+              content: "```json\n{\"paragraphs\":[{\"paragraphId\":\"p2\",\"highlights\":[\"检索增强生成\",\"评测闭环\"]},{\"paragraphId\":\"missing\",\"highlights\":[\"忽略我\"]},{\"paragraphId\":\"p2\",\"highlights\":[\"检索增强生成\",\"评测闭环\",\"额外提示\"]},{\"paragraphId\":\"p3\",\"highlights\":[\"  \",123,\"小范围试点\"]}]}\n```"
+            }
+          }
+        ]
+      })
     });
     const service = createAiKeyContentMarkerService({ forwardProxy });
 
@@ -382,25 +382,25 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentTitle: "AI 关键内容测试",
       paragraphs: [
         { id: "p1", markdown: "这里是普通正文。" },
         { id: "p2", markdown: "作者提出要用检索增强生成提升准确率，并强调评测闭环。" },
-        { id: "p3", markdown: "最后建议先做小范围试点，再逐步扩展。" },
-      ],
+        { id: "p3", markdown: "最后建议先做小范围试点，再逐步扩展。" }
+      ]
     });
 
     expect(result).toEqual([
       {
         paragraphId: "p2",
-        highlights: ["检索增强生成", "评测闭环", "额外提示"],
+        highlights: ["检索增强生成", "评测闭环", "额外提示"]
       },
       {
         paragraphId: "p3",
-        highlights: ["小范围试点"],
-      },
+        highlights: ["小范围试点"]
+      }
     ]);
     expect(forwardProxy).toHaveBeenCalledWith(
       "https://api.example.com/v1/chat/completions",
@@ -408,7 +408,7 @@ describe("ai slop marker service", () => {
       expect.stringContaining("\"model\":\"gpt-4.1-mini\""),
       [
         { Authorization: "Bearer sk-test" },
-        { Accept: "application/json" },
+        { Accept: "application/json" }
       ],
       45000,
       "application/json"
@@ -424,11 +424,11 @@ describe("ai slop marker service", () => {
         choices: [
           {
             message: {
-              content: "{\"segmentIds\":[\"s1\"]}",
-            },
-          },
-        ],
-      }),
+              content: "{\"segmentIds\":[\"s1\"]}"
+            }
+          }
+        ]
+      })
     });
     const service = createAiKeyContentMarkerService({ forwardProxy });
 
@@ -438,14 +438,14 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "mimo-v2-omni",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       paragraphs: [
         {
           id: "p1",
-          markdown: "作者提出要用**检索增强生成**提升准确率，并强调评测闭环。普通背景介绍。",
-        },
-      ],
+          markdown: "作者提出要用**检索增强生成**提升准确率，并强调评测闭环。普通背景介绍。"
+        }
+      ]
     });
 
     const body = JSON.parse(String(forwardProxy.mock.calls[0]?.[2] || "{}"));
@@ -458,8 +458,8 @@ describe("ai slop marker service", () => {
     expect(result).toEqual([
       {
         paragraphId: "p1",
-        highlights: ["作者提出要用**检索增强生成**提升准确率，并强调评测闭环。"],
-      },
+        highlights: ["作者提出要用**检索增强生成**提升准确率，并强调评测闭环。"]
+      }
     ]);
   });
 
@@ -474,18 +474,18 @@ describe("ai slop marker service", () => {
                 items: [
                   {
                     id: "p1",
-                    phrases: ["关键流程", "验收标准"],
+                    phrases: ["关键流程", "验收标准"]
                   },
                   {
                     paragraphId: "p2",
-                    keywords: ["上线节奏"],
-                  },
-                ],
-              }),
-            },
-          },
-        ],
-      }),
+                    keywords: ["上线节奏"]
+                  }
+                ]
+              })
+            }
+          }
+        ]
+      })
     });
     const service = createAiKeyContentMarkerService({ forwardProxy });
 
@@ -495,23 +495,23 @@ describe("ai slop marker service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       paragraphs: [
         { id: "p1", markdown: "第一段" },
-        { id: "p2", markdown: "第二段" },
-      ],
+        { id: "p2", markdown: "第二段" }
+      ]
     });
 
     expect(result).toEqual([
       {
         paragraphId: "p1",
-        highlights: ["关键流程", "验收标准"],
+        highlights: ["关键流程", "验收标准"]
       },
       {
         paragraphId: "p2",
-        highlights: ["上线节奏"],
-      },
+        highlights: ["上线节奏"]
+      }
     ]);
   });
 });

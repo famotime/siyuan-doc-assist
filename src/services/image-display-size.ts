@@ -1,6 +1,6 @@
 import {
   collectDisplaySizedLocalImageCandidatesFromMarkdown,
-  rewriteDisplaySizedMarkdownImageAssetLinks,
+  rewriteDisplaySizedMarkdownImageAssetLinks
 } from "@/core/image-display-size-core";
 import { updateBlockMarkdown } from "@/services/kernel";
 import { escapeSqlLiteral, sqlPaged } from "@/services/kernel-shared";
@@ -36,7 +36,7 @@ const EMPTY_REPORT: ResizeDocImagesToDisplayReport = {
   failedBlockCount: 0,
   replacedLinkCount: 0,
   updatedBlockCount: 0,
-  totalSavedBytes: 0,
+  totalSavedBytes: 0
 };
 
 export async function resizeDocImagesToDisplay(
@@ -68,7 +68,7 @@ export async function resizeDocImagesToDisplay(
         intentByAsset.set(candidate.assetPath, {
           width: candidate.width,
           height: candidate.height,
-          conflicted: false,
+          conflicted: false
         });
         continue;
       }
@@ -95,7 +95,7 @@ export async function resizeDocImagesToDisplay(
     try {
       const result = await resizeLocalAssetImageByDisplaySize(assetPath, {
         width: intent.width,
-        height: intent.height,
+        height: intent.height
       });
       if (!result.converted) {
         skippedImageCount += 1;
@@ -141,6 +141,6 @@ export async function resizeDocImagesToDisplay(
     failedBlockCount,
     replacedLinkCount,
     updatedBlockCount,
-    totalSavedBytes,
+    totalSavedBytes
   };
 }

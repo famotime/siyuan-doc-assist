@@ -11,7 +11,7 @@ function item(id: string, text: string, order: number): KeyInfoItem {
     offset: order,
     blockId: `b-${id}`,
     blockSort: order,
-    order,
+    order
   };
 }
 
@@ -24,7 +24,7 @@ describe("key-info controller state", () => {
       isSameDoc: true,
       hasItems: true,
       currentItems,
-      latestItems,
+      latestItems
     });
 
     expect(next.map((it) => it.id)).toEqual(["new-1", "new-2"]);

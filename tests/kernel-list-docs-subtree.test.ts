@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/request", () => ({
-  requestApi: vi.fn(),
-}));
-
 import { listDocsByParentSubtree } from "@/services/kernel";
 import { requestApi } from "@/services/request";
+
+vi.mock("@/services/request", () => ({
+  requestApi: vi.fn()
+}));
 
 describe("kernel listDocsByParentSubtree", () => {
   const requestApiMock = vi.mocked(requestApi);
@@ -18,7 +18,7 @@ describe("kernel listDocsByParentSubtree", () => {
     const rows = Array.from({ length: 65 }, (_, i) => ({
       id: `doc-${i + 1}`,
       hpath: `/Docs/Doc ${i + 1}`,
-      updated: `20260222${String(i).padStart(6, "0")}`,
+      updated: `20260222${String(i).padStart(6, "0")}`
     }));
 
     requestApiMock.mockImplementation(async (url: string, payload?: any) => {

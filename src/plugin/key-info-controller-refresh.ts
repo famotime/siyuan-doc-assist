@@ -31,14 +31,14 @@ export function buildKeyInfoUnavailableState() {
     loading: false,
     isRefreshing: false,
     emptyText: "未找到当前文档",
-    scrollContextKey: "",
+    scrollContextKey: ""
   };
 }
 
 export function buildKeyInfoRefreshPendingState({
   currentState,
   currentDocId,
-  nextDocId,
+  nextDocId
 }: KeyInfoRefreshStateOptions) {
   const isSameDoc = !!currentDocId && currentDocId === nextDocId;
   const hasItems = currentState.items.length > 0;
@@ -46,7 +46,7 @@ export function buildKeyInfoRefreshPendingState({
     loading: !hasItems || !isSameDoc,
     isRefreshing: true,
     emptyText: !hasItems || !isSameDoc ? "加载中..." : currentState.emptyText,
-    scrollContextKey: nextDocId,
+    scrollContextKey: nextDocId
   };
 }
 
@@ -55,7 +55,7 @@ export function buildKeyInfoRefreshSuccessState({
   currentDocId,
   nextDocId,
   docTitle,
-  latestItems,
+  latestItems
 }: KeyInfoRefreshSuccessOptions) {
   const isSameDoc = !!currentDocId && currentDocId === nextDocId;
   const hasItems = currentState.items.length > 0;
@@ -65,19 +65,19 @@ export function buildKeyInfoRefreshSuccessState({
       isSameDoc,
       hasItems,
       currentItems: currentState.items,
-      latestItems,
+      latestItems
     }),
     loading: false,
     isRefreshing: false,
     emptyText: "暂无关键内容",
-    scrollContextKey: nextDocId,
+    scrollContextKey: nextDocId
   };
 }
 
 export function buildKeyInfoRefreshFailureState({
   currentState,
   currentDocId,
-  nextDocId,
+  nextDocId
 }: KeyInfoRefreshStateOptions) {
   const isSameDoc = !!currentDocId && currentDocId === nextDocId;
   const hasItems = currentState.items.length > 0;
@@ -87,12 +87,12 @@ export function buildKeyInfoRefreshFailureState({
     isRefreshing: false,
     emptyText: "加载失败",
     scrollContextKey: nextDocId,
-    ...(keepItems
-      ? {}
-      : {
+    ...(keepItems ?
+        {} :
+        {
           docTitle: "",
-          items: [],
-        }),
+          items: []
+        })
   };
 }
 
@@ -100,7 +100,7 @@ export function shouldSkipReadonlyStateSync({
   currentDocId,
   nextDocId,
   currentReadonly,
-  nextReadonly,
+  nextReadonly
 }: ShouldSkipReadonlyStateSyncOptions) {
   return currentDocId === nextDocId && currentReadonly === nextReadonly;
 }

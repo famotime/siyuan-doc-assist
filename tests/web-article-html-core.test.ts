@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
   cleanAndConvertHtmlToMarkdown,
   domNodeToMarkdown,
   extractWechatOriginalLink,
-  extractWebMetadataFromHtml,
+  extractWebMetadataFromHtml
 } from "@/core/web-article-html-core";
 
 describe("web-article-html-core", () => {
   describe("extractWechatOriginalLink", () => {
-    it("extracts wechat link and strips #wechat_redirect", () => {
+    test("extracts wechat link and strips #wechat_redirect", () => {
       const html = `<div>原文链接：https://mp.weixin.qq.com/s/xyz123_456#wechat_redirect</div>`;
       expect(extractWechatOriginalLink(html)).toBe("https://mp.weixin.qq.com/s/xyz123_456");
     });
 
-    it("matches query-style wechat links and bare mp.weixin urls", () => {
+    test("matches query-style wechat links and bare mp.weixin urls", () => {
       expect(
         extractWechatOriginalLink(`原文链接：https://mp.weixin.qq.com/s?__biz=MzA1&mid=2#wechat_redirect`)
       ).toBe("https://mp.weixin.qq.com/s?__biz=MzA1&mid=2");
@@ -23,14 +23,14 @@ describe("web-article-html-core", () => {
       );
     });
 
-    it("returns null when no wechat link exists", () => {
+    test("returns null when no wechat link exists", () => {
       expect(extractWechatOriginalLink("普通网页无微信链接")).toBeNull();
       expect(extractWechatOriginalLink("")).toBeNull();
     });
   });
 
   describe("extractWebMetadataFromHtml", () => {
-    it("extracts wechat article metadata correctly", () => {
+    test("extracts wechat article metadata correctly", () => {
       const html = `
         <html>
           <head>
@@ -52,7 +52,7 @@ describe("web-article-html-core", () => {
       expect(meta.description).toBe("微信文章简介描述");
     });
 
-    it("extracts standard article metadata", () => {
+    test("extracts standard article metadata", () => {
       const html = `
         <html>
           <head>
@@ -72,7 +72,7 @@ describe("web-article-html-core", () => {
       expect(meta.description).toBe("这是一篇精彩的技术文章");
     });
 
-    it("uses first x post paragraph as title for x urls", () => {
+    test("uses first x post paragraph as title for x urls", () => {
       const html = `
         <html>
           <head>
@@ -87,7 +87,7 @@ describe("web-article-html-core", () => {
   });
 
   describe("cleanAndConvertHtmlToMarkdown", () => {
-    it("extracts wechat #js_content, handles lazy images and relative links", () => {
+    test("extracts wechat #js_content, handles lazy images and relative links", () => {
       const html = `
         <div>
           <nav>导航内容应被移除</nav>
@@ -107,7 +107,7 @@ describe("web-article-html-core", () => {
       expect(md).not.toContain("页脚内容");
     });
 
-    it("converts headings, blockquotes, lists, tables, and code blocks", () => {
+    test("converts headings, blockquotes, lists, tables, and code blocks", () => {
       const html = `
         <article>
           <h2>章节标题</h2>
@@ -129,7 +129,7 @@ describe("web-article-html-core", () => {
       expect(md).toContain("| --- | --- |");
     });
 
-    it("unwraps image-only anchors into plain image blocks", () => {
+    test("unwraps image-only anchors into plain image blocks", () => {
       const html = `<article><a href="https://example.com/post"><img src="https://example.com/pic.jpg" alt="配图" /></a></article>`;
       const md = cleanAndConvertHtmlToMarkdown(html, "https://example.com");
       expect(md).toContain("![配图](https://example.com/pic.jpg)");
@@ -137,13 +137,13 @@ describe("web-article-html-core", () => {
   });
 
   describe("domNodeToMarkdown", () => {
-    it("preserves whitespace inside pre blocks", () => {
+    test("preserves whitespace inside pre blocks", () => {
       const doc = new DOMParser().parseFromString("<pre><code>const a = 1;\n  const b = 2;</code></pre>", "text/html");
       const md = domNodeToMarkdown(doc.body);
       expect(md).toContain("const a = 1;\n  const b = 2;");
     });
 
-    it("escapes table pipes and renders ordered lists", () => {
+    test("escapes table pipes and renders ordered lists", () => {
       const doc = new DOMParser().parseFromString(
         `<ol><li>第一项</li><li>第二项</li></ol><table><tr><td>a|b</td></tr></table>`,
         "text/html"
@@ -154,7 +154,7 @@ describe("web-article-html-core", () => {
       expect(md).toContain("a\\|b");
     });
 
-    it("returns empty string for ignored tags", () => {
+    test("returns empty string for ignored tags", () => {
       const doc = new DOMParser().parseFromString("<script>evil()</script><svg></svg>", "text/html");
       expect(domNodeToMarkdown(doc.body)).toBe("");
     });

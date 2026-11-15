@@ -2,7 +2,7 @@ import { showMessage } from "siyuan";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import {
   findSelectFromCurrentToEndBlockIds,
-  findSelectFromStartToCurrentBlockIds,
+  findSelectFromStartToCurrentBlockIds
 } from "@/core/markdown-cleanup-core";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import { getChildBlockRefsByParentId } from "@/services/kernel";
@@ -67,7 +67,7 @@ export class RangeSelectionObserverManager {
       try {
         this.observer.observe(root, {
           childList: true,
-          subtree: true,
+          subtree: true
         });
       } catch {
         // Ignore observation errors in synthetic test environments
@@ -139,9 +139,9 @@ export async function ensureRangeBlocksLoadedInDom(
 
   const targetSet = new Set(targetBlockIds);
   const boundaryBlockId =
-    direction === "to-start"
-      ? targetBlockIds[0]
-      : targetBlockIds[targetBlockIds.length - 1];
+    direction === "to-start" ?
+      targetBlockIds[0] :
+      targetBlockIds[targetBlockIds.length - 1];
 
   let attempts = 0;
 
@@ -189,7 +189,7 @@ export function createSelectRangeActionHandlers(): PartialActionHandlerMap {
     "select-from-start-to-current": async (docId, protyle) =>
       handleSelectFromStartToCurrent(docId, protyle),
     "select-from-current-to-end": async (docId, protyle) =>
-      handleSelectFromCurrentToEnd(docId, protyle),
+      handleSelectFromCurrentToEnd(docId, protyle)
   };
 }
 
@@ -232,7 +232,7 @@ async function handleSelectFromStartToCurrent(docId: string, protyle?: ProtyleLi
     docId,
     currentBlockId,
     selectEndId,
-    selectedCount: result.selectedCount,
+    selectedCount: result.selectedCount
   });
 }
 
@@ -275,6 +275,6 @@ async function handleSelectFromCurrentToEnd(docId: string, protyle?: ProtyleLike
     docId,
     currentBlockId,
     selectStartId,
-    selectedCount: result.selectedCount,
+    selectedCount: result.selectedCount
   });
 }

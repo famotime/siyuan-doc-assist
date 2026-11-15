@@ -3,7 +3,7 @@ import {
   applyBoldToParagraphHighlights,
   applyStrikethroughToIrrelevantSegments,
   resolveBlocksAfterOpeningSeparator,
-  toConfirmDetailText,
+  toConfirmDetailText
 } from "@/core/ai-marker-action-core";
 
 describe("ai marker action core", () => {
@@ -11,7 +11,7 @@ describe("ai marker action core", () => {
     expect(applyStrikethroughToIrrelevantSegments("广告语\n{: id=\"p1\"}", [])).toEqual({
       markdown: "~~广告语~~\n{: id=\"p1\"}",
       markedCount: 1,
-      detailLabels: [],
+      detailLabels: []
     });
   });
 
@@ -31,7 +31,7 @@ describe("ai marker action core", () => {
     expect(applyStrikethroughToIrrelevantSegments(markdown, [markdown])).toEqual({
       markdown,
       markedCount: 0,
-      detailLabels: [],
+      detailLabels: []
     });
   });
 
@@ -46,7 +46,7 @@ describe("ai marker action core", () => {
     const blocks = [
       { id: "intro", markdown: "说明" },
       { id: "sep", markdown: "---" },
-      { id: "body", markdown: "正文" },
+      { id: "body", markdown: "正文" }
     ];
 
     expect(resolveBlocksAfterOpeningSeparator(blocks).map((item) => item.id)).toEqual(["body"]);

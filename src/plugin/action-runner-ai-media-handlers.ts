@@ -5,7 +5,7 @@ import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
 import { CreateAiActionHandlersOptions } from "@/plugin/action-runner-ai-types";
 import {
   getSelectedBlockIds,
-  getSelectedImageAssetPaths,
+  getSelectedImageAssetPaths
 } from "@/plugin/action-runner-context";
 
 export function createAiMediaActionHandlers(
@@ -23,7 +23,7 @@ export function createAiMediaActionHandlers(
         onProgress: (current, total, assetPath) => {
           const basename = assetPath.split("/").filter(Boolean).pop() || assetPath;
           showMessage(`图片文字识别中（${current}/${total}）：${basename}`, 3000, "info");
-        },
+        }
       });
       if (report.scannedImageCount <= 0) {
         showMessage("当前文档未发现可识别的本地图片", 5000, "info");
@@ -41,7 +41,7 @@ export function createAiMediaActionHandlers(
       showMessage(
         `图片文字识别完成：识别 ${report.recognizedCount} 张，插入 ${report.insertedCount} 条引用${suffix}`,
         report.failedCount > 0 ? 7000 : 6000,
-        report.failedCount > 0 ? "error" : "info",
+        report.failedCount > 0 ? "error" : "info"
       );
     },
     "translate-doc-paragraphs": async (docId) => {
@@ -50,7 +50,7 @@ export function createAiMediaActionHandlers(
         docId,
         onProgress: (current, total) => {
           showMessage(`段落翻译中（${current}/${total}）`, 3000, "info");
-        },
+        }
       });
       if (report.scannedParagraphCount <= 0) {
         showMessage("当前文档未发现可翻译的段落", 5000, "info");
@@ -72,8 +72,8 @@ export function createAiMediaActionHandlers(
       showMessage(
         `逐段翻译完成：翻译 ${report.translatedCount} 段，插入 ${report.insertedCount} 个译文块${suffix}`,
         report.failedCount > 0 ? 7000 : 6000,
-        report.failedCount > 0 ? "error" : "info",
+        report.failedCount > 0 ? "error" : "info"
       );
-    },
+    }
   };
 }

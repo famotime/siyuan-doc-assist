@@ -1,7 +1,7 @@
 import {
   isConvertibleImageAssetPath,
   normalizeLocalImageAssetPath,
-  toPngAssetPath,
+  toPngAssetPath
 } from "@/core/image-webp-core";
 import { getFileBlob, putBlobFile } from "@/services/kernel";
 
@@ -38,12 +38,12 @@ async function loadImageSource(blob: Blob): Promise<{
       height: bitmap.height,
       cleanup: () => {
         bitmap.close?.();
-      },
+      }
     };
   }
 
   if (typeof Image === "undefined" || typeof URL === "undefined") {
-    throw new Error("当前环境不支持图片转码");
+    throw new TypeError("当前环境不支持图片转码");
   }
 
   const objectUrl = URL.createObjectURL(blob);
@@ -59,7 +59,7 @@ async function loadImageSource(blob: Blob): Promise<{
     height: image.naturalHeight || image.height,
     cleanup: () => {
       URL.revokeObjectURL(objectUrl);
-    },
+    }
   };
 }
 
@@ -88,7 +88,7 @@ export async function convertLocalAssetImageToPng(
       targetAssetPath: assetPath,
       converted: false,
       savedBytes: 0,
-      reason: "unsupported-format",
+      reason: "unsupported-format"
     };
   }
   const targetAssetPath = toPngAssetPath(normalized);
@@ -98,7 +98,7 @@ export async function convertLocalAssetImageToPng(
       targetAssetPath,
       converted: false,
       savedBytes: 0,
-      reason: "already-png",
+      reason: "already-png"
     };
   }
   if (!isConvertibleImageAssetPath(normalized, "png")) {
@@ -107,7 +107,7 @@ export async function convertLocalAssetImageToPng(
       targetAssetPath,
       converted: false,
       savedBytes: 0,
-      reason: "unsupported-format",
+      reason: "unsupported-format"
     };
   }
 
@@ -132,7 +132,7 @@ export async function convertLocalAssetImageToPng(
       sourceAssetPath: normalized,
       targetAssetPath,
       converted: true,
-      savedBytes: Math.max(0, sourceBlob.size - pngBlob.size),
+      savedBytes: Math.max(0, sourceBlob.size - pngBlob.size)
     };
   } finally {
     imageSource.cleanup();

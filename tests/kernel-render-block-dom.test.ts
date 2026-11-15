@@ -3,7 +3,7 @@ import { renderKramdownToBlockDOM } from "@/services/kernel";
 import { requestApi } from "@/services/request";
 
 vi.mock("@/services/request", () => ({
-  requestApi: vi.fn(),
+  requestApi: vi.fn()
 }));
 
 describe("renderKramdownToBlockDOM", () => {
@@ -20,7 +20,7 @@ describe("renderKramdownToBlockDOM", () => {
 
   test("uses protyle.lute.Md2BlockDOM when protyle is provided", async () => {
     const fakeLute = {
-      Md2BlockDOM: vi.fn((md: string) => `<div data-node-id="b1">${md}</div>`),
+      Md2BlockDOM: vi.fn((md: string) => `<div data-node-id="b1">${md}</div>`)
     };
     const protyle = { lute: fakeLute };
 
@@ -32,12 +32,12 @@ describe("renderKramdownToBlockDOM", () => {
 
   test("uses window.Lute.New().Md2BlockDOM when protyle is not provided", async () => {
     const fakeLuteInstance = {
-      Md2BlockDOM: vi.fn((md: string) => `<div class="block-dom">${md}</div>`),
+      Md2BlockDOM: vi.fn((md: string) => `<div class="block-dom">${md}</div>`)
     };
     (globalThis as any).window = {
       Lute: {
-        New: vi.fn(() => fakeLuteInstance),
-      },
+        New: vi.fn(() => fakeLuteInstance)
+      }
     };
 
     const result = await renderKramdownToBlockDOM("# 标题内容");
@@ -57,7 +57,7 @@ describe("renderKramdownToBlockDOM", () => {
     const fakeLute = {
       Md2BlockDOM: vi.fn(() => {
         throw new Error("Lute WASM crash simulation");
-      }),
+      })
     };
     const protyle = { lute: fakeLute };
 

@@ -22,7 +22,7 @@ export function buildDefaultAiServiceConfig(): AiServiceConfig {
     model: "",
     requestTimeoutSeconds: DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
     temperature: DEFAULT_AI_TEMPERATURE,
-    maxTokens: DEFAULT_AI_MAX_TOKENS,
+    maxTokens: DEFAULT_AI_MAX_TOKENS
   };
 }
 
@@ -49,7 +49,7 @@ export function normalizeAiServiceConfig(raw: unknown): AiServiceConfig {
     temperature: normalizeTemperature(value.temperature, defaults.temperature),
     maxTokens: normalizePositiveInteger(value.maxTokens, defaults.maxTokens),
     headers: value.headers && typeof value.headers === "object" ? (value.headers as Record<string, string>) : undefined,
-    protocol: typeof value.protocol === "string" ? sanitizeVisibleString(value.protocol) : undefined,
+    protocol: typeof value.protocol === "string" ? sanitizeVisibleString(value.protocol) : undefined
   };
 }
 
@@ -57,34 +57,34 @@ export function isAiServiceConfigComplete(config?: unknown): boolean {
   const normalized = normalizeAiServiceConfig(config);
   return Boolean(
     normalized.enabled &&
-      normalized.baseUrl &&
-      normalized.apiKey &&
-      normalized.model
+    normalized.baseUrl &&
+    normalized.apiKey &&
+    normalized.model
   );
 }
 
 function normalizePositiveInteger(value: unknown, fallback: number): number {
-  const normalized = typeof value === "string" && value.trim()
-    ? Number.parseInt(value, 10)
-    : typeof value === "number"
-      ? Math.floor(value)
-      : Number.NaN;
+  const normalized = typeof value === "string" && value.trim() ?
+      Number.parseInt(value, 10) :
+    typeof value === "number" ?
+        Math.floor(value) :
+      Number.NaN;
   return Number.isFinite(normalized) && normalized > 0 ? normalized : fallback;
 }
 
 function normalizeTemperature(value: unknown, fallback: number): number {
-  const parsed = typeof value === "string" && value.trim()
-    ? Number.parseFloat(value)
-    : typeof value === "number"
-      ? value
-      : Number.NaN;
+  const parsed = typeof value === "string" && value.trim() ?
+      Number.parseFloat(value) :
+    typeof value === "number" ?
+      value :
+      Number.NaN;
   return Number.isFinite(parsed) && parsed >= 0 && parsed <= 2 ? parsed : fallback;
 }
 
 export function buildAiForwardProxyHeaders(config: { apiKey: string; headers?: Record<string, string> }): Array<Record<string, string>> {
   const headers: Array<Record<string, string>> = [
     { Authorization: `Bearer ${config.apiKey}` },
-    { Accept: "application/json" },
+    { Accept: "application/json" }
   ];
   if (config.headers && typeof config.headers === "object") {
     for (const [key, value] of Object.entries(config.headers)) {

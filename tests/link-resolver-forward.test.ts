@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel", () => ({
-  exportMdContent: vi.fn(),
-  getForwardRefTargetBlockIds: vi.fn(),
-  getBacklink2: vi.fn(),
-  getDocMetasByIDs: vi.fn(),
-  getRootDocRawMarkdown: vi.fn(),
-  mapBlockIdsToRootDocIds: vi.fn(),
-}));
-
 import { getForwardLinkedDocIds } from "@/services/link-resolver";
 import {
   exportMdContent,
   getForwardRefTargetBlockIds,
   getDocMetasByIDs,
   getRootDocRawMarkdown,
-  mapBlockIdsToRootDocIds,
+  mapBlockIdsToRootDocIds
 } from "@/services/kernel";
+
+vi.mock("@/services/kernel", () => ({
+  exportMdContent: vi.fn(),
+  getForwardRefTargetBlockIds: vi.fn(),
+  getBacklink2: vi.fn(),
+  getDocMetasByIDs: vi.fn(),
+  getRootDocRawMarkdown: vi.fn(),
+  mapBlockIdsToRootDocIds: vi.fn()
+}));
 
 describe("link-resolver forward links", () => {
   const exportMdContentMock = vi.mocked(exportMdContent);
@@ -37,8 +37,8 @@ describe("link-resolver forward links", () => {
         "(( 20260404141414-DEFGH45 \"alias\" ))",
         "[[20260505151515-efghi56]]",
         "[ref](siyuan://blocks/20260202121212-bcdefg2)",
-        "[ref2](SiYuan://blocks/20260303131313-cdefgh3?focus=1#L2)",
-      ].join("\n"),
+        "[ref2](SiYuan://blocks/20260303131313-cdefgh3?focus=1#L2)"
+      ].join("\n")
     });
 
     getForwardRefTargetBlockIdsMock.mockResolvedValue([]);
@@ -48,7 +48,7 @@ describe("link-resolver forward links", () => {
       "doc-b",
       "doc-a",
       "doc-c",
-      "doc-d",
+      "doc-d"
     ]);
     getRootDocRawMarkdownMock.mockResolvedValue("");
     getDocMetasByIDsMock.mockResolvedValue([]);
@@ -59,7 +59,7 @@ describe("link-resolver forward links", () => {
       refMode: 3,
       embedMode: 0,
       addTitle: false,
-      yfm: false,
+      yfm: false
     });
 
     expect(mapBlockIdsToRootDocIdsMock).toHaveBeenCalledWith([
@@ -67,7 +67,7 @@ describe("link-resolver forward links", () => {
       "20260404141414-DEFGH45",
       "20260202121212-bcdefg2",
       "20260303131313-cdefgh3",
-      "20260505151515-efghi56",
+      "20260505151515-efghi56"
     ]);
 
     expect(ids).toEqual(["doc-a", "doc-b", "doc-c", "doc-d"]);
@@ -79,8 +79,8 @@ describe("link-resolver forward links", () => {
       content: [
         "[a](siyuan://blocks/20260220075025-ue88wkc)",
         "[b](siyuan://blocks/20260220220208-esrmvws)",
-        "((20260221114249-31dbi9g 'OpenClaw 安装 Skills'))",
-      ].join("\n"),
+        "((20260221114249-31dbi9g 'OpenClaw 安装 Skills'))"
+      ].join("\n")
     });
 
     getForwardRefTargetBlockIdsMock.mockResolvedValue([]);
@@ -88,14 +88,14 @@ describe("link-resolver forward links", () => {
     getRootDocRawMarkdownMock.mockResolvedValue("");
     getDocMetasByIDsMock.mockResolvedValue([
       {
-        id: "20260220075025-ue88wkc",
+        id: "20260220075025-ue88wkc"
       } as any,
       {
-        id: "20260220220208-esrmvws",
+        id: "20260220220208-esrmvws"
       } as any,
       {
-        id: "20260221114249-31dbi9g",
-      } as any,
+        id: "20260221114249-31dbi9g"
+      } as any
     ]);
 
     const ids = await getForwardLinkedDocIds("current-doc");
@@ -106,13 +106,13 @@ describe("link-resolver forward links", () => {
     ).toEqual([
       "20260220075025-ue88wkc",
       "20260220220208-esrmvws",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
 
     expect(ids).toEqual([
       "20260220075025-ue88wkc",
       "20260220220208-esrmvws",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
   });
 
@@ -121,8 +121,8 @@ describe("link-resolver forward links", () => {
       hPath: "/demo/current",
       content: [
         "[a](siyuan://blocks/20260220075025-ue88wkc)",
-        "((20260221114249-31dbi9g 'OpenClaw 安装 Skills'))",
-      ].join("\n"),
+        "((20260221114249-31dbi9g 'OpenClaw 安装 Skills'))"
+      ].join("\n")
     });
 
     getForwardRefTargetBlockIdsMock.mockResolvedValue([]);
@@ -134,18 +134,18 @@ describe("link-resolver forward links", () => {
 
     expect([...ids].sort()).toEqual([
       "20260220075025-ue88wkc",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
   });
 
   test("uses raw root markdown fallback when export markdown loses ids", async () => {
     exportMdContentMock.mockResolvedValue({
       hPath: "/demo/current",
-      content: "- OpenClaw 日常操作 2026-02-20\n- 鹿导：OpenClaw",
+      content: "- OpenClaw 日常操作 2026-02-20\n- 鹿导：OpenClaw"
     });
     getRootDocRawMarkdownMock.mockResolvedValue([
       "[a](siyuan://blocks/20260220075025-ue88wkc)",
-      "((20260221114249-31dbi9g 'OpenClaw 安装 Skills'))",
+      "((20260221114249-31dbi9g 'OpenClaw 安装 Skills'))"
     ].join("\n"));
     getForwardRefTargetBlockIdsMock.mockResolvedValue([]);
     mapBlockIdsToRootDocIdsMock.mockResolvedValue([]);
@@ -155,25 +155,25 @@ describe("link-resolver forward links", () => {
 
     expect([...ids].sort()).toEqual([
       "20260220075025-ue88wkc",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
   });
 
   test("prefers refs table targets when available", async () => {
     exportMdContentMock.mockResolvedValue({
       hPath: "/demo/current",
-      content: "- visible list without ids",
+      content: "- visible list without ids"
     });
     getRootDocRawMarkdownMock.mockResolvedValue("raw may contain noisy links");
     getForwardRefTargetBlockIdsMock.mockResolvedValue([
       "20260220075025-ue88wkc",
       "20260220220208-esrmvws",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
     mapBlockIdsToRootDocIdsMock.mockResolvedValue([
       "20260220075025-ue88wkc",
       "20260220220208-esrmvws",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
     getDocMetasByIDsMock.mockResolvedValue([]);
 
@@ -183,7 +183,7 @@ describe("link-resolver forward links", () => {
     expect(ids).toEqual([
       "20260220075025-ue88wkc",
       "20260220220208-esrmvws",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
   });
 
@@ -195,13 +195,13 @@ describe("link-resolver forward links", () => {
         "[b](siyuan://blocks/20260220220208-esrmvws)",
         "((20260221114249-31dbi9g 'OpenClaw 安装 Skills'))",
         "((20260218190049-71xqxuy))",
-        "((20260215060020-fivungd))",
-      ].join("\n"),
+        "((20260215060020-fivungd))"
+      ].join("\n")
     });
     getRootDocRawMarkdownMock.mockResolvedValue("");
     getForwardRefTargetBlockIdsMock.mockResolvedValue([
       "20260215060020-fivungd",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
     mapBlockIdsToRootDocIdsMock.mockImplementation(async (ids: string[]) => ids);
     getDocMetasByIDsMock.mockResolvedValue([]);
@@ -213,7 +213,7 @@ describe("link-resolver forward links", () => {
       "20260218190049-71xqxuy",
       "20260220075025-ue88wkc",
       "20260220220208-esrmvws",
-      "20260221114249-31dbi9g",
+      "20260221114249-31dbi9g"
     ]);
   });
 });

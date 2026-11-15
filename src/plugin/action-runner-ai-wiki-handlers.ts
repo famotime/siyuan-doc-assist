@@ -26,7 +26,7 @@ export function createAiWikiActionHandlers(
         result = await wikiProvider.invokeCommand("generate-llm-wiki", {
           trigger: "manual",
           sourcePlugin: "siyuan-doc-assist",
-          themeDocumentId: docId,
+          themeDocumentId: docId
         });
       } catch (e) {
         aiWikiLogger.error("invokeCommand 抛出异常", e);
@@ -39,6 +39,6 @@ export function createAiWikiActionHandlers(
         return;
       }
       showMessage(result.message || "Wiki 文档生成完成", 5000, "info");
-    },
+    }
   };
 }

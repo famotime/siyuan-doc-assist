@@ -2,7 +2,7 @@ import { Setting } from "siyuan";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
 import {
   DocActionEnabledState,
-  DocMenuRegistrationState,
+  DocMenuRegistrationState
 } from "@/core/doc-menu-registration-core";
 import { HiddenPluginSettingKey } from "@/plugin/alpha-feature-config";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
@@ -71,7 +71,7 @@ function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
     color: var(--b3-theme-on-background);
   `;
   tip.innerHTML = `💡 通用 AI API 已由 <strong>API 旋钮 (siyuan-api-switch)</strong> 接管 (Profile: ${managedConfig.profileName || '未命名'})。如需修改，请前往 API 旋钮插件面板。`;
-  
+
   // 插入到面板最上方
   aiPanel.insertBefore(tip, aiPanel.firstChild);
 }
@@ -105,11 +105,11 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     setting.addItem({
       title: "启动显示“文档处理”页签",
       description,
-      actionElement: startupControlWrap,
+      actionElement: startupControlWrap
     });
     hostNormalizedRows.push({
       element: startupControlWrap,
-      fallbackDescription: description,
+      fallbackDescription: description
     });
   }
 
@@ -133,11 +133,11 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     setting.addItem({
       title: "浮窗命中文本直接粘贴",
       description,
-      actionElement: autoPasteControlWrap,
+      actionElement: autoPasteControlWrap
     });
     hostNormalizedRows.push({
       element: autoPasteControlWrap,
-      fallbackDescription: description,
+      fallbackDescription: description
     });
   }
 
@@ -148,7 +148,7 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       onEnabledChange: options.onMouseGestureEnabledChange,
       onBindingsChange: (bindings) =>
         options.onMouseGestureBindingsChange?.(bindings),
-      onRecordingStateChange: options.onGestureRecordingChange,
+      onRecordingStateChange: options.onGestureRecordingChange
     });
 
     setting.addItem({
@@ -156,7 +156,7 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       direction: "row",
       description:
         "开启后可在文档编辑器中按住鼠标右键划动手势：← 切换上一个文档，→ 切换下一个文档，↓→ 关闭当前文档。手势可自定义，切换为移动式（打开目标文档并关闭当前标签页）。",
-      actionElement: gesturePanel,
+      actionElement: gesturePanel
     });
     hostNormalizedPanels.push(gesturePanel);
   }
@@ -169,14 +169,14 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     onToggleAllEnabled: options.onToggleAllEnabled,
     onToggleAllMenu: options.onToggleAllMenu,
     onToggleSingleEnabled: options.onToggleSingleEnabled,
-    onToggleSingleMenu: options.onToggleSingleMenu,
+    onToggleSingleMenu: options.onToggleSingleMenu
   });
   setting.addItem({
     title: "启用命令",
     direction: "row",
     description:
       "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。",
-    actionElement: menuRegistrationPanel,
+    actionElement: menuRegistrationPanel
   });
   hostNormalizedPanels.push(menuRegistrationPanel);
 
@@ -185,7 +185,7 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     const effectiveConfig = options.managedAiConfig || options.aiSummaryConfig;
     const aiPanel = createAiSettingsPanel({
       aiSummaryConfig: effectiveConfig,
-      onAiSummaryConfigChange: options.onAiSummaryConfigChange,
+      onAiSummaryConfigChange: options.onAiSummaryConfigChange
     });
 
     if (options.managedAiConfig) {
@@ -196,7 +196,7 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       title: "AI 服务",
       direction: "row",
       description: "配置兼容 OpenAI API 的服务，用于生成文档摘要和标记口水内容。",
-      actionElement: aiPanel,
+      actionElement: aiPanel
     });
     hostNormalizedPanels.push(aiPanel);
   }
@@ -221,11 +221,11 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     setting.addItem({
       title: "调试模式",
       description,
-      actionElement: debugControlWrap,
+      actionElement: debugControlWrap
     });
     hostNormalizedRows.push({
       element: debugControlWrap,
-      fallbackDescription: description,
+      fallbackDescription: description
     });
   }
 

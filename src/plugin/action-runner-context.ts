@@ -3,11 +3,11 @@ import { getActiveEditor } from "siyuan";
 import { ProtyleLike } from "@/plugin/doc-context";
 
 export type CurrentBlockResolveSource =
-  | "provided-block-id"
-  | "provided-dom"
-  | "active-block-id"
-  | "active-dom"
-  | "none";
+  | "provided-block-id" |
+  "provided-dom" |
+  "active-block-id" |
+  "active-dom" |
+  "none";
 
 export type CurrentBlockResolveResult = {
   id: string;
@@ -53,9 +53,9 @@ function getFocusedBlockIdFromDom(protyle?: ProtyleLike): string {
   const selection = window.getSelection?.();
   const anchorNode = selection?.anchorNode || null;
   const anchorElement =
-    anchorNode && (anchorNode as any).nodeType === Node.ELEMENT_NODE
-      ? (anchorNode as Element)
-      : anchorNode?.parentElement || null;
+    anchorNode && (anchorNode as any).nodeType === Node.ELEMENT_NODE ?
+        (anchorNode as Element) :
+      anchorNode?.parentElement || null;
   const fromAnchor = resolveFromElement(anchorElement);
   if (fromAnchor) {
     return fromAnchor;
@@ -93,7 +93,7 @@ function collectExplicitSelectedBlockIds(root: HTMLElement): string[] {
     "[data-node-id][data-node-selected]",
     ".img--select",
     "[data-type='img'].img--select",
-    "img.img--select",
+    "img.img--select"
   ];
   const nodes = root.querySelectorAll(selectors.join(","));
   const ids: string[] = [];
@@ -140,7 +140,7 @@ export function resolveCurrentBlockId(docId: string, protyle?: ProtyleLike): Cur
   return {
     id: "",
     source: "none",
-    wasDocId,
+    wasDocId
   };
 }
 
@@ -162,7 +162,7 @@ export function getSelectedImageAssetPaths(protyle?: ProtyleLike): string[] {
     "[data-type='img'].img--select img",
     "img.img--select",
     ".img--select",
-    "[data-type='img'].img--select",
+    "[data-type='img'].img--select"
   ];
   const nodes = root.querySelectorAll(imageSelectors.join(","));
   const assetPaths: string[] = [];
@@ -170,9 +170,9 @@ export function getSelectedImageAssetPaths(protyle?: ProtyleLike): string[] {
 
   nodes.forEach((node) => {
     const imgElement =
-      node.tagName === "IMG"
-        ? (node as HTMLImageElement)
-        : (node.querySelector("img") as HTMLImageElement | null);
+      node.tagName === "IMG" ?
+          (node as HTMLImageElement) :
+          (node.querySelector("img") as HTMLImageElement | null);
     const src =
       imgElement?.getAttribute("data-src") ||
       imgElement?.getAttribute("src") ||

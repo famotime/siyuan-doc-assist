@@ -1,6 +1,6 @@
 import {
   isActionDefaultEnabled,
-  isActionDefaultMenuRegistered,
+  isActionDefaultMenuRegistered
 } from "@/core/action-default-config";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 
@@ -139,7 +139,7 @@ export function setSingleDocActionEnabled(
 ): DocActionEnabledState {
   return {
     ...state,
-    [key]: enabled,
+    [key]: enabled
   };
 }
 
@@ -150,7 +150,7 @@ export function setSingleDocMenuRegistration(
 ): DocMenuRegistrationState {
   return {
     ...state,
-    [key]: enabled,
+    [key]: enabled
   };
 }
 

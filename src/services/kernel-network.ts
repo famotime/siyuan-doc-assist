@@ -22,6 +22,6 @@ export async function forwardProxy(
     timeout,
     contentType,
     headers,
-    payload,
+    payload
   });
 }

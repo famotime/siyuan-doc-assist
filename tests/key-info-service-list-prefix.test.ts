@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel", () => ({
-  getBlockKramdowns: vi.fn(),
-  getDocMetaByID: vi.fn(),
-  getDocTreeOrderFromSy: vi.fn(),
-  getRootDocRawMarkdown: vi.fn(),
-  sql: vi.fn(),
-}));
-
 import { getDocKeyInfo } from "@/services/key-info";
 import {
   getDocMetaByID,
   getDocTreeOrderFromSy,
   getRootDocRawMarkdown,
-  sql,
+  sql
 } from "@/services/kernel";
+
+vi.mock("@/services/kernel", () => ({
+  getBlockKramdowns: vi.fn(),
+  getDocMetaByID: vi.fn(),
+  getDocTreeOrderFromSy: vi.fn(),
+  getRootDocRawMarkdown: vi.fn(),
+  sql: vi.fn()
+}));
 
 const sqlMock = vi.mocked(sql);
 const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
@@ -85,8 +85,8 @@ describe("key-info service list prefix", () => {
           content: "测试",
           markdown: "- **测试**",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -96,8 +96,8 @@ describe("key-info service list prefix", () => {
           content: "-测试",
           markdown: "- **测试**",
           type: "strong",
-          block_sort: 1,
-        },
+          block_sort: 1
+        }
       ]
     );
 
@@ -120,7 +120,7 @@ describe("key-info service list prefix", () => {
         content: "普通项目",
         markdown: "- 普通项目",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p-1",
@@ -131,8 +131,8 @@ describe("key-info service list prefix", () => {
         content: "段落",
         markdown: "**段落测试**",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -154,7 +154,7 @@ describe("key-info service list prefix", () => {
           content: "Skills 基本概念",
           markdown: "- **Skills 基本概念**",
           memo: "",
-          tag: "",
+          tag: ""
         },
         {
           id: "p-1",
@@ -165,8 +165,8 @@ describe("key-info service list prefix", () => {
           content: "Skills 基本概念",
           markdown: "**Skills 基本概念**",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -176,8 +176,8 @@ describe("key-info service list prefix", () => {
           content: "Skills 基本概念",
           markdown: "**Skills 基本概念**",
           type: "strong",
-          block_sort: 2,
-        },
+          block_sort: 2
+        }
       ]
     );
 
@@ -202,7 +202,7 @@ describe("key-info service list prefix", () => {
           content: "Skills 基本概念 概念定义 Claude Skills 被比喻为...",
           markdown: "- **Skills 基本概念**",
           memo: "",
-          tag: "",
+          tag: ""
         },
         {
           id: "p-1",
@@ -213,8 +213,8 @@ describe("key-info service list prefix", () => {
           content: "Skills 基本概念",
           markdown: "**Skills 基本概念**",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -224,8 +224,8 @@ describe("key-info service list prefix", () => {
           content: "Skills 基本概念",
           markdown: "**Skills 基本概念**",
           type: "strong",
-          block_sort: 2,
-        },
+          block_sort: 2
+        }
       ]
     );
 
@@ -250,7 +250,7 @@ describe("key-info service list prefix", () => {
           content: "20250805233956 -ut",
           markdown: "- 20250805233956#-ut",
           memo: "",
-          tag: "-ut",
+          tag: "-ut"
         },
         {
           id: "p-1",
@@ -261,8 +261,8 @@ describe("key-info service list prefix", () => {
           content: "20250805233956 -ut",
           markdown: "20250805233956#-ut",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -272,8 +272,8 @@ describe("key-info service list prefix", () => {
           content: "-ut",
           markdown: "#-ut",
           type: "tag",
-          block_sort: 2,
-        },
+          block_sort: 2
+        }
       ]
     );
 
@@ -285,7 +285,7 @@ describe("key-info service list prefix", () => {
       expect.objectContaining({
         blockId: "p-1",
         text: "-ut",
-        listPrefix: "- ",
+        listPrefix: "- "
       })
     );
   });
@@ -302,7 +302,7 @@ describe("key-info service list prefix", () => {
           content: "嵌套无序列表",
           markdown: "- 嵌套#无序#列表",
           memo: "",
-          tag: "无序,列表",
+          tag: "无序,列表"
         },
         {
           id: "p-1",
@@ -313,8 +313,8 @@ describe("key-info service list prefix", () => {
           content: "嵌套无序列表",
           markdown: "嵌套",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -324,7 +324,7 @@ describe("key-info service list prefix", () => {
           content: "无序",
           markdown: "#无序",
           type: "tag",
-          block_sort: 1,
+          block_sort: 1
         },
         {
           id: "s-tag-2",
@@ -333,8 +333,8 @@ describe("key-info service list prefix", () => {
           content: "列表",
           markdown: "#列表",
           type: "tag",
-          block_sort: 1,
-        },
+          block_sort: 1
+        }
       ]
     );
 
@@ -346,7 +346,7 @@ describe("key-info service list prefix", () => {
       expect.objectContaining({
         blockId: "p-1",
         text: "无序  列表",
-        listPrefix: "- ",
+        listPrefix: "- "
       })
     );
   });
@@ -362,7 +362,7 @@ describe("key-info service list prefix", () => {
         content: "嵌套无序列表",
         markdown: "- 嵌套#无序#列表",
         memo: "",
-        tag: "无序",
+        tag: "无序"
       },
       {
         id: "p-1",
@@ -373,8 +373,8 @@ describe("key-info service list prefix", () => {
         content: "嵌套无序列表",
         markdown: "嵌套#无序#列表",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -385,7 +385,7 @@ describe("key-info service list prefix", () => {
       expect.objectContaining({
         blockId: "p-1",
         text: "无序",
-        listPrefix: "- ",
+        listPrefix: "- "
       })
     );
   });
@@ -402,7 +402,7 @@ describe("key-info service list prefix", () => {
           content: "可是测试安安",
           markdown: "- 可是#测试#安安",
           memo: "",
-          tag: "测试",
+          tag: "测试"
         },
         {
           id: "p-1",
@@ -413,8 +413,8 @@ describe("key-info service list prefix", () => {
           content: "可是测试安安",
           markdown: "可是#测试#安安",
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ],
       [
         {
@@ -424,8 +424,8 @@ describe("key-info service list prefix", () => {
           content: "-测试",
           markdown: "#测试",
           type: "tag",
-          block_sort: 2,
-        },
+          block_sort: 2
+        }
       ]
     );
 
@@ -438,7 +438,7 @@ describe("key-info service list prefix", () => {
         blockId: "p-1",
         text: "测试",
         raw: "#测试",
-        listPrefix: "- ",
+        listPrefix: "- "
       })
     );
   });
@@ -454,7 +454,7 @@ describe("key-info service list prefix", () => {
         content: "未命名",
         markdown: "",
         memo: "",
-        tag: "测试,安安,马里奥",
+        tag: "测试,安安,马里奥"
       },
       {
         id: "l-1",
@@ -465,7 +465,7 @@ describe("key-info service list prefix", () => {
         content: "",
         markdown: "",
         memo: "",
-        tag: "测试,安安,马里奥",
+        tag: "测试,安安,马里奥"
       },
       {
         id: "i-1",
@@ -476,7 +476,7 @@ describe("key-info service list prefix", () => {
         content: " 可是测试啊哈哈",
         markdown: "- 可是#测试#啊哈哈",
         memo: "",
-        tag: "测试",
+        tag: "测试"
       },
       {
         id: "p-1",
@@ -487,7 +487,7 @@ describe("key-info service list prefix", () => {
         content: "可是测试啊哈哈",
         markdown: "可是#测试#啊哈哈",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "i-2",
@@ -498,7 +498,7 @@ describe("key-info service list prefix", () => {
         content: " 洗衣服、晾衣服 跟安安玩游戏：switch 马里奥派对 今日话题（每日一问）：",
         markdown: "- 洗衣服、晾衣服",
         memo: "",
-        tag: "安安,马里奥",
+        tag: "安安,马里奥"
       },
       {
         id: "l-2",
@@ -509,7 +509,7 @@ describe("key-info service list prefix", () => {
         content: "",
         markdown: "",
         memo: "",
-        tag: "安安,马里奥",
+        tag: "安安,马里奥"
       },
       {
         id: "p-2",
@@ -520,7 +520,7 @@ describe("key-info service list prefix", () => {
         content: "洗衣服、晾衣服",
         markdown: "洗衣服、晾衣服",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "i-3",
@@ -531,7 +531,7 @@ describe("key-info service list prefix", () => {
         content: " 跟安安玩游戏：switch 马里奥派对",
         markdown: "- 跟#安安#玩游戏：switch #马里奥#派对",
         memo: "",
-        tag: "安安,马里奥",
+        tag: "安安,马里奥"
       },
       {
         id: "p-3",
@@ -542,7 +542,7 @@ describe("key-info service list prefix", () => {
         content: "跟安安玩游戏：switch 马里奥派对",
         markdown: "跟#安安#玩游戏：switch #马里奥#派对",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "i-4",
@@ -553,7 +553,7 @@ describe("key-info service list prefix", () => {
         content: " 今日话题（每日一问）：",
         markdown: "- 今日话题（每日一问）：",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p-4",
@@ -564,8 +564,8 @@ describe("key-info service list prefix", () => {
         content: "今日话题（每日一问）：",
         markdown: "今日话题（每日一问）：",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -575,13 +575,13 @@ describe("key-info service list prefix", () => {
       expect.objectContaining({
         blockId: "p-1",
         text: "测试",
-        listPrefix: "- ",
+        listPrefix: "- "
       }),
       expect.objectContaining({
         blockId: "p-3",
         text: "安安  马里奥",
-        listPrefix: "- ",
-      }),
+        listPrefix: "- "
+      })
     ]);
   });
 
@@ -596,7 +596,7 @@ describe("key-info service list prefix", () => {
         content: "",
         markdown: "- **Skills 基**",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "i-1",
@@ -607,7 +607,7 @@ describe("key-info service list prefix", () => {
         content: "Skills 基",
         markdown: "- **Skills 基**",
         memo: "",
-        tag: "",
+        tag: ""
       },
       {
         id: "p-1",
@@ -618,8 +618,8 @@ describe("key-info service list prefix", () => {
         content: "Skills 基",
         markdown: "**Skills 基**",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");
@@ -642,8 +642,8 @@ describe("key-info service list prefix", () => {
         content: "编号测试",
         markdown: "3. **编号测试**",
         memo: "",
-        tag: "",
-      },
+        tag: ""
+      }
     ]);
 
     const result = await getDocKeyInfo("doc-1");

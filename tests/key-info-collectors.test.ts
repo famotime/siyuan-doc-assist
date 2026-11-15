@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   collectHeadingItems,
-  collectMarkdownAndMetaItems,
+  collectMarkdownAndMetaItems
 } from "@/services/key-info-collectors";
 import { SqlKeyInfoRow } from "@/services/key-info-model";
 
@@ -12,7 +12,7 @@ function buildRow(overrides: Partial<SqlKeyInfoRow>): SqlKeyInfoRow {
     markdown: "",
     memo: "",
     tag: "",
-    ...overrides,
+    ...overrides
   };
 }
 
@@ -23,8 +23,8 @@ describe("key-info-collectors", () => {
         id: "h1",
         type: "h",
         subtype: "h2",
-        content: "标题二",
-      }),
+        content: "标题二"
+      })
     ];
     const blockSortMap = new Map([["h1", 5]]);
 
@@ -44,7 +44,7 @@ describe("key-info-collectors", () => {
         blockSort: 5,
         order: 2,
         listItem: true,
-        listPrefix: "1. ",
+        listPrefix: "1. "
       })
     );
     expect(result.headingBlockIds.has("h1")).toBe(true);
@@ -57,19 +57,19 @@ describe("key-info-collectors", () => {
         id: "h1",
         type: "h",
         subtype: "h1",
-        markdown: "# 标题一",
+        markdown: "# 标题一"
       }),
       buildRow({
         id: "p1",
         type: "p",
         markdown: "正文 **加粗** #标签",
         memo: "行备注",
-        tag: "#手工标签",
-      }),
+        tag: "#手工标签"
+      })
     ];
     const blockSortMap = new Map([
       ["h1", 0],
-      ["p1", 1],
+      ["p1", 1]
     ]);
 
     const result = collectMarkdownAndMetaItems(rows, {
@@ -81,7 +81,7 @@ describe("key-info-collectors", () => {
       getMappedListLineChildId: () => undefined,
       resolveListLine: (blockId?: string) =>
         blockId === "p1" ? { listItem: true, listPrefix: "- " } : { listItem: false },
-      startOrder: 10,
+      startOrder: 10
     });
 
     expect(

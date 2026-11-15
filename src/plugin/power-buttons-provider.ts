@@ -1,9 +1,10 @@
-import { ACTIONS, type ActionKey } from "@/plugin/actions";
+import { ACTIONS } from "@/plugin/actions";
+import type { ActionKey } from "@/plugin/actions";
 import type { ActionRunResult } from "@/plugin/action-runner";
 import type {
   PowerButtonsCommandProvider,
   PowerButtonsInvokeContext,
-  PowerButtonsPublicCommand,
+  PowerButtonsPublicCommand
 } from "@/plugin/power-buttons-provider-types";
 
 const PUBLIC_ACTION_KEYS = new Set<ActionKey>([
@@ -37,7 +38,7 @@ const PUBLIC_ACTION_KEYS = new Set<ActionKey>([
   "dedupe",
   "split-doc-by-headings",
   "create-doc-concept-map",
-  "generate-better-titles",
+  "generate-better-titles"
 ]);
 
 const TARGET_DOC_SUPPORTED_ACTION_KEYS = new Set<ActionKey>([
@@ -67,7 +68,7 @@ const TARGET_DOC_SUPPORTED_ACTION_KEYS = new Set<ActionKey>([
   "dedupe",
   "split-doc-by-headings",
   "create-doc-concept-map",
-  "generate-better-titles",
+  "generate-better-titles"
 ]);
 
 const SELECTION_SUPPORTED_ACTION_KEYS = new Set<ActionKey>([]);
@@ -80,7 +81,7 @@ function toPublicCommand(action: (typeof ACTIONS)[number]): PowerButtonsPublicCo
     category: action.group,
     desktopOnly: action.desktopOnly,
     supportsTargetDoc: TARGET_DOC_SUPPORTED_ACTION_KEYS.has(action.key),
-    supportsSelection: SELECTION_SUPPORTED_ACTION_KEYS.has(action.key),
+    supportsSelection: SELECTION_SUPPORTED_ACTION_KEYS.has(action.key)
   };
 }
 
@@ -89,10 +90,10 @@ export function createPowerButtonsProvider(options: {
   runAction: (action: ActionKey, context: PowerButtonsInvokeContext) => Promise<ActionRunResult>;
 }): PowerButtonsCommandProvider {
   const getPublicActions = () => ACTIONS
-    .filter(action => PUBLIC_ACTION_KEYS.has(action.key));
+    .filter((action) => PUBLIC_ACTION_KEYS.has(action.key));
 
   const getPublicAction = (commandId: string) =>
-    getPublicActions().find(action => action.key === commandId);
+    getPublicActions().find((action) => action.key === commandId);
 
   return {
     protocol: "power-buttons-command-provider",
@@ -107,7 +108,7 @@ export function createPowerButtonsProvider(options: {
         return {
           ok: false,
           errorCode: "command-not-found",
-          message: `未找到公开命令：${commandId}`,
+          message: `未找到公开命令：${commandId}`
         };
       }
 
@@ -117,9 +118,9 @@ export function createPowerButtonsProvider(options: {
         return {
           ok: false,
           errorCode: "execution-failed",
-          message: error instanceof Error ? error.message : `执行外部命令失败：${commandId}`,
+          message: error instanceof Error ? error.message : `执行外部命令失败：${commandId}`
         };
       }
-    },
+    }
   };
 }

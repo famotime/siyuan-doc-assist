@@ -6,7 +6,7 @@ import {
   normalizeHighlightTextWithoutLinksAndCode,
   normalizeTagTextValue,
   normalizeTitle,
-  parseRemarkText,
+  parseRemarkText
 } from "@/services/key-info-model";
 
 export type AppendDocTitleItemOptions = {
@@ -28,7 +28,7 @@ function normalizeHighlightItems(items: KeyInfoItem[]): KeyInfoItem[] {
       normalized.push({
         ...item,
         text,
-        raw: buildInlineRaw("highlight", text),
+        raw: buildInlineRaw("highlight", text)
       });
     }
     const codeTexts = extractHighlightInlineCodeTexts(source, item.text);
@@ -40,7 +40,7 @@ function normalizeHighlightItems(items: KeyInfoItem[]): KeyInfoItem[] {
         text: code,
         raw: buildInlineRaw("code", code),
         offset: item.offset + (index + 1) * 0.001,
-        order: item.order + (index + 1) * 0.001,
+        order: item.order + (index + 1) * 0.001
       });
     });
   });
@@ -151,7 +151,7 @@ function normalizeRemarkItems(items: KeyInfoItem[]): KeyInfoItem[] {
     return {
       ...item,
       text,
-      raw: item.raw || text,
+      raw: item.raw || text
     };
   });
 
@@ -242,7 +242,7 @@ function normalizeTagItems(items: KeyInfoItem[]): KeyInfoItem[] {
     normalized.push({
       ...item,
       text,
-      raw: `#${text}`,
+      raw: `#${text}`
     });
   });
 
@@ -259,7 +259,7 @@ function mergeSeparatedItemsWithinBlock(items: KeyInfoItem[]): KeyInfoItem[] {
     "remark",
     "tag",
     "link",
-    "ref",
+    "ref"
   ]);
   const nonMergeable: KeyInfoItem[] = [];
   const buckets = new Map<string, KeyInfoItem[]>();
@@ -332,8 +332,8 @@ function getVisibleKeyInfoText(item: KeyInfoItem): string {
   }
   if (item.type === "ref") {
     const refMatch =
-      text.match(/^\(\(\s*[^\s]+\s+["'](.*)["']\s*\)\)$/) ||
-      text.match(/^\[\[\s*[^\s]+\s+["'](.*)["']\s*\]\]$/);
+      text.match(/^\(\(\s*\S+\s+["'](.*)["']\s*\)\)$/) ||
+      text.match(/^\[\[\s*\S+\s+["'](.*)["']\s*\]\]$/);
     if (refMatch && refMatch[1]) {
       return refMatch[1].trim();
     }
@@ -447,7 +447,7 @@ export function mergeMultiStyleItemsWithinBlock(items: KeyInfoItem[]): KeyInfoIt
         offset: minOffset,
         order: minOrder,
         listItem: hasListItem,
-        listPrefix,
+        listPrefix
       });
     });
   });
@@ -490,8 +490,8 @@ export function appendDocTitleItemIfMissing(
       blockSort: -1,
       order: nextOrder,
       listItem: false,
-      listPrefix: undefined,
-    },
+      listPrefix: undefined
+    }
   ];
 }
 

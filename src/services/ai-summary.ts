@@ -3,7 +3,7 @@ import {
   buildAiForwardProxyHeaders,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
-  normalizeAiServiceConfig,
+  normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import { normalizeAiSummaryText } from "@/core/ai-summary-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
@@ -70,8 +70,8 @@ export function createAiSummaryService(deps: {
         emptyMessage: "AI 未返回可用的文档摘要",
         messages: buildSummaryMessages({
           documentTitle: params.documentTitle,
-          documentMarkdown: params.documentMarkdown,
-        }),
+          documentMarkdown: params.documentMarkdown
+        })
       });
     },
 
@@ -86,8 +86,8 @@ export function createAiSummaryService(deps: {
         messages: buildConceptMapMessages({
           documentTitle: params.documentTitle,
           documentMarkdown: params.documentMarkdown,
-          relatedDocuments: params.relatedDocuments,
-        }),
+          relatedDocuments: params.relatedDocuments
+        })
       });
     },
 
@@ -101,10 +101,10 @@ export function createAiSummaryService(deps: {
         emptyMessage: "AI 未返回可用的画布大纲",
         messages: buildCanvasOutlineMessages({
           documentTitle: params.documentTitle,
-          documentMarkdown: params.documentMarkdown,
-        }),
+          documentMarkdown: params.documentMarkdown
+        })
       });
-    },
+    }
   };
 }
 
@@ -125,7 +125,7 @@ async function loadFreshDocumentSummary(
   try {
     return await loader({
       documentId: params.documentId,
-      documentUpdatedAt: params.documentUpdatedAt,
+      documentUpdatedAt: params.documentUpdatedAt
     });
   } catch {
     return null;
@@ -159,7 +159,7 @@ async function requestChatCompletionText(
     model: config.model,
     messages: params.messages,
     max_tokens: params.maxTokens ?? config.maxTokens,
-    temperature: params.temperature ?? config.temperature,
+    temperature: params.temperature ?? config.temperature
   });
 
   aiSummaryLogger.debug("request", {
@@ -167,7 +167,7 @@ async function requestChatCompletionText(
     model: config.model,
     messageCount: params.messages.length,
     maxTokens: params.maxTokens,
-    userContentLength: params.messages.find((m) => m.role === "user")?.content?.length ?? 0,
+    userContentLength: params.messages.find((m) => m.role === "user")?.content?.length ?? 0
   });
 
   const response = await forwardProxyFn(
@@ -187,7 +187,7 @@ async function requestChatCompletionText(
     status: response?.status,
     elapsed: response?.elapsed,
     bodyLength: response?.body?.length ?? 0,
-    bodyPreview: responseBodyPreview,
+    bodyPreview: responseBodyPreview
   });
 
   if (!response || response.status < 200 || response.status >= 300) {
@@ -208,7 +208,7 @@ async function requestChatCompletionText(
       choiceCount: payload?.choices?.length ?? 0,
       contentType: typeof payload?.choices?.[0]?.message?.content,
       contentPreview: JSON.stringify(payload?.choices?.[0]?.message?.content)?.slice(0, 200),
-      finishReason: payload?.choices?.[0]?.finish_reason,
+      finishReason: payload?.choices?.[0]?.finish_reason
     });
     throw new Error(params.emptyMessage);
   }
@@ -223,18 +223,18 @@ function buildSummaryMessages(params: {
     {
       role: "system",
       content:
-        "你是思源笔记的文档摘要助手。请基于文档正文生成简洁中文摘要，只输出纯文本摘要，不要加标题、列表、代码块或解释。",
+        "你是思源笔记的文档摘要助手。请基于文档正文生成简洁中文摘要，只输出纯文本摘要，不要加标题、列表、代码块或解释。"
     },
     {
       role: "user",
       content: [
         params.documentTitle ? `文档标题：${params.documentTitle}` : "",
         "文档正文：",
-        params.documentMarkdown || "",
+        params.documentMarkdown || ""
       ]
         .filter(Boolean)
-        .join("\n\n"),
-    },
+        .join("\n\n")
+    }
   ];
 }
 
@@ -244,21 +244,21 @@ function buildConceptMapMessages(params: {
   relatedDocuments?: Array<{ title: string; markdown: string }>;
 }): ChatMessage[] {
   const hasRelated = !!params.relatedDocuments && params.relatedDocuments.length > 0;
-  const relatedSection = hasRelated
-    ? "\n\n=== 关联文档 ===\n\n"
-      + params.relatedDocuments!
+  const relatedSection = hasRelated ?
+    `\n\n=== 关联文档 ===\n\n${
+      params.relatedDocuments!
         .map((doc) => `--- 文档：${doc.title} ---\n${doc.markdown}`)
-        .join("\n\n")
-    : "";
+        .join("\n\n")}` :
+    "";
 
   return [
     {
       role: "system",
       content:
-        "你是思源笔记的概念地图助手。请基于文档内容识别并聚焦最突出的核心主题，生成该主题的概念地图。输出必须是层次化的 Markdown 列表，所有内容均为列表项和列表项说明，没有标题和普通正文段落。整体结构需遵循“总-分-细节”层次，最多5层。同级概念按重要性或逻辑顺序排列。每个列表项都要包含一个简短的概念或关键点（不超过15字）以及详细说明（20-100字）。说明需提炼总结，避免直接摘录大段原文。要求非常详尽地列出层次化概念要点，不要遗漏。"
-        + (hasRelated
-          ? "如果有相关文档内容，请一并纳入分析，综合提炼跨文档的层次化概念关系。当前文档是核心，相关文档提供补充视角。"
-          : ""),
+        `你是思源笔记的概念地图助手。请基于文档内容识别并聚焦最突出的核心主题，生成该主题的概念地图。输出必须是层次化的 Markdown 列表，所有内容均为列表项和列表项说明，没有标题和普通正文段落。整体结构需遵循“总-分-细节”层次，最多5层。同级概念按重要性或逻辑顺序排列。每个列表项都要包含一个简短的概念或关键点（不超过15字）以及详细说明（20-100字）。说明需提炼总结，避免直接摘录大段原文。要求非常详尽地列出层次化概念要点，不要遗漏。${
+          hasRelated ?
+            "如果有相关文档内容，请一并纳入分析，综合提炼跨文档的层次化概念关系。当前文档是核心，相关文档提供补充视角。" :
+            ""}`
     },
     {
       role: "user",
@@ -269,11 +269,11 @@ function buildConceptMapMessages(params: {
         params.documentTitle ? `文档标题：${params.documentTitle}` : "",
         "文档正文：",
         params.documentMarkdown || "",
-        relatedSection || "",
+        relatedSection || ""
       ]
         .filter(Boolean)
-        .join("\n\n"),
-    },
+        .join("\n\n")
+    }
   ];
 }
 
@@ -287,11 +287,11 @@ function extractTextContent(payload: any): string {
     const joined = normalizeAiSummaryText(
       content
         .map((item) =>
-          typeof item?.text === "string"
-            ? item.text
-            : typeof item === "string"
-              ? item
-              : ""
+          typeof item?.text === "string" ?
+            item.text :
+            typeof item === "string" ?
+              item :
+              ""
         )
         .join("\n")
     );
@@ -322,7 +322,7 @@ export async function generateDocumentSummary(
 ): Promise<string> {
   return createAiSummaryService({
     forwardProxy,
-    loadFreshDocumentSummary: params.loadFreshDocumentSummary,
+    loadFreshDocumentSummary: params.loadFreshDocumentSummary
   }).generateDocumentSummary(params);
 }
 
@@ -330,7 +330,7 @@ export async function generateDocumentConceptMap(
   params: GenerateDocumentConceptMapParams
 ): Promise<string> {
   return createAiSummaryService({
-    forwardProxy,
+    forwardProxy
   }).generateDocumentConceptMap(params);
 }
 
@@ -342,10 +342,10 @@ function buildCanvasOutlineMessages(params: {
     {
       role: "system",
       content:
-        "你是思源笔记的画布大纲生成助手。请基于用户提供的内容，总结提炼出核心主题以及分支概念，生成一份用于制作可视化 Canvas 画布的大纲。\n"
-        + "大纲必须使用标准的 Markdown 标题层级格式（使用 #, ##, ### 等表达概念间的从属和发散关系，最多4层）。\n"
-        + "每一个标题下方，都可以跟上 1-2 句（不超过100字）的简短描述或正文。\n"
-        + "只输出上述标准的 Markdown 文本，不要带有任何包围的说明、反引号（除代码块外）或引言。",
+        "你是思源笔记的画布大纲生成助手。请基于用户提供的内容，总结提炼出核心主题以及分支概念，生成一份用于制作可视化 Canvas 画布的大纲。\n" +
+        "大纲必须使用标准的 Markdown 标题层级格式（使用 #, ##, ### 等表达概念间的从属和发散关系，最多4层）。\n" +
+        "每一个标题下方，都可以跟上 1-2 句（不超过100字）的简短描述或正文。\n" +
+        "只输出上述标准的 Markdown 文本，不要带有任何包围的说明、反引号（除代码块外）或引言。"
     },
     {
       role: "user",
@@ -353,11 +353,11 @@ function buildCanvasOutlineMessages(params: {
         "基于以下内容，提炼并生成概念大纲，准备用于生成 Canvas 画布：",
         params.documentTitle ? `文档标题：${params.documentTitle}` : "",
         "输入正文：",
-        params.documentMarkdown || "",
+        params.documentMarkdown || ""
       ]
         .filter(Boolean)
-        .join("\n\n"),
-    },
+        .join("\n\n")
+    }
   ];
 }
 
@@ -365,7 +365,7 @@ export async function generateCanvasOutline(
   params: GenerateCanvasOutlineParams
 ): Promise<string> {
   return createAiSummaryService({
-    forwardProxy,
+    forwardProxy
   }).generateCanvasOutline(params);
 }
 
@@ -384,7 +384,7 @@ export async function generateDocumentTagSuggestions(
       enabled: config.enabled,
       hasBaseUrl: Boolean(config.baseUrl),
       hasApiKey: Boolean(config.apiKey),
-      hasModel: Boolean(config.model),
+      hasModel: Boolean(config.model)
     });
     return [];
   }
@@ -393,19 +393,19 @@ export async function generateDocumentTagSuggestions(
     {
       role: "system",
       content:
-        "你是专业的文档标签提取助手。请基于文档标题和正文，提炼出 3-5 个最准确、简短的主题标签（每个标签 2-8 个字）。"
-        + "必须仅输出 JSON 字符串数组格式，例如 [\"标签1\", \"标签2\", \"标签3\"]，不要包含 Markdown 标记、代码块或任何解释文字。",
+        "你是专业的文档标签提取助手。请基于文档标题和正文，提炼出 3-5 个最准确、简短的主题标签（每个标签 2-8 个字）。" +
+        "必须仅输出 JSON 字符串数组格式，例如 [\"标签1\", \"标签2\", \"标签3\"]，不要包含 Markdown 标记、代码块或任何解释文字。"
     },
     {
       role: "user",
       content: [
         params.documentTitle ? `文档标题：${params.documentTitle}` : "",
         "文档正文：",
-        params.documentMarkdown ? params.documentMarkdown.slice(0, 2000) : "",
+        params.documentMarkdown ? params.documentMarkdown.slice(0, 2000) : ""
       ]
         .filter(Boolean)
-        .join("\n\n"),
-    },
+        .join("\n\n")
+    }
   ];
 
   try {
@@ -416,7 +416,7 @@ export async function generateDocumentTagSuggestions(
       emptyMessage: "AI 未返回标签",
       maxTokens: config.maxTokens,
       temperature: 0.3,
-      messages,
+      messages
     });
     const parsed = parseTagsFromAiResponse(text);
     aiSummaryLogger.debug("AI 标签推荐请求成功，解析结果", parsed);
@@ -466,7 +466,7 @@ export function parseTagsFromAiResponse(text: string): string[] {
     const cleanedLine = line
       .replace(/^[\d.、\-*•#]+\s*/u, "")
       .replace(/^标签\d*[:：]\s*/u, "")
-      .replace(/["'“”‘’《》【】\[\]]/gu, " ")
+      .replace(/["'“”‘’《》【】[\]]/gu, " ")
       .trim();
 
     if (!cleanedLine) {
@@ -514,14 +514,14 @@ const META_THINKING_PATTERNS = [
   /讨论/u,
   /调整/u,
   /等下/u,
-  /试试/u,
+  /试试/u
 ];
 
 function isMetaThinkingNoise(tag: string): boolean {
   if (!tag || tag.length < 2 || tag.length > 15) {
     return true;
   }
-  if (/[。！？\?!]/u.test(tag)) {
+  if (/[。！？?!]/u.test(tag)) {
     return true;
   }
   for (const pattern of META_THINKING_PATTERNS) {
@@ -535,7 +535,7 @@ function isMetaThinkingNoise(tag: string): boolean {
 function sanitizeTagItem(item: string): string {
   return item
     .replace(/^#+\s*/u, "")
-    .replace(/["'“”‘’《》【】\[\]]/gu, "")
+    .replace(/["'“”‘’《》【】[\]]/gu, "")
     .trim();
 }
 

@@ -39,7 +39,7 @@ export function deriveKeyInfoDockRenderFlags(
       prev.favoriteActionKeys !== next.favoriteActionKeys ||
       prev.runningDocActionKeys !== next.runningDocActionKeys,
     renderDocMenuToggle: prev.docMenuRegisterAll !== next.docMenuRegisterAll,
-    scrollContextChanged,
+    scrollContextChanged
   };
 }
 

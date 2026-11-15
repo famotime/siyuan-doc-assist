@@ -1,7 +1,7 @@
 import {
   normalizeUploadFileName,
   getExportResourceAssetPaths,
-  rewriteMarkdownAssetLinksToBasename,
+  rewriteMarkdownAssetLinksToBasename
 } from "@/core/export-media-core";
 import { buildKeyInfoMarkdown, filterKeyInfoItems, KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
@@ -10,12 +10,12 @@ import {
   exportMdContent,
   exportResources,
   putFile,
-  removeFile,
+  removeFile
 } from "@/services/kernel";
 import {
   basenameFromWorkspacePath,
   triggerTextDownload,
-  triggerWorkspaceFileDownload,
+  triggerWorkspaceFileDownload
 } from "@/services/exporter-download";
 import { randomId, stageAssetsToTempDir } from "@/services/exporter-staging";
 import { getChildDocs } from "@/services/link-resolver";
@@ -29,7 +29,7 @@ function basename(hPath: string): string {
 
 function sanitizePathSegment(name: string): string {
   const normalized = (name || "").normalize("NFKC");
-  const replaced = normalized.replace(/[^A-Za-z0-9\u4E00-\u9FFF._\-“”‘’《》〈〉「」『』【】〔〕—]/g, "_");
+  const replaced = normalized.replace(/[^\w\u4E00-\u9FFF.\-“”‘’《》〈〉「」『』【】〔〕—]/g, "_");
   const compact = replaced.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
   return compact || "export";
 }
@@ -104,7 +104,7 @@ const EXPORT_MD_OPTIONS = {
   refMode: 3,
   embedMode: 0,
   addTitle: false,
-  yfm: false,
+  yfm: false
 } as const;
 
 function filterKeyInfoItemsByFilter(
@@ -128,7 +128,7 @@ export async function exportCurrentDocMarkdown(
     triggerTextDownload(markdownName, content);
     return {
       mode: "md",
-      fileName: markdownName,
+      fileName: markdownName
     };
   }
 
@@ -153,7 +153,7 @@ export async function exportCurrentDocMarkdown(
       mode: "zip",
       fileName: outputName,
       zipPath: zip.path,
-      skippedAssetCount: assetStageResult.skippedAssetCount,
+      skippedAssetCount: assetStageResult.skippedAssetCount
     };
   } finally {
     // Best effort cleanup of temporary markdown folder.
@@ -192,7 +192,7 @@ export async function exportDocIdsAsMarkdownZip(
       skippedDocCount += 1;
       exporterLogger.warn("skip missing export doc", {
         docId,
-        reason: toErrorMessage(error),
+        reason: toErrorMessage(error)
       });
       continue;
     }
@@ -254,7 +254,7 @@ export async function exportDocIdsAsMarkdownZip(
       zip: zip.path,
       docCount,
       skippedDocCount,
-      skippedAssetCount,
+      skippedAssetCount
     };
   } finally {
     void Promise.resolve(removeFile(tempDir)).catch(() => undefined);
@@ -317,7 +317,7 @@ export async function exportDocAndChildKeyInfoAsZip(options: {
       skippedDocCount += 1;
       exporterLogger.warn("skip missing key-info doc", {
         docId: id,
-        reason: toErrorMessage(error),
+        reason: toErrorMessage(error)
       });
       continue;
     }
@@ -349,9 +349,9 @@ export async function exportDocAndChildKeyInfoAsZip(options: {
   }
 
   const preferredDownloadBaseName = (options.preferredDownloadBaseName || "").trim();
-  const zipBaseName = preferredDownloadBaseName
-    ? sanitizeArchiveBaseName(preferredDownloadBaseName)
-    : sanitizeArchiveBaseName(`${preferredTitle || docId}-key-info`);
+  const zipBaseName = preferredDownloadBaseName ?
+      sanitizeArchiveBaseName(preferredDownloadBaseName) :
+      sanitizeArchiveBaseName(`${preferredTitle || docId}-key-info`);
   try {
     const zip = await exportResources(packPaths, zipBaseName);
     await triggerWorkspaceFileDownload(zip.path, withZipExtension(zipBaseName));
@@ -360,7 +360,7 @@ export async function exportDocAndChildKeyInfoAsZip(options: {
       zip: zip.path,
       docCount,
       itemCount: exportedItemCount,
-      skippedDocCount,
+      skippedDocCount
     };
   } finally {
     void Promise.resolve(removeFile(tempDir)).catch(() => undefined);

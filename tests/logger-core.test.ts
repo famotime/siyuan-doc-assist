@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   createDocAssistantLogger,
   resetDocAssistantDebugSetting,
-  setDocAssistantDebugEnabled,
+  setDocAssistantDebugEnabled
 } from "@/core/logger-core";
 
 describe("logger-core", () => {

@@ -4,7 +4,7 @@ import {
   hasDocActionOrderChanged,
   moveDocActionToGroupEnd,
   normalizeDocActionsByGroup,
-  reorderDocActionsWithinGroup,
+  reorderDocActionsWithinGroup
 } from "@/core/dock-doc-action-order-core";
 import { DockDocAction } from "@/core/dock-panel-core";
 
@@ -20,7 +20,7 @@ function buildAction(
     icon: "icon",
     disabled: false,
     menuRegistered: true,
-    menuToggleDisabled: false,
+    menuToggleDisabled: false
   };
 }
 
@@ -31,7 +31,7 @@ describe("dock-doc-action-order-core", () => {
       buildAction("edit-1", "edit"),
       buildAction("export-2", "export"),
       buildAction("edit-2", "edit"),
-      buildAction("insert-1", "insert"),
+      buildAction("insert-1", "insert")
     ];
 
     const normalized = normalizeDocActionsByGroup(actions).map((item) => item.key);
@@ -40,7 +40,7 @@ describe("dock-doc-action-order-core", () => {
       "export-2",
       "edit-1",
       "edit-2",
-      "insert-1",
+      "insert-1"
     ]);
   });
 
@@ -48,7 +48,7 @@ describe("dock-doc-action-order-core", () => {
     const actions = [
       buildAction("export-1", "export"),
       buildAction("export-2", "export"),
-      buildAction("edit-1", "edit"),
+      buildAction("edit-1", "edit")
     ];
 
     const reordered = reorderDocActionsWithinGroup(
@@ -60,7 +60,7 @@ describe("dock-doc-action-order-core", () => {
     expect(reordered.map((item) => item.key)).toEqual([
       "export-2",
       "export-1",
-      "edit-1",
+      "edit-1"
     ]);
 
     const unchanged = reorderDocActionsWithinGroup(
@@ -77,21 +77,21 @@ describe("dock-doc-action-order-core", () => {
       buildAction("edit-1", "edit"),
       buildAction("edit-2", "edit"),
       buildAction("edit-3", "edit"),
-      buildAction("export-1", "export"),
+      buildAction("export-1", "export")
     ];
     const moved = moveDocActionToGroupEnd(actions, "edit-1");
     expect(moved.map((item) => item.key)).toEqual([
       "edit-2",
       "edit-3",
       "edit-1",
-      "export-1",
+      "export-1"
     ]);
   });
 
   test("checks drop compatibility and order change", () => {
     const actions = [
       buildAction("export-1", "export"),
-      buildAction("edit-1", "edit"),
+      buildAction("edit-1", "edit")
     ];
     const groupMap = new Map(actions.map((action) => [action.key, action.group]));
     expect(canDropDocActionWithinGroup(groupMap, "export-1", "edit-1")).toBe(false);
@@ -100,7 +100,7 @@ describe("dock-doc-action-order-core", () => {
     expect(
       hasDocActionOrderChanged(actions, [
         buildAction("edit-1", "edit"),
-        buildAction("export-1", "export"),
+        buildAction("export-1", "export")
       ])
     ).toBe(true);
   });

@@ -19,7 +19,7 @@ const EN_TO_ZH_PUNCTUATION_MAP: Record<string, string> = {
   "［": "【",
   "］": "】",
   "＜": "《",
-  "＞": "》",
+  "＞": "》"
 };
 
 const ZH_TO_EN_PUNCTUATION_MAP: Record<string, string> = {
@@ -45,7 +45,7 @@ const ZH_TO_EN_PUNCTUATION_MAP: Record<string, string> = {
   "｡": ".",
   "､": ",",
   "｢": "\"",
-  "｣": "\"",
+  "｣": "\""
 };
 
 const EN_PUNCTUATION_SET = new Set(Object.keys(EN_TO_ZH_PUNCTUATION_MAP));
@@ -55,7 +55,7 @@ function isAsciiDigit(char: string | undefined): boolean {
   if (!char) {
     return false;
   }
-  return /[0-9]/.test(char);
+  return /\d/.test(char);
 }
 
 function shouldKeepEnglishPunctuationInNumber(
@@ -125,9 +125,9 @@ export function convertChineseEnglishPunctuation(
   mode: PunctuationToggleMode
 ): { next: string; changedCount: number } {
   const map =
-    mode === "zh-to-en"
-      ? ZH_TO_EN_PUNCTUATION_MAP
-      : EN_TO_ZH_PUNCTUATION_MAP;
+    mode === "zh-to-en" ?
+      ZH_TO_EN_PUNCTUATION_MAP :
+      EN_TO_ZH_PUNCTUATION_MAP;
   return applyPunctuationMap(value || "", map, mode);
 }
 
@@ -141,6 +141,6 @@ export function toggleChineseEnglishPunctuation(value: string): {
   return {
     mode,
     next: converted.next,
-    changedCount: converted.changedCount,
+    changedCount: converted.changedCount
   };
 }

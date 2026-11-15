@@ -1,23 +1,23 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel-shared", () => ({
-  escapeSqlLiteral: vi.fn((value: string) => value.replace(/'/g, "''")),
-  sqlPaged: vi.fn(),
-}));
-
-vi.mock("@/services/kernel", () => ({
-  forwardProxy: vi.fn(),
-  getFileBlob: vi.fn(),
-}));
-
-vi.mock("@/services/request", () => ({
-  requestApi: vi.fn(),
-}));
-
 import { getFileBlob } from "@/services/kernel";
 import { sqlPaged } from "@/services/kernel-shared";
 import { requestApi } from "@/services/request";
 import { recognizeDocImages } from "@/services/ai-image-ocr";
+
+vi.mock("@/services/kernel-shared", () => ({
+  escapeSqlLiteral: vi.fn((value: string) => value.replace(/'/g, "''")),
+  sqlPaged: vi.fn()
+}));
+
+vi.mock("@/services/kernel", () => ({
+  forwardProxy: vi.fn(),
+  getFileBlob: vi.fn()
+}));
+
+vi.mock("@/services/request", () => ({
+  requestApi: vi.fn()
+}));
 
 const sqlPagedMock = vi.mocked(sqlPaged);
 const getFileBlobMock = vi.mocked(getFileBlob);
@@ -52,17 +52,17 @@ describe("ai-image-ocr service", () => {
       .mockResolvedValueOnce([
         { id: "img-1", markdown: "![a](assets/a.png)" },
         { id: "img-2", markdown: "![b](assets/b.png)" },
-        { id: "tail", markdown: "tail" },
+        { id: "tail", markdown: "tail" }
       ] as any);
 
     const forwardProxy = vi.fn()
       .mockResolvedValueOnce({
         status: 200,
-        body: JSON.stringify({ choices: [{ message: { content: "第一张文字" } }] }),
+        body: JSON.stringify({ choices: [{ message: { content: "第一张文字" } }] })
       })
       .mockResolvedValueOnce({
         status: 200,
-        body: JSON.stringify({ choices: [{ message: { content: "第二张第一段\n\n第二张第二段" } }] }),
+        body: JSON.stringify({ choices: [{ message: { content: "第二张第一段\n\n第二张第二段" } }] })
       });
 
     const report = await recognizeDocImages({
@@ -71,9 +71,9 @@ describe("ai-image-ocr service", () => {
         enabled: true,
         baseUrl: "https://api.example.com",
         apiKey: "key",
-        model: "vision-model",
+        model: "vision-model"
       },
-      forwardProxy,
+      forwardProxy
     });
 
     expect(requestApiMock).toHaveBeenCalledTimes(2);
@@ -82,14 +82,14 @@ describe("ai-image-ocr service", () => {
       data: "> 第一张文字",
       nextID: "",
       previousID: "img-1",
-      parentID: "",
+      parentID: ""
     });
     expect(requestApiMock).toHaveBeenNthCalledWith(2, "/api/block/insertBlock", {
       dataType: "markdown",
       data: "> 第二张第一段\n>\n> 第二张第二段",
       nextID: "",
       previousID: "img-2",
-      parentID: "",
+      parentID: ""
     });
     expect(report.insertedCount).toBe(2);
   });
@@ -99,12 +99,12 @@ describe("ai-image-ocr service", () => {
       { id: "list-item", parent_id: "doc-1", markdown: "item" },
       { id: "nested-img", parent_id: "list-item", markdown: "![a](assets/a.png)" },
       { id: "nested-tail", parent_id: "list-item", markdown: "tail" },
-      { id: "root-tail", parent_id: "doc-1", markdown: "root tail" },
+      { id: "root-tail", parent_id: "doc-1", markdown: "root tail" }
     ] as any);
 
     const forwardProxy = vi.fn().mockResolvedValue({
       status: 200,
-      body: JSON.stringify({ choices: [{ message: { content: "嵌套图片文字" } }] }),
+      body: JSON.stringify({ choices: [{ message: { content: "嵌套图片文字" } }] })
     });
 
     await recognizeDocImages({
@@ -113,9 +113,9 @@ describe("ai-image-ocr service", () => {
         enabled: true,
         baseUrl: "https://api.example.com",
         apiKey: "key",
-        model: "vision-model",
+        model: "vision-model"
       },
-      forwardProxy,
+      forwardProxy
     });
 
     expect(requestApiMock).toHaveBeenCalledWith("/api/block/insertBlock", {
@@ -123,19 +123,19 @@ describe("ai-image-ocr service", () => {
       data: "> 嵌套图片文字",
       nextID: "",
       previousID: "nested-img",
-      parentID: "",
+      parentID: ""
     });
   });
 
   test("asks the vision model to return OCR text only", async () => {
     sqlPagedMock
       .mockResolvedValueOnce([
-        { id: "img-1", markdown: "![a](assets/a.png)" },
+        { id: "img-1", markdown: "![a](assets/a.png)" }
       ] as any);
 
     const forwardProxy = vi.fn().mockResolvedValue({
       status: 200,
-      body: JSON.stringify({ choices: [{ message: { content: "[NO_TEXT]" } }] }),
+      body: JSON.stringify({ choices: [{ message: { content: "[NO_TEXT]" } }] })
     });
 
     await recognizeDocImages({
@@ -144,9 +144,9 @@ describe("ai-image-ocr service", () => {
         enabled: true,
         baseUrl: "https://api.example.com",
         apiKey: "key",
-        model: "vision-model",
+        model: "vision-model"
       },
-      forwardProxy,
+      forwardProxy
     });
 
     const body = JSON.parse(forwardProxy.mock.calls[0][2]);
@@ -158,13 +158,13 @@ describe("ai-image-ocr service", () => {
 
   test("slices image with height > 3000 into multiple parts and joins results with '---' separator", async () => {
     sqlPagedMock.mockResolvedValueOnce([
-      { id: "img-long", markdown: "![long](assets/long.png)" },
+      { id: "img-long", markdown: "![long](assets/long.png)" }
     ] as any);
 
     const mockBitmap = {
       width: 1000,
       height: 7000,
-      close: vi.fn(),
+      close: vi.fn()
     };
     vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue(mockBitmap));
 
@@ -178,28 +178,28 @@ describe("ai-image-ocr service", () => {
             width: 0,
             height: 0,
             getContext: () => ({
-              drawImage: vi.fn(),
+              drawImage: vi.fn()
             }),
-            toDataURL: () => `data:image/jpeg;base64,slice-${currentSlice}-data`,
+            toDataURL: () => `data:image/jpeg;base64,slice-${currentSlice}-data`
           };
         }
         return {};
-      }),
+      })
     };
     vi.stubGlobal("document", mockDocument);
 
     const forwardProxy = vi.fn()
       .mockResolvedValueOnce({
         status: 200,
-        body: JSON.stringify({ choices: [{ message: { content: "第一部分识别文字" } }] }),
+        body: JSON.stringify({ choices: [{ message: { content: "第一部分识别文字" } }] })
       })
       .mockResolvedValueOnce({
         status: 200,
-        body: JSON.stringify({ choices: [{ message: { content: "第二部分识别文字" } }] }),
+        body: JSON.stringify({ choices: [{ message: { content: "第二部分识别文字" } }] })
       })
       .mockResolvedValueOnce({
         status: 200,
-        body: JSON.stringify({ choices: [{ message: { content: "第三部分识别文字" } }] }),
+        body: JSON.stringify({ choices: [{ message: { content: "第三部分识别文字" } }] })
       });
 
     const report = await recognizeDocImages({
@@ -208,9 +208,9 @@ describe("ai-image-ocr service", () => {
         enabled: true,
         baseUrl: "https://api.example.com",
         apiKey: "key",
-        model: "vision-model",
+        model: "vision-model"
       },
-      forwardProxy,
+      forwardProxy
     });
 
     // 7000px 切片为 3000 + 3000 + 1000 = 3 片
@@ -224,7 +224,7 @@ describe("ai-image-ocr service", () => {
       data: "> 第一部分识别文字\n> ---\n> 第二部分识别文字\n> ---\n> 第三部分识别文字",
       nextID: "",
       previousID: "img-long",
-      parentID: "",
+      parentID: ""
     });
     expect(report.insertedCount).toBe(1);
     expect(report.recognizedCount).toBe(1);
@@ -232,13 +232,13 @@ describe("ai-image-ocr service", () => {
 
   test("handles sliced image where some slices return [NO_TEXT]", async () => {
     sqlPagedMock.mockResolvedValueOnce([
-      { id: "img-long", markdown: "![long](assets/long.png)" },
+      { id: "img-long", markdown: "![long](assets/long.png)" }
     ] as any);
 
     const mockBitmap = {
       width: 1000,
       height: 6000,
-      close: vi.fn(),
+      close: vi.fn()
     };
     vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue(mockBitmap));
 
@@ -252,24 +252,24 @@ describe("ai-image-ocr service", () => {
             width: 0,
             height: 0,
             getContext: () => ({
-              drawImage: vi.fn(),
+              drawImage: vi.fn()
             }),
-            toDataURL: () => `data:image/jpeg;base64,slice-${currentSlice}-data`,
+            toDataURL: () => `data:image/jpeg;base64,slice-${currentSlice}-data`
           };
         }
         return {};
-      }),
+      })
     };
     vi.stubGlobal("document", mockDocument);
 
     const forwardProxy = vi.fn()
       .mockResolvedValueOnce({
         status: 200,
-        body: JSON.stringify({ choices: [{ message: { content: "第一部分有效文字" } }] }),
+        body: JSON.stringify({ choices: [{ message: { content: "第一部分有效文字" } }] })
       })
       .mockResolvedValueOnce({
         status: 200,
-        body: JSON.stringify({ choices: [{ message: { content: "[NO_TEXT]" } }] }),
+        body: JSON.stringify({ choices: [{ message: { content: "[NO_TEXT]" } }] })
       });
 
     await recognizeDocImages({
@@ -278,9 +278,9 @@ describe("ai-image-ocr service", () => {
         enabled: true,
         baseUrl: "https://api.example.com",
         apiKey: "key",
-        model: "vision-model",
+        model: "vision-model"
       },
-      forwardProxy,
+      forwardProxy
     });
 
     expect(requestApiMock).toHaveBeenCalledWith("/api/block/insertBlock", {
@@ -288,19 +288,19 @@ describe("ai-image-ocr service", () => {
       data: "> 第一部分有效文字",
       nextID: "",
       previousID: "img-long",
-      parentID: "",
+      parentID: ""
     });
   });
 
   test("recognizes only selected images when targetBlockIds contain images", async () => {
     // 第一次 SQL 查询（针对 targetBlockIds）
     sqlPagedMock.mockResolvedValueOnce([
-      { id: "img-selected", markdown: "![sel](assets/sel.png)" },
+      { id: "img-selected", markdown: "![sel](assets/sel.png)" }
     ] as any);
 
     const forwardProxy = vi.fn().mockResolvedValue({
       status: 200,
-      body: JSON.stringify({ choices: [{ message: { content: "选中图片文字" } }] }),
+      body: JSON.stringify({ choices: [{ message: { content: "选中图片文字" } }] })
     });
 
     const report = await recognizeDocImages({
@@ -310,9 +310,9 @@ describe("ai-image-ocr service", () => {
         enabled: true,
         baseUrl: "https://api.example.com",
         apiKey: "key",
-        model: "vision-model",
+        model: "vision-model"
       },
-      forwardProxy,
+      forwardProxy
     });
 
     expect(sqlPagedMock).toHaveBeenCalledTimes(1);
@@ -322,7 +322,7 @@ describe("ai-image-ocr service", () => {
       data: "> 选中图片文字",
       nextID: "",
       previousID: "img-selected",
-      parentID: "",
+      parentID: ""
     });
     expect(report.scannedImageCount).toBe(1);
     expect(report.insertedCount).toBe(1);
@@ -331,17 +331,17 @@ describe("ai-image-ocr service", () => {
   test("falls back to full document OCR when targetBlockIds contain no images", async () => {
     // 第一次 SQL 查询（targetBlockIds 返回无图片的纯文本块）
     sqlPagedMock.mockResolvedValueOnce([
-      { id: "text-block", markdown: "纯文本段落无图片" },
+      { id: "text-block", markdown: "纯文本段落无图片" }
     ] as any);
     // 第二次 SQL 查询（回退全文查询，返回包含图片的文档块）
     sqlPagedMock.mockResolvedValueOnce([
       { id: "text-block", markdown: "纯文本段落无图片" },
-      { id: "img-all", markdown: "![all](assets/all.png)" },
+      { id: "img-all", markdown: "![all](assets/all.png)" }
     ] as any);
 
     const forwardProxy = vi.fn().mockResolvedValue({
       status: 200,
-      body: JSON.stringify({ choices: [{ message: { content: "全文图片文字" } }] }),
+      body: JSON.stringify({ choices: [{ message: { content: "全文图片文字" } }] })
     });
 
     const report = await recognizeDocImages({
@@ -351,9 +351,9 @@ describe("ai-image-ocr service", () => {
         enabled: true,
         baseUrl: "https://api.example.com",
         apiKey: "key",
-        model: "vision-model",
+        model: "vision-model"
       },
-      forwardProxy,
+      forwardProxy
     });
 
     expect(sqlPagedMock).toHaveBeenCalledTimes(2);
@@ -363,7 +363,7 @@ describe("ai-image-ocr service", () => {
       data: "> 全文图片文字",
       nextID: "",
       previousID: "img-all",
-      parentID: "",
+      parentID: ""
     });
     expect(report.scannedImageCount).toBe(1);
     expect(report.insertedCount).toBe(1);
@@ -371,12 +371,12 @@ describe("ai-image-ocr service", () => {
 
   test("filters by targetAssetPaths when multiple images are in selected blocks", async () => {
     sqlPagedMock.mockResolvedValueOnce([
-      { id: "multi-img-block", markdown: "![img1](assets/1.png)\n![img2](assets/2.png)" },
+      { id: "multi-img-block", markdown: "![img1](assets/1.png)\n![img2](assets/2.png)" }
     ] as any);
 
     const forwardProxy = vi.fn().mockResolvedValue({
       status: 200,
-      body: JSON.stringify({ choices: [{ message: { content: "图2文字" } }] }),
+      body: JSON.stringify({ choices: [{ message: { content: "图2文字" } }] })
     });
 
     const report = await recognizeDocImages({
@@ -387,9 +387,9 @@ describe("ai-image-ocr service", () => {
         enabled: true,
         baseUrl: "https://api.example.com",
         apiKey: "key",
-        model: "vision-model",
+        model: "vision-model"
       },
-      forwardProxy,
+      forwardProxy
     });
 
     expect(forwardProxy).toHaveBeenCalledTimes(1);
@@ -398,7 +398,7 @@ describe("ai-image-ocr service", () => {
       data: "> 图2文字",
       nextID: "",
       previousID: "multi-img-block",
-      parentID: "",
+      parentID: ""
     });
     expect(report.scannedImageCount).toBe(1);
     expect(report.insertedCount).toBe(1);

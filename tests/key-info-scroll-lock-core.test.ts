@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   createKeyInfoListScrollLock,
   getActiveKeyInfoListScrollLock,
-  releaseKeyInfoListScrollLockOnUserScroll,
+  releaseKeyInfoListScrollLockOnUserScroll
 } from "@/core/key-info-scroll-lock-core";
 
 describe("key-info-scroll-lock-core", () => {

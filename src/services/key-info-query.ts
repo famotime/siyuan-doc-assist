@@ -3,7 +3,7 @@ import {
   chunkArray,
   escapeSqlLiteral,
   SqlKeyInfoRow,
-  SqlSpanRow,
+  SqlSpanRow
 } from "@/services/key-info-model";
 
 async function queryAllRows<T = unknown>(stmt: string, pageSize = 500): Promise<T[]> {
@@ -77,7 +77,7 @@ export async function listSpanRows(docId: string): Promise<SqlSpanRow[]> {
     "s.type LIKE '%em%'",
     "s.type LIKE '%mark%'",
     "s.type LIKE '%inline-memo%'",
-    "s.type LIKE '%tag%'",
+    "s.type LIKE '%tag%'"
   ];
   const orderBy = orderColumn ? `s.${orderColumn} asc` : "s.id asc";
   const stmt = `

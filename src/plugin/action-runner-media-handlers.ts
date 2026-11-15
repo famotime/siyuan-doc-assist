@@ -18,7 +18,7 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
         if (report.failedImageCount > 0 || report.failedBlockCount > 0) {
           const suffix = [
             report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张图片` : "",
-            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : ""
           ].filter(Boolean).join("，");
           showMessage(`未完成任何替换${suffix ? `，${suffix}` : ""}`, 7000, "error");
           return;
@@ -30,7 +30,7 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
       const gifSuffix = report.skippedGifCount > 0 ? `（已忽略 GIF ${report.skippedGifCount} 张）` : "";
       const suffixParts = [
         report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张` : "",
-        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : ""
       ].filter(Boolean);
       const suffix = suffixParts.length > 0 ? `，${suffixParts.join("，")}` : "";
       showMessage(
@@ -49,7 +49,7 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
         if (report.failedImageCount > 0 || report.failedBlockCount > 0) {
           const suffix = [
             report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张图片` : "",
-            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : ""
           ].filter(Boolean).join("，");
           showMessage(`未完成任何替换${suffix ? `，${suffix}` : ""}`, 7000, "error");
           return;
@@ -59,7 +59,7 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
       }
       const suffixParts = [
         report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张` : "",
-        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : ""
       ].filter(Boolean);
       const suffix = suffixParts.length > 0 ? `，${suffixParts.join("，")}` : "";
       showMessage(
@@ -78,7 +78,7 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
         if (report.failedImageCount > 0 || report.failedBlockCount > 0) {
           const suffix = [
             report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张图片` : "",
-            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+            report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : ""
           ].filter(Boolean).join("，");
           showMessage(`未完成任何替换${suffix ? `，${suffix}` : ""}`, 7000, "error");
           return;
@@ -89,7 +89,7 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
       const savedText = formatByteSize(report.totalSavedBytes);
       const suffixParts = [
         report.failedImageCount > 0 ? `失败 ${report.failedImageCount} 张` : "",
-        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : "",
+        report.failedBlockCount > 0 ? `跳过 ${report.failedBlockCount} 个块` : ""
       ].filter(Boolean);
       const suffix = suffixParts.length > 0 ? `，${suffixParts.join("，")}` : "";
       showMessage(
@@ -114,6 +114,6 @@ export function createMediaActionHandlers(): PartialActionHandlerMap {
         report.failedBlockCount > 0 ? 7000 : 6000,
         report.failedBlockCount > 0 ? "error" : "info"
       );
-    },
+    }
   };
 }

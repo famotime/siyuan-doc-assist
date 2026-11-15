@@ -2,7 +2,7 @@ import {
   cleanInlineText,
   extractListPrefix,
   normalizeListDecoratedText,
-  normalizeSort,
+  normalizeSort
 } from "@/services/key-info-model";
 
 const SY_ORDER_MIN_HIT_RATIO = 0.85;
@@ -114,7 +114,7 @@ export function createListContextResolver(
     hasMappedListLineChild: (blockId?: string) =>
       !!blockId && listItemIdsWithMappedChild.has(blockId),
     getMappedListLineChildId: (blockId?: string) =>
-      blockId ? mappedListLineChildByParentId.get(blockId) : undefined,
+      blockId ? mappedListLineChildByParentId.get(blockId) : undefined
   };
 }
 
@@ -188,7 +188,7 @@ export function resolveBlockOrderMap(
       source: "fallback",
       orderMap: new Map(),
       syHitCount: 0,
-      syHitRatio: 0,
+      syHitRatio: 0
     };
   }
 
@@ -201,7 +201,7 @@ export function resolveBlockOrderMap(
       source: "sy",
       orderMap: syOrderMap,
       syHitCount,
-      syHitRatio,
+      syHitRatio
     };
   }
   if (structuralOrderMap.size) {
@@ -209,13 +209,13 @@ export function resolveBlockOrderMap(
       source: "structural",
       orderMap: structuralOrderMap,
       syHitCount,
-      syHitRatio,
+      syHitRatio
     };
   }
   return {
     source: "fallback",
     orderMap: new Map(),
     syHitCount,
-    syHitRatio,
+    syHitRatio
   };
 }

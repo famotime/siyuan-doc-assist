@@ -25,7 +25,7 @@ export function parseKernelTextRows(
     const value = record[valueKey];
     rows.push({
       id,
-      text: typeof value === "string" ? value : String(value || ""),
+      text: typeof value === "string" ? value : String(value || "")
     });
   };
 
@@ -91,7 +91,7 @@ export async function requestBatchRowsWithSingleFallback<Row extends { id: strin
   parseBatchRows,
   requestSingle,
   onBatchError,
-  onSingleError,
+  onSingleError
 }: BatchWithFallbackOptions<Row>): Promise<Row[]> {
   const normalizedIds = normalizeUniqueIds(ids);
   if (!normalizedIds.length) {

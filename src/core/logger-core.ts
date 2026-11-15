@@ -110,6 +110,6 @@ export function createDocAssistantLogger(scope: string): DocAssistantLogger {
     },
     error: (message, payload) => {
       emit("error", toMessage(message), payload);
-    },
+    }
   };
 }

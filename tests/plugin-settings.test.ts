@@ -1,10 +1,10 @@
 /** @vitest-environment jsdom */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { ACTIONS, getActionConfigByKey } from "@/plugin/actions";
+import { ACTIONS } from "@/plugin/actions";
 import {
   buildDefaultDocActionEnabled,
-  buildDefaultDocMenuRegistration,
+  buildDefaultDocMenuRegistration
 } from "@/core/doc-menu-registration-core";
 import { buildDockDocActions } from "@/core/dock-panel-core";
 import { ALPHA_FEATURE_HIDE_CONFIG, filterVisibleActions } from "@/plugin/alpha-feature-config";
@@ -13,7 +13,7 @@ const {
   settingInstances,
   showMessageMock,
   topBarConfigs,
-  addIconsMock,
+  addIconsMock
 } = vi.hoisted(() => ({
   settingInstances: [] as Array<{
     items: Array<{
@@ -31,7 +31,7 @@ const {
     callback: (event: MouseEvent) => void;
     position?: "right" | "left";
   }>,
-  addIconsMock: vi.fn(),
+  addIconsMock: vi.fn()
 }));
 
 vi.mock("siyuan", () => {
@@ -44,6 +44,7 @@ vi.mock("siyuan", () => {
       topBarConfigs.push(config);
       return document.createElement("div");
     });
+
     public readonly addIcons = addIconsMock;
 
     public readonly eventBus = {
@@ -54,7 +55,7 @@ vi.mock("siyuan", () => {
       },
       off: (name: string, handler: (event: any) => void) => {
         this.listeners.get(name)?.delete(handler);
-      },
+      }
     };
 
     emitEvent(name: string, detail: any) {
@@ -85,6 +86,7 @@ vi.mock("siyuan", () => {
       description?: string;
       actionElement: HTMLElement;
     }> = [];
+
     public readonly open = vi.fn();
 
     constructor() {
@@ -106,7 +108,7 @@ vi.mock("siyuan", () => {
         title: options.title,
         direction: options.direction,
         description: options.description,
-        actionElement,
+        actionElement
       });
     }
   }
@@ -121,7 +123,7 @@ vi.mock("siyuan", () => {
     },
     showMessage: showMessageMock,
     openTab: vi.fn(),
-    getAllModels: vi.fn(() => ({ editor: [] })),
+    getAllModels: vi.fn(() => ({ editor: [] }))
   };
 });
 
@@ -307,8 +309,8 @@ describe("plugin settings", () => {
     expect(stored).toEqual(
       expect.objectContaining({
         actionMenuRegistered: expect.objectContaining({
-          "insert-backlinks": false,
-        }),
+          "insert-backlinks": false
+        })
       })
     );
   });
@@ -316,12 +318,12 @@ describe("plugin settings", () => {
   test("adapts group rendering when action grouping changes in config", async () => {
     const { createPluginSettings } = await import("@/ui/plugin-settings");
     const regroupedActions = ACTIONS.map((action) =>
-      action.key === "export-current"
-        ? {
+      action.key === "export-current" ?
+          {
             ...action,
-            group: "insert" as const,
-          }
-        : action
+            group: "insert" as const
+          } :
+        action
     );
 
     createPluginSettings({
@@ -334,13 +336,13 @@ describe("plugin settings", () => {
         baseUrl: "",
         apiKey: "",
         model: "",
-        requestTimeoutSeconds: 30,
+        requestTimeoutSeconds: 30
       },
       onAiSummaryConfigChange: vi.fn(),
       onToggleAllEnabled: vi.fn(),
       onToggleAllMenu: vi.fn(),
       onToggleSingleEnabled: vi.fn(),
-      onToggleSingleMenu: vi.fn(),
+      onToggleSingleMenu: vi.fn()
     });
 
     const setting = settingInstances[0];
@@ -374,13 +376,13 @@ describe("plugin settings", () => {
         baseUrl: "",
         apiKey: "",
         model: "",
-        requestTimeoutSeconds: 30,
+        requestTimeoutSeconds: 30
       },
       onAiSummaryConfigChange: vi.fn(),
       onToggleAllEnabled: vi.fn(),
       onToggleAllMenu: vi.fn(),
       onToggleSingleEnabled: vi.fn(),
-      onToggleSingleMenu: vi.fn(),
+      onToggleSingleMenu: vi.fn()
     });
 
     const setting = settingInstances[0];
@@ -414,13 +416,13 @@ describe("plugin settings", () => {
         baseUrl: "",
         apiKey: "",
         model: "",
-        requestTimeoutSeconds: 30,
+        requestTimeoutSeconds: 30
       },
       onAiSummaryConfigChange: vi.fn(),
       onToggleAllEnabled: vi.fn(),
       onToggleAllMenu: vi.fn(),
       onToggleSingleEnabled: vi.fn(),
-      onToggleSingleMenu: vi.fn(),
+      onToggleSingleMenu: vi.fn()
     });
 
     const menuRegistrationPanel = setting.items.find((item) => item.title === "启用命令")?.actionElement as HTMLElement;
@@ -474,7 +476,7 @@ describe("plugin settings", () => {
       expect(setting.items.map((item) => item.title)).toEqual([
         "启动显示“文档处理”页签",
         "鼠标手势",
-        "启用命令",
+        "启用命令"
       ]);
 
       const menuRegistrationPanel = setting.items.find((item) => item.title === "启用命令")?.actionElement as HTMLElement;
@@ -631,7 +633,7 @@ describe("plugin settings", () => {
       "鼠标手势",
       "启用命令",
       "AI 服务",
-      "调试模式",
+      "调试模式"
     ]);
   });
 
@@ -738,7 +740,7 @@ describe("plugin settings", () => {
     expect(plugin.mouseGestureBindings).toEqual({
       "previous-doc": "L",
       "next-doc": "R",
-      "close-current-doc": "D,R",
+      "close-current-doc": "D,R"
     });
     expect(previousSequence.textContent).toBe("←");
   });

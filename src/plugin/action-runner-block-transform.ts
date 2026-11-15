@@ -37,7 +37,7 @@ export async function applyMarkdownTransformToBlocks<T extends BlockTransformBas
     transform,
     updateBlockMarkdown,
     onUpdated,
-    protyle,
+    protyle
   } = options;
 
   let changedCount = 0;
@@ -58,7 +58,7 @@ export async function applyMarkdownTransformToBlocks<T extends BlockTransformBas
     if (transformed.changedCount <= 0 || transformed.markdown === source) {
       continue;
     }
-    
+
     let appliedTransaction = false;
     if (protyle) {
       const liveDom = resolveSubmitBlockElement(protyle, block.id);
@@ -90,6 +90,6 @@ export async function applyMarkdownTransformToBlocks<T extends BlockTransformBas
     changedCount,
     updatedBlockCount,
     failedBlockCount,
-    skippedRiskyIds,
+    skippedRiskyIds
   };
 }

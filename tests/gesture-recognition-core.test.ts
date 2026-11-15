@@ -11,7 +11,7 @@ import {
   MAX_GESTURE_LENGTH,
   normalizeGestureBindings,
   parseGestureSequence,
-  serializeDirections,
+  serializeDirections
 } from "@/core/gesture-recognition-core";
 
 function feedStroke(points: Array<[number, number]>): GestureRecognizer {
@@ -27,7 +27,7 @@ describe("gesture recognition core", () => {
     const recognizer = feedStroke([
       [100, 100],
       [104, 103],
-      [107, 105],
+      [107, 105]
     ]);
     expect(recognizer.getDirections()).toEqual([]);
     expect(recognizer.isMoved()).toBe(false);
@@ -37,7 +37,7 @@ describe("gesture recognition core", () => {
     const recognizer = feedStroke([
       [300, 300],
       [260, 300],
-      [220, 300],
+      [220, 300]
     ]);
     expect(recognizer.getDirections()).toEqual(["L"]);
     expect(recognizer.isMoved()).toBe(true);
@@ -49,7 +49,7 @@ describe("gesture recognition core", () => {
       [0, 30],
       [0, 50],
       [30, 55],
-      [70, 60],
+      [70, 60]
     ]);
     expect(recognizer.getDirections()).toEqual(["D", "R"]);
   });
@@ -69,7 +69,7 @@ describe("gesture recognition core", () => {
       [0, 0],
       [5, 30],
       [12, 70],
-      [20, 120],
+      [20, 120]
     ]);
     expect(recognizer.getDirections()).toEqual(["D"]);
   });
@@ -77,7 +77,7 @@ describe("gesture recognition core", () => {
   test("reset clears recognized state", () => {
     const recognizer = feedStroke([
       [0, 0],
-      [0, 60],
+      [0, 60]
     ]);
     expect(recognizer.getDirections()).toEqual(["D"]);
     recognizer.reset();
@@ -140,25 +140,25 @@ describe("gesture recognition core", () => {
     expect(normalizeGestureBindings({
       "previous-doc": "U",
       "next-doc": "bad",
-      "close-current-doc": 123,
+      "close-current-doc": 123
     })).toEqual({
       "previous-doc": "U",
       "next-doc": "R",
-      "close-current-doc": "D,R",
+      "close-current-doc": "D,R"
     });
 
     // 同一序列重复绑定：靠后的动作回退到默认值
     expect(normalizeGestureBindings({
       "previous-doc": "L",
       "next-doc": "L",
-      "close-current-doc": "D,R",
+      "close-current-doc": "D,R"
     })).toEqual(DEFAULT_GESTURE_BINDINGS);
   });
 
   test("gesture points round-trip via stroke", () => {
     const points: GesturePoint[] = [
       { x: 0, y: 0 },
-      { x: 0, y: 40 },
+      { x: 0, y: 40 }
     ];
     const recognizer = new GestureRecognizer();
     for (const point of points) {

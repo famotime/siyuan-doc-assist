@@ -2,14 +2,14 @@ import { showMessage } from "siyuan";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import {
   findDeleteFromCurrentBlockIds,
-  findDeleteFromStartToCurrentBlockIds,
+  findDeleteFromStartToCurrentBlockIds
 } from "@/core/markdown-cleanup-core";
 import { resolveDocDirectChildBlockId } from "@/services/block-lineage";
 import {
   deleteBlocksByIds,
   getBlockDOMs,
   getChildBlocksByParentId,
-  getChildBlockRefsByParentId,
+  getChildBlockRefsByParentId
 } from "@/services/kernel";
 import { resolveCurrentBlockId } from "@/plugin/action-runner-context";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
@@ -32,7 +32,7 @@ export function createDeleteRangeActionHandlers(
     "delete-from-current-to-end": async (docId, protyle) =>
       handleDeleteFromCurrentToEnd(deps, docId, protyle),
     "delete-from-start-to-current": async (docId, protyle) =>
-      handleDeleteFromStartToCurrent(deps, docId, protyle),
+      handleDeleteFromStartToCurrent(deps, docId, protyle)
   };
 }
 
@@ -71,7 +71,7 @@ async function handleDeleteFromCurrentToEnd(
     currentBlockId,
     deleteStartId,
     mappedFromNested,
-    directChildCount: blocks.length,
+    directChildCount: blocks.length
   });
 
   const result = findDeleteFromCurrentBlockIds(blocks, deleteStartId);
@@ -91,7 +91,7 @@ async function handleDeleteFromCurrentToEnd(
     const doOperations: IOperation[] = [];
     const undoOperations: IOperation[] = [];
     let canUseTransaction = true;
-    
+
     const domRes = await getBlockDOMs(result.deleteIds);
     const domMap = new Map(domRes.map((r) => [r.id, r.dom]));
 
@@ -102,20 +102,20 @@ async function handleDeleteFromCurrentToEnd(
         canUseTransaction = false;
         break;
       }
-      
-      const blockIndex = blocks.findIndex(b => b.id === deleteId);
-      let previousID: string | undefined = undefined;
+
+      const blockIndex = blocks.findIndex((b) => b.id === deleteId);
+      let previousID: string | undefined;
       if (blockIndex > 0) {
         previousID = blocks[blockIndex - 1].id;
       }
-      
+
       doOperations.push({ action: "delete", id: deleteId });
-      undoOperations.push({ 
-        action: "insert", 
-        id: deleteId, 
-        data: domStr, 
-        previousID, 
-        parentID: docId 
+      undoOperations.push({
+        action: "insert",
+        id: deleteId,
+        data: domStr,
+        previousID,
+        parentID: docId
       });
     }
 
@@ -126,7 +126,7 @@ async function handleDeleteFromCurrentToEnd(
   }
 
   const deleteResult = await deleteBlocksByIds(result.deleteIds, {
-    concurrency: DELETE_BLOCK_CONCURRENCY,
+    concurrency: DELETE_BLOCK_CONCURRENCY
   });
   const failed = deleteResult.failedIds.length;
 
@@ -172,7 +172,7 @@ async function handleDeleteFromStartToCurrent(
     currentBlockId,
     deleteEndId,
     mappedFromNested,
-    directChildCount: blocks.length,
+    directChildCount: blocks.length
   });
 
   const result = findDeleteFromStartToCurrentBlockIds(blocks, deleteEndId);
@@ -203,20 +203,20 @@ async function handleDeleteFromStartToCurrent(
         canUseTransaction = false;
         break;
       }
-      
-      const blockIndex = blocks.findIndex(b => b.id === deleteId);
-      let previousID: string | undefined = undefined;
+
+      const blockIndex = blocks.findIndex((b) => b.id === deleteId);
+      let previousID: string | undefined;
       if (blockIndex > 0) {
         previousID = blocks[blockIndex - 1].id;
       }
-      
+
       doOperations.push({ action: "delete", id: deleteId });
-      undoOperations.push({ 
-        action: "insert", 
-        id: deleteId, 
-        data: domStr, 
-        previousID, 
-        parentID: docId 
+      undoOperations.push({
+        action: "insert",
+        id: deleteId,
+        data: domStr,
+        previousID,
+        parentID: docId
       });
     }
 
@@ -227,7 +227,7 @@ async function handleDeleteFromStartToCurrent(
   }
 
   const deleteResult = await deleteBlocksByIds(result.deleteIds, {
-    concurrency: DELETE_BLOCK_CONCURRENCY,
+    concurrency: DELETE_BLOCK_CONCURRENCY
   });
   const failed = deleteResult.failedIds.length;
 

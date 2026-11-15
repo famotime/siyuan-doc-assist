@@ -52,15 +52,15 @@ export function applyStrikethroughToIrrelevantSegments(
   markdown: string,
   segments: string[]
 ): { markdown: string; markedCount: number; detailLabels: string[] } {
-  const normalizedSegments = Array.isArray(segments)
-    ? segments.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
-    : [];
+  const normalizedSegments = Array.isArray(segments) ?
+      segments.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean) :
+      [];
   if (!normalizedSegments.length) {
     const wrapped = wrapParagraphWithStrikethrough(markdown);
     return {
       markdown: wrapped,
       markedCount: wrapped !== markdown ? 1 : 0,
-      detailLabels: [],
+      detailLabels: []
     };
   }
 
@@ -105,7 +105,7 @@ export function applyStrikethroughToIrrelevantSegments(
   return {
     markdown: nextMarkdown,
     markedCount,
-    detailLabels,
+    detailLabels
   };
 }
 
@@ -217,9 +217,9 @@ export function resolveBlocksAfterOpeningSeparator<
 
 export function applyBoldToParagraphHighlights(markdown: string, highlights: string[]): string {
   const value = markdown || "";
-  const normalizedHighlights = Array.isArray(highlights)
-    ? highlights.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
-    : [];
+  const normalizedHighlights = Array.isArray(highlights) ?
+      highlights.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean) :
+      [];
   if (!value || !normalizedHighlights.length) {
     return value;
   }
@@ -316,7 +316,7 @@ function collectExistingBoldTextRanges(content: string): TextRange[] {
     if (fullMatch.length >= 4) {
       ranges.push({
         start: match.index + 2,
-        end: match.index + fullMatch.length - 2,
+        end: match.index + fullMatch.length - 2
       });
     }
     match = pattern.exec(content);
@@ -372,7 +372,7 @@ function findLooseHighlightRanges(content: string, highlight: string): TextRange
     if (startOriginal !== undefined && endOriginalInclusive !== undefined) {
       ranges.push({
         start: startOriginal,
-        end: endOriginalInclusive + 1,
+        end: endOriginalInclusive + 1
       });
     }
     fromIndex = start + Math.max(1, normalizedHighlight.text.length);
@@ -394,7 +394,7 @@ function normalizeSearchableText(value: string): { text: string; indexMap: numbe
   }
   return {
     text: textParts.join(""),
-    indexMap,
+    indexMap
   };
 }
 

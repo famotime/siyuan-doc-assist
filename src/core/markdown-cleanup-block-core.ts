@@ -66,7 +66,7 @@ const CLIPPED_BULLET_MARKERS = new Set([
   "⦿",
   "⦾",
   "◉",
-  "●",
+  "●"
 ]);
 
 function isParagraphLikeBlock(block: ParagraphBlockMeta): boolean {
@@ -109,13 +109,13 @@ export function findExtraBlankParagraphIds(
   blankLinesLogger.debug("blank paragraphs", {
     totalBlocks: blocks.length,
     blankCount: deleteIds.length,
-    sample: deleteIds.slice(0, 8),
+    sample: deleteIds.slice(0, 8)
   });
 
   return {
     deleteIds,
     keptBlankIds,
-    removedCount: deleteIds.length,
+    removedCount: deleteIds.length
   };
 }
 
@@ -143,12 +143,12 @@ export function findHeadingMissingBlankParagraphBeforeIds(
     totalBlocks: blocks.length,
     headingCount: blocks.filter((block) => isHeadingBlock(block)).length,
     insertCount: insertBeforeIds.length,
-    sample: insertBeforeIds.slice(0, 8),
+    sample: insertBeforeIds.slice(0, 8)
   });
 
   return {
     insertBeforeIds,
-    insertCount: insertBeforeIds.length,
+    insertCount: insertBeforeIds.length
   };
 }
 
@@ -171,11 +171,11 @@ export function findDeleteFromCurrentBlockIds(
     currentBlockId,
     startIndex,
     deleteCount: deleteIds.length,
-    sample: deleteIds.slice(0, 8),
+    sample: deleteIds.slice(0, 8)
   });
   return {
     deleteIds,
-    deleteCount: deleteIds.length,
+    deleteCount: deleteIds.length
   };
 }
 
@@ -217,11 +217,11 @@ export function findDeleteFromStartToCurrentBlockIds(
     separatorIndex,
     deleteStart,
     deleteCount: deleteIds.length,
-    sample: deleteIds.slice(0, 8),
+    sample: deleteIds.slice(0, 8)
   });
   return {
     deleteIds,
-    deleteCount: deleteIds.length,
+    deleteCount: deleteIds.length
   };
 }
 
@@ -241,7 +241,7 @@ export function findSelectFromStartToCurrentBlockIds(
   const selectedIds = blocks.slice(0, currentIndex + 1).map((block) => block.id);
   return {
     selectedIds,
-    selectedCount: selectedIds.length,
+    selectedCount: selectedIds.length
   };
 }
 
@@ -261,7 +261,7 @@ export function findSelectFromCurrentToEndBlockIds(
   const selectedIds = blocks.slice(startIndex).map((block) => block.id);
   return {
     selectedIds,
-    selectedCount: selectedIds.length,
+    selectedCount: selectedIds.length
   };
 }
 
@@ -316,7 +316,7 @@ export function findClippedListContinuationMerges(
     merges.push({
       markerBlockId: current.id,
       contentBlockId: next.id,
-      mergedMarkdown: `${marker} ${nextMarkdown}`,
+      mergedMarkdown: `${marker} ${nextMarkdown}`
     });
     consumedContentIds.add(next.id);
   }
@@ -324,12 +324,12 @@ export function findClippedListContinuationMerges(
   clippedListLogger.debug("continuation merges", {
     totalBlocks: blocks.length,
     mergeCount: merges.length,
-    sample: merges.slice(0, 8),
+    sample: merges.slice(0, 8)
   });
 
   return {
     merges,
-    mergeCount: merges.length,
+    mergeCount: merges.length
   };
 }
 
@@ -450,7 +450,7 @@ export function findConsecutiveBlockquoteMerges(
       merges.push({
         targetBlockId: targetBlock.id,
         mergedMarkdown,
-        deleteBlockIds: deleteIds,
+        deleteBlockIds: deleteIds
       });
       allDeleteBlockIds.push(...deleteIds);
     }
@@ -462,13 +462,13 @@ export function findConsecutiveBlockquoteMerges(
     totalBlocks: blocks.length,
     mergeCount: merges.length,
     deleteCount: allDeleteBlockIds.length,
-    sample: merges.slice(0, 8),
+    sample: merges.slice(0, 8)
   });
 
   return {
     merges,
     mergeCount: merges.length,
-    deleteBlockIds: allDeleteBlockIds,
+    deleteBlockIds: allDeleteBlockIds
   };
 }
 
@@ -493,7 +493,7 @@ export function isEmptyCodeBlock(block: ParagraphBlockMeta): boolean {
   const isCodeType = isCodeBlockType(type);
 
   if (isCodeType) {
-    if (!content && (!markdown || markdown === "```" || /^```\w*\s*\n?\s*```$/.test(markdown))) {
+    if (!content && (!markdown || markdown === "```" || /^```\w*\s*```$/.test(markdown))) {
       return true;
     }
     const fencedMatch = markdown.match(/^```[^\n]*\n?([\s\S]*?)\n?```$/);
@@ -508,7 +508,7 @@ export function isEmptyCodeBlock(block: ParagraphBlockMeta): boolean {
     return false;
   }
 
-  if (/^```[^\n]*\n?\s*```$/.test(markdown)) {
+  if (/^```[^\n]*(?:\n\s*)?```$/.test(markdown)) {
     return true;
   }
 
@@ -528,7 +528,7 @@ export function findEmptyCodeBlockIds(
 
   return {
     deleteIds,
-    removedCount: deleteIds.length,
+    removedCount: deleteIds.length
   };
 }
 

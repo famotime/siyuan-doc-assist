@@ -45,7 +45,7 @@ export function extractXFirstParagraphTitle(text: string, fallbackUrl?: string):
   }
 
   // 1. 去除末尾的 t.co 短链接及多余空格
-  let cleaned = text.replace(/https:\/\/t\.co\/\w+\s*$/gi, "").trim();
+  const cleaned = text.replace(/https:\/\/t\.co\/\w+\s*$/gi, "").trim();
 
   // 2. 按自然段落（换行）切分
   const paragraphs = cleaned
@@ -61,10 +61,10 @@ export function extractXFirstParagraphTitle(text: string, fallbackUrl?: string):
   let firstParagraph = paragraphs[0];
 
   // 若首段以网址开头，去除前置纯网址
-  firstParagraph = firstParagraph.replace(/^https?:\/\/[^\s]+\s*/i, "").trim();
+  firstParagraph = firstParagraph.replace(/^https?:\/\/\S+\s*/i, "").trim();
 
   // 去除段首可能的常见 @ 提及或 # 标签（如果只包含标签则保留）
-  const strippedMention = firstParagraph.replace(/^@[a-zA-Z0-9_]+\s+/, "").trim();
+  const strippedMention = firstParagraph.replace(/^@\w+\s+/, "").trim();
   if (strippedMention) {
     firstParagraph = strippedMention;
   }
@@ -188,7 +188,7 @@ export function parseVxTwitterResponse(data: any): ParsedXPost | null {
     quoteInfo = {
       author: data.qrt.user_screen_name || data.qrt.user_name,
       text: data.qrt.text,
-      mediaUrls: qMedia,
+      mediaUrls: qMedia
     };
   }
 
@@ -203,7 +203,7 @@ export function parseVxTwitterResponse(data: any): ParsedXPost | null {
     mediaUrls,
     videoUrls,
     quoteInfo,
-    article,
+    article
   };
 }
 
@@ -263,7 +263,7 @@ export function parseFxTwitterResponse(data: any): ParsedXPost | null {
     quoteInfo = {
       author: tweet.quote.author?.screen_name || tweet.quote.author?.name,
       text: tweet.quote.text,
-      mediaUrls: qPhotos,
+      mediaUrls: qPhotos
     };
   }
 
@@ -278,7 +278,7 @@ export function parseFxTwitterResponse(data: any): ParsedXPost | null {
     mediaUrls,
     videoUrls,
     quoteInfo,
-    article,
+    article
   };
 }
 
@@ -295,11 +295,11 @@ export function mergeXPostData(
 
   // 1. 若其中一方包含完整 Article 长文结构，优先保留
   const article =
-    vx.article?.content?.blocks?.length
-      ? vx.article
-      : fx.article?.content?.blocks?.length
-      ? fx.article
-      : vx.article || fx.article;
+    vx.article?.content?.blocks?.length ?
+      vx.article :
+      fx.article?.content?.blocks?.length ?
+        fx.article :
+        vx.article || fx.article;
 
   // 2. 正文优先选择更长、更完整的文本（核心：VxTwitter 保留完整 Note Tweet 长推文，避免 FxTwitter 180 字符截断）
   const text = vx.text.length >= fx.text.length ? vx.text : fx.text;
@@ -332,7 +332,7 @@ export function mergeXPostData(
     mediaUrls,
     videoUrls,
     quoteInfo,
-    article,
+    article
   };
 }
 

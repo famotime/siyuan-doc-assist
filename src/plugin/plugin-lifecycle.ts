@@ -3,14 +3,14 @@ import {
   getFrontend,
   IMenuItem,
   Plugin,
-  showMessage,
+  showMessage
 } from "siyuan";
 import pluginInfo from "@/../plugin.json";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
 import {
   DocActionEnabledState,
   DocMenuRegistrationState,
-  filterDockVisibleActions,
+  filterDockVisibleActions
 } from "@/core/doc-menu-registration-core";
 import { buildDefaultKeyInfoFilter, KeyInfoFilter } from "@/core/key-info-core";
 import { ActionRunner, ConfirmDetailItem } from "@/plugin/action-runner";
@@ -19,7 +19,7 @@ import {
   ALPHA_FEATURE_HIDE_CONFIG,
   filterVisibleActions,
   getHiddenActionKeys,
-  getHiddenPluginSettingKeys,
+  getHiddenPluginSettingKeys
 } from "@/plugin/alpha-feature-config";
 import { getProtyleDocId, ProtyleLike } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
@@ -27,7 +27,7 @@ import { setTransactionDebugLogEnabled } from "@/plugin/transaction-runner";
 import { setDocAssistantDebugEnabled } from "@/core/logger-core";
 import {
   bindPluginLifecycleEvents,
-  unbindPluginLifecycleEvents,
+  unbindPluginLifecycleEvents
 } from "@/plugin/plugin-lifecycle-events";
 import {
   addFloatDocTreeMenuItem,
@@ -35,7 +35,7 @@ import {
   addFloatSelectedTextContentMenuItem,
   isFloatSelectedTextHidden,
   populateEditorTitleMenu,
-  registerPluginCommands,
+  registerPluginCommands
 } from "@/plugin/plugin-lifecycle-menu";
 import {
   buildDefaultPluginDocMenuState,
@@ -56,20 +56,20 @@ import {
   setPluginMouseGestureBindings,
   setPluginMouseGestureEnabled,
   setSinglePluginDocActionEnabled,
-  setSinglePluginDocMenuRegistration,
+  setSinglePluginDocMenuRegistration
 } from "@/plugin/plugin-lifecycle-state";
 import { GestureBindings } from "@/core/gesture-recognition-core";
 import { createMouseGestureController } from "@/plugin/mouse-gesture-controller";
 import {
   bindPluginFloatingPersistence,
-  setCachedFloatingTextConfig,
+  setCachedFloatingTextConfig
 } from "@/services/floating-text/floating-text-storage";
 import { FloatingTextConfig } from "@/core/floating-text-core";
 import { createPluginSettings } from "@/ui/plugin-settings";
 import {
   destroyActionProcessingOverlay,
   hideActionProcessingOverlay,
-  showActionProcessingOverlay,
+  showActionProcessingOverlay
 } from "@/ui/action-processing-overlay";
 import { resolveNetworkLensPluginFromPlugins } from "@/services/network-lens-ai-index";
 import { resolveCanvasPluginFromPlugins } from "@/services/canvas-plugin-resolver";
@@ -87,31 +87,37 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private readonly docMenuRegistrationStorageName = "doc-menu-registration";
   private docActionEnabledState: DocActionEnabledState =
     buildDefaultPluginDocMenuState(ACTIONS).docActionEnabledState;
+
   private docMenuRegistrationState: DocMenuRegistrationState =
     buildDefaultPluginDocMenuState(ACTIONS).docMenuRegistrationState;
+
   private docActionOrderState: ActionKey[] =
     buildDefaultPluginDocMenuState(ACTIONS).docActionOrderState;
+
   private docFavoriteActionKeys: ActionKey[] = [];
   private keyInfoFilterState: KeyInfoFilter = buildDefaultKeyInfoFilter();
   private aiSummaryConfig = buildDefaultPluginDocMenuState(ACTIONS).aiSummaryConfig;
   private floatingConfig: FloatingTextConfig =
     buildDefaultPluginDocMenuState(ACTIONS).floatingConfig;
+
   private debugLogEnabled = false;
   private startupDocProcessTabEnabled = false;
   private mouseGestureEnabled = false;
   private mouseGestureBindings: GestureBindings = {
-    ...buildDefaultPluginDocMenuState(ACTIONS).mouseGestureBindings,
+    ...buildDefaultPluginDocMenuState(ACTIONS).mouseGestureBindings
   };
+
   private managedAiConfig: AiServiceConfig | null = null;
 
   private readonly mouseGestureController = createMouseGestureController({
     getApp: () => this.app,
     isEnabled: () => this.mouseGestureEnabled && !this.isMobile,
-    getBindings: () => this.mouseGestureBindings,
+    getBindings: () => this.mouseGestureBindings
   });
+
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
     pluginVersion: pluginInfo.version,
-    runAction: (action, context) => this.actionRunner.runAction(action, context),
+    runAction: (action, context) => this.actionRunner.runAction(action, context)
   });
 
   private readonly actionRunner: ActionRunner = new ActionRunner({
@@ -125,7 +131,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
     getAiSummaryConfig: () => this.managedAiConfig || this.aiSummaryConfig,
     resolveNetworkLensPlugin: () => resolveNetworkLensPluginFromPlugins(this.app?.plugins),
-    resolveCanvasPlugin: () => resolveCanvasPluginFromPlugins(this.app?.plugins),
+    resolveCanvasPlugin: () => resolveCanvasPluginFromPlugins(this.app?.plugins)
   });
 
   private readonly keyInfoController: KeyInfoController = new KeyInfoController({
@@ -152,7 +158,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     setDocFavoriteActionOrder: (order) =>
       this.setDocFavoriteActionOrder(order),
     resolveCanvasPlugin: () => resolveCanvasPluginFromPlugins(this.app?.plugins),
-    getStartupDocProcessTabEnabled: () => this.startupDocProcessTabEnabled,
+    getStartupDocProcessTabEnabled: () => this.startupDocProcessTabEnabled
   });
 
   private readonly onSwitchProtyle = (event: CustomEvent<{ protyle?: ProtyleLike }>) => {
@@ -194,7 +200,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       docActionEnabledState: this.docActionEnabledState,
       runAction: async (action, explicitId, protyle) => {
         await this.actionRunner.runAction(action, explicitId, protyle);
-      },
+      }
     });
   };
 
@@ -222,7 +228,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       menu: detail.menu,
       protyle: detail.protyle,
       range: detail.range,
-      openFloatingText: (text) => void floatingTextService.openFloatingText(text),
+      openFloatingText: (text) => void floatingTextService.openFloatingText(text)
     });
   };
 
@@ -256,7 +262,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       runFloatActionFallback: () => {
         const docId = getProtyleDocId(protyle as ProtyleLike) || this.currentDocId;
         void this.actionRunner.runAction("float-selected-text", docId, protyle as ProtyleLike);
-      },
+      }
     });
   };
 
@@ -272,7 +278,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       menu: detail?.menu,
       elements: detail?.elements,
       eventType: detail?.type,
-      openFloatingDoc: (docId) => void floatingTextService.openFloatingDoc(docId),
+      openFloatingDoc: (docId) => void floatingTextService.openFloatingDoc(docId)
     });
   };
 
@@ -293,7 +299,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onEditorTitleMenu: this.onEditorTitleMenu,
       onContentMenu: this.onContentMenu,
       onDocTreeMenu: this.onDocTreeMenu,
-      onBlockIconMenu: this.onBlockIconMenu,
+      onBlockIconMenu: this.onBlockIconMenu
     });
     this.keyInfoController.registerDock(this);
 
@@ -302,7 +308,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       register: (config) => this.addCommand(config),
       runAction: async (action, explicitId, protyle) => {
         await this.actionRunner.runAction(action, explicitId, protyle);
-      },
+      }
     });
 
     this.initApiSwitchSync();
@@ -328,7 +334,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onEditorTitleMenu: this.onEditorTitleMenu,
       onContentMenu: this.onContentMenu,
       onDocTreeMenu: this.onDocTreeMenu,
-      onBlockIconMenu: this.onBlockIconMenu,
+      onBlockIconMenu: this.onBlockIconMenu
     });
     this.keyInfoController.destroy();
     this.mouseGestureController.destroy();
@@ -365,7 +371,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
         click: (protyle: any) => {
           const docId = getProtyleDocId(protyle as ProtyleLike);
           void this.actionRunner.runAction("float-selected-text", docId, protyle as ProtyleLike);
-        },
+        }
       });
     }
     return toolbar;
@@ -446,7 +452,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onMouseGestureEnabledChange: (enabled) => this.setMouseGestureEnabled(enabled),
       onMouseGestureBindingsChange: (bindings) => this.setMouseGestureBindings(bindings),
       onGestureRecordingChange: (recording) =>
-        this.mouseGestureController.setSuspended(recording),
+        this.mouseGestureController.setSuspended(recording)
     });
   }
 
@@ -462,12 +468,12 @@ export default class DocLinkToolkitPlugin extends Plugin {
           temperature: shared.temperature ?? 0.7,
           maxTokens: shared.maxTokens ?? 4096,
           headers: shared.headers,
-          protocol: shared.protocol,
+          protocol: shared.protocol
         };
       } else {
         this.managedAiConfig = null;
       }
-      
+
       if (this.setting) {
         const updater = (this.setting as any).updateManagedConfig;
         if (typeof updater === "function") {
@@ -483,7 +489,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       model: this.aiSummaryConfig.model,
       requestTimeoutSeconds: this.aiSummaryConfig.requestTimeoutSeconds,
       temperature: this.aiSummaryConfig.temperature,
-      maxTokens: this.aiSummaryConfig.maxTokens,
+      maxTokens: this.aiSummaryConfig.maxTokens
     };
 
     if (window.siyuanApiSwitch) {
@@ -541,7 +547,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       floatingConfig: this.floatingConfig,
       startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
       mouseGestureEnabled: this.mouseGestureEnabled,
-      mouseGestureBindings: this.mouseGestureBindings,
+      mouseGestureBindings: this.mouseGestureBindings
     };
   }
 

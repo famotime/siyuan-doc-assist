@@ -42,7 +42,7 @@ export function isThematicBreakBlock(block: { type?: string; markdown?: string }
     return true;
   }
   const source = (block.markdown || "").trim();
-  return /^(?:(?:\-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(source);
+  return /^(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(source);
 }
 
 export function previewAiOutputCleanup(
@@ -56,7 +56,7 @@ export function previewAiOutputCleanup(
     removedInternetLinkCount: 0,
     removedHiddenSpanCount: 0,
     removedRefCount: 0,
-    removedDividerCount: 0,
+    removedDividerCount: 0
   };
 
   for (const block of blocks) {
@@ -97,7 +97,7 @@ export function previewStrikethroughCleanup(
   const preview: StrikethroughCleanupPreview = {
     cleanableBlockCount: 0,
     riskyPendingBlockCount: 0,
-    removedCount: 0,
+    removedCount: 0
   };
 
   for (const block of blocks) {

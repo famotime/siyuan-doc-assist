@@ -2,36 +2,36 @@ import { KeyInfoItem } from "@/core/key-info-core";
 import {
   getDocMetaByID,
   getDocTreeOrderFromSy,
-  getRootDocRawMarkdown,
+  getRootDocRawMarkdown
 } from "@/services/kernel";
 import {
   extractInlineFromDom,
   getDomBlockSortMap,
-  mapSpanRowsToItems,
+  mapSpanRowsToItems
 } from "@/services/key-info-inline";
 import { mergePreferredInlineItems } from "@/services/key-info-merge";
 import {
   buildStructuralBlockOrderMap,
   createListContextResolver,
-  resolveBlockOrderMap,
+  resolveBlockOrderMap
 } from "@/services/key-info-order";
 import {
   collectHeadingItems,
-  collectMarkdownAndMetaItems,
+  collectMarkdownAndMetaItems
 } from "@/services/key-info-collectors";
 import {
-  KeyInfoDocResult,
+  KeyInfoDocResult
 } from "@/services/key-info-model";
 import {
   appendDocTitleItemIfMissing,
   normalizeKeyInfoItemsByPipeline,
-  sortKeyInfoItemsByAnchor,
+  sortKeyInfoItemsByAnchor
 } from "@/services/key-info-pipeline";
 import {
   getKramdownMap,
   listDocBlocks,
   listSpanRows,
-  resolveRootId,
+  resolveRootId
 } from "@/services/key-info-query";
 
 export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<KeyInfoDocResult> {
@@ -56,8 +56,8 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
           sort: 0,
           markdown: fallbackMarkdown,
           memo: "",
-          tag: "",
-        },
+          tag: ""
+        }
       ];
     }
   }
@@ -77,7 +77,7 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     if (listContext.isListItemBlock(blockId)) {
       return {
         listItem: true,
-        listPrefix: listContext.getListPrefix(blockId) || "- ",
+        listPrefix: listContext.getListPrefix(blockId) || "- "
       };
     }
     return { listItem: false };
@@ -94,7 +94,7 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
       blockId: mappedBlockId,
       blockSort: blockSortMap.get(mappedBlockId) ?? item.blockSort,
       listItem: listLine.listItem,
-      listPrefix: listLine.listPrefix,
+      listPrefix: listLine.listPrefix
     };
   };
 
@@ -122,7 +122,7 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     isListItemWithMappedChild: (blockId) => listContext.hasMappedListLineChild(blockId),
     getMappedListLineChildId: (blockId) => listContext.getMappedListLineChildId(blockId),
     resolveListLine,
-    startOrder: headingResult.nextOrder,
+    startOrder: headingResult.nextOrder
   });
   items.push(...markdownMetaResult.items);
   const markdownInlineItems = markdownMetaResult.markdownInlineItems;
@@ -141,7 +141,7 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   const withDocTitle = appendDocTitleItemIfMissing(items, {
     docTitle,
     rootId,
-    nextOrder: markdownMetaResult.nextOrder,
+    nextOrder: markdownMetaResult.nextOrder
   });
   const normalizedItems = normalizeKeyInfoItemsByPipeline(withDocTitle);
   const sortedItems = sortKeyInfoItemsByAnchor(normalizedItems);
@@ -149,6 +149,6 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
   return {
     docId: rootId,
     docTitle,
-    items: sortedItems,
+    items: sortedItems
   };
 }

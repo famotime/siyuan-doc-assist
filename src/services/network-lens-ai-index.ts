@@ -35,23 +35,23 @@ export async function loadFreshNetworkLensDocumentSummary(params: {
     if (v3Profile && v3Profile.sourceUpdatedAt === params.documentUpdatedAt && v3Profile.positioning?.trim()) {
       const positioning = v3Profile.positioning.trim();
       const primaryBlocks = parseJsonStringArray(v3Profile.primarySourceBlocksJson);
-      const snippets = Array.isArray(primaryBlocks)
-        ? (primaryBlocks as any[]).map((item) => (typeof item === "object" && item?.text ? item.text : String(item)))
-        : [];
+      const snippets = Array.isArray(primaryBlocks) ?
+          (primaryBlocks as any[]).map((item) => (typeof item === "object" && item?.text ? item.text : String(item))) :
+          [];
       return {
         summaryShort: positioning,
         summaryMedium: positioning,
         keywords: parseJsonStringArray(v3Profile.keywordsJson),
         evidenceSnippets: snippets,
         indexedAt: v3Profile.generatedAt || "",
-        sourceHash: v3Profile.sourceHash || "",
+        sourceHash: v3Profile.sourceHash || ""
       };
     }
   }
 
   const profile = snapshot?.semanticProfiles?.[params.documentId] as
-    | NetworkLensDocumentSemanticProfileRecord
-    | undefined;
+    | NetworkLensDocumentSemanticProfileRecord |
+    undefined;
 
   if (!profile) {
     return null;
@@ -60,26 +60,26 @@ export async function loadFreshNetworkLensDocumentSummary(params: {
     return null;
   }
 
-  const summaryShort = typeof profile.documentSummaryShort === "string"
-    ? profile.documentSummaryShort.trim()
-    : "";
+  const summaryShort = typeof profile.documentSummaryShort === "string" ?
+      profile.documentSummaryShort.trim() :
+    "";
   if (!summaryShort) {
     return null;
   }
 
-  const summaryMedium = typeof profile.documentSummaryMedium === "string"
-    ? profile.documentSummaryMedium.trim() || summaryShort
-    : summaryShort;
+  const summaryMedium = typeof profile.documentSummaryMedium === "string" ?
+    profile.documentSummaryMedium.trim() || summaryShort :
+    summaryShort;
 
   return {
     summaryShort,
     summaryMedium,
     keywords: parseJsonStringArray(profile.documentKeywordsJson),
     evidenceSnippets: parseJsonStringArray(profile.documentEvidenceSnippetsJson),
-    indexedAt: typeof profile.documentSummaryUpdatedAt === "string"
-      ? profile.documentSummaryUpdatedAt.trim()
-      : "",
-    sourceHash: typeof profile.sourceHash === "string" ? profile.sourceHash.trim() : "",
+    indexedAt: typeof profile.documentSummaryUpdatedAt === "string" ?
+        profile.documentSummaryUpdatedAt.trim() :
+      "",
+    sourceHash: typeof profile.sourceHash === "string" ? profile.sourceHash.trim() : ""
   };
 }
 
@@ -99,9 +99,9 @@ function parseJsonStringArray(value: unknown): string[] {
 
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
+    return Array.isArray(parsed) ?
+        parsed.filter((item): item is string => typeof item === "string") :
+        [];
   } catch {
     return [];
   }

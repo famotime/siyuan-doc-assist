@@ -7,7 +7,7 @@ describe("action-runner-block-transform", () => {
     const result = await applyMarkdownTransformToBlocks({
       blocks: [
         { id: "a", markdown: "A" } as any,
-        { id: "b", markdown: "B" } as any,
+        { id: "b", markdown: "B" } as any
       ],
       isHighRisk: () => false,
       updateBlockMarkdown,
@@ -16,7 +16,7 @@ describe("action-runner-block-transform", () => {
           return { markdown: "A*", changedCount: 2 };
         }
         return { markdown: source, changedCount: 0 };
-      },
+      }
     });
 
     expect(updateBlockMarkdown).toHaveBeenCalledTimes(1);
@@ -25,7 +25,7 @@ describe("action-runner-block-transform", () => {
       changedCount: 2,
       updatedBlockCount: 1,
       failedBlockCount: 0,
-      skippedRiskyIds: [],
+      skippedRiskyIds: []
     });
   });
 
@@ -38,7 +38,7 @@ describe("action-runner-block-transform", () => {
       blocks: [
         { id: "a", markdown: "A" } as any,
         { id: "b", markdown: "B" } as any,
-        { id: "c", markdown: "C" } as any,
+        { id: "c", markdown: "C" } as any
       ],
       isHighRisk: (source) => source === "B",
       updateBlockMarkdown,
@@ -50,7 +50,7 @@ describe("action-runner-block-transform", () => {
           return { markdown: "C*", changedCount: 3 };
         }
         return { markdown: source, changedCount: 0 };
-      },
+      }
     });
 
     expect(updateBlockMarkdown).toHaveBeenCalledTimes(2);
@@ -60,7 +60,7 @@ describe("action-runner-block-transform", () => {
       changedCount: 3,
       updatedBlockCount: 1,
       failedBlockCount: 1,
-      skippedRiskyIds: ["b"],
+      skippedRiskyIds: ["b"]
     });
   });
 
@@ -70,11 +70,11 @@ describe("action-runner-block-transform", () => {
       blocks: [
         { id: "a", markdown: "" } as any,
         { id: "b", markdown: undefined } as any,
-        { id: "c", markdown: "C" } as any,
+        { id: "c", markdown: "C" } as any
       ],
       isHighRisk: () => false,
       updateBlockMarkdown,
-      transform: (source) => ({ markdown: source, changedCount: 0 }),
+      transform: (source) => ({ markdown: source, changedCount: 0 })
     });
 
     expect(updateBlockMarkdown).not.toHaveBeenCalled();
@@ -82,7 +82,7 @@ describe("action-runner-block-transform", () => {
       changedCount: 0,
       updatedBlockCount: 0,
       failedBlockCount: 0,
-      skippedRiskyIds: [],
+      skippedRiskyIds: []
     });
   });
 });

@@ -36,13 +36,13 @@ export function rankLargeDocuments(
   return items
     .map((item) => ({
       ...item,
-      totalBytes: item.documentBytes + item.assetBytes,
+      totalBytes: item.documentBytes + item.assetBytes
     }))
     .sort(
       (left, right) =>
-        right.totalBytes - left.totalBytes
-        || String(right.updated || "").localeCompare(String(left.updated || ""))
-        || left.title.localeCompare(right.title, "zh-CN")
+        right.totalBytes - left.totalBytes ||
+        String(right.updated || "").localeCompare(String(left.updated || "")) ||
+        left.title.localeCompare(right.title, "zh-CN")
     )
     .slice(0, limit);
 }
@@ -70,7 +70,7 @@ export function buildLargeDocumentsReportMarkdown(params: {
         )} | ${item.assetCount} | ${formatReportDateFromId(item.documentId)} | ${formatReportDate(
           item.updated
         )} |`
-    ),
+    )
   ];
 
   return lines.join("\n");

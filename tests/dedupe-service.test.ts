@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { findDuplicateCandidates } from "@/services/dedupe";
+import { getDocMetaByID, listDocsByParentSubtree } from "@/services/kernel";
+
 vi.mock("@/services/kernel", () => ({
   getDocMetaByID: vi.fn(),
   listDocsByParentSubtree: vi.fn(),
-  removeDocByID: vi.fn(),
+  removeDocByID: vi.fn()
 }));
-
-import { findDuplicateCandidates } from "@/services/dedupe";
-import { getDocMetaByID, listDocsByParentSubtree } from "@/services/kernel";
 
 describe("dedupe service", () => {
   const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
@@ -26,7 +26,7 @@ describe("dedupe service", () => {
       path: "/folder/child-doc.sy",
       hPath: "/Folder/Same Title",
       updated: "20260222010101",
-      title: "Same Title",
+      title: "Same Title"
     });
     getDocMetaByIDMock.mockResolvedValueOnce({
       id: "parent-doc",
@@ -36,14 +36,14 @@ describe("dedupe service", () => {
       path: "/folder.sy",
       hPath: "/Folder/Same Title",
       updated: "20260222000000",
-      title: "Same Title",
+      title: "Same Title"
     });
     listDocsByParentSubtreeMock.mockResolvedValue([
       {
         id: "child-doc",
         hpath: "/Folder/Same Title",
-        updated: "20260222010101",
-      },
+        updated: "20260222010101"
+      }
     ]);
 
     const groups = await findDuplicateCandidates("child-doc", 0.85);
@@ -62,7 +62,7 @@ describe("dedupe service", () => {
       path: "/folder/child-doc.sy",
       hPath: "/Folder/Same Title",
       updated: "20260222010101",
-      title: "Same Title",
+      title: "Same Title"
     });
     getDocMetaByIDMock.mockResolvedValueOnce({
       id: "parent-doc",
@@ -72,19 +72,19 @@ describe("dedupe service", () => {
       path: "/folder.sy",
       hPath: "/Folder/Same Title",
       updated: "20260222000000",
-      title: "Same Title",
+      title: "Same Title"
     });
     listDocsByParentSubtreeMock.mockResolvedValue([
       {
         id: "child-doc",
         hpath: "/Folder/Same Title",
-        updated: "20260222010101",
+        updated: "20260222010101"
       },
       {
         id: "parent-doc",
         hpath: "/Folder/Same Title",
-        updated: "20260222000000",
-      },
+        updated: "20260222000000"
+      }
     ]);
 
     const groups = await findDuplicateCandidates("child-doc", 0.85);

@@ -42,7 +42,7 @@ export function populateEditorTitleMenu(options: {
     actions,
     docMenuRegistrationState,
     docActionEnabledState,
-    runAction,
+    runAction
   } = options;
   if (!menu || !docId) {
     return false;
@@ -64,7 +64,7 @@ export function populateEditorTitleMenu(options: {
       label: action.menuText,
       click: () => {
         void runAction(action.key, docId, protyle);
-      },
+      }
     });
   }
   return true;
@@ -86,7 +86,7 @@ export function registerPluginCommands(options: {
       },
       editorCallback: (protyle: unknown) => {
         void runAction(action.key, undefined, protyle as ProtyleLike);
-      },
+      }
     });
   }
 }
@@ -118,11 +118,11 @@ export function addFloatSelectedTextContentMenuItem(options: {
   if (!menu) {
     return false;
   }
-  const selectedText = range
-    ? range.toString()
-    : typeof window !== "undefined"
-    ? window.getSelection()?.toString() || ""
-    : "";
+  const selectedText = range ?
+      range.toString() :
+    typeof window !== "undefined" ?
+      window.getSelection()?.toString() || "" :
+      "";
   if (!selectedText.trim()) {
     return false;
   }
@@ -134,7 +134,7 @@ export function addFloatSelectedTextContentMenuItem(options: {
     click: async () => {
       const text = await extractFloatingMarkdownFromSelection(protyle, capturedRange);
       openFloatingText(text || selectedText);
-    },
+    }
   });
   return true;
 }
@@ -144,11 +144,11 @@ export function addFloatSelectedTextContentMenuItem(options: {
  */
 export function captureFloatingSelectionRange(protyle?: ProtyleLike): Range | null {
   const toolbarRange = (protyle as any)?.toolbar?.range;
-  return toolbarRange && typeof toolbarRange.cloneRange === "function"
-    ? toolbarRange.cloneRange()
-    : typeof window !== "undefined" && window.getSelection()?.rangeCount
-    ? window.getSelection()!.getRangeAt(0).cloneRange()
-    : null;
+  return toolbarRange && typeof toolbarRange.cloneRange === "function" ?
+      toolbarRange.cloneRange() :
+    typeof window !== "undefined" && window.getSelection()?.rangeCount ?
+        window.getSelection()!.getRangeAt(0).cloneRange() :
+      null;
 }
 
 /**
@@ -183,7 +183,7 @@ export function addFloatSelectedTextBlockMenuItem(options: {
       } else {
         runFloatActionFallback();
       }
-    },
+    }
   });
   return true;
 }
@@ -212,7 +212,7 @@ export function addFloatDocTreeMenuItem(options: {
     label: "悬浮整篇文档",
     click: () => {
       openFloatingDoc(docId);
-    },
+    }
   });
   return true;
 }

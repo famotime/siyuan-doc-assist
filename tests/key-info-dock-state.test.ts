@@ -5,9 +5,10 @@ import {
   deriveKeyInfoDockRenderFlags,
   isKeyInfoDockAllFilterActive,
   isKeyInfoDockFilterKeyActive,
-  isKeyInfoDockTabActive,
-  type KeyInfoDockStateSnapshot,
+  isKeyInfoDockTabActive
+
 } from "@/ui/key-info-dock-state";
+import type { KeyInfoDockStateSnapshot } from "@/ui/key-info-dock-state";
 
 function buildItem(id: string): KeyInfoItem {
   return {
@@ -18,7 +19,7 @@ function buildItem(id: string): KeyInfoItem {
     offset: 0,
     blockId: `block-${id}`,
     blockSort: 0,
-    order: 0,
+    order: 0
   };
 }
 
@@ -31,7 +32,7 @@ function buildDocAction(key: string): DockDocAction {
     groupLabel: "编辑",
     disabled: false,
     menuRegistered: true,
-    menuToggleDisabled: false,
+    menuToggleDisabled: false
   };
 }
 
@@ -45,7 +46,7 @@ function buildState(): KeyInfoDockStateSnapshot {
     docMenuRegisterAll: true,
     docActions: [buildDocAction("insert-backlinks")],
     favoriteActionKeys: ["insert-backlinks"],
-    scrollContextKey: "doc-a",
+    scrollContextKey: "doc-a"
   };
 }
 
@@ -58,7 +59,7 @@ describe("key-info-dock-state", () => {
       renderList: false,
       renderDocActions: false,
       renderDocMenuToggle: false,
-      scrollContextChanged: false,
+      scrollContextChanged: false
     });
   });
 
@@ -67,7 +68,7 @@ describe("key-info-dock-state", () => {
     ["filter", (state: KeyInfoDockStateSnapshot) => ({ ...state, filter: [...state.filter] })],
     ["loading", (state: KeyInfoDockStateSnapshot) => ({ ...state, loading: true })],
     ["emptyText", (state: KeyInfoDockStateSnapshot) => ({ ...state, emptyText: "空" })],
-    ["activeTab", (state: KeyInfoDockStateSnapshot) => ({ ...state, activeTab: "doc-process" })],
+    ["activeTab", (state: KeyInfoDockStateSnapshot) => ({ ...state, activeTab: "doc-process" })]
   ])("marks list for rerender when %s changes", (_, buildNext) => {
     const prev = buildState();
     const next = buildNext(prev);
@@ -83,7 +84,7 @@ describe("key-info-dock-state", () => {
       renderList: true,
       renderDocActions: false,
       renderDocMenuToggle: false,
-      scrollContextChanged: true,
+      scrollContextChanged: true
     });
   });
 
@@ -95,7 +96,7 @@ describe("key-info-dock-state", () => {
 
     const nextFavorites = {
       ...prev,
-      favoriteActionKeys: [...prev.favoriteActionKeys, "move-backlinks"],
+      favoriteActionKeys: [...prev.favoriteActionKeys, "move-backlinks"]
     };
     expect(deriveKeyInfoDockRenderFlags(prev, nextFavorites).renderDocActions).toBe(true);
   });

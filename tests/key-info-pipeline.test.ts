@@ -3,7 +3,7 @@ import { KeyInfoItem } from "@/core/key-info-core";
 import {
   appendDocTitleItemIfMissing,
   normalizeKeyInfoItemsByPipeline,
-  sortKeyInfoItemsByAnchor,
+  sortKeyInfoItemsByAnchor
 } from "@/services/key-info-pipeline";
 
 function item(
@@ -22,7 +22,7 @@ function item(
     blockSort: 1,
     order: 1,
     listItem: false,
-    ...patch,
+    ...patch
   };
 }
 
@@ -32,14 +32,14 @@ describe("key-info pipeline", () => {
     const unchanged = appendDocTitleItemIfMissing(base, {
       docTitle: "标题A",
       rootId: "doc-1",
-      nextOrder: 8,
+      nextOrder: 8
     });
     expect(unchanged).toEqual(base);
 
     const appended = appendDocTitleItemIfMissing([item("p1", "bold", "正文")], {
       docTitle: "标题B",
       rootId: "doc-1",
-      nextOrder: 9,
+      nextOrder: 9
     });
     expect(appended).toHaveLength(2);
     expect(appended[1]).toEqual(
@@ -48,7 +48,7 @@ describe("key-info pipeline", () => {
         text: "标题B",
         blockId: "doc-1",
         blockSort: -1,
-        order: 9,
+        order: 9
       })
     );
   });
@@ -57,7 +57,7 @@ describe("key-info pipeline", () => {
     const normalized = normalizeKeyInfoItemsByPipeline([
       item("hl1", "highlight", "==代码 `x`==", { raw: "==代码 `x`==" }),
       item("b1", "bold", "A", { offset: 0, order: 1 }),
-      item("b2", "bold", "AB", { offset: 0, order: 2 }),
+      item("b2", "bold", "AB", { offset: 0, order: 2 })
     ]);
 
     expect(
@@ -75,7 +75,7 @@ describe("key-info pipeline", () => {
     const sorted = sortKeyInfoItemsByAnchor([
       item("c", "tag", "c", { blockSort: 2, offset: 0, order: 1 }),
       item("b", "tag", "b", { blockSort: 1, offset: 2, order: 1 }),
-      item("a", "tag", "a", { blockSort: 1, offset: 1, order: 2 }),
+      item("a", "tag", "a", { blockSort: 1, offset: 1, order: 2 })
     ]);
 
     expect(sorted.map((entry) => entry.id)).toEqual(["a", "b", "c"]);
@@ -85,7 +85,7 @@ describe("key-info pipeline", () => {
     const normalized = normalizeKeyInfoItemsByPipeline([
       item("tag-1", "tag", "🔍待查#", { raw: "#🔍待查#", blockId: "p-1", order: 1 }),
       item("tag-2", "tag", "🔍待查", { raw: "#🔍待查", blockId: "p-1", order: 2 }),
-      item("tag-3", "tag", "#🔍待查#", { raw: "#🔍待查#", blockId: "p-1", order: 3 }),
+      item("tag-3", "tag", "#🔍待查#", { raw: "#🔍待查#", blockId: "p-1", order: 3 })
     ]);
 
     expect(normalized.filter((entry) => entry.type === "tag")).toEqual([
@@ -93,8 +93,8 @@ describe("key-info pipeline", () => {
         type: "tag",
         text: "🔍待查",
         raw: "#🔍待查",
-        blockId: "p-1",
-      }),
+        blockId: "p-1"
+      })
     ]);
   });
 
@@ -105,15 +105,15 @@ describe("key-info pipeline", () => {
         blockId: "p-1",
         order: 1,
         listItem: true,
-        listPrefix: "- ",
+        listPrefix: "- "
       }),
       item("tag-2", "tag", "测试", {
         raw: "#测试",
         blockId: "p-1",
         order: 2,
         listItem: true,
-        listPrefix: "- ",
-      }),
+        listPrefix: "- "
+      })
     ]);
 
     expect(normalized.filter((entry) => entry.type === "tag")).toEqual([
@@ -122,8 +122,8 @@ describe("key-info pipeline", () => {
         text: "测试",
         raw: "#测试",
         blockId: "p-1",
-        listPrefix: "- ",
-      }),
+        listPrefix: "- "
+      })
     ]);
   });
 
@@ -131,7 +131,7 @@ describe("key-info pipeline", () => {
     const normalized = normalizeKeyInfoItemsByPipeline([
       item("b-1", "bold", "核心概念", { raw: "**核心概念**", blockId: "p-1", blockSort: 1, offset: 0, order: 1 }),
       item("hl-1", "highlight", "核心概念", { raw: "==核心概念==", blockId: "p-1", blockSort: 1, offset: 0, order: 2 }),
-      item("u-1", "underline", "核心概念", { raw: "<u>核心概念</u>", blockId: "p-1", blockSort: 1, offset: 0, order: 3 }),
+      item("u-1", "underline", "核心概念", { raw: "<u>核心概念</u>", blockId: "p-1", blockSort: 1, offset: 0, order: 3 })
     ]);
 
     const blockItems = normalized.filter((entry) => entry.blockId === "p-1");
@@ -148,15 +148,15 @@ describe("key-info pipeline", () => {
         blockId: "p-1",
         blockSort: 1,
         offset: 0,
-        order: 1,
+        order: 1
       }),
       item("hl-1", "highlight", "深度学习", {
         raw: "==深度学习==",
         blockId: "p-1",
         blockSort: 1,
         offset: 0,
-        order: 2,
-      }),
+        order: 2
+      })
     ]);
 
     const blockItems = normalized.filter((entry) => entry.blockId === "p-1");
@@ -169,7 +169,7 @@ describe("key-info pipeline", () => {
   test("does not merge multi-style items across different blocks", () => {
     const normalized = normalizeKeyInfoItemsByPipeline([
       item("b-1", "bold", "重点词", { blockId: "p-1", blockSort: 1, offset: 0, order: 1 }),
-      item("hl-1", "highlight", "重点词", { blockId: "p-2", blockSort: 2, offset: 0, order: 2 }),
+      item("hl-1", "highlight", "重点词", { blockId: "p-2", blockSort: 2, offset: 0, order: 2 })
     ]);
 
     expect(normalized).toHaveLength(2);

@@ -6,7 +6,7 @@ import {
   exportCurrentDocMarkdown,
   exportDocAndChildDocsAsMarkdownZip,
   exportDocAndChildKeyInfoAsZip,
-  exportDocIdsAsMarkdownZip,
+  exportDocIdsAsMarkdownZip
 } from "@/services/exporter";
 import { exportMdContent, getDocMetaByID } from "@/services/kernel";
 import { getBacklinkDocs, getChildDocs, getForwardLinkedDocIds } from "@/services/link-resolver";
@@ -66,7 +66,7 @@ export function createExportActionHandlers(
     },
     "export-child-docs-zip": async (docId) => {
       const result = await exportDocAndChildDocsAsMarkdownZip({
-        docId,
+        docId
       });
       const displayName = decodeURIComponentSafe(result.name || "");
       showMessage(
@@ -79,7 +79,7 @@ export function createExportActionHandlers(
       const result = await exportDocAndChildKeyInfoAsZip({
         docId,
         filter: options.getKeyInfoFilter?.(),
-        protyle,
+        protyle
       });
       showMessage(
         `导出完成：${result.docCount} 篇文档，${result.itemCount} 条关键内容${buildSkippedSummary(result)}`,
@@ -91,12 +91,12 @@ export function createExportActionHandlers(
       const [forwardIds, backlinks, childDocs] = await Promise.all([
         getForwardLinkedDocIds(docId),
         getBacklinkDocs(docId),
-        getChildDocs(docId),
+        getChildDocs(docId)
       ]);
       const ids = [
         ...forwardIds,
         ...backlinks.map((item) => item.id),
-        ...childDocs.map((item) => item.id),
+        ...childDocs.map((item) => item.id)
       ];
       await exportDocZip(ids, "关联", docId);
     },
@@ -110,7 +110,7 @@ export function createExportActionHandlers(
       forwardLinksLogger.debug("export-forward-zip trigger", {
         currentDocId: docId,
         forwardDocCount: ids.length,
-        forwardDocIds: ids,
+        forwardDocIds: ids
       });
       await exportDocZip(ids, "正链", docId);
     },
@@ -120,7 +120,7 @@ export function createExportActionHandlers(
         const content = result.content;
 
         // 匹配 web 链接的正则表达式
-        const urlRegex = /https?:\/\/[^\s<>)\]>"',;]+/gi;
+        const urlRegex = /https?:\/\/[^\s<>)\]"',;]+/gi;
         const matches = content.match(urlRegex) || [];
 
         if (matches.length === 0) {
@@ -184,6 +184,6 @@ export function createExportActionHandlers(
         console.error("导入快捷键配置失败:", error);
         showMessage("导入快捷键配置失败", 5000, "error");
       }
-    },
+    }
   };
 }

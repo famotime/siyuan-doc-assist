@@ -2,12 +2,12 @@ import {
   buildAiForwardProxyHeaders,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
-  normalizeAiServiceConfig,
+  normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import {
   BetterTitlesResult,
   buildBetterTitlesMessages,
-  parseBetterTitlesResponse,
+  parseBetterTitlesResponse
 } from "@/core/ai-better-titles-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse } from "@/services/kernel";
@@ -50,11 +50,11 @@ function extractContentFromPayload(payload: any): string {
   if (Array.isArray(content)) {
     const joined = content
       .map((item) =>
-        typeof item?.text === "string"
-          ? item.text
-          : typeof item === "string"
-            ? item
-            : ""
+        typeof item?.text === "string" ?
+          item.text :
+          typeof item === "string" ?
+            item :
+            ""
       )
       .join("\n")
       .trim();
@@ -83,7 +83,7 @@ export async function generateBetterTitles(
 
   const messages = buildBetterTitlesMessages({
     documentTitle: params.documentTitle,
-    content: params.content,
+    content: params.content
   });
 
   const endpoint = `${config.baseUrl.replace(/\/+$/u, "")}/chat/completions`;
@@ -91,14 +91,14 @@ export async function generateBetterTitles(
     model: config.model,
     messages,
     max_tokens: config.maxTokens,
-    temperature: config.temperature,
+    temperature: config.temperature
   });
 
   logger.debug("request", {
     endpoint,
     model: config.model,
     contentLength: params.content.length,
-    hasDocTitle: !!params.documentTitle,
+    hasDocTitle: !!params.documentTitle
   });
 
   const proxy = params.forwardProxy || forwardProxy;
@@ -114,7 +114,7 @@ export async function generateBetterTitles(
   logger.debug("response", {
     status: response?.status,
     elapsed: response?.elapsed,
-    bodyLength: response?.body?.length ?? 0,
+    bodyLength: response?.body?.length ?? 0
   });
 
   if (!response || response.status < 200 || response.status >= 300) {

@@ -18,7 +18,7 @@ export function createKeyInfoListScrollState(
     contextKey,
     lastKnownTop: 0,
     lastKnownLeft: 0,
-    pendingReset: false,
+    pendingReset: false
   };
 }
 
@@ -30,7 +30,7 @@ export function setKeyInfoListLastKnownScroll(
   return {
     ...state,
     lastKnownTop: top,
-    lastKnownLeft: left,
+    lastKnownLeft: left
   };
 }
 
@@ -41,14 +41,14 @@ export function updateKeyInfoListScrollContext(
   if (state.contextKey === nextContextKey) {
     return {
       ...state,
-      contextKey: nextContextKey,
+      contextKey: nextContextKey
     };
   }
   return {
     contextKey: nextContextKey,
     lastKnownTop: 0,
     lastKnownLeft: 0,
-    pendingReset: true,
+    pendingReset: true
   };
 }
 
@@ -60,13 +60,13 @@ export function consumeKeyInfoListPostRenderAction(state: KeyInfoListScrollState
     return {
       nextState: {
         ...state,
-        pendingReset: false,
+        pendingReset: false
       },
       action: {
         type: "reset",
         top: 0,
-        left: 0,
-      },
+        left: 0
+      }
     };
   }
   return {
@@ -74,7 +74,7 @@ export function consumeKeyInfoListPostRenderAction(state: KeyInfoListScrollState
     action: {
       type: "restore",
       top: state.lastKnownTop,
-      left: state.lastKnownLeft,
-    },
+      left: state.lastKnownLeft
+    }
   };
 }

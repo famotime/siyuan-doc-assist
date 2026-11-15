@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("siyuan", () => ({
-  fetchSyncPost: vi.fn(),
-}));
-
 import { fetchSyncPost } from "siyuan";
 import { requestApi } from "@/services/request";
+
+vi.mock("siyuan", () => ({
+  fetchSyncPost: vi.fn()
+}));
 
 const fetchSyncPostMock = vi.mocked(fetchSyncPost);
 
@@ -18,7 +18,7 @@ describe("request service", () => {
     fetchSyncPostMock.mockResolvedValue({
       code: 0,
       msg: "",
-      data: { ok: true },
+      data: { ok: true }
     } as any);
 
     const result = await requestApi<{ ok: boolean }>("/api/test", { id: "doc-1" });
@@ -31,7 +31,7 @@ describe("request service", () => {
     fetchSyncPostMock.mockResolvedValue({
       code: -1,
       msg: "bad request",
-      data: null,
+      data: null
     } as any);
 
     await expect(requestApi("/api/test")).rejects.toThrow("bad request");

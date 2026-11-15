@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   buildDefaultDocActionOrder,
-  buildDefaultDocMenuRegistration,
+  buildDefaultDocMenuRegistration
 } from "@/core/doc-menu-registration-core";
 import { ACTIONS } from "@/plugin/actions";
 import { filterVisibleActions } from "@/plugin/alpha-feature-config";
@@ -26,7 +26,7 @@ vi.mock("siyuan", () => {
       },
       off: (name: string, handler: (event: any) => void) => {
         this.listeners.get(name)?.delete(handler);
-      },
+      }
     };
 
     emitEvent(name: string, detail: any) {
@@ -56,6 +56,7 @@ vi.mock("siyuan", () => {
       description?: string;
       actionElement: HTMLElement;
     }> = [];
+
     public readonly open = vi.fn();
 
     addItem(options: {
@@ -71,7 +72,7 @@ vi.mock("siyuan", () => {
       this.items.push({
         title: options.title,
         description: options.description,
-        actionElement,
+        actionElement
       });
     }
   }
@@ -86,7 +87,7 @@ vi.mock("siyuan", () => {
     },
     showMessage: vi.fn(),
     openTab: vi.fn(),
-    getAllModels: vi.fn(() => ({ editor: [] })),
+    getAllModels: vi.fn(() => ({ editor: [] }))
   };
 });
 
@@ -126,13 +127,13 @@ describe("plugin menu registration", () => {
     plugin.emitEvent("click-blockicon", {
       menu,
       blockElements: [blockEl],
-      protyle: { block: { rootID: "doc-1" } },
+      protyle: { block: { rootID: "doc-1" } }
     });
 
     expect(menu.addItem).toHaveBeenCalledWith(
       expect.objectContaining({
         label: "悬浮选中文本",
-        icon: "iconPin",
+        icon: "iconPin"
       })
     );
   });
@@ -175,8 +176,8 @@ describe("plugin menu registration", () => {
       actionMenuRegistered: {
         "export-current": false,
         "insert-backlinks": true,
-        "float-selected-text": false,
-      },
+        "float-selected-text": false
+      }
     });
     await plugin.onload();
 
@@ -196,9 +197,9 @@ describe("plugin menu registration", () => {
       version: 1,
       actionMenuRegistered: {
         "insert-backlinks": true,
-        "export-current": true,
+        "export-current": true
       },
-      actionOrder: ["insert-backlinks", "export-current"],
+      actionOrder: ["insert-backlinks", "export-current"]
     });
     await plugin.onload();
 
@@ -250,7 +251,7 @@ describe("plugin menu registration", () => {
     await plugin.saveData("doc-menu-registration", {
       version: 1,
       actionMenuRegistered: {},
-      actionOrder: ["insert-backlinks", "export-current"],
+      actionOrder: ["insert-backlinks", "export-current"]
     });
 
     await plugin.onload();
@@ -274,8 +275,8 @@ describe("plugin menu registration", () => {
       expect.objectContaining({
         version: 1,
         actionMenuRegistered: expect.objectContaining({
-          "insert-backlinks": false,
-        }),
+          "insert-backlinks": false
+        })
       })
     );
   });
@@ -286,7 +287,7 @@ describe("plugin menu registration", () => {
     await plugin.saveData("doc-menu-registration", {
       version: 1,
       actionEnabled: {},
-      favoriteActionKeys: ["insert-backlinks", "invalid-key"],
+      favoriteActionKeys: ["insert-backlinks", "invalid-key"]
     });
     await plugin.onload();
 
@@ -305,7 +306,7 @@ describe("plugin menu registration", () => {
       "doc-menu-registration",
       expect.objectContaining({
         version: 1,
-        favoriteActionKeys: expect.arrayContaining(["insert-backlinks"]),
+        favoriteActionKeys: expect.arrayContaining(["insert-backlinks"])
       })
     );
   });
@@ -324,7 +325,7 @@ describe("plugin menu registration", () => {
       "doc-menu-registration",
       expect.objectContaining({
         version: 1,
-        favoriteActionKeys: ["insert-backlinks", "export-current"],
+        favoriteActionKeys: ["insert-backlinks", "export-current"]
       })
     );
   });
@@ -340,7 +341,7 @@ describe("plugin menu registration", () => {
     expect(stored).toEqual(
       expect.objectContaining({
         version: 1,
-        keyInfoFilter: ["bold", "highlight"],
+        keyInfoFilter: ["bold", "highlight"]
       })
     );
 
@@ -403,12 +404,12 @@ describe("plugin menu registration", () => {
     expect(provider).toEqual(expect.objectContaining({
       protocol: "power-buttons-command-provider",
       protocolVersion: 2,
-      providerId: "siyuan-doc-assist",
+      providerId: "siyuan-doc-assist"
     }));
     expect(await provider.listCommands()).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "export-current" }),
-      ]),
+        expect.objectContaining({ id: "export-current" })
+      ])
     );
   });
 
@@ -428,7 +429,7 @@ describe("plugin menu registration", () => {
         name: "float-selected-text",
         icon: "iconPin",
         tipPosition: "n",
-        tip: "悬浮选中文本",
+        tip: "悬浮选中文本"
       });
       expect(typeof toolbar[3].click).toBe("function");
     });
@@ -445,7 +446,7 @@ describe("plugin menu registration", () => {
       expect(toolbar[0]).toBe("bold");
       expect(toolbar[1]).toBe("|");
       expect(toolbar[2]).toMatchObject({
-        name: "float-selected-text",
+        name: "float-selected-text"
       });
     });
 
@@ -478,9 +479,9 @@ describe("plugin menu registration", () => {
         block: { id: "doc-123" },
         toolbar: {
           range: {
-            toString: () => "选中的文本片段",
-          },
-        },
+            toString: () => "选中的文本片段"
+          }
+        }
       };
 
       button.click(fakeProtyle);

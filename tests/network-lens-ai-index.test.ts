@@ -17,16 +17,16 @@ describe("network lens ai index", () => {
             documentEvidenceSnippetsJson: "[\"片段一\"]",
             documentSummaryUpdatedAt: "2026-04-03T15:02:08.012Z",
             summaryShort: "找到 1 个主题页建议",
-            summaryMedium: "找到 1 个主题页建议，因为……",
-          },
-        },
-      }),
+            summaryMedium: "找到 1 个主题页建议，因为……"
+          }
+        }
+      })
     };
 
     const result = await loadFreshNetworkLensDocumentSummary({
       networkLensPlugin,
       documentId: "doc-1",
-      documentUpdatedAt: "20260403150208",
+      documentUpdatedAt: "20260403150208"
     });
 
     expect(result).toEqual({
@@ -35,7 +35,7 @@ describe("network lens ai index", () => {
       keywords: ["AI", "摘要"],
       evidenceSnippets: ["片段一"],
       indexedAt: "2026-04-03T15:02:08.012Z",
-      sourceHash: "h123",
+      sourceHash: "h123"
     });
   });
 
@@ -49,16 +49,16 @@ describe("network lens ai index", () => {
             sourceUpdatedAt: "20260403150208",
             sourceHash: "h123",
             summaryShort: "找到 1 个主题页建议",
-            summaryMedium: "找到 1 个主题页建议，因为……",
-          },
-        },
-      }),
+            summaryMedium: "找到 1 个主题页建议，因为……"
+          }
+        }
+      })
     };
 
     const result = await loadFreshNetworkLensDocumentSummary({
       networkLensPlugin,
       documentId: "doc-1",
-      documentUpdatedAt: "20260403150208",
+      documentUpdatedAt: "20260403150208"
     });
 
     expect(result).toBeNull();
@@ -73,16 +73,16 @@ describe("network lens ai index", () => {
             documentId: "doc-1",
             sourceUpdatedAt: "20260403160000",
             sourceHash: "h123",
-            documentSummaryShort: "这是短摘要。",
-          },
-        },
-      }),
+            documentSummaryShort: "这是短摘要。"
+          }
+        }
+      })
     };
 
     const result = await loadFreshNetworkLensDocumentSummary({
       networkLensPlugin,
       documentId: "doc-1",
-      documentUpdatedAt: "20260403150208",
+      documentUpdatedAt: "20260403150208"
     });
 
     expect(result).toBeNull();

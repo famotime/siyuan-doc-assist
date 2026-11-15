@@ -2,18 +2,18 @@ import {
   buildDefaultKeyInfoFilter,
   KeyInfoFilter,
   KeyInfoItem,
-  keyInfoTypeLabel,
+  keyInfoTypeLabel
 } from "@/core/key-info-core";
 import {
   consumeKeyInfoListPostRenderAction,
   createKeyInfoListScrollState,
   setKeyInfoListLastKnownScroll,
-  updateKeyInfoListScrollContext,
+  updateKeyInfoListScrollContext
 } from "@/core/key-info-scroll-core";
 import {
   createKeyInfoListScrollLock,
   getActiveKeyInfoListScrollLock,
-  releaseKeyInfoListScrollLockOnUserScroll,
+  releaseKeyInfoListScrollLockOnUserScroll
 } from "@/core/key-info-scroll-lock-core";
 import type { KeyInfoListScrollLock } from "@/core/key-info-scroll-lock-core";
 import {
@@ -21,7 +21,7 @@ import {
   DockTabKey,
 
   resolveInitialDockActiveTab,
-  savePersistedDockActiveTab,
+  savePersistedDockActiveTab
 } from "@/core/dock-panel-core";
 import {
   buildKeyInfoDockRow,
@@ -30,15 +30,16 @@ import {
   FILTER_TYPES,
   filterKeyInfoDockItems,
   formatKeyInfoDockText,
-  preserveVisibleSpaces,
+  preserveVisibleSpaces
 } from "@/ui/key-info-dock-controls";
 import { renderKeyInfoDockDocActions } from "@/ui/key-info-dock-doc-actions";
 import {
   deriveKeyInfoDockRenderFlags,
   isKeyInfoDockFilterKeyActive,
-  isKeyInfoDockTabActive,
-  type KeyInfoDockStateSnapshot,
+  isKeyInfoDockTabActive
+
 } from "@/ui/key-info-dock-state";
+import type { KeyInfoDockStateSnapshot } from "@/ui/key-info-dock-state";
 
 export type KeyInfoDockState = {
   docTitle: string;
@@ -89,7 +90,7 @@ const MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS = new Set<string>([
   "delete-from-current-to-end",
   "delete-from-start-to-current",
   "select-from-start-to-current",
-  "select-from-current-to-end",
+  "select-from-current-to-end"
 ]);
 
 export type CreateKeyInfoDockOptions = {
@@ -118,7 +119,7 @@ export function createKeyInfoDock(
     docActions: [],
     favoriteActionKeys: [],
     runningDocActionKeys: [],
-    scrollContextKey: "",
+    scrollContextKey: ""
   };
 
   const {
@@ -136,7 +137,7 @@ export function createKeyInfoDock(
     keyInfoPanel,
     keyInfoLoadingOverlay,
     docProcessPanel,
-    docProcessList,
+    docProcessList
   } = createKeyInfoDockChrome(element, {
     onTabSelect: (tab) => {
       setState({ activeTab: tab });
@@ -170,7 +171,7 @@ export function createKeyInfoDock(
     onRefresh: () => callbacks.onRefresh?.(),
     onExport: () => callbacks.onExport(),
     onGenerateCanvas: () => callbacks.onGenerateCanvas?.(),
-    onDocActionOrderReset: () => callbacks.onDocActionOrderReset?.(),
+    onDocActionOrderReset: () => callbacks.onDocActionOrderReset?.()
   });
 
   let scrollLock: KeyInfoListScrollLock | null = null;
@@ -274,14 +275,14 @@ export function createKeyInfoDock(
     }
   });
 
-  const handleItemClick = callbacks.onItemClick
-    ? (item: KeyInfoItem) => {
+  const handleItemClick = callbacks.onItemClick ?
+      (item: KeyInfoItem) => {
         lockListScroll();
         callbacks.onItemClick?.(item);
         requestAnimationFrame(restoreListScroll);
         setTimeout(restoreListScroll, 200);
-      }
-    : undefined;
+      } :
+    undefined;
 
   const updateFilterButtons = () => {
     filterButtons.forEach((button, key) => {
@@ -347,7 +348,7 @@ export function createKeyInfoDock(
         setState({ favoriteActionKeys: next });
         callbacks.onDocFavoriteActionReorder?.(next);
       },
-      selectionPreservedActionKeys: MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS,
+      selectionPreservedActionKeys: MOUSEDOWN_SELECTION_PRESERVED_ACTION_KEYS
     });
   };
 
@@ -557,7 +558,7 @@ export function createKeyInfoDock(
       docActions: state.docActions,
       favoriteActionKeys: state.favoriteActionKeys,
       runningDocActionKeys: state.runningDocActionKeys,
-      scrollContextKey: state.scrollContextKey,
+      scrollContextKey: state.scrollContextKey
     };
     Object.assign(state, next);
     const renderFlags = deriveKeyInfoDockRenderFlags(prevState, state);
@@ -597,6 +598,6 @@ export function createKeyInfoDock(
     destroy: () => {
       clearTimeout(entryAnimationTimer);
       element.replaceChildren();
-    },
+    }
   };
 }

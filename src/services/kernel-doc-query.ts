@@ -145,7 +145,7 @@ export function toDocMeta(row: SqlDocRow): DocMeta {
     path: row.path,
     hPath: row.hpath,
     updated: row.updated,
-    title: toTitle(row.hpath),
+    title: toTitle(row.hpath)
   };
 }
 
@@ -156,7 +156,7 @@ export function toNotebookDocMeta(row: Pick<SqlDocRow, "id" | "box" | "path" | "
     path: row.path,
     hPath: row.hpath,
     updated: row.updated,
-    title: toTitle(row.hpath),
+    title: toTitle(row.hpath)
   };
 }
 
@@ -165,7 +165,7 @@ export function toChildDocMeta(row: Pick<SqlChildDocRow, "id" | "box" | "hpath" 
     id: row.id,
     box: row.box,
     hPath: row.hpath,
-    updated: row.updated,
+    updated: row.updated
   };
 }
 
@@ -296,7 +296,7 @@ export async function getDocTreeOrderFromSy(
           docId,
           path: syPath,
           count: orderMap.size,
-          candidates,
+          candidates
         });
         return orderMap;
       }
@@ -304,14 +304,14 @@ export async function getDocTreeOrderFromSy(
     } catch (error: any) {
       failures.push({
         path: syPath,
-        reason: error?.message || String(error),
+        reason: error?.message || String(error)
       });
     }
   }
   keyInfoLogger.debug("sy order unavailable", {
     docId,
     candidates,
-    failures: failures.slice(0, 6),
+    failures: failures.slice(0, 6)
   });
   return new Map();
 }

@@ -2,23 +2,22 @@ import {
   calculateImageSliceRects,
   mergeOcrResults,
   buildOcrQuoteMarkdown,
-  MAX_OCR_IMAGE_HEIGHT,
+  MAX_OCR_IMAGE_HEIGHT
 } from "@/core/ai-image-ocr-core";
 import {
   AiServiceConfig,
   buildAiForwardProxyHeaders,
   DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
   isAiServiceConfigComplete,
-  normalizeAiServiceConfig,
+  normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import { normalizeAiSummaryText } from "@/core/ai-summary-core";
 import {
   collectLocalImageAssetPathsFromMarkdown,
-  normalizeLocalImageAssetPath,
+  normalizeLocalImageAssetPath
 } from "@/core/image-webp-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
-import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse } from "@/services/kernel";
-import { getFileBlob } from "@/services/kernel";
+import { forwardProxy, ForwardProxyHeader, ForwardProxyResponse, getFileBlob } from "@/services/kernel";
 import { escapeSqlLiteral, sqlPaged } from "@/services/kernel-shared";
 import { requestApi } from "@/services/request";
 
@@ -28,7 +27,7 @@ type ForwardProxyFn = (
   payload?: any,
   headers?: ForwardProxyHeader[],
   timeout?: number,
-  contentType?: string,
+  contentType?: string
 ) => Promise<ForwardProxyResponse>;
 
 export type RecognizeDocImagesOptions = {
@@ -59,13 +58,13 @@ const VISION_SYSTEM_PROMPT
     "只输出 OCR 识别出的文字，按自然段落整理。",
     "不要解读图片，不要描述画面，不要添加说明、标题、前言或结论。",
     "不要使用列表或代码块包装结果。",
-    "如果图片中没有可识别文字，只回复 [NO_TEXT]。",
+    "如果图片中没有可识别文字，只回复 [NO_TEXT]。"
   ].join("\n");
 
 const aiOcrLogger = createDocAssistantLogger("AiImageOCR");
 
 export async function recognizeDocImages(
-  options: RecognizeDocImagesOptions,
+  options: RecognizeDocImagesOptions
 ): Promise<RecognizeDocImagesReport> {
   const normalizedDocId = (options.docId || "").trim();
   if (!normalizedDocId) {
@@ -82,14 +81,14 @@ export async function recognizeDocImages(
 
   const proxyFn = options.forwardProxy || forwardProxy;
 
-  const targetBlockIds = Array.isArray(options.targetBlockIds)
-    ? options.targetBlockIds.map((id) => (id || "").trim()).filter(Boolean)
-    : [];
-  const targetAssetPaths = Array.isArray(options.targetAssetPaths)
-    ? options.targetAssetPaths
+  const targetBlockIds = Array.isArray(options.targetBlockIds) ?
+      options.targetBlockIds.map((id) => (id || "").trim()).filter(Boolean) :
+      [];
+  const targetAssetPaths = Array.isArray(options.targetAssetPaths) ?
+      options.targetAssetPaths
         .map((path) => normalizeLocalImageAssetPath(path) || path.trim())
-        .filter(Boolean)
-    : [];
+        .filter(Boolean) :
+      [];
 
   let blocks: SqlDocBlockRow[] = [];
   let imageItems: ImageItem[] = [];
@@ -102,17 +101,17 @@ export async function recognizeDocImages(
        where root_id='${escapeSqlLiteral(normalizedDocId)}'
          and id in (${targetBlockIds.map((id) => `'${escapeSqlLiteral(id)}'`).join(",")})
          and type != 'd'
-       order by sort asc`,
+       order by sort asc`
     );
     const selectedBlocks = (selectedRows || []).filter(
-      (row) => row?.id && typeof row.markdown === "string",
+      (row) => row?.id && typeof row.markdown === "string"
     );
     let selectedImageItems = collectImageItems(selectedBlocks);
 
     // 若指定了选中的具体图片路径，进一步精确过滤
     if (selectedImageItems.length > 0 && targetAssetPaths.length > 0) {
       const filtered = selectedImageItems.filter((item) =>
-        targetAssetPaths.includes(normalizeLocalImageAssetPath(item.assetPath) || item.assetPath),
+        targetAssetPaths.includes(normalizeLocalImageAssetPath(item.assetPath) || item.assetPath)
       );
       if (filtered.length > 0) {
         selectedImageItems = filtered;
@@ -132,7 +131,7 @@ export async function recognizeDocImages(
        from blocks
        where root_id='${escapeSqlLiteral(normalizedDocId)}'
          and type != 'd'
-       order by sort asc`,
+       order by sort asc`
     );
     blocks = (rows || []).filter((row) => row?.id && typeof row.markdown === "string");
     if (!blocks.length) {
@@ -158,7 +157,7 @@ export async function recognizeDocImages(
       }
       // 多切片并行请求 OCR
       const sliceResults = await Promise.all(
-        imageBase64List.map((base64) => requestVisionOcr(proxyFn, config, base64)),
+        imageBase64List.map((base64) => requestVisionOcr(proxyFn, config, base64))
       );
       return mergeOcrResults(sliceResults);
     } catch {
@@ -189,7 +188,7 @@ export async function recognizeDocImages(
       data: ocrMarkdown,
       nextID: "",
       previousID: imageItems[i].blockId,
-      parentID: "",
+      parentID: ""
     });
     insertedCount += 1;
   }
@@ -199,7 +198,7 @@ export async function recognizeDocImages(
     scannedImageCount: imageItems.length,
     recognizedCount,
     failedCount,
-    insertedCount,
+    insertedCount
   };
 }
 
@@ -209,7 +208,7 @@ function emptyReport(): RecognizeDocImagesReport {
     scannedImageCount: 0,
     recognizedCount: 0,
     failedCount: 0,
-    insertedCount: 0,
+    insertedCount: 0
   };
 }
 
@@ -232,7 +231,7 @@ function collectImageItems(blocks: SqlDocBlockRow[]): ImageItem[] {
 
 export async function readAssetAsBase64List(
   assetPath: string,
-  maxSliceHeight = MAX_OCR_IMAGE_HEIGHT,
+  maxSliceHeight = MAX_OCR_IMAGE_HEIGHT
 ): Promise<string[]> {
   const normalized = assetPath.startsWith("/") ? assetPath : `/${assetPath}`;
   const workspacePath = `/data${normalized}`;
@@ -242,7 +241,7 @@ export async function readAssetAsBase64List(
 
 async function sliceImageBlobToBase64List(
   blob: Blob,
-  maxSliceHeight = MAX_OCR_IMAGE_HEIGHT,
+  maxSliceHeight = MAX_OCR_IMAGE_HEIGHT
 ): Promise<string[]> {
   try {
     const imageSource = await loadImageSource(blob);
@@ -275,7 +274,7 @@ async function sliceImageBlobToBase64List(
           0,
           0,
           rect.width,
-          rect.height,
+          rect.height
         );
         const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
         const commaIndex = dataUrl.indexOf(",");
@@ -305,12 +304,12 @@ async function loadImageSource(blob: Blob): Promise<{
       height: bitmap.height,
       cleanup: () => {
         bitmap.close?.();
-      },
+      }
     };
   }
 
   if (typeof Image === "undefined" || typeof URL === "undefined") {
-    throw new Error("当前环境不支持图片解码");
+    throw new TypeError("当前环境不支持图片解码");
   }
 
   const objectUrl = URL.createObjectURL(blob);
@@ -326,7 +325,7 @@ async function loadImageSource(blob: Blob): Promise<{
     height: image.naturalHeight || image.height,
     cleanup: () => {
       URL.revokeObjectURL(objectUrl);
-    },
+    }
   };
 }
 
@@ -350,7 +349,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 async function requestVisionOcr(
   proxyFn: ForwardProxyFn,
   config: AiServiceConfig,
-  imageBase64: string,
+  imageBase64: string
 ): Promise<string> {
   const endpoint = `${config.baseUrl.replace(/\/+$/u, "")}/chat/completions`;
   const body = JSON.stringify({
@@ -361,24 +360,24 @@ async function requestVisionOcr(
         role: "user",
         content: [
           { type: "text", text: "请识别这张图片中的文字内容" },
-          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
-        ],
-      },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+        ]
+      }
     ],
     max_tokens: 4096,
-    temperature: 0.1,
+    temperature: 0.1
   });
 
   const timeoutMs = Math.max(
     1,
-    config.requestTimeoutSeconds || DEFAULT_AI_REQUEST_TIMEOUT_SECONDS,
+    config.requestTimeoutSeconds || DEFAULT_AI_REQUEST_TIMEOUT_SECONDS
   ) * 1000;
 
   aiOcrLogger.debug("vision request", {
     endpoint,
     model: config.model,
     imageBase64Length: imageBase64.length,
-    timeoutMs,
+    timeoutMs
   });
 
   const response: ForwardProxyResponse = await proxyFn(
@@ -387,13 +386,13 @@ async function requestVisionOcr(
     body,
     buildAiForwardProxyHeaders(config),
     timeoutMs,
-    "application/json",
+    "application/json"
   );
 
   aiOcrLogger.debug("vision response", {
     status: response?.status,
     elapsed: response?.elapsed,
-    bodyLength: response?.body?.length ?? 0,
+    bodyLength: response?.body?.length ?? 0
   });
 
   if (!response || response.status < 200 || response.status >= 300) {
@@ -419,13 +418,13 @@ function extractTextContent(payload: any): string {
     return normalizeAiSummaryText(
       content
         .map((item) =>
-          typeof item?.text === "string"
-            ? item.text
-            : typeof item === "string"
-              ? item
-              : "",
+          typeof item?.text === "string" ?
+            item.text :
+            typeof item === "string" ?
+              item :
+              ""
         )
-        .join("\n"),
+        .join("\n")
     );
   }
   return "";

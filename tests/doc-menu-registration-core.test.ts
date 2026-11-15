@@ -13,13 +13,13 @@ import {
   normalizeDocActionOrder,
   normalizeDocMenuRegistration,
   reorderDocFavoriteActions,
-  setAllDocActionEnabled,
   setAllDocMenuRegistration,
   setDocFavoriteAction,
   setSingleDocActionEnabled,
   setSingleDocMenuRegistration,
-  sortActionsByOrder,
+  sortActionsByOrder
 } from "@/core/doc-menu-registration-core";
+
 describe("doc-menu-registration-core", () => {
   test("builds default menu registration state with float-selected-text enabled and others disabled", () => {
     const state = buildDefaultDocMenuRegistration(ACTIONS);
@@ -52,8 +52,8 @@ describe("doc-menu-registration-core", () => {
         actionMenuRegistered: {
           "export-current": false,
           "insert-backlinks": "invalid",
-          unknown: false,
-        },
+          "unknown": false
+        }
       },
       ACTIONS
     );
@@ -71,8 +71,8 @@ describe("doc-menu-registration-core", () => {
         actionMenuRegistered: {},
         actionEnabled: {
           "bold-selected-blocks": true,
-          "export-current": false,
-        },
+          "export-current": false
+        }
       },
       ACTIONS
     );
@@ -89,8 +89,8 @@ describe("doc-menu-registration-core", () => {
         version: 1,
         actionEnabled: {
           "export-current": false,
-          "insert-backlinks": false,
-        },
+          "insert-backlinks": false
+        }
       },
       ACTIONS
     );
@@ -151,7 +151,7 @@ describe("doc-menu-registration-core", () => {
   test("normalizes custom action order and appends missing keys", () => {
     const order = normalizeDocActionOrder(
       {
-        actionOrder: ["insert-backlinks", "export-current", "invalid-key", "insert-backlinks"],
+        actionOrder: ["insert-backlinks", "export-current", "invalid-key", "insert-backlinks"]
       },
       ACTIONS
     );
@@ -189,8 +189,8 @@ describe("doc-menu-registration-core", () => {
         actionOrder: [
           "insert-blank-before-headings",
           "insert-backlinks",
-          "insert-child-docs",
-        ],
+          "insert-child-docs"
+        ]
       },
       ACTIONS
     );
@@ -209,8 +209,8 @@ describe("doc-menu-registration-core", () => {
           "insert-backlinks",
           "invalid-key",
           "export-current",
-          "insert-backlinks",
-        ],
+          "insert-backlinks"
+        ]
       },
       ACTIONS
     );
@@ -237,7 +237,7 @@ describe("doc-menu-registration-core", () => {
     expect(reordered).toEqual([
       "insert-backlinks",
       "export-current",
-      "trim-trailing-whitespace",
+      "trim-trailing-whitespace"
     ]);
   });
 });

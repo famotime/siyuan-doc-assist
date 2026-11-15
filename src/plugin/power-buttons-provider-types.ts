@@ -14,24 +14,24 @@ export interface PowerButtonsInvokeContext {
 }
 
 type PowerButtonsInvokeErrorCode =
-  | "command-not-found"
-  | "provider-unavailable"
-  | "context-unavailable"
-  | "not-supported"
-  | "execution-failed";
+  | "command-not-found" |
+  "provider-unavailable" |
+  "context-unavailable" |
+  "not-supported" |
+  "execution-failed";
 
 export type PowerButtonsInvokeResult =
   | {
-      ok: true;
-      message?: string;
-      alreadyNotified?: boolean;
-    }
-  | {
-      ok: false;
-      message?: string;
-      alreadyNotified?: boolean;
-      errorCode: PowerButtonsInvokeErrorCode;
-    };
+    ok: true;
+    message?: string;
+    alreadyNotified?: boolean;
+  } |
+  {
+    ok: false;
+    message?: string;
+    alreadyNotified?: boolean;
+    errorCode: PowerButtonsInvokeErrorCode;
+  };
 
 export interface PowerButtonsPublicCommand {
   id: string;
@@ -52,6 +52,6 @@ export interface PowerButtonsCommandProvider {
   listCommands: () => Promise<PowerButtonsPublicCommand[]> | PowerButtonsPublicCommand[];
   invokeCommand: (
     commandId: string,
-    context: PowerButtonsInvokeContext,
+    context: PowerButtonsInvokeContext
   ) => Promise<PowerButtonsInvokeResult> | PowerButtonsInvokeResult;
 }

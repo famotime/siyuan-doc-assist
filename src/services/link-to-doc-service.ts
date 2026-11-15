@@ -17,16 +17,18 @@ import {
   parseVxTwitterResponse,
   renderXArticleToMarkdown,
   resolveSiblingDocHPath,
-  sanitizeDocTitle,
-  type WebArticleMeta,
-  type WebLinkItem,
+  sanitizeDocTitle
+
+
 } from "@/core/link-to-doc-core";
+import type { WebArticleMeta, WebLinkItem } from "@/core/link-to-doc-core";
 import {
   createDocWithMd,
   forwardProxy,
-  getDocMetaByID,
-  type ForwardProxyHeader,
+  getDocMetaByID
+
 } from "@/services/kernel";
+import type { ForwardProxyHeader } from "@/services/kernel";
 
 export type WebLinkItemWithTitle = WebLinkItem & {
   title: string;
@@ -46,14 +48,14 @@ export type ClipBatchResult = {
 const BROWSER_HEADERS: ForwardProxyHeader[] = [
   {
     "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   },
   {
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
   },
   {
-    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-  },
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+  }
 ];
 
 /**
@@ -107,7 +109,7 @@ export async function fetchXPostData(
   // 并发请求 VxTwitter 与 FxTwitter
   const [vxSettled, fxSettled] = await Promise.allSettled([
     forwardProxy(vxUrl, "GET", {}, BROWSER_HEADERS, timeout),
-    forwardProxy(fxUrl, "GET", {}, BROWSER_HEADERS, timeout),
+    forwardProxy(fxUrl, "GET", {}, BROWSER_HEADERS, timeout)
   ]);
 
   let parsedVx = null;
@@ -165,17 +167,17 @@ export async function fetchXPostData(
     );
   }
 
-  const authorDisplay = merged.authorName
-    ? `${merged.authorName} (@${merged.authorScreenName || ""})`
-    : merged.authorScreenName
-    ? `@${merged.authorScreenName}`
-    : "";
+  const authorDisplay = merged.authorName ?
+    `${merged.authorName} (@${merged.authorScreenName || ""})` :
+    merged.authorScreenName ?
+      `@${merged.authorScreenName}` :
+      "";
 
   const meta: WebArticleMeta = {
     title,
     author: authorDisplay || undefined,
     publishTime: merged.publishTime || undefined,
-    url,
+    url
   };
 
   const fullMarkdown = buildClippedMarkdownDocument(meta, contentMarkdown);
@@ -204,7 +206,7 @@ export async function fetchLinkTitles(
             return {
               ...link,
               title: xData.title,
-              hasFetchedTitle: true,
+              hasFetchedTitle: true
             };
           }
         }
@@ -215,7 +217,7 @@ export async function fetchLinkTitles(
         return {
           ...link,
           title,
-          hasFetchedTitle: true,
+          hasFetchedTitle: true
         };
       } catch {
         // 请求失败降级
@@ -223,7 +225,7 @@ export async function fetchLinkTitles(
         return {
           ...link,
           title: fallback,
-          hasFetchedTitle: false,
+          hasFetchedTitle: false
         };
       }
     });
@@ -295,7 +297,7 @@ export async function clipWebLinksToDocs(
     successCount: 0,
     failedCount: 0,
     createdDocIds: [],
-    errors: [],
+    errors: []
   };
 
   for (let i = 0; i < links.length; i++) {
@@ -316,7 +318,7 @@ export async function clipWebLinksToDocs(
       result.failedCount++;
       result.errors.push({
         url: link.url,
-        error: err?.message || String(err),
+        error: err?.message || String(err)
       });
     }
   }

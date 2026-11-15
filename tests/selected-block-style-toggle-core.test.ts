@@ -6,7 +6,7 @@ describe("selected-block-style-toggle-core", () => {
     const preview = buildSelectedBlockStyleTogglePreview(
       [
         { id: "a", markdown: "Hello" },
-        { id: "b", markdown: "**World**" },
+        { id: "b", markdown: "**World**" }
       ],
       "bold"
     );
@@ -22,7 +22,7 @@ describe("selected-block-style-toggle-core", () => {
     const preview = buildSelectedBlockStyleTogglePreview(
       [
         { id: "a", markdown: "**Hello**" },
-        { id: "b", markdown: "# **Title** {: id=\"b\"}" },
+        { id: "b", markdown: "# **Title** {: id=\"b\"}" }
       ],
       "bold"
     );
@@ -33,7 +33,7 @@ describe("selected-block-style-toggle-core", () => {
     expect(preview.updateCount).toBe(2);
     expect(preview.updates).toEqual([
       { id: "a", next: "Hello" },
-      { id: "b", next: "# Title" },
+      { id: "b", next: "# Title" }
     ]);
   });
 
@@ -41,7 +41,7 @@ describe("selected-block-style-toggle-core", () => {
     const preview = buildSelectedBlockStyleTogglePreview(
       [
         { id: "a", markdown: "item" },
-        { id: "b", markdown: "==kept==" },
+        { id: "b", markdown: "==kept==" }
       ],
       "highlight"
     );
@@ -57,7 +57,7 @@ describe("selected-block-style-toggle-core", () => {
     const preview = buildSelectedBlockStyleTogglePreview(
       [
         { id: "a", markdown: "==item==" },
-        { id: "b", markdown: "- ==kept==" },
+        { id: "b", markdown: "- ==kept==" }
       ],
       "highlight"
     );
@@ -68,7 +68,7 @@ describe("selected-block-style-toggle-core", () => {
     expect(preview.updateCount).toBe(2);
     expect(preview.updates).toEqual([
       { id: "a", next: "item" },
-      { id: "b", next: "- kept" },
+      { id: "b", next: "- kept" }
     ]);
   });
 });

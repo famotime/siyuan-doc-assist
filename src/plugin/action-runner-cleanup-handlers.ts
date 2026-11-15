@@ -3,13 +3,13 @@ import {
   isHighRiskForMarkdownWrite,
   isThematicBreakBlock,
   previewAiOutputCleanup,
-  previewStrikethroughCleanup,
+  previewStrikethroughCleanup
 } from "@/core/cleanup-preview-core";
 import { buildHeadingBoldTogglePreview } from "@/core/heading-bold-toggle-core";
 import {
   convertSiyuanLinksAndRefsInMarkdown,
   extractSiyuanBlockIdsFromMarkdown,
-  markInvalidSiyuanLinkRefsInMarkdown,
+  markInvalidSiyuanLinkRefsInMarkdown
 } from "@/core/link-core";
 import {
   cleanupAiOutputArtifactsInMarkdown,
@@ -20,7 +20,7 @@ import {
   findHeadingMissingBlankParagraphBeforeIds,
   removeClippedListPrefixesFromMarkdown,
   removeStrikethroughMarkedContentFromMarkdown,
-  splitBilingualParagraphMarkdown,
+  splitBilingualParagraphMarkdown
 } from "@/core/markdown-cleanup-core";
 import {
   appendBlock,
@@ -29,7 +29,7 @@ import {
   getChildBlocksByParentId,
   getDocMetaByID,
   insertBlockBefore,
-  updateBlockMarkdown,
+  updateBlockMarkdown
 } from "@/services/kernel";
 import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
@@ -83,7 +83,7 @@ export function createCleanupActionHandlers(
       const doOperations: IOperation[] = [];
       const undoOperations: IOperation[] = [];
       let canUseTransaction = true;
-      
+
       const domRes = await getBlockDOMs(result.deleteIds);
       const domMap = new Map(domRes.map((r) => [r.id, r.dom]));
 
@@ -94,20 +94,20 @@ export function createCleanupActionHandlers(
           canUseTransaction = false;
           break;
         }
-        
-        const blockIndex = blocks.findIndex(b => b.id === deleteId);
-        let previousID: string | undefined = undefined;
+
+        const blockIndex = blocks.findIndex((b) => b.id === deleteId);
+        let previousID: string | undefined;
         if (blockIndex > 0) {
           previousID = blocks[blockIndex - 1].id;
         }
-        
+
         doOperations.push({ action: "delete", id: deleteId });
-        undoOperations.push({ 
-          action: "insert", 
-          id: deleteId, 
-          data: domStr, 
-          previousID, 
-          parentID: docId 
+        undoOperations.push({
+          action: "insert",
+          id: deleteId,
+          data: domStr,
+          previousID,
+          parentID: docId
         });
       }
 
@@ -118,7 +118,7 @@ export function createCleanupActionHandlers(
     }
 
     const deleteResult = await deleteBlocksByIds(result.deleteIds, {
-      concurrency: DELETE_BLOCK_CONCURRENCY,
+      concurrency: DELETE_BLOCK_CONCURRENCY
     });
     if (deleteResult.failedIds.length > 0) {
       showMessage(
@@ -191,7 +191,7 @@ export function createCleanupActionHandlers(
         `未加粗 ${preview.plainHeadingCount} 个`,
         `操作：${operationText}`,
         `预计更新 ${preview.updateCount} 个块`,
-        "是否继续？",
+        "是否继续？"
       ].join("\n")
     );
     if (!ok) {
@@ -216,9 +216,9 @@ export function createCleanupActionHandlers(
     }
 
     showMessage(
-      preview.mode === "remove-bold"
-        ? `已取消 ${success} 个标题块的加粗`
-        : `已为 ${success} 个标题块加粗`,
+      preview.mode === "remove-bold" ?
+        `已取消 ${success} 个标题块的加粗` :
+        `已为 ${success} 个标题块加粗`,
       5000,
       "info"
     );
@@ -274,9 +274,9 @@ export function createCleanupActionHandlers(
         const marked = markInvalidSiyuanLinkRefsInMarkdown(source, invalidIds);
         return {
           markdown: marked.markdown,
-          changedCount: marked.markedCount,
+          changedCount: marked.markedCount
         };
-      },
+      }
     });
     const markedCount = report.changedCount;
     const updatedBlockCount = report.updatedBlockCount;
@@ -322,7 +322,7 @@ export function createCleanupActionHandlers(
 
     const confirmLines = [
       `已找到待清理内容：上标 ${preview.removedSupCount} 处，^^ ${preview.removedCaretCount} 处，互联网链接 ${preview.removedInternetLinkCount} 处，隐藏引用 ${preview.removedHiddenSpanCount} 处，引用标记 ${preview.removedRefCount} 处，分隔线 ${preview.removedDividerCount} 处。`,
-      `预计将更新 ${preview.cleanableBlockCount} 个块，是否继续？`,
+      `预计将更新 ${preview.cleanableBlockCount} 个块，是否继续？`
     ];
     if (preview.riskyPendingBlockCount > 0) {
       confirmLines.push(`另有 ${preview.riskyPendingBlockCount} 个高风险块包含可清理内容，本次将跳过。`);
@@ -354,7 +354,7 @@ export function createCleanupActionHandlers(
         }
         return {
           ...cleaned,
-          changedCount: cleaned.removedCount,
+          changedCount: cleaned.removedCount
         };
       },
       onUpdated: (cleaned, block) => {
@@ -367,7 +367,7 @@ export function createCleanupActionHandlers(
         if (/^\s*$/.test(cleaned.markdown)) {
           emptyBlockIds.push(block.id);
         }
-      },
+      }
     });
     const updatedBlockCount = report.updatedBlockCount;
     let failedBlockCount = report.failedBlockCount;
@@ -385,7 +385,7 @@ export function createCleanupActionHandlers(
     let deletedEmptyBlockCount = 0;
     if (emptyBlockIds.length > 0) {
       const deleteResult = await deleteBlocksByIds(emptyBlockIds, {
-        concurrency: DELETE_BLOCK_CONCURRENCY,
+        concurrency: DELETE_BLOCK_CONCURRENCY
       });
       deletedEmptyBlockCount = deleteResult.deletedCount;
       failedBlockCount += deleteResult.failedIds.length;
@@ -473,7 +473,7 @@ export function createCleanupActionHandlers(
         id: "list-continuation",
         label: `合并断开的列表项 ${continuationMergeCount} 处`,
         selectable: true,
-        selected: true,
+        selected: true
       });
     }
     if (quoteMergeCount > 0) {
@@ -481,7 +481,7 @@ export function createCleanupActionHandlers(
         id: "quote-merge",
         label: `合并连续引用 ${quoteMergeCount} 处`,
         selectable: true,
-        selected: true,
+        selected: true
       });
     }
     if (emptyCodeBlockCount > 0) {
@@ -489,7 +489,7 @@ export function createCleanupActionHandlers(
         id: "empty-code",
         label: `删除无内容代码块 ${emptyCodeBlockCount} 个`,
         selectable: true,
-        selected: true,
+        selected: true
       });
     }
     if (listCleanupBlockCount > 0) {
@@ -497,7 +497,7 @@ export function createCleanupActionHandlers(
         id: "list-prefix",
         label: `清理重复列表前缀 ${listCleanupBlockCount} 个块`,
         selectable: true,
-        selected: true,
+        selected: true
       });
     }
     if (bilingualSplitBlockCount > 0) {
@@ -505,11 +505,11 @@ export function createCleanupActionHandlers(
         id: "bilingual-split",
         label: `拆分中英双语段落 ${bilingualSplitBlockCount} 个`,
         selectable: true,
-        selected: true,
+        selected: true
       });
     }
 
-    const confirmText = detailItems.map((item) => item.label).join(" ") + " 是否继续？";
+    const confirmText = `${detailItems.map((item) => item.label).join(" ")} 是否继续？`;
     const ok = await deps.askConfirmWithVisibleDialog("确认清理剪藏内容", confirmText, detailItems);
     if (!ok) {
       return;
@@ -550,7 +550,7 @@ export function createCleanupActionHandlers(
     const deleteIds: string[] = [
       ...(enableListContinuation ? continuationMergeResult.merges.map((item) => item.contentBlockId) : []),
       ...(enableQuoteMerge ? blockquoteMergeResult.deleteBlockIds : []),
-      ...(enableEmptyCode ? emptyCodeBlockResult.deleteIds : []),
+      ...(enableEmptyCode ? emptyCodeBlockResult.deleteIds : [])
     ];
 
     for (const [index, block] of blocks.entries()) {
@@ -571,12 +571,12 @@ export function createCleanupActionHandlers(
       if (!source) {
         continue;
       }
-      const listCleanup = enableListPrefix
-        ? removeClippedListPrefixesFromMarkdown(source)
-        : { markdown: source, removedCount: 0 };
-      const splitResult = (enableBilingualSplit && isSafeBilingualSplitBlockType(block.type))
-        ? splitBilingualParagraphMarkdown(listCleanup.markdown)
-        : { parts: [listCleanup.markdown], changed: false };
+      const listCleanup = enableListPrefix ?
+          removeClippedListPrefixesFromMarkdown(source) :
+          { markdown: source, removedCount: 0 };
+      const splitResult = (enableBilingualSplit && isSafeBilingualSplitBlockType(block.type)) ?
+          splitBilingualParagraphMarkdown(listCleanup.markdown) :
+          { parts: [listCleanup.markdown], changed: false };
 
       if (
         !blockquoteMerge &&
@@ -612,7 +612,7 @@ export function createCleanupActionHandlers(
     let deletedCount = 0;
     if (deleteIds.length > 0) {
       const deleteResult = await deleteBlocksByIds(deleteIds, {
-        concurrency: DELETE_BLOCK_CONCURRENCY,
+        concurrency: DELETE_BLOCK_CONCURRENCY
       });
       deletedCount = deleteResult.deletedCount;
       failedBlockCount += deleteResult.failedIds.length;
@@ -634,9 +634,9 @@ export function createCleanupActionHandlers(
       details.push(`拆分 ${splitParagraphCount} 个双语段落`);
     }
 
-    const summary = details.length > 0
-      ? `已清理剪藏内容：更新 ${updatedBlockCount} 个块，${details.join("，")}`
-      : `已清理剪藏内容，共更新 ${updatedBlockCount} 个块`;
+    const summary = details.length > 0 ?
+      `已清理剪藏内容：更新 ${updatedBlockCount} 个块，${details.join("，")}` :
+      `已清理剪藏内容，共更新 ${updatedBlockCount} 个块`;
     if (failedBlockCount > 0) {
       showMessage(`${summary}，失败 ${failedBlockCount} 个块`, 7000, "error");
       return;
@@ -663,7 +663,7 @@ export function createCleanupActionHandlers(
 
     const confirmLines = [
       `已找到删除线标记内容 ${preview.removedCount} 处。`,
-      `预计更新 ${preview.cleanableBlockCount} 个块，是否继续？`,
+      `预计更新 ${preview.cleanableBlockCount} 个块，是否继续？`
     ];
     if (preview.riskyPendingBlockCount > 0) {
       confirmLines.push(`另有 ${preview.riskyPendingBlockCount} 个高风险块将跳过。`);
@@ -684,12 +684,12 @@ export function createCleanupActionHandlers(
         const cleaned = removeStrikethroughMarkedContentFromMarkdown(source);
         return {
           ...cleaned,
-          changedCount: cleaned.removedCount,
+          changedCount: cleaned.removedCount
         };
       },
       onUpdated: (cleaned) => {
         removedCount += cleaned.removedCount;
-      },
+      }
     });
     const updatedBlockCount = report.updatedBlockCount;
     const failedBlockCount = report.failedBlockCount;
@@ -764,7 +764,7 @@ export function createCleanupActionHandlers(
     const actionLabel = preferredMode === "link-to-ref" ? "文档链接转换为引用" : "引用转换为文档链接";
     const confirmLines = [
       `互转方向：${actionLabel}`,
-      `预计转换 ${previewConvertedCount} 处，共更新 ${previewUpdatableBlockCount} 个块。`,
+      `预计转换 ${previewConvertedCount} 处，共更新 ${previewUpdatableBlockCount} 个块。`
     ];
     if (previewRiskyBlockCount > 0) {
       confirmLines.push(`另有 ${previewRiskyBlockCount} 个高风险块将跳过。`);
@@ -785,9 +785,9 @@ export function createCleanupActionHandlers(
         const converted = convertSiyuanLinksAndRefsInMarkdown(source, preferredMode);
         return {
           markdown: converted.markdown,
-          changedCount: converted.convertedCount,
+          changedCount: converted.convertedCount
         };
-      },
+      }
     });
     const convertedCount = report.changedCount;
     const updatedBlockCount = report.updatedBlockCount;
@@ -826,6 +826,6 @@ export function createCleanupActionHandlers(
     "clean-ai-output": handleCleanAiOutput,
     "clean-clipped-list-prefixes": handleCleanClippedListPrefixes,
     "remove-strikethrough-marked-content": handleRemoveStrikethroughMarkedContent,
-    "toggle-links-refs": handleToggleLinksRefs,
+    "toggle-links-refs": handleToggleLinksRefs
   };
 }

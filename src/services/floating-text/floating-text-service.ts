@@ -16,7 +16,7 @@ export class FloatingTextService {
     const windowTitle = title || "悬浮窗";
     await openFloatingTextWindow({
       title: windowTitle,
-      text: cleanText,
+      text: cleanText
     });
     showMessage("已开启桌面置顶悬浮窗", 3000, "info");
   }
@@ -33,7 +33,7 @@ export class FloatingTextService {
     try {
       const [mdRes, meta] = await Promise.all([
         exportMdContent(docId, { addTitle: true }).catch(() => null),
-        getDocMetaByID(docId).catch(() => null),
+        getDocMetaByID(docId).catch(() => null)
       ]);
 
       const title = meta?.title || mdRes?.hPath?.split("/").pop() || "悬浮文档";
@@ -46,7 +46,7 @@ export class FloatingTextService {
 
       await openFloatingTextWindow({
         title,
-        text: content,
+        text: content
       });
       showMessage(`已将文档《${title}》置顶悬浮`, 3000, "info");
     } catch (error) {

@@ -1,61 +1,61 @@
 import { DockDocActionGroup } from "@/core/dock-panel-core";
 
 export type ActionKey =
-  | "export-current"
-  | "export-child-docs-zip"
-  | "export-related-docs-zip"
-  | "insert-backlinks"
-  | "insert-child-docs"
-  | "export-child-key-info-zip"
-  | "export-backlinks-zip"
-  | "export-forward-zip"
-  | "move-backlinks"
-  | "move-forward-links"
-  | "create-open-docs-summary"
-  | "create-top100-large-documents-report"
-  | "dedupe"
-  | "remove-extra-blank-lines"
-  | "trim-trailing-whitespace"
-  | "convert-images-to-webp"
-  | "convert-images-to-png"
-  | "resize-images-to-display"
-  | "remove-doc-images"
-  | "toggle-links-refs"
-  | "insert-doc-summary"
-  | "create-doc-concept-map"
-  | "mark-irrelevant-paragraphs"
-  | "mark-key-content"
-  | "clean-ai-output"
-  | "clean-clipped-list-prefixes"
-  | "mark-invalid-links-refs"
-  | "insert-blank-before-headings"
-  | "toggle-heading-bold"
-  | "merge-selected-list-blocks"
-  | "delete-from-current-to-end"
-  | "delete-from-start-to-current"
-  | "select-from-start-to-current"
-  | "select-from-current-to-end"
-  | "remove-strikethrough-marked-content"
-  | "bold-selected-blocks"
-  | "highlight-selected-blocks"
-  | "toggle-linebreaks-paragraphs"
-  | "remove-selected-spacing"
-  | "toggle-selected-punctuation"
-  | "split-doc-by-headings"
-  | "recognize-doc-images"
-  | "translate-doc-paragraphs"
-  | "add-related-links-and-tags"
-  | "set-selection-as-title"
-  | "extract-web-links"
-  | "export-keymap"
-  | "import-keymap"
-  | "generate-canvas-from-selected"
-  | "generate-llm-wiki"
-  | "float-selected-text"
-  | "generate-better-titles"
-  | "convert-text-to-link"
-  | "link-to-doc"
-  | "clean-emoji";
+  | "export-current" |
+  "export-child-docs-zip" |
+  "export-related-docs-zip" |
+  "insert-backlinks" |
+  "insert-child-docs" |
+  "export-child-key-info-zip" |
+  "export-backlinks-zip" |
+  "export-forward-zip" |
+  "move-backlinks" |
+  "move-forward-links" |
+  "create-open-docs-summary" |
+  "create-top100-large-documents-report" |
+  "dedupe" |
+  "remove-extra-blank-lines" |
+  "trim-trailing-whitespace" |
+  "convert-images-to-webp" |
+  "convert-images-to-png" |
+  "resize-images-to-display" |
+  "remove-doc-images" |
+  "toggle-links-refs" |
+  "insert-doc-summary" |
+  "create-doc-concept-map" |
+  "mark-irrelevant-paragraphs" |
+  "mark-key-content" |
+  "clean-ai-output" |
+  "clean-clipped-list-prefixes" |
+  "mark-invalid-links-refs" |
+  "insert-blank-before-headings" |
+  "toggle-heading-bold" |
+  "merge-selected-list-blocks" |
+  "delete-from-current-to-end" |
+  "delete-from-start-to-current" |
+  "select-from-start-to-current" |
+  "select-from-current-to-end" |
+  "remove-strikethrough-marked-content" |
+  "bold-selected-blocks" |
+  "highlight-selected-blocks" |
+  "toggle-linebreaks-paragraphs" |
+  "remove-selected-spacing" |
+  "toggle-selected-punctuation" |
+  "split-doc-by-headings" |
+  "recognize-doc-images" |
+  "translate-doc-paragraphs" |
+  "add-related-links-and-tags" |
+  "set-selection-as-title" |
+  "extract-web-links" |
+  "export-keymap" |
+  "import-keymap" |
+  "generate-canvas-from-selected" |
+  "generate-llm-wiki" |
+  "float-selected-text" |
+  "generate-better-titles" |
+  "convert-text-to-link" |
+  "link-to-doc" |
+  "clean-emoji";
 
 export type ActionConfig = {
   key: ActionKey;
@@ -105,7 +105,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "move-forward-links": "正",
   "create-open-docs-summary": "汇",
   "create-top100-large-documents-report": "大",
-  dedupe: "重",
+  "dedupe": "重",
   "insert-backlinks": "反",
   "insert-child-docs": "子",
   "insert-blank-before-headings": "空",
@@ -149,7 +149,7 @@ export const ACTION_DOCK_ICON_TEXT: Record<ActionKey, string> = {
   "generate-better-titles": "优",
   "convert-text-to-link": "链",
   "link-to-doc": "剪",
-  "clean-emoji": "脸",
+  "clean-emoji": "脸"
 };
 
 export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
@@ -165,7 +165,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "只导出当前文档本身，不额外带上反链、正链或子文档；若文档含本地媒体，会按思源导出结果一并打包。"
         ),
         group: "export",
-        icon: "iconDownload",
+        icon: "iconDownload"
       },
       {
         key: "export-child-docs-zip",
@@ -176,7 +176,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "将当前文档与全部子文档打包为 Markdown 压缩包，适合按目录整体导出。"
         ),
         group: "export",
-        icon: "iconDownload",
+        icon: "iconDownload"
       },
       {
         key: "export-related-docs-zip",
@@ -187,7 +187,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "把当前文档、正链文档、反链文档和子文档去重后一起打包导出。"
         ),
         group: "export",
-        icon: "iconDownload",
+        icon: "iconDownload"
       },
       {
         key: "export-backlinks-zip",
@@ -198,7 +198,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "把当前文档及其反向链接文档打包导出，便于汇出引用当前主题的资料。"
         ),
         group: "export",
-        icon: "iconDownload",
+        icon: "iconDownload"
       },
       {
         key: "export-forward-zip",
@@ -209,7 +209,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "把当前文档及正文中直接链接到的文档打包导出。"
         ),
         group: "export",
-        icon: "iconDownload",
+        icon: "iconDownload"
       },
       {
         key: "export-child-key-info-zip",
@@ -220,7 +220,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "导出当前文档及子文档中已标记的关键内容，并按当前侧栏筛选结果生成压缩包。"
         ),
         group: "export",
-        icon: "iconDownload",
+        icon: "iconDownload"
       },
       {
         key: "extract-web-links",
@@ -231,7 +231,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "提取当前文档中的所有 Web 链接（URL），一行一个，复制到剪贴板。"
         ),
         group: "export",
-        icon: "iconLink",
+        icon: "iconLink"
       },
       {
         key: "export-keymap",
@@ -243,7 +243,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "export",
         noDocRequired: true,
-        icon: "iconUpload",
+        icon: "iconUpload"
       },
       {
         key: "import-keymap",
@@ -255,9 +255,9 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "export",
         noDocRequired: true,
-        icon: "iconDownload",
-      },
-    ],
+        icon: "iconDownload"
+      }
+    ]
   },
   {
     group: "organize",
@@ -273,7 +273,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "organize",
         desktopOnly: true,
         requiresWritableDoc: true,
-        icon: "iconMove",
+        icon: "iconMove"
       },
       {
         key: "move-forward-links",
@@ -286,7 +286,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "organize",
         desktopOnly: true,
         requiresWritableDoc: true,
-        icon: "iconMove",
+        icon: "iconMove"
       },
       {
         key: "create-open-docs-summary",
@@ -297,7 +297,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "汇总当前已打开且未钉住的文档，生成一篇新的汇总页并自动打开。"
         ),
         group: "organize",
-        icon: "iconList",
+        icon: "iconList"
       },
       {
         key: "create-top100-large-documents-report",
@@ -309,7 +309,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "organize",
         runInBackground: true,
-        icon: "iconList",
+        icon: "iconList"
       },
       {
         key: "dedupe",
@@ -321,7 +321,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "organize",
         desktopOnly: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "split-doc-by-headings",
@@ -333,7 +333,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "organize",
         requiresWritableDoc: true,
-        icon: "iconSplitLR",
+        icon: "iconSplitLR"
       },
       {
         key: "float-selected-text",
@@ -344,7 +344,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "将选中文本固定悬浮在其他程序之上；未选中文本时自动悬浮整篇文档。"
         ),
         group: "organize",
-        icon: "iconPin",
+        icon: "iconPin"
       },
       {
         key: "link-to-doc",
@@ -355,9 +355,9 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
           "读取当前文档中的外部链接，将对应网页内容剪藏为同级笔记文档；单链接直接执行，多链接获取标题后弹窗勾选确认。"
         ),
         group: "organize",
-        icon: "iconLink",
-      },
-    ],
+        icon: "iconLink"
+      }
+    ]
   },
   {
     group: "insert",
@@ -372,7 +372,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "insert",
         requiresWritableDoc: true,
-        icon: "iconList",
+        icon: "iconList"
       },
       {
         key: "insert-child-docs",
@@ -384,7 +384,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "insert",
         requiresWritableDoc: true,
-        icon: "iconList",
+        icon: "iconList"
       },
       {
         key: "toggle-links-refs",
@@ -396,7 +396,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "insert",
         requiresWritableDoc: true,
-        icon: "iconLink",
+        icon: "iconLink"
       },
       {
         key: "mark-invalid-links-refs",
@@ -408,7 +408,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "insert",
         requiresWritableDoc: true,
-        icon: "iconLink",
+        icon: "iconLink"
       },
       {
         key: "insert-blank-before-headings",
@@ -420,7 +420,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "insert",
         requiresWritableDoc: true,
-        icon: "iconList",
+        icon: "iconList"
       },
       {
         key: "convert-text-to-link",
@@ -432,7 +432,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "insert",
         requiresWritableDoc: true,
-        icon: "iconLink",
+        icon: "iconLink"
       },
       {
         key: "set-selection-as-title",
@@ -444,9 +444,9 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "insert",
         requiresWritableDoc: true,
-        icon: "iconEdit",
-      },
-    ],
+        icon: "iconEdit"
+      }
+    ]
   },
   {
     group: "ai",
@@ -461,7 +461,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "ai",
         requiresWritableDoc: false,
-        icon: "iconLayout",
+        icon: "iconLayout"
       },
       {
         key: "create-doc-concept-map",
@@ -474,7 +474,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "ai",
         requiresWritableDoc: true,
         runInBackground: true,
-        icon: "iconList",
+        icon: "iconList"
       },
       {
         key: "insert-doc-summary",
@@ -487,7 +487,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "ai",
         requiresWritableDoc: true,
         runInBackground: true,
-        icon: "iconList",
+        icon: "iconList"
       },
       {
         key: "mark-irrelevant-paragraphs",
@@ -499,7 +499,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "ai",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "mark-key-content",
@@ -511,7 +511,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "ai",
         requiresWritableDoc: true,
-        icon: "iconBold",
+        icon: "iconBold"
       },
       {
         key: "recognize-doc-images",
@@ -524,7 +524,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "ai",
         requiresWritableDoc: true,
         runInBackground: true,
-        icon: "iconImage",
+        icon: "iconImage"
       },
       {
         key: "translate-doc-paragraphs",
@@ -537,7 +537,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "ai",
         requiresWritableDoc: true,
         runInBackground: true,
-        icon: "iconLanguage",
+        icon: "iconLanguage"
       },
       {
         key: "clean-ai-output",
@@ -549,7 +549,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "ai",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "add-related-links-and-tags",
@@ -562,7 +562,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "ai",
         requiresWritableDoc: true,
         runInBackground: true,
-        icon: "iconLink",
+        icon: "iconLink"
       },
       {
         key: "generate-llm-wiki",
@@ -575,7 +575,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "ai",
         requiresWritableDoc: true,
         runInBackground: true,
-        icon: "iconLanguage",
+        icon: "iconLanguage"
       },
       {
         key: "generate-better-titles",
@@ -588,9 +588,9 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "ai",
         requiresWritableDoc: true,
         runInBackground: true,
-        icon: "iconEdit",
-      },
-    ],
+        icon: "iconEdit"
+      }
+    ]
   },
   {
     group: "edit",
@@ -605,7 +605,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconBold",
+        icon: "iconBold"
       },
       {
         key: "merge-selected-list-blocks",
@@ -617,7 +617,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconList",
+        icon: "iconList"
       },
       {
         key: "bold-selected-blocks",
@@ -629,7 +629,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconBold",
+        icon: "iconBold"
       },
       {
         key: "highlight-selected-blocks",
@@ -641,7 +641,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconInfo",
+        icon: "iconInfo"
       },
       {
         key: "toggle-linebreaks-paragraphs",
@@ -653,7 +653,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconRefresh",
+        icon: "iconRefresh"
       },
       {
         key: "toggle-selected-punctuation",
@@ -665,7 +665,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconRefresh",
+        icon: "iconRefresh"
       },
       {
         key: "remove-selected-spacing",
@@ -677,7 +677,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "clean-emoji",
@@ -689,7 +689,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "trim-trailing-whitespace",
@@ -701,7 +701,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "clean-clipped-list-prefixes",
@@ -713,7 +713,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "remove-extra-blank-lines",
@@ -725,7 +725,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "delete-from-current-to-end",
@@ -737,7 +737,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "delete-from-start-to-current",
@@ -749,7 +749,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
+        icon: "iconTrashcan"
       },
       {
         key: "select-from-start-to-current",
@@ -761,7 +761,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconSelect",
+        icon: "iconSelect"
       },
       {
         key: "select-from-current-to-end",
@@ -773,7 +773,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconSelect",
+        icon: "iconSelect"
       },
       {
         key: "remove-strikethrough-marked-content",
@@ -785,9 +785,9 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "edit",
         requiresWritableDoc: true,
-        icon: "iconTrashcan",
-      },
-    ],
+        icon: "iconTrashcan"
+      }
+    ]
   },
   {
     group: "image",
@@ -803,7 +803,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         group: "image",
         requiresWritableDoc: true,
         runInBackground: true,
-        icon: "iconImage",
+        icon: "iconImage"
       },
       {
         key: "convert-images-to-png",
@@ -815,7 +815,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "image",
         requiresWritableDoc: true,
-        icon: "iconImage",
+        icon: "iconImage"
       },
       {
         key: "resize-images-to-display",
@@ -827,7 +827,7 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "image",
         requiresWritableDoc: true,
-        icon: "iconImage",
+        icon: "iconImage"
       },
       {
         key: "remove-doc-images",
@@ -839,10 +839,10 @@ export const ACTION_DEFINITIONS_BY_GROUP: ActionDefinitionGroup[] = [
         ),
         group: "image",
         requiresWritableDoc: true,
-        icon: "iconImage",
-      },
-    ],
-  },
+        icon: "iconImage"
+      }
+    ]
+  }
 ];
 
 export const BASE_ACTIONS: BaseActionConfig[] = ACTION_DEFINITIONS_BY_GROUP.flatMap((entry) => entry.actions);

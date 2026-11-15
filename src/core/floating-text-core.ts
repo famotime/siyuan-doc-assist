@@ -35,7 +35,7 @@ export const DEFAULT_FLOATING_TEXT_CONFIG: FloatingTextConfig = {
   width: 420,
   height: 320,
   rememberSize: true,
-  autoPasteOnSelect: false,
+  autoPasteOnSelect: false
 };
 
 export const MIN_FONT_SIZE = 11;
@@ -65,29 +65,29 @@ export function normalizeFloatingConfig(
   }
 
   const opacity =
-    typeof raw.opacity === "number"
-      ? clamp(Math.round(raw.opacity * 100) / 100, MIN_OPACITY, MAX_OPACITY)
-      : DEFAULT_FLOATING_TEXT_CONFIG.opacity;
+    typeof raw.opacity === "number" ?
+        clamp(Math.round(raw.opacity * 100) / 100, MIN_OPACITY, MAX_OPACITY) :
+      DEFAULT_FLOATING_TEXT_CONFIG.opacity;
 
   const fontSize =
-    typeof raw.fontSize === "number"
-      ? clamp(Math.round(raw.fontSize), MIN_FONT_SIZE, MAX_FONT_SIZE)
-      : DEFAULT_FLOATING_TEXT_CONFIG.fontSize;
+    typeof raw.fontSize === "number" ?
+        clamp(Math.round(raw.fontSize), MIN_FONT_SIZE, MAX_FONT_SIZE) :
+      DEFAULT_FLOATING_TEXT_CONFIG.fontSize;
 
   const width =
-    typeof raw.width === "number"
-      ? clamp(Math.round(raw.width), MIN_WINDOW_WIDTH, MAX_WINDOW_WIDTH)
-      : DEFAULT_FLOATING_TEXT_CONFIG.width;
+    typeof raw.width === "number" ?
+        clamp(Math.round(raw.width), MIN_WINDOW_WIDTH, MAX_WINDOW_WIDTH) :
+      DEFAULT_FLOATING_TEXT_CONFIG.width;
 
   const height =
-    typeof raw.height === "number"
-      ? clamp(Math.round(raw.height), MIN_WINDOW_HEIGHT, MAX_WINDOW_HEIGHT)
-      : DEFAULT_FLOATING_TEXT_CONFIG.height;
+    typeof raw.height === "number" ?
+        clamp(Math.round(raw.height), MIN_WINDOW_HEIGHT, MAX_WINDOW_HEIGHT) :
+      DEFAULT_FLOATING_TEXT_CONFIG.height;
 
   const themeMode: FloatingThemeMode =
-    raw.themeMode === "light" || raw.themeMode === "dark" || raw.themeMode === "auto"
-      ? raw.themeMode
-      : DEFAULT_FLOATING_TEXT_CONFIG.themeMode;
+    raw.themeMode === "light" || raw.themeMode === "dark" || raw.themeMode === "auto" ?
+      raw.themeMode :
+      DEFAULT_FLOATING_TEXT_CONFIG.themeMode;
 
   const viewMode: FloatingViewMode =
     raw.viewMode === "markdown" ? "markdown" : "text";
@@ -106,7 +106,7 @@ export function normalizeFloatingConfig(
     width,
     height,
     rememberSize,
-    autoPasteOnSelect,
+    autoPasteOnSelect
   };
 }
 
@@ -129,15 +129,15 @@ export function hexToRgba(hex: string, opacity: number): string {
   const safeOpacity = clamp(opacity, 0, 1);
   const cleanHex = hex.replace("#", "").trim();
   if (cleanHex.length === 3) {
-    const r = parseInt(cleanHex[0] + cleanHex[0], 16);
-    const g = parseInt(cleanHex[1] + cleanHex[1], 16);
-    const b = parseInt(cleanHex[2] + cleanHex[2], 16);
+    const r = Number.parseInt(cleanHex[0] + cleanHex[0], 16);
+    const g = Number.parseInt(cleanHex[1] + cleanHex[1], 16);
+    const b = Number.parseInt(cleanHex[2] + cleanHex[2], 16);
     return `rgba(${r}, ${g}, ${b}, ${safeOpacity})`;
   }
   if (cleanHex.length === 6) {
-    const r = parseInt(cleanHex.slice(0, 2), 16);
-    const g = parseInt(cleanHex.slice(2, 4), 16);
-    const b = parseInt(cleanHex.slice(4, 6), 16);
+    const r = Number.parseInt(cleanHex.slice(0, 2), 16);
+    const g = Number.parseInt(cleanHex.slice(2, 4), 16);
+    const b = Number.parseInt(cleanHex.slice(4, 6), 16);
     return `rgba(${r}, ${g}, ${b}, ${safeOpacity})`;
   }
   return `rgba(0, 0, 0, ${safeOpacity})`;
@@ -212,7 +212,7 @@ export function simpleMarkdownToHtml(markdown: string): string {
     }
 
     // 水平分割线
-    if (/^(?:---+|\*\*\*+|___+)\s*$/.test(trimmed)) {
+    if (/^(?:-{3,}|\*{3,}|_{3,})\s*$/.test(trimmed)) {
       closeOpenList();
       htmlParts.push('<hr class="ft-hr" />');
       continue;
@@ -229,7 +229,7 @@ export function simpleMarkdownToHtml(markdown: string): string {
     }
 
     // 待办事项
-    const todoMatch = trimmed.match(/^-\s+\[([ xX])\]\s+(.*)$/);
+    const todoMatch = trimmed.match(/^-\s+\[([ x])\]\s+(.*)$/i);
     if (todoMatch) {
       closeOpenList();
       const checked = todoMatch[1].toLowerCase() === "x";
@@ -368,7 +368,7 @@ export function stripKramdownBlockAttributes(raw: string): string {
     // 2. 剥离无序列表项或任务列表项头部的 IAL
     // 如：- {: id="xxx" updated="yyy"}项目地址... -> - 项目地址...
     // 如：- [ ] {: id="xxx"}待办事项... -> - [ ] 待办事项...
-    line = line.replace(/^(\s*[-*+]\s+(?:\[[ xX]\]\s+)?)\{:[^}]*\}\s*/, "$1");
+    line = line.replace(/^(\s*[-*+]\s+(?:\[[ x]\]\s+)?)\{:[^}]*\}\s*/i, "$1");
 
     // 3. 剥离有序列表项头部的 IAL
     // 如：1. {: id="xxx"}第一项 -> 1. 第一项
@@ -376,7 +376,7 @@ export function stripKramdownBlockAttributes(raw: string): string {
 
     // 4. 剥离标题末尾或标题中的 IAL
     // 如：# 标题 {: id="xxx"} -> # 标题
-    line = line.replace(/^(#{1,6}\s+.*?)\s*\{:[^}]*\}\s*$/, "$1");
+    line = line.replace(/^(#{1,6}\s+(?:\S.*?)??)\s*\{:[^}]*\}\s*$/, "$1");
 
     // 5. 剥离引用块开头的 IAL
     // 如：> {: id="xxx"}引用文字 -> > 引用文字
@@ -411,12 +411,12 @@ export function resolveFloatingCopyText(
   if (selectedText && selectedText.trim().length > 0) {
     return {
       text: selectedText,
-      isSelected: true,
+      isSelected: true
     };
   }
   return {
     text: fullText,
-    isSelected: false,
+    isSelected: false
   };
 }
 

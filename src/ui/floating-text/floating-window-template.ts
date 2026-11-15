@@ -1,7 +1,7 @@
 import {
   escapeHtml,
   FloatingTextConfig,
-  simpleMarkdownToHtml,
+  simpleMarkdownToHtml
 } from "@/core/floating-text-core";
 import { MARKED_UMD_SOURCE } from "./marked-source";
 import { getFloatingWindowStyles } from "./floating-window-styles";
@@ -21,30 +21,30 @@ export function buildFloatingWindowHtml(options: {
   const { title, text, config, isDark, initialHtml, hostWebContentsId, baseUrl, isDialogFallback } = options;
   const safeTitle = escapeHtml(title || "悬浮文本");
   const markdownHtml =
-    typeof initialHtml === "string" && initialHtml.trim()
-      ? initialHtml
-      : simpleMarkdownToHtml(text);
+    typeof initialHtml === "string" && initialHtml.trim() ?
+      initialHtml :
+        simpleMarkdownToHtml(text);
   const themeAttr =
-    config.themeMode === "dark"
-      ? 'data-theme="dark"'
-      : config.themeMode === "light"
-      ? 'data-theme="light"'
-      : isDark
-      ? 'data-theme="dark"'
-      : 'data-theme="light"';
+    config.themeMode === "dark" ?
+      'data-theme="dark"' :
+      config.themeMode === "light" ?
+        'data-theme="light"' :
+        isDark ?
+          'data-theme="dark"' :
+          'data-theme="light"';
 
   const fontFamStyle = config.fontFamily ? `font-family: ${escapeHtml(config.fontFamily)};` : "";
 
   const rawBaseUrl =
     baseUrl ||
-    (typeof window !== "undefined" && window.location?.origin
-      ? window.location.origin
-      : "");
-  const safeBaseUrl = rawBaseUrl
-    ? rawBaseUrl.endsWith("/")
-      ? rawBaseUrl
-      : `${rawBaseUrl}/`
-    : "";
+    (typeof window !== "undefined" && window.location?.origin ?
+      window.location.origin :
+      "");
+  const safeBaseUrl = rawBaseUrl ?
+    rawBaseUrl.endsWith("/") ?
+      rawBaseUrl :
+      `${rawBaseUrl}/` :
+    "";
 
   return `
     <!DOCTYPE html>
@@ -134,7 +134,9 @@ export function buildFloatingWindowHtml(options: {
           </div>
 
           <div class="ft-actions" style="-webkit-app-region: no-drag;">
-            ${isDialogFallback ? "" : `<!-- 置顶状态切换 -->
+            ${isDialogFallback ?
+              "" :
+              `<!-- 置顶状态切换 -->
             <div class="ft-tooltip-wrapper">
               <button id="ft-btn-pin" class="ft-btn ft-btn-active ft-btn-pinned" aria-label="取消置顶">
                 <svg class="ft-icon" id="ft-pin-icon"><use href="#ft-icon-pin"></use></svg>
@@ -271,7 +273,7 @@ ${buildFloatingWindowClientScript({
   isMarkdownView: config.viewMode === "markdown",
   autoPasteOnSelect: Boolean(config.autoPasteOnSelect),
   isDialogFallback: Boolean(isDialogFallback),
-  rememberSize: Boolean(config.rememberSize),
+  rememberSize: Boolean(config.rememberSize)
 })}
       </script>
     </body>

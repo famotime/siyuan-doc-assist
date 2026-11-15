@@ -16,7 +16,7 @@ function buildItem(id: string, type: KeyInfoType = "bold"): KeyInfoItem {
     offset: 0,
     blockId: `block-${id}`,
     blockSort: 0,
-    order: 0,
+    order: 0
   };
 }
 
@@ -83,7 +83,7 @@ describe("key-info-dock controls", () => {
     const dock = createKeyInfoDock(host, { onExport: () => {} });
     dock.setState({
       items: [buildItem("1", "bold"), buildItem("2", "title")],
-      filter: ["bold"],
+      filter: ["bold"]
     });
 
     const keyInfoTab = host.querySelector(
@@ -204,7 +204,8 @@ describe("key-info-dock controls", () => {
     expect(
       host
         .querySelector('.doc-assistant-keyinfo__tab[data-tab="key-info"]')
-        ?.classList.contains("is-active")
+        ?.classList
+        .contains("is-active")
     ).toBe(true);
 
     dock.destroy();
@@ -226,9 +227,9 @@ describe("key-info-dock controls", () => {
           offset: 0,
           blockId: "b-1",
           blockSort: 0,
-          order: 0,
-        },
-      ],
+          order: 0
+        }
+      ]
     });
 
     const text = host.querySelector(".doc-assistant-keyinfo__text")?.textContent || "";
@@ -249,7 +250,7 @@ describe("key-info-dock controls", () => {
         offset: 0,
         blockId: "h1",
         blockSort: 0,
-        order: 0,
+        order: 0
       },
       {
         id: "h1-inline-1",
@@ -259,15 +260,15 @@ describe("key-info-dock controls", () => {
         offset: 0,
         blockId: "h1",
         blockSort: 0,
-        order: 1,
-      },
+        order: 1
+      }
     ];
 
     expect(filterKeyInfoDockItems(items, ["title", "highlight"]).map((item) => item.type)).toEqual([
-      "title",
+      "title"
     ]);
     expect(filterKeyInfoDockItems(items, ["highlight"]).map((item) => item.type)).toEqual([
-      "highlight",
+      "highlight"
     ]);
   });
 
@@ -281,9 +282,9 @@ describe("key-info-dock controls", () => {
         buildItem("1", "bold"),
         buildItem("2", "tag"),
         buildItem("3", "link"),
-        buildItem("4", "ref"),
+        buildItem("4", "ref")
       ],
-      filter: ["tag", "link"],
+      filter: ["tag", "link"]
     });
 
     const moreFilter = host.querySelector(
@@ -327,7 +328,7 @@ describe("key-info-dock controls", () => {
       "code",
       "link",
       "ref",
-      "tag",
+      "tag"
     ]);
     expect(tagFilter?.classList.contains("is-collapsed-filter")).toBe(true);
     expect(linkFilter?.classList.contains("is-collapsed-filter")).toBe(true);
@@ -388,7 +389,7 @@ describe("key-info-dock controls", () => {
       items: [buildItem("1", "bold"), buildItem("2", "title")],
       loading: false,
       isRefreshing: false,
-      scrollContextKey: "doc-a",
+      scrollContextKey: "doc-a"
     });
 
     const row = host.querySelector(".doc-assistant-keyinfo__row") as HTMLDivElement | null;
@@ -418,7 +419,7 @@ describe("key-info-dock controls", () => {
     dock.setState({
       loading: true,
       isRefreshing: true,
-      scrollContextKey: "doc-b",
+      scrollContextKey: "doc-b"
     });
 
     const loadingOverlay = host.querySelector(
@@ -448,7 +449,7 @@ describe("key-info-dock controls", () => {
     dock.setState({
       loading: false,
       isRefreshing: false,
-      scrollContextKey: "doc-b",
+      scrollContextKey: "doc-b"
     });
 
     expect(loadingOverlay?.classList.contains("is-visible")).toBe(false);
@@ -476,9 +477,9 @@ describe("key-info-dock controls", () => {
           groupLabel: "插入",
           disabled: false,
           menuRegistered: false,
-          menuToggleDisabled: false,
-        },
-      ],
+          menuToggleDisabled: false
+        }
+      ]
     });
 
     expect(host.querySelector(".doc-assistant-keyinfo__action-switch")).toBeNull();

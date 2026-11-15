@@ -14,9 +14,9 @@ type LinkToDocDialogArgs = {
 function createButton(label: string, primary = false): HTMLButtonElement {
   const button = document.createElement("button");
   button.textContent = label;
-  button.className = primary
-    ? "b3-button b3-button--text"
-    : "b3-button b3-button--outline";
+  button.className = primary ?
+    "b3-button b3-button--text" :
+    "b3-button b3-button--outline";
   return button;
 }
 
@@ -29,7 +29,7 @@ export function openLinkToDocDialog(args: LinkToDocDialogArgs): InstanceType<typ
       <div class="link-to-doc-dialog__list"></div>
     </div>`,
     width: "700px",
-    height: "65vh",
+    height: "65vh"
   });
 
   const root = dialog.element.querySelector(".link-to-doc-dialog") as HTMLDivElement;

@@ -2,20 +2,20 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import type { ChildBlockMeta } from "@/services/kernel-block";
 import type { DocMeta } from "@/services/kernel";
 
-vi.mock("@/services/kernel", () => ({
-  getDocMetaByID: vi.fn(),
-  getChildBlocksByParentId: vi.fn(),
-  createDocWithMd: vi.fn(),
-  deleteBlocksByIds: vi.fn(),
-}));
-
 import {
   getDocMetaByID,
   getChildBlocksByParentId,
   createDocWithMd,
-  deleteBlocksByIds,
+  deleteBlocksByIds
 } from "@/services/kernel";
 import { splitDocByHeadings } from "@/services/split-doc-by-headings";
+
+vi.mock("@/services/kernel", () => ({
+  getDocMetaByID: vi.fn(),
+  getChildBlocksByParentId: vi.fn(),
+  createDocWithMd: vi.fn(),
+  deleteBlocksByIds: vi.fn()
+}));
 
 const mockGetDocMeta = vi.mocked(getDocMetaByID);
 const mockGetChildBlocks = vi.mocked(getChildBlocksByParentId);
@@ -34,7 +34,7 @@ const testDocMeta: DocMeta = {
   path: "/20260101120000-abc123.sy",
   hPath: "/Notebook/TestDoc",
   updated: "2026-05-01",
-  title: "TestDoc",
+  title: "TestDoc"
 };
 
 describe("splitDocByHeadings", () => {
@@ -45,7 +45,7 @@ describe("splitDocByHeadings", () => {
   test("throws when document has no headings", async () => {
     mockGetDocMeta.mockResolvedValue(testDocMeta);
     mockGetChildBlocks.mockResolvedValue([
-      block("b1", "p", "paragraph"),
+      block("b1", "p", "paragraph")
     ]);
     await expect(splitDocByHeadings("doc-1")).rejects.toThrow("未找到标题");
   });
@@ -54,7 +54,7 @@ describe("splitDocByHeadings", () => {
     mockGetDocMeta.mockResolvedValue(testDocMeta);
     mockGetChildBlocks.mockResolvedValue([
       block("b1", "h", "## Only Section"),
-      block("b2", "p", "content"),
+      block("b2", "p", "content")
     ]);
     await expect(splitDocByHeadings("doc-1")).rejects.toThrow("仅有一个");
   });
@@ -65,7 +65,7 @@ describe("splitDocByHeadings", () => {
       block("b1", "h", "## Alpha"),
       block("b2", "p", "content A"),
       block("b3", "h", "## Beta"),
-      block("b4", "p", "content B"),
+      block("b4", "p", "content B")
     ]);
     mockCreateDoc
       .mockResolvedValueOnce("new-doc-1")
@@ -81,7 +81,7 @@ describe("splitDocByHeadings", () => {
     expect(report).toEqual({
       sectionCount: 2,
       createdDocIds: ["new-doc-1", "new-doc-2"],
-      deletedBlockCount: 4,
+      deletedBlockCount: 4
     });
   });
 
@@ -92,7 +92,7 @@ describe("splitDocByHeadings", () => {
       block("b1", "h", "## Alpha"),
       block("b2", "p", "content A"),
       block("b3", "h", "## Beta"),
-      block("b4", "p", "content B"),
+      block("b4", "p", "content B")
     ]);
     mockCreateDoc
       .mockResolvedValueOnce("new-doc-1")
@@ -110,7 +110,7 @@ describe("splitDocByHeadings", () => {
       block("b1", "h", "## Bad/Title:*?"),
       block("b2", "p", "content"),
       block("b3", "h", "## Good Title"),
-      block("b4", "p", "more"),
+      block("b4", "p", "more")
     ]);
     mockCreateDoc
       .mockResolvedValueOnce("new-doc-1")

@@ -7,28 +7,28 @@ import type { KeyInfoItem } from "@/core/key-info-core";
 
 const { getActiveEditorMock, showMessageMock } = vi.hoisted(() => ({
   getActiveEditorMock: vi.fn(),
-  showMessageMock: vi.fn(),
+  showMessageMock: vi.fn()
 }));
 
 const { getDocKeyInfoMock } = vi.hoisted(() => ({
-  getDocKeyInfoMock: vi.fn(),
+  getDocKeyInfoMock: vi.fn()
 }));
 
 const { getDocReadonlyStateMock } = vi.hoisted(() => ({
-  getDocReadonlyStateMock: vi.fn(),
+  getDocReadonlyStateMock: vi.fn()
 }));
 
 vi.mock("siyuan", () => ({
   getActiveEditor: getActiveEditorMock,
-  showMessage: showMessageMock,
+  showMessage: showMessageMock
 }));
 
 vi.mock("@/services/key-info", () => ({
-  getDocKeyInfo: getDocKeyInfoMock,
+  getDocKeyInfo: getDocKeyInfoMock
 }));
 
 vi.mock("@/services/kernel", () => ({
-  getDocReadonlyState: getDocReadonlyStateMock,
+  getDocReadonlyState: getDocReadonlyStateMock
 }));
 
 function buildItem(id: string, text: string): KeyInfoItem {
@@ -40,7 +40,7 @@ function buildItem(id: string, text: string): KeyInfoItem {
     offset: 0,
     blockId: `block-${id}`,
     blockSort: 0,
-    order: 0,
+    order: 0
   };
 }
 
@@ -56,8 +56,8 @@ describe("key-info-controller export", () => {
     writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
       clipboard: {
-        writeText: writeTextMock,
-      },
+        writeText: writeTextMock
+      }
     });
 
     createObjectURLMock = vi.fn().mockReturnValue("blob:mock-url");
@@ -88,18 +88,18 @@ describe("key-info-controller export", () => {
       resetDocActionOrder: vi.fn(),
       getDocFavoriteActionKeys: () => [],
       setDocActionFavorite: vi.fn(),
-      setDocFavoriteActionOrder: vi.fn(),
+      setDocFavoriteActionOrder: vi.fn()
     });
 
     controller.registerDock({
       addDock: (config: any) => {
         config.init({ element: host });
-      },
+      }
     });
 
     getDocKeyInfoMock.mockResolvedValue({
       docTitle: "测试文档",
-      items: [],
+      items: []
     });
 
     const exportBtn = host.querySelector(
@@ -124,7 +124,7 @@ describe("key-info-controller export", () => {
 
     getDocKeyInfoMock.mockResolvedValue({
       docTitle: "测试文档",
-      items: [buildItem("1", "重点一"), buildItem("2", "重点二")],
+      items: [buildItem("1", "重点一"), buildItem("2", "重点二")]
     });
 
     const controller = new KeyInfoController({
@@ -141,13 +141,13 @@ describe("key-info-controller export", () => {
       resetDocActionOrder: vi.fn(),
       getDocFavoriteActionKeys: () => [],
       setDocActionFavorite: vi.fn(),
-      setDocFavoriteActionOrder: vi.fn(),
+      setDocFavoriteActionOrder: vi.fn()
     });
 
     controller.registerDock({
       addDock: (config: any) => {
         config.init({ element: host });
-      },
+      }
     });
 
     await controller.refresh();
@@ -181,7 +181,7 @@ describe("key-info-controller export", () => {
 
     getDocKeyInfoMock.mockResolvedValue({
       docTitle: "测试文档",
-      items: [buildItem("1", "重点一")],
+      items: [buildItem("1", "重点一")]
     });
 
     const controller = new KeyInfoController({
@@ -198,13 +198,13 @@ describe("key-info-controller export", () => {
       resetDocActionOrder: vi.fn(),
       getDocFavoriteActionKeys: () => [],
       setDocActionFavorite: vi.fn(),
-      setDocFavoriteActionOrder: vi.fn(),
+      setDocFavoriteActionOrder: vi.fn()
     });
 
     controller.registerDock({
       addDock: (config: any) => {
         config.init({ element: host });
-      },
+      }
     });
 
     await controller.refresh();

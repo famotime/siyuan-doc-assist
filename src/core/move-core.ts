@@ -11,9 +11,9 @@ type MovePlanInput = {
 };
 
 type MovePlanResult =
-  | { action: "skip"; reason: "already-child" }
-  | { action: "move" }
-  | { action: "rename-and-move"; newTitle: string };
+  | { action: "skip"; reason: "already-child" } |
+  { action: "move" } |
+  { action: "rename-and-move"; newTitle: string };
 
 function buildUniqueTitle(baseTitle: string, existingTitles: Set<string>): string {
   let index = 1;
@@ -31,19 +31,19 @@ export function planMoveWithConflictHandling(
   if (input.sourceDoc.parentId === input.targetParentId) {
     return {
       action: "skip",
-      reason: "already-child",
+      reason: "already-child"
     };
   }
 
   const existingTitles = new Set(input.existingChildTitles);
   if (!existingTitles.has(input.sourceDoc.title)) {
     return {
-      action: "move",
+      action: "move"
     };
   }
 
   return {
     action: "rename-and-move",
-    newTitle: buildUniqueTitle(input.sourceDoc.title, existingTitles),
+    newTitle: buildUniqueTitle(input.sourceDoc.title, existingTitles)
   };
 }

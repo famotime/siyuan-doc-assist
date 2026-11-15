@@ -7,7 +7,7 @@ import {
   findHeadingMissingBlankParagraphBeforeIds,
   findDeleteFromCurrentBlockIds,
   findDeleteFromStartToCurrentBlockIds,
-  isEmptyCodeBlock,
+  isEmptyCodeBlock
 } from "@/core/markdown-cleanup-core";
 
 describe("markdown-cleanup-core (blocks)", () => {
@@ -17,7 +17,7 @@ describe("markdown-cleanup-core (blocks)", () => {
       { id: "b", type: "p", content: " ", markdown: "" },
       { id: "c", type: "p", content: "text", markdown: "text" },
       { id: "d", type: "p", content: "", markdown: "" },
-      { id: "e", type: "p", content: "", markdown: "" },
+      { id: "e", type: "p", content: "", markdown: "" }
     ];
 
     const result = findExtraBlankParagraphIds(blocks);
@@ -31,7 +31,7 @@ describe("markdown-cleanup-core (blocks)", () => {
       { id: "a", type: "p", content: "", markdown: "" },
       { id: "b", type: "h", content: "Title", markdown: "Title" },
       { id: "c", type: "p", content: "", markdown: "" },
-      { id: "d", type: "p", content: "", markdown: "" },
+      { id: "d", type: "p", content: "", markdown: "" }
     ];
 
     const result = findExtraBlankParagraphIds(blocks);
@@ -43,7 +43,7 @@ describe("markdown-cleanup-core (blocks)", () => {
     const blocks = [
       { id: "a", type: "p", content: "\u200B", markdown: "" },
       { id: "b", type: "p", content: "\u00A0", markdown: "\u3000" },
-      { id: "c", type: "p", content: "x", markdown: "" },
+      { id: "c", type: "p", content: "x", markdown: "" }
     ];
 
     const result = findExtraBlankParagraphIds(blocks);
@@ -55,7 +55,7 @@ describe("markdown-cleanup-core (blocks)", () => {
     const blocks = [
       { id: "a", type: "p", content: "<br>", markdown: "<br />" },
       { id: "b", type: "p", content: "&nbsp;", markdown: "&#160;" },
-      { id: "c", type: "p", content: "<span>text</span>", markdown: "text" },
+      { id: "c", type: "p", content: "<span>text</span>", markdown: "text" }
     ];
 
     const result = findExtraBlankParagraphIds(blocks);
@@ -65,7 +65,7 @@ describe("markdown-cleanup-core (blocks)", () => {
   test("skips unresolved paragraphs to avoid accidental deletion", () => {
     const blocks = [
       { id: "a", type: "p", content: "", markdown: "", resolved: false },
-      { id: "b", type: "p", content: "", markdown: "", resolved: true },
+      { id: "b", type: "p", content: "", markdown: "", resolved: true }
     ];
 
     const result = findExtraBlankParagraphIds(blocks);
@@ -81,7 +81,7 @@ describe("markdown-cleanup-core (blocks)", () => {
       { id: "h3", type: "h", content: "H3", markdown: "### H3" },
       { id: "h4", type: "h", content: "H4", markdown: "#### H4" },
       { id: "blank2", type: "p", content: "\u00A0", markdown: "" },
-      { id: "h5", type: "h", content: "H5", markdown: "##### H5" },
+      { id: "h5", type: "h", content: "H5", markdown: "##### H5" }
     ];
 
     const result = findHeadingMissingBlankParagraphBeforeIds(blocks);
@@ -94,7 +94,7 @@ describe("markdown-cleanup-core (blocks)", () => {
       { id: "a", type: "p", content: "A", markdown: "A" },
       { id: "b", type: "h", content: "B", markdown: "# B" },
       { id: "c", type: "p", content: "C", markdown: "C" },
-      { id: "d", type: "p", content: "D", markdown: "D" },
+      { id: "d", type: "p", content: "D", markdown: "D" }
     ];
 
     const result = findDeleteFromCurrentBlockIds(blocks, "b");
@@ -105,7 +105,7 @@ describe("markdown-cleanup-core (blocks)", () => {
   test("returns empty delete result when current block cannot be found", () => {
     const blocks = [
       { id: "a", type: "p", content: "A", markdown: "A" },
-      { id: "b", type: "p", content: "B", markdown: "B" },
+      { id: "b", type: "p", content: "B", markdown: "B" }
     ];
 
     const result = findDeleteFromCurrentBlockIds(blocks, "missing");
@@ -119,7 +119,7 @@ describe("markdown-cleanup-core (blocks)", () => {
       { id: "u2", type: "p", content: "第一项", markdown: "第一项" },
       { id: "o1", type: "p", content: "1.", markdown: "1. " },
       { id: "o2", type: "p", content: "第二项", markdown: "第二项" },
-      { id: "plain", type: "p", content: "普通段落", markdown: "普通段落" },
+      { id: "plain", type: "p", content: "普通段落", markdown: "普通段落" }
     ];
 
     const result = findClippedListContinuationMerges(blocks);
@@ -129,13 +129,13 @@ describe("markdown-cleanup-core (blocks)", () => {
       {
         markerBlockId: "u1",
         contentBlockId: "u2",
-        mergedMarkdown: "- 第一项",
+        mergedMarkdown: "- 第一项"
       },
       {
         markerBlockId: "o1",
         contentBlockId: "o2",
-        mergedMarkdown: "1. 第二项",
-      },
+        mergedMarkdown: "1. 第二项"
+      }
     ]);
   });
 
@@ -144,7 +144,7 @@ describe("markdown-cleanup-core (blocks)", () => {
       { id: "bullet", type: "p", content: "•", markdown: "•" },
       { id: "bullet-content", type: "p", content: "概念超短片", markdown: "概念超短片 " },
       { id: "ordered", type: "l", content: " ", markdown: "1." },
-      { id: "ordered-content", type: "p", content: "导入 Skill", markdown: "导入 Skill " },
+      { id: "ordered-content", type: "p", content: "导入 Skill", markdown: "导入 Skill " }
     ];
 
     const result = findClippedListContinuationMerges(blocks);
@@ -154,13 +154,13 @@ describe("markdown-cleanup-core (blocks)", () => {
       {
         markerBlockId: "bullet",
         contentBlockId: "bullet-content",
-        mergedMarkdown: "- 概念超短片",
+        mergedMarkdown: "- 概念超短片"
       },
       {
         markerBlockId: "ordered",
         contentBlockId: "ordered-content",
-        mergedMarkdown: "1. 导入 Skill",
-      },
+        mergedMarkdown: "1. 导入 Skill"
+      }
     ]);
   });
 });
@@ -171,7 +171,7 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
       { id: "a", markdown: "A" },
       { id: "b", markdown: "B" },
       { id: "c", markdown: "C" },
-      { id: "d", markdown: "D" },
+      { id: "d", markdown: "D" }
     ];
 
     const result = findDeleteFromStartToCurrentBlockIds(blocks, "c");
@@ -185,7 +185,7 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
       { id: "sep", markdown: "---" },
       { id: "a", markdown: "正文A" },
       { id: "b", markdown: "正文B" },
-      { id: "c", markdown: "正文C" },
+      { id: "c", markdown: "正文C" }
     ];
 
     const result = findDeleteFromStartToCurrentBlockIds(blocks, "b");
@@ -201,7 +201,7 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
       { id: "sep2", markdown: "---" },
       { id: "a", markdown: "正文A" },
       { id: "b", markdown: "正文B" },
-      { id: "c", markdown: "正文C" },
+      { id: "c", markdown: "正文C" }
     ];
 
     const result = findDeleteFromStartToCurrentBlockIds(blocks, "b");
@@ -213,7 +213,7 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
     const blocks = [
       { id: "sep", markdown: "---" },
       { id: "a", markdown: "A" },
-      { id: "b", markdown: "B" },
+      { id: "b", markdown: "B" }
     ];
 
     const result = findDeleteFromStartToCurrentBlockIds(blocks, "b");
@@ -234,14 +234,23 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
       { id: "b09", markdown: "9" },
       { id: "b10", markdown: "10" },
       { id: "sep", markdown: "---" },
-      { id: "target", markdown: "T" },
+      { id: "target", markdown: "T" }
     ];
 
     const result = findDeleteFromStartToCurrentBlockIds(blocks, "target");
     expect(result.deleteIds).toEqual([
-      "b01", "b02", "b03", "b04", "b05",
-      "b06", "b07", "b08", "b09", "b10",
-      "sep", "target",
+      "b01",
+      "b02",
+      "b03",
+      "b04",
+      "b05",
+      "b06",
+      "b07",
+      "b08",
+      "b09",
+      "b10",
+      "sep",
+      "target"
     ]);
     expect(result.deleteCount).toBe(12);
   });
@@ -250,7 +259,7 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
     const blocks = [
       { id: "a", markdown: "A" },
       { id: "sep", markdown: "---" },
-      { id: "b", markdown: "B" },
+      { id: "b", markdown: "B" }
     ];
 
     const result = findDeleteFromStartToCurrentBlockIds(blocks, "a");
@@ -261,7 +270,7 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
   test("returns empty when current block not found", () => {
     const blocks = [
       { id: "a", markdown: "A" },
-      { id: "b", markdown: "B" },
+      { id: "b", markdown: "B" }
     ];
 
     const result = findDeleteFromStartToCurrentBlockIds(blocks, "missing");
@@ -280,7 +289,7 @@ describe("findDeleteFromStartToCurrentBlockIds", () => {
     const blocks = [
       { id: "summary", markdown: "概要" },
       { id: "sep", markdown: " --- " },
-      { id: "only", markdown: "正文" },
+      { id: "only", markdown: "正文" }
     ];
 
     const result = findDeleteFromStartToCurrentBlockIds(blocks, "only");
@@ -296,7 +305,7 @@ describe("findConsecutiveBlockquoteMerges", () => {
       { id: "blank1", type: "p", markdown: "" },
       { id: "q2", type: "b", markdown: "> 引用的第二段" },
       { id: "blank2", type: "p", markdown: "   " },
-      { id: "q3", type: "b", markdown: "> 引用的第三段" },
+      { id: "q3", type: "b", markdown: "> 引用的第三段" }
     ];
 
     const result = findConsecutiveBlockquoteMerges(blocks);
@@ -307,15 +316,15 @@ describe("findConsecutiveBlockquoteMerges", () => {
       {
         targetBlockId: "q1",
         mergedMarkdown: "> 引用的第一段\n>\n> 引用的第二段\n>\n> 引用的第三段",
-        deleteBlockIds: ["blank1", "blank2", "q2", "q3"],
-      },
+        deleteBlockIds: ["blank1", "blank2", "q2", "q3"]
+      }
     ]);
   });
 
   test("merges directly consecutive blockquote blocks without empty paragraphs", () => {
     const blocks = [
       { id: "q1", type: "b", markdown: "> Quote line 1" },
-      { id: "q2", type: "b", markdown: "> Quote line 2" },
+      { id: "q2", type: "b", markdown: "> Quote line 2" }
     ];
 
     const result = findConsecutiveBlockquoteMerges(blocks);
@@ -325,7 +334,7 @@ describe("findConsecutiveBlockquoteMerges", () => {
     expect(result.merges[0]).toEqual({
       targetBlockId: "q1",
       mergedMarkdown: "> Quote line 1\n>\n> Quote line 2",
-      deleteBlockIds: ["q2"],
+      deleteBlockIds: ["q2"]
     });
   });
 
@@ -333,7 +342,7 @@ describe("findConsecutiveBlockquoteMerges", () => {
     const blocks = [
       { id: "q1", type: "b", markdown: "> 引用段落 1" },
       { id: "p1", type: "p", markdown: "普通正文" },
-      { id: "q2", type: "b", markdown: "> 引用段落 2" },
+      { id: "q2", type: "b", markdown: "> 引用段落 2" }
     ];
 
     const result = findConsecutiveBlockquoteMerges(blocks);
@@ -346,7 +355,7 @@ describe("findConsecutiveBlockquoteMerges", () => {
   test("does not merge single blockquote block", () => {
     const blocks = [
       { id: "q1", type: "b", markdown: "> 单个引用块" },
-      { id: "p1", type: "p", markdown: "正文" },
+      { id: "p1", type: "p", markdown: "正文" }
     ];
 
     const result = findConsecutiveBlockquoteMerges(blocks);
@@ -368,7 +377,7 @@ describe("findEmptyCodeBlockIds and isEmptyCodeBlock", () => {
       isEmptyCodeBlock({
         type: "c",
         markdown: "```javascript\nconsole.log('hello');\n```",
-        content: "console.log('hello');",
+        content: "console.log('hello');"
       })
     ).toBe(false);
   });
@@ -378,7 +387,7 @@ describe("findEmptyCodeBlockIds and isEmptyCodeBlock", () => {
       { id: "c1", type: "c", markdown: "```js\n```", content: "" },
       { id: "p1", type: "p", markdown: "正文", content: "正文" },
       { id: "c2", type: "c", markdown: "```py\nprint('hello')\n```", content: "print('hello')" },
-      { id: "c3", type: "c", markdown: "```\n   \n```", content: "" },
+      { id: "c3", type: "c", markdown: "```\n   \n```", content: "" }
     ];
 
     const result = findEmptyCodeBlockIds(blocks);

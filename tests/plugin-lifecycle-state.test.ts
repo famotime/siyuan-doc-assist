@@ -7,7 +7,7 @@ import {
   serializePluginDocMenuState,
   setPluginMouseGestureBindings,
   setPluginMouseGestureEnabled,
-  setPluginStartupDocProcessTabEnabled,
+  setPluginStartupDocProcessTabEnabled
 } from "@/plugin/plugin-lifecycle-state";
 
 describe("plugin lifecycle state", () => {
@@ -21,7 +21,7 @@ describe("plugin lifecycle state", () => {
       model: "",
       requestTimeoutSeconds: 60,
       temperature: 0.7,
-      maxTokens: 4096,
+      maxTokens: 4096
     });
   });
 
@@ -32,8 +32,8 @@ describe("plugin lifecycle state", () => {
         baseUrl: " https://api.example.com/v1 ",
         apiKey: " sk-test ",
         model: " gpt-4.1-mini ",
-        requestTimeoutSeconds: 60,
-      },
+        requestTimeoutSeconds: 60
+      }
     }, ACTIONS);
 
     expect(normalized.aiSummaryConfig).toEqual({
@@ -43,7 +43,7 @@ describe("plugin lifecycle state", () => {
       model: "gpt-4.1-mini",
       requestTimeoutSeconds: 60,
       temperature: 0.7,
-      maxTokens: 4096,
+      maxTokens: 4096
     });
 
     expect(serializePluginDocMenuState(normalized)).toEqual(
@@ -55,8 +55,8 @@ describe("plugin lifecycle state", () => {
           model: "gpt-4.1-mini",
           requestTimeoutSeconds: 60,
           temperature: 0.7,
-          maxTokens: 4096,
-        },
+          maxTokens: 4096
+        }
       })
     );
   });
@@ -68,17 +68,17 @@ describe("plugin lifecycle state", () => {
 
   test("normalizes and serializes startupDocProcessTabEnabled", () => {
     const stateWithTrue = normalizePluginDocMenuState({
-      startupDocProcessTabEnabled: true,
+      startupDocProcessTabEnabled: true
     }, ACTIONS);
     expect(stateWithTrue.startupDocProcessTabEnabled).toBe(true);
 
     const stateWithFalse = normalizePluginDocMenuState({
-      startupDocProcessTabEnabled: false,
+      startupDocProcessTabEnabled: false
     }, ACTIONS);
     expect(stateWithFalse.startupDocProcessTabEnabled).toBe(false);
 
     const stateWithInvalid = normalizePluginDocMenuState({
-      startupDocProcessTabEnabled: "invalid",
+      startupDocProcessTabEnabled: "invalid"
     }, ACTIONS);
     expect(stateWithInvalid.startupDocProcessTabEnabled).toBe(false);
 
@@ -87,7 +87,7 @@ describe("plugin lifecycle state", () => {
 
     expect(serializePluginDocMenuState(stateWithTrue)).toEqual(
       expect.objectContaining({
-        startupDocProcessTabEnabled: true,
+        startupDocProcessTabEnabled: true
       })
     );
   });
@@ -116,15 +116,15 @@ describe("plugin lifecycle state", () => {
       mouseGestureBindings: {
         "previous-doc": "U",
         "next-doc": "invalid-seq",
-        "close-current-doc": "D,R",
-      },
+        "close-current-doc": "D,R"
+      }
     }, ACTIONS);
 
     expect(normalized.mouseGestureEnabled).toBe(true);
     expect(normalized.mouseGestureBindings).toEqual({
       "previous-doc": "U",
       "next-doc": "R",
-      "close-current-doc": "D,R",
+      "close-current-doc": "D,R"
     });
 
     expect(serializePluginDocMenuState(normalized)).toEqual(
@@ -133,8 +133,8 @@ describe("plugin lifecycle state", () => {
         mouseGestureBindings: {
           "previous-doc": "U",
           "next-doc": "R",
-          "close-current-doc": "D,R",
-        },
+          "close-current-doc": "D,R"
+        }
       })
     );
 
@@ -154,12 +154,12 @@ describe("plugin lifecycle state", () => {
     const rebound = setPluginMouseGestureBindings(enabled, {
       "previous-doc": "U",
       "next-doc": "R",
-      "close-current-doc": "",
+      "close-current-doc": ""
     });
     expect(rebound.mouseGestureBindings).toEqual({
       "previous-doc": "U",
       "next-doc": "R",
-      "close-current-doc": "D,R",
+      "close-current-doc": "D,R"
     });
   });
 });

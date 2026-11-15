@@ -3,7 +3,7 @@ import { ACTIONS } from "@/plugin/actions";
 import {
   ALPHA_FEATURE_HIDE_CONFIG,
   filterVisibleActions,
-  getHiddenPluginSettingKeys,
+  getHiddenPluginSettingKeys
 } from "@/plugin/alpha-feature-config";
 
 describe("alpha feature config", () => {
@@ -29,7 +29,7 @@ describe("alpha feature config", () => {
   test("returns hidden setting keys from config directly", () => {
     const hiddenSettingKeys = getHiddenPluginSettingKeys({
       hiddenActionKeys: [],
-      hiddenSettingKeys: ["ai-service"],
+      hiddenSettingKeys: ["ai-service"]
     });
 
     expect(hiddenSettingKeys.has("ai-service")).toBe(true);
@@ -42,7 +42,7 @@ describe("alpha feature config", () => {
 
     const hiddenSettingKeys = getHiddenPluginSettingKeys({
       hiddenActionKeys: [aiActionKey!],
-      hiddenSettingKeys: [],
+      hiddenSettingKeys: []
     });
 
     expect(hiddenSettingKeys.has("ai-service")).toBe(false);
@@ -51,7 +51,7 @@ describe("alpha feature config", () => {
   test("filters hidden actions from visible action lists", () => {
     const visibleActions = filterVisibleActions(ACTIONS, {
       hiddenActionKeys: ["insert-backlinks", "mark-key-content"],
-      hiddenSettingKeys: [],
+      hiddenSettingKeys: []
     });
 
     expect(visibleActions.map((action) => action.key)).not.toContain("insert-backlinks");

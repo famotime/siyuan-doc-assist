@@ -13,8 +13,7 @@
     /* Bundler mode */
     "moduleResolution": "Node",
     "paths": {
-      "@/*": ["./src/*"],
-      "@/libs/*": ["./src/libs/*"]
+      "@/*": ["./src/*"]
     },
     "resolveJsonModule": true,
     "types": [
@@ -42,13 +41,11 @@
     }
   ],
   "include": [
-    "tools/**/*.ts",
     "src/**/*.ts",
     "src/**/*.d.ts"
   ],
   "exclude": [
-    "node_modules",
-    "src/abandon"
+    "node_modules"
   ],
   "root": "."
 }

@@ -2,7 +2,7 @@ import { buildDuplicateGroups, suggestKeepDocId } from "@/core/dedupe-core";
 import {
   getDocMetaByID,
   listDocsByParentSubtree,
-  removeDocByID,
+  removeDocByID
 } from "@/services/kernel";
 import { DedupeCandidate, DedupeDocItem, OperationReport } from "@/types/link-tool";
 
@@ -37,7 +37,7 @@ export async function findDuplicateCandidates(
       id: row.id,
       title: basename(row.hpath),
       updated: row.updated,
-      hPath: row.hpath,
+      hPath: row.hpath
     });
   });
 
@@ -48,7 +48,7 @@ export async function findDuplicateCandidates(
         id: parent.id,
         title: basename(parent.hPath),
         updated: parent.updated,
-        hPath: parent.hPath,
+        hPath: parent.hPath
       });
     }
   }
@@ -64,8 +64,8 @@ export async function findDuplicateCandidates(
       id: doc.id,
       title: doc.title,
       updated: doc.updated,
-      hPath: docHPathMap.get(doc.id) || "",
-    })),
+      hPath: docHPathMap.get(doc.id) || ""
+    }))
   }));
 }
 
@@ -89,7 +89,7 @@ export async function deleteDocsByIds(ids: string[]): Promise<OperationReport> {
     successIds: [],
     skippedIds: [],
     renamed: [],
-    failed: [],
+    failed: []
   };
 
   const uniqueIds = [...new Set(ids)].filter(Boolean);
@@ -100,7 +100,7 @@ export async function deleteDocsByIds(ids: string[]): Promise<OperationReport> {
     } catch (error: any) {
       report.failed.push({
         id,
-        error: error?.message || String(error),
+        error: error?.message || String(error)
       });
     }
   }

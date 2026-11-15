@@ -3,7 +3,7 @@ import {
   consumeKeyInfoListPostRenderAction,
   createKeyInfoListScrollState,
   setKeyInfoListLastKnownScroll,
-  updateKeyInfoListScrollContext,
+  updateKeyInfoListScrollContext
 } from "@/core/key-info-scroll-core";
 
 describe("key-info-scroll-core", () => {

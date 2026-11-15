@@ -8,7 +8,7 @@ export async function fetchSyncPost(): Promise<IWebSocketData> {
   return {
     code: 0,
     msg: "",
-    data: null,
+    data: null
   };
 }
 
@@ -44,7 +44,7 @@ export class Plugin {
 
   public eventBus = {
     on: () => undefined,
-    off: () => undefined,
+    off: () => undefined
   };
 
   addCommand(): void {}
@@ -68,7 +68,7 @@ export class Plugin {
 export class Dialog {
   public element = {
     querySelector: () => null,
-    querySelectorAll: () => [],
+    querySelectorAll: () => []
   };
 
   destroy(): void {}

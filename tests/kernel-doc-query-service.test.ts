@@ -6,7 +6,7 @@ import {
   normalizeDocSyPath,
   toChildDocMeta,
   toDocMeta,
-  toNotebookDocMeta,
+  toNotebookDocMeta
 } from "@/services/kernel-doc-query";
 
 describe("kernel doc query service", () => {
@@ -19,7 +19,7 @@ describe("kernel doc query service", () => {
         box: "box-1",
         path: "/doc-1.sy",
         hpath: "/Root/Doc 1",
-        updated: "20260504180000",
+        updated: "20260504180000"
       })
     ).toEqual({
       id: "doc-1",
@@ -29,7 +29,7 @@ describe("kernel doc query service", () => {
       path: "/doc-1.sy",
       hPath: "/Root/Doc 1",
       updated: "20260504180000",
-      title: "Doc 1",
+      title: "Doc 1"
     });
   });
 
@@ -42,7 +42,7 @@ describe("kernel doc query service", () => {
     expect(normalizeDocSyPath("box-1", "doc-1.sy")).toBe("/data/box-1/doc-1.sy");
     expect(buildDocSyCandidatePaths("box-1", "/doc-1.sy")).toEqual([
       "/data/box-1/doc-1.sy",
-      "/data/box-1/doc-1",
+      "/data/box-1/doc-1"
     ]);
   });
 
@@ -51,8 +51,8 @@ describe("kernel doc query service", () => {
       ID: "doc-1",
       Children: [
         { ID: "h-1" },
-        { ID: "h-2", Children: [{ ID: "p-1" }] },
-      ],
+        { ID: "h-2", Children: [{ ID: "p-1" }] }
+      ]
     });
 
     expect(orderMap.get("doc-1")).toBe(0);
@@ -68,7 +68,7 @@ describe("kernel doc query service", () => {
         box: "box-2",
         path: "/doc-2.sy",
         hpath: "/Docs/Doc 2",
-        updated: "20260504180100",
+        updated: "20260504180100"
       })
     ).toEqual({
       id: "doc-2",
@@ -76,7 +76,7 @@ describe("kernel doc query service", () => {
       path: "/doc-2.sy",
       hPath: "/Docs/Doc 2",
       updated: "20260504180100",
-      title: "Doc 2",
+      title: "Doc 2"
     });
 
     expect(
@@ -84,13 +84,13 @@ describe("kernel doc query service", () => {
         id: "child-1",
         box: "box-2",
         hpath: "/Parent/Child 1",
-        updated: "20260504180200",
+        updated: "20260504180200"
       })
     ).toEqual({
       id: "child-1",
       box: "box-2",
       hPath: "/Parent/Child 1",
-      updated: "20260504180200",
+      updated: "20260504180200"
     });
   });
 });

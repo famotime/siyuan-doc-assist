@@ -1,10 +1,10 @@
 /** @vitest-environment jsdom */
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, vi, beforeEach, test } from "vitest";
 import {
   loadFloatingTextConfig,
   saveFloatingTextConfig,
-  resetFloatingTextConfigCache,
+  resetFloatingTextConfigCache
 } from "@/services/floating-text/floating-text-storage";
 import { FloatingTextService } from "@/services/floating-text/floating-text-service";
 import * as kernel from "@/services/kernel";
@@ -15,7 +15,7 @@ import { createOrganizeActionHandlers } from "@/plugin/action-runner-organize-ha
 vi.mock("siyuan", () => ({
   showMessage: vi.fn(),
   Dialog: vi.fn(),
-  getActiveEditor: vi.fn(),
+  getActiveEditor: vi.fn()
 }));
 
 vi.mock("@/services/kernel", () => ({
@@ -23,11 +23,11 @@ vi.mock("@/services/kernel", () => ({
   getDocMetaByID: vi.fn(),
   getBlockKramdowns: vi.fn(),
   appendBlock: vi.fn(),
-  getChildBlocksByParentId: vi.fn(),
+  getChildBlocksByParentId: vi.fn()
 }));
 
 vi.mock("@/services/floating-text/floating-window-adapter", () => ({
-  openFloatingTextWindow: vi.fn(),
+  openFloatingTextWindow: vi.fn()
 }));
 
 describe("floating-text-storage & floating-text-service", () => {
@@ -37,13 +37,13 @@ describe("floating-text-storage & floating-text-service", () => {
   });
 
   describe("storage", () => {
-    it("returns default config when storage is empty", () => {
+    test("returns default config when storage is empty", () => {
       const mockStorage: Record<string, string> = {};
       const storageAdapter = {
         getItem: (k: string) => mockStorage[k] || null,
         setItem: (k: string, v: string) => {
           mockStorage[k] = v;
-        },
+        }
       };
 
       const cfg = loadFloatingTextConfig(storageAdapter);
@@ -52,13 +52,13 @@ describe("floating-text-storage & floating-text-service", () => {
       expect(cfg.rememberSize).toBe(true);
     });
 
-    it("saves and loads updated config", () => {
+    test("saves and loads updated config", () => {
       const mockStorage: Record<string, string> = {};
       const storageAdapter = {
         getItem: (k: string) => mockStorage[k] || null,
         setItem: (k: string, v: string) => {
           mockStorage[k] = v;
-        },
+        }
       };
 
       saveFloatingTextConfig({ opacity: 0.6, fontSize: 20 }, storageAdapter);
@@ -67,15 +67,15 @@ describe("floating-text-storage & floating-text-service", () => {
       expect(loaded.fontSize).toBe(20);
     });
 
-    it("handles corrupted storage gracefully", () => {
+    test("handles corrupted storage gracefully", () => {
       const storageAdapter = {
-        getItem: () => "invalid json {{",
+        getItem: () => "invalid json {{"
       };
       const loaded = loadFloatingTextConfig(storageAdapter);
       expect(loaded.opacity).toBe(0.85);
     });
 
-    it("triggers plugin persistence handler on save", async () => {
+    test("triggers plugin persistence handler on save", async () => {
       const { bindPluginFloatingPersistence } = await import(
         "@/services/floating-text/floating-text-storage"
       );
@@ -91,43 +91,43 @@ describe("floating-text-storage & floating-text-service", () => {
     });
   });
 
-  describe("FloatingTextService", () => {
-    it("warns when text is empty", async () => {
+  describe("floatingTextService", () => {
+    test("warns when text is empty", async () => {
       const service = new FloatingTextService();
       await service.openFloatingText("   ");
       expect(showMessage).toHaveBeenCalledWith("没有可悬浮的文本内容", 4000, "info");
       expect(windowAdapter.openFloatingTextWindow).not.toHaveBeenCalled();
     });
 
-    it("opens floating window when text is provided", async () => {
+    test("opens floating window when text is provided", async () => {
       const service = new FloatingTextService();
       await service.openFloatingText("hello world", "自定义标题");
       expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
         title: "自定义标题",
-        text: "hello world",
+        text: "hello world"
       });
       expect(showMessage).toHaveBeenCalledWith("已开启桌面置顶悬浮窗", 3000, "info");
     });
 
-    it("uses default title '悬浮窗' when title is omitted", async () => {
+    test("uses default title '悬浮窗' when title is omitted", async () => {
       const service = new FloatingTextService();
       await service.openFloatingText("hello world");
       expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
         title: "悬浮窗",
-        text: "hello world",
+        text: "hello world"
       });
     });
 
-    it("exports doc content and opens floating doc", async () => {
+    test("exports doc content and opens floating doc", async () => {
       vi.mocked(kernel.exportMdContent).mockResolvedValue({
         hPath: "/我的文档/测试页面",
-        content: "# 测试内容\n\n正文段落",
+        content: "# 测试内容\n\n正文段落"
       });
       vi.mocked(kernel.getDocMetaByID).mockResolvedValue({
         id: "doc-1",
         title: "测试页面",
         icon: "",
-        box: "notebook-1",
+        box: "notebook-1"
       });
 
       const service = new FloatingTextService();
@@ -136,17 +136,17 @@ describe("floating-text-storage & floating-text-service", () => {
       expect(kernel.exportMdContent).toHaveBeenCalledWith("doc-1", { addTitle: true });
       expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
         title: "测试页面",
-        text: "# 测试内容\n\n正文段落",
+        text: "# 测试内容\n\n正文段落"
       });
       expect(showMessage).toHaveBeenCalledWith("已将文档《测试页面》置顶悬浮", 3000, "info");
     });
   });
 
   describe("organize handler float-selected-text", () => {
-    it("floats selected blocks when multiple blocks are selected", async () => {
+    test("floats selected blocks when multiple blocks are selected", async () => {
       vi.mocked(kernel.getBlockKramdowns).mockResolvedValue([
         { id: "b1", kramdown: "第一段块内容" },
-        { id: "b2", kramdown: "第二段块内容" },
+        { id: "b2", kramdown: "第二段块内容" }
       ]);
       const domRoot = document.createElement("div");
       const block1 = document.createElement("div");
@@ -159,37 +159,37 @@ describe("floating-text-storage & floating-text-service", () => {
       domRoot.appendChild(block2);
 
       const fakeProtyle = {
-        wysiwyg: { element: domRoot },
+        wysiwyg: { element: domRoot }
       };
 
       const handlers = createOrganizeActionHandlers({
         askConfirmWithVisibleDialog: vi.fn(),
-        ensureDocWritable: vi.fn(),
+        ensureDocWritable: vi.fn()
       });
 
       await handlers["float-selected-text"]("doc-1", fakeProtyle as any);
 
       expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
         title: "悬浮窗",
-        text: "第一段块内容\n\n第二段块内容",
+        text: "第一段块内容\n\n第二段块内容"
       });
     });
 
-    it("falls back to full doc when neither text nor blocks are selected", async () => {
+    test("falls back to full doc when neither text nor blocks are selected", async () => {
       vi.mocked(kernel.exportMdContent).mockResolvedValue({
         hPath: "/我的文档/测试页面",
-        content: "# 全文内容",
+        content: "# 全文内容"
       });
       vi.mocked(kernel.getDocMetaByID).mockResolvedValue({
         id: "doc-1",
         title: "测试页面",
         icon: "",
-        box: "notebook-1",
+        box: "notebook-1"
       });
 
       const handlers = createOrganizeActionHandlers({
         askConfirmWithVisibleDialog: vi.fn(),
-        ensureDocWritable: vi.fn(),
+        ensureDocWritable: vi.fn()
       });
 
       await handlers["float-selected-text"]("doc-1", undefined);
@@ -197,7 +197,7 @@ describe("floating-text-storage & floating-text-service", () => {
       expect(kernel.exportMdContent).toHaveBeenCalledWith("doc-1", { addTitle: true });
       expect(windowAdapter.openFloatingTextWindow).toHaveBeenCalledWith({
         title: "测试页面",
-        text: "# 全文内容",
+        text: "# 全文内容"
       });
     });
   });

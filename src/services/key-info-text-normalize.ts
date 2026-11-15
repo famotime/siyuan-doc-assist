@@ -5,13 +5,13 @@ export function decodeBasicHtmlEntities(text: string): string {
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
+    .replace(/&#39;/g, "'");
 }
 
 export function replaceLinksWithVisibleText(source: string): string {
   let next = decodeBasicHtmlEntities(source || "");
   next = next.replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, "$1");
-  next = next.replace(/!\[([^\]]*?)\]\([^)]+\)/g, "$1");
+  next = next.replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1");
   next = next.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   next = next.replace(/\[\[([^\]]+)\]\]/g, "$1");
   next = next.replace(/<https?:\/\/[^>]+>/gi, " ");

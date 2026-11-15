@@ -4,7 +4,7 @@ import {
   getDocMetaByID,
   getDocMetasByIDs,
   moveDocsByID,
-  renameDocByID,
+  renameDocByID
 } from "@/services/kernel";
 import { OperationReport } from "@/types/link-tool";
 
@@ -42,13 +42,13 @@ export async function moveDocsAsChildren(
     successIds: [],
     skippedIds: [],
     renamed: [],
-    failed: [],
+    failed: []
   };
 
   const sourceIds = [...new Set(sourceDocIds)].filter(Boolean);
   const [currentDocMeta, metas] = await Promise.all([
     getDocMetaByID(currentDocId),
-    getDocMetasByIDs(sourceIds),
+    getDocMetasByIDs(sourceIds)
   ]);
   const metaMap = new Map(metas.map((meta) => [meta.id, meta]));
   const existingChildTitles = new Set(await getChildDocTitles(currentDocId));
@@ -74,10 +74,10 @@ export async function moveDocsAsChildren(
         sourceDoc: {
           id: meta.id,
           title: meta.title,
-          parentId: meta.parentId,
+          parentId: meta.parentId
         },
         targetParentId: currentDocId,
-        existingChildTitles: [...existingChildTitles],
+        existingChildTitles: [...existingChildTitles]
       });
 
       if (movePlan.action === "skip") {
@@ -98,7 +98,7 @@ export async function moveDocsAsChildren(
     } catch (error: any) {
       report.failed.push({
         id: docId,
-        error: error?.message || String(error),
+        error: error?.message || String(error)
       });
     }
   }

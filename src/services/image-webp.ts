@@ -1,7 +1,7 @@
 import {
   collectLocalImageAssetPathsFromMarkdown,
   isConvertibleImageAssetPath,
-  rewriteMarkdownImageAssetLinks,
+  rewriteMarkdownImageAssetLinks
 } from "@/core/image-webp-core";
 import { updateBlockMarkdown } from "@/services/kernel";
 import { escapeSqlLiteral, sqlPaged } from "@/services/kernel-shared";
@@ -33,7 +33,7 @@ const EMPTY_REPORT: ConvertDocImagesToWebpReport = {
   failedBlockCount: 0,
   replacedLinkCount: 0,
   updatedBlockCount: 0,
-  totalSavedBytes: 0,
+  totalSavedBytes: 0
 };
 
 function isGifAssetPath(assetPath: string): boolean {
@@ -131,6 +131,6 @@ export async function convertDocImagesToWebp(docId: string): Promise<ConvertDocI
     failedBlockCount,
     replacedLinkCount,
     updatedBlockCount,
-    totalSavedBytes,
+    totalSavedBytes
   };
 }

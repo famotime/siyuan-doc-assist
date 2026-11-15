@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, vi, test } from "vitest";
 import { createOrganizeActionHandlers } from "@/plugin/action-runner-organize-handlers";
 import { exportMdContent } from "@/services/kernel";
 import { clipWebLinksToDocs, fetchLinkTitles } from "@/services/link-to-doc-service";
@@ -9,61 +9,61 @@ import { showMessage } from "siyuan";
 vi.mock("@/services/kernel", () => ({
   appendBlock: vi.fn(),
   getChildBlocksByParentId: vi.fn(),
-  exportMdContent: vi.fn(),
+  exportMdContent: vi.fn()
 }));
 
 vi.mock("@/services/link-resolver", () => ({
   getBacklinkDocs: vi.fn(),
-  getForwardLinkedDocIds: vi.fn(),
+  getForwardLinkedDocIds: vi.fn()
 }));
 
 vi.mock("@/services/large-documents-report", () => ({
-  createTop100LargeDocumentsReport: vi.fn(),
+  createTop100LargeDocumentsReport: vi.fn()
 }));
 
 vi.mock("@/services/mover", () => ({
-  moveDocsAsChildren: vi.fn(),
+  moveDocsAsChildren: vi.fn()
 }));
 
 vi.mock("@/services/open-doc-summary", () => ({
-  createOpenedDocsSummaryDoc: vi.fn(),
+  createOpenedDocsSummaryDoc: vi.fn()
 }));
 
 vi.mock("@/services/dedupe", () => ({
   deleteDocsByIds: vi.fn(),
-  findDuplicateCandidates: vi.fn(),
+  findDuplicateCandidates: vi.fn()
 }));
 
 vi.mock("@/ui/dialogs", () => ({
-  openDedupeDialog: vi.fn(),
+  openDedupeDialog: vi.fn()
 }));
 
 vi.mock("@/services/split-doc-by-headings", () => ({
-  splitDocByHeadings: vi.fn(),
+  splitDocByHeadings: vi.fn()
 }));
 
 vi.mock("@/services/floating-text/floating-text-service", () => ({
   floatingTextService: {
     openFloatingText: vi.fn(),
-    openFloatingDoc: vi.fn(),
-  },
+    openFloatingDoc: vi.fn()
+  }
 }));
 
 vi.mock("@/services/floating-text/floating-selection-helper", () => ({
-  extractFloatingMarkdownFromSelection: vi.fn(),
+  extractFloatingMarkdownFromSelection: vi.fn()
 }));
 
 vi.mock("@/services/link-to-doc-service", () => ({
   clipWebLinksToDocs: vi.fn(),
-  fetchLinkTitles: vi.fn(),
+  fetchLinkTitles: vi.fn()
 }));
 
 vi.mock("@/ui/link-to-doc-dialog", () => ({
-  openLinkToDocDialog: vi.fn(),
+  openLinkToDocDialog: vi.fn()
 }));
 
 vi.mock("siyuan", () => ({
-  showMessage: vi.fn(),
+  showMessage: vi.fn()
 }));
 
 const mockExportMdContent = vi.mocked(exportMdContent);
@@ -80,17 +80,17 @@ describe("action-runner-organize link-to-doc", () => {
   const handlers = createOrganizeActionHandlers({
     askConfirmWithVisibleDialog: askConfirmMock,
     ensureDocWritable: ensureDocWritableMock,
-    setBusy: setBusyMock,
+    setBusy: setBusyMock
   });
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("notifies when document contains no valid web links", async () => {
+  test("notifies when document contains no valid web links", async () => {
     mockExportMdContent.mockResolvedValueOnce({
       hPath: "/测试",
-      content: "这是一篇没有任何外部链接的普通文档。",
+      content: "这是一篇没有任何外部链接的普通文档。"
     });
 
     await handlers["link-to-doc"]("doc-1");
@@ -103,10 +103,10 @@ describe("action-runner-organize link-to-doc", () => {
     expect(mockOpenLinkToDocDialog).not.toHaveBeenCalled();
   });
 
-  it("directly executes clipping without dialog when only one link is found", async () => {
+  test("directly executes clipping without dialog when only one link is found", async () => {
     mockExportMdContent.mockResolvedValueOnce({
       hPath: "/测试",
-      content: "这是一个参考链接：[教程](https://example.com/single-post)",
+      content: "这是一个参考链接：[教程](https://example.com/single-post)"
     });
 
     mockClipWebLinksToDocs.mockResolvedValueOnce({
@@ -114,7 +114,7 @@ describe("action-runner-organize link-to-doc", () => {
       successCount: 1,
       failedCount: 0,
       createdDocIds: ["new-id"],
-      errors: [],
+      errors: []
     });
 
     await handlers["link-to-doc"]("doc-1");
@@ -124,19 +124,19 @@ describe("action-runner-organize link-to-doc", () => {
       {
         url: "https://example.com/single-post",
         originalUrl: "https://example.com/single-post",
-        fallbackTitle: "教程",
-      },
+        fallbackTitle: "教程"
+      }
     ]);
     expect(mockShowMessage).toHaveBeenCalledWith("成功剪藏 1 篇网页文档", 4000, "info");
   });
 
-  it("fetches titles and opens dialog for multiple links, then clips selected items", async () => {
+  test("fetches titles and opens dialog for multiple links, then clips selected items", async () => {
     mockExportMdContent.mockResolvedValueOnce({
       hPath: "/测试",
       content: `
         [文章一](https://example.com/1)
         [文章二](https://example.com/2)
-      `,
+      `
     });
 
     mockFetchLinkTitles.mockResolvedValueOnce([
@@ -145,15 +145,15 @@ describe("action-runner-organize link-to-doc", () => {
         originalUrl: "https://example.com/1",
         fallbackTitle: "文章一",
         title: "真实标题一",
-        hasFetchedTitle: true,
+        hasFetchedTitle: true
       },
       {
         url: "https://example.com/2",
         originalUrl: "https://example.com/2",
         fallbackTitle: "文章二",
         title: "真实标题二",
-        hasFetchedTitle: true,
-      },
+        hasFetchedTitle: true
+      }
     ]);
 
     mockClipWebLinksToDocs.mockResolvedValueOnce({
@@ -161,7 +161,7 @@ describe("action-runner-organize link-to-doc", () => {
       successCount: 1,
       failedCount: 0,
       createdDocIds: ["id-1"],
-      errors: [],
+      errors: []
     });
 
     await handlers["link-to-doc"]("doc-1");

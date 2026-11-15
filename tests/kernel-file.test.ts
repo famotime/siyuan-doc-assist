@@ -18,13 +18,13 @@ describe("kernel file", () => {
       return new Response(
         JSON.stringify({
           code: 0,
-          data: "1234",
+          data: "1234"
         }),
         {
           status: 200,
           headers: {
-            "content-type": "application/json",
-          },
+            "content-type": "application/json"
+          }
         }
       );
     }) as any;
@@ -39,15 +39,15 @@ describe("kernel file", () => {
     const rawContent = JSON.stringify({
       ID: "20260308103148-yqz4azy",
       Type: "NodeDocument",
-      Content: "hello",
+      Content: "hello"
     });
 
     globalThis.fetch = vi.fn(async () => {
       return new Response(rawContent, {
         status: 200,
         headers: {
-          "content-type": "application/json",
-        },
+          "content-type": "application/json"
+        }
       });
     }) as any;
 

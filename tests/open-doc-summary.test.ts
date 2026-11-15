@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@/services/kernel", () => ({
-  createDocWithMd: vi.fn(),
-  getDocMetaByID: vi.fn(),
-}));
-
-vi.mock("@/services/request", () => ({
-  requestApi: vi.fn(),
-}));
-
 import { createDocWithMd, getDocMetaByID } from "@/services/kernel";
 import { requestApi } from "@/services/request";
 import {
   collectOpenedUnpinnedDocs,
-  createOpenedDocsSummaryDoc,
+  createOpenedDocsSummaryDoc
 } from "@/services/open-doc-summary";
+
+vi.mock("@/services/kernel", () => ({
+  createDocWithMd: vi.fn(),
+  getDocMetaByID: vi.fn()
+}));
+
+vi.mock("@/services/request", () => ({
+  requestApi: vi.fn()
+}));
 
 const createDocWithMdMock = vi.mocked(createDocWithMd);
 const getDocMetaByIDMock = vi.mocked(getDocMetaByID);
@@ -40,42 +40,42 @@ describe("open-doc-summary service", () => {
                 {
                   pin: false,
                   title: "文档 A",
-                  model: { notebookId: "nb", rootId: "doc-a" },
+                  model: { notebookId: "nb", rootId: "doc-a" }
                 },
                 {
                   pin: false,
                   title: "文档 A 副本",
-                  model: { notebookId: "nb", rootId: "doc-a" },
+                  model: { notebookId: "nb", rootId: "doc-a" }
                 },
                 {
                   title: "文档 B",
                   headElement: pinHead,
-                  model: { notebookId: "nb", rootId: "doc-b" },
+                  model: { notebookId: "nb", rootId: "doc-b" }
                 },
                 {
                   pin: false,
                   title: "非编辑器页签",
-                  model: { notebookId: "nb" },
+                  model: { notebookId: "nb" }
                 },
                 {
                   children: [
                     {
                       pin: false,
                       title: "文档 C",
-                      model: { notebookId: "nb", rootId: "doc-c" },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      },
+                      model: { notebookId: "nb", rootId: "doc-c" }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
     };
 
     await expect(collectOpenedUnpinnedDocs()).resolves.toEqual([
       { id: "doc-a", notebookId: "nb", title: "文档 A" },
-      { id: "doc-c", notebookId: "nb", title: "文档 C" },
+      { id: "doc-c", notebookId: "nb", title: "文档 C" }
     ]);
   });
 
@@ -92,23 +92,23 @@ describe("open-doc-summary service", () => {
                 {
                   pin: false,
                   title: "文档 A",
-                  model: { notebookId: "nb", rootId: "doc-a" },
+                  model: { notebookId: "nb", rootId: "doc-a" }
                 },
                 {
                   pin: false,
                   title: "文档 B",
-                  model: { notebookId: "nb", rootId: "doc-b" },
-                },
-              ],
-            },
-          ],
-        },
-      },
+                  model: { notebookId: "nb", rootId: "doc-b" }
+                }
+              ]
+            }
+          ]
+        }
+      }
     };
 
     await expect(collectOpenedUnpinnedDocs()).resolves.toEqual([
       { id: "doc-a", notebookId: "nb", title: "文档 A" },
-      { id: "doc-b", notebookId: "nb", title: "文档 B" },
+      { id: "doc-b", notebookId: "nb", title: "文档 B" }
     ]);
   });
 
@@ -129,8 +129,8 @@ describe("open-doc-summary service", () => {
                         children: {
                           instance: "Editor",
                           notebookId: "nb",
-                          rootId: "doc-pinned",
-                        },
+                          rootId: "doc-pinned"
+                        }
                       },
                       {
                         instance: "Tab",
@@ -139,8 +139,8 @@ describe("open-doc-summary service", () => {
                         children: {
                           instance: "Editor",
                           notebookId: "nb",
-                          rootId: "doc-a",
-                        },
+                          rootId: "doc-a"
+                        }
                       },
                       {
                         instance: "Tab",
@@ -149,22 +149,22 @@ describe("open-doc-summary service", () => {
                         children: {
                           instance: "Editor",
                           notebookId: "nb",
-                          rootId: "doc-b",
-                        },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        },
-      },
+                          rootId: "doc-b"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
     } as any);
 
     await expect(collectOpenedUnpinnedDocs()).resolves.toEqual([
       { id: "doc-a", notebookId: "nb", title: "反链测试" },
-      { id: "doc-b", notebookId: "nb", title: "README" },
+      { id: "doc-b", notebookId: "nb", title: "README" }
     ]);
     expect(requestApiMock).toHaveBeenCalledWith("/api/system/getConf");
   });
@@ -181,24 +181,24 @@ describe("open-doc-summary service", () => {
                 {
                   pin: false,
                   title: "当前文档",
-                  model: { notebookId: "nb", rootId: "doc-1" },
+                  model: { notebookId: "nb", rootId: "doc-1" }
                 },
                 {
                   pin: false,
                   title: "参考文档",
-                  model: { notebookId: "nb", rootId: "doc-2" },
-                },
-              ],
-            },
-          ],
-        },
-      },
+                  model: { notebookId: "nb", rootId: "doc-2" }
+                }
+              ]
+            }
+          ]
+        }
+      }
     };
     getDocMetaByIDMock.mockResolvedValue({
       id: "doc-1",
       box: "nb",
       hPath: "/项目/当前文档",
-      title: "当前文档",
+      title: "当前文档"
     } as any);
     createDocWithMdMock.mockResolvedValue("summary-doc");
 
@@ -212,7 +212,7 @@ describe("open-doc-summary service", () => {
     expect(result).toEqual({
       docCount: 2,
       id: "summary-doc",
-      title: "已打开文档汇总页-20260317-090807",
+      title: "已打开文档汇总页-20260317-090807"
     });
   });
 });

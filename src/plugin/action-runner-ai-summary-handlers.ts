@@ -2,12 +2,12 @@ import { showMessage } from "siyuan";
 import { buildConceptMapDocTitle, joinChildDocHPath } from "@/core/ai-concept-map-core";
 import {
   buildAiSummaryBlockMarkdown,
-  resolveAiSummaryInsertTarget,
+  resolveAiSummaryInsertTarget
 } from "@/core/ai-summary-core";
 import {
   generateDocumentConceptMap,
   generateDocumentSummary,
-  generateCanvasOutline,
+  generateCanvasOutline
 } from "@/services/ai-summary";
 import {
   appendBlock,
@@ -19,12 +19,12 @@ import {
   getRootDocRawMarkdown,
   insertBlockBefore,
   getBlockKramdowns,
-  renameDocByID,
+  renameDocByID
 } from "@/services/kernel";
 import {
   getBacklinkDocs,
   getChildDocs,
-  getForwardLinkedDocIds,
+  getForwardLinkedDocIds
 } from "@/services/link-resolver";
 import { loadFreshNetworkLensDocumentSummary } from "@/services/network-lens-ai-index";
 import { PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
@@ -34,11 +34,11 @@ import { getSelectedBlockIds } from "@/plugin/action-runner-context";
 import {
   buildCanvasFromKeyInfoItems,
   parseMarkdownToKeyInfoItems,
-  preprocessItemsForCanvas,
+  preprocessItemsForCanvas
 } from "@/services/canvas-generator";
 import {
   BetterTitlesResult,
-  prepareBetterTitlesInputText,
+  prepareBetterTitlesInputText
 } from "@/core/ai-better-titles-core";
 import { generateBetterTitles } from "@/services/ai-better-titles";
 import { openBetterTitlesDialog } from "@/ui/better-titles-dialog";
@@ -59,7 +59,7 @@ export function createAiSummaryActionHandlers(
       const [childDocs, forwardDocIds, backlinkDocs] = await Promise.all([
         getChildDocs(docId).catch(() => []),
         getForwardLinkedDocIds(docId).catch(() => []),
-        getBacklinkDocs(docId).catch(() => []),
+        getBacklinkDocs(docId).catch(() => [])
       ]);
 
       const relatedIdSet = new Set<string>();
@@ -102,7 +102,7 @@ export function createAiSummaryActionHandlers(
         config: options.getAiSummaryConfig?.(),
         documentTitle: docMeta.title,
         documentMarkdown,
-        relatedDocuments,
+        relatedDocuments
       });
 
       if (!documentMarkdown) {
@@ -138,8 +138,8 @@ export function createAiSummaryActionHandlers(
         loadFreshDocumentSummary: async (params) => loadFreshNetworkLensDocumentSummary({
           networkLensPlugin: options.resolveNetworkLensPlugin?.(),
           documentId: params.documentId,
-          documentUpdatedAt: params.documentUpdatedAt,
-        }),
+          documentUpdatedAt: params.documentUpdatedAt
+        })
       });
       const blocks = await getChildBlocksByParentId(docId);
       const summaryMarkdown = buildAiSummaryBlockMarkdown(summary);
@@ -193,7 +193,7 @@ export function createAiSummaryActionHandlers(
         const aiOutlineMarkdown = await generateCanvasOutline({
           config: options.getAiSummaryConfig?.(),
           documentTitle: docTitle,
-          documentMarkdown: inputText,
+          documentMarkdown: inputText
         });
 
         if (!aiOutlineMarkdown.trim()) {
@@ -207,7 +207,7 @@ export function createAiSummaryActionHandlers(
 
         await canvasPlugin.openCanvasTab({
           raw: JSON.stringify(canvasDoc),
-          title: docTitle + " - AI画布",
+          title: `${docTitle} - AI画布`
         });
         showMessage("Canvas画布已生成并打开", 3000, "info");
       } finally {
@@ -251,7 +251,7 @@ export function createAiSummaryActionHandlers(
         initialResult = await generateBetterTitles({
           config: options.getAiSummaryConfig?.(),
           documentTitle: docTitle,
-          content: preparedContent,
+          content: preparedContent
         });
       } catch (err: any) {
         showMessage(err?.message || "生成候选标题失败", 5000, "error");
@@ -273,14 +273,14 @@ export function createAiSummaryActionHandlers(
             const nextResult = await generateBetterTitles({
               config: options.getAiSummaryConfig?.(),
               documentTitle: docTitle,
-              content: preparedContent,
+              content: preparedContent
             });
             dialogController.updateCandidates(nextResult);
           } finally {
             dialogController.setLoading(false);
           }
-        },
+        }
       });
-    },
+    }
   };
 }

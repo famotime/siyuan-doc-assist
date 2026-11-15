@@ -7,11 +7,11 @@ describe("ai summary service", () => {
     const loadFreshDocumentSummary = vi.fn().mockResolvedValue({
       summaryShort: "这是索引里的摘要。",
       summaryMedium: "这是索引里的较长摘要。",
-      indexedAt: "2026-04-03T15:02:08.012Z",
+      indexedAt: "2026-04-03T15:02:08.012Z"
     });
     const service = createAiSummaryService({
       forwardProxy,
-      loadFreshDocumentSummary,
+      loadFreshDocumentSummary
     });
 
     const result = await service.generateDocumentSummary({
@@ -20,18 +20,18 @@ describe("ai summary service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentId: "doc-1",
       documentUpdatedAt: "20260403150208",
       documentTitle: "AI 摘要测试",
-      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
+      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段"
     });
 
     expect(result).toBe("这是索引里的摘要。");
     expect(loadFreshDocumentSummary).toHaveBeenCalledWith({
       documentId: "doc-1",
-      documentUpdatedAt: "20260403150208",
+      documentUpdatedAt: "20260403150208"
     });
     expect(forwardProxy).not.toHaveBeenCalled();
   });
@@ -41,11 +41,11 @@ describe("ai summary service", () => {
     const loadFreshDocumentSummary = vi.fn().mockResolvedValue({
       summaryShort: "这是索引里的摘要。",
       summaryMedium: "这是索引里的较长摘要。",
-      indexedAt: "2026-04-03T15:02:08.012Z",
+      indexedAt: "2026-04-03T15:02:08.012Z"
     });
     const service = createAiSummaryService({
       forwardProxy,
-      loadFreshDocumentSummary,
+      loadFreshDocumentSummary
     });
 
     const result = await service.generateDocumentSummary({
@@ -54,12 +54,12 @@ describe("ai summary service", () => {
         baseUrl: "",
         apiKey: "",
         model: "",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentId: "doc-1",
       documentUpdatedAt: "20260403150208",
       documentTitle: "AI 摘要测试",
-      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
+      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段"
     });
 
     expect(result).toBe("这是索引里的摘要。");
@@ -73,16 +73,16 @@ describe("ai summary service", () => {
         choices: [
           {
             message: {
-              content: "  这是精简后的文档摘要。  ",
-            },
-          },
-        ],
-      }),
+              content: "  这是精简后的文档摘要。  "
+            }
+          }
+        ]
+      })
     });
     const loadFreshDocumentSummary = vi.fn().mockResolvedValue(null);
     const service = createAiSummaryService({
       forwardProxy,
-      loadFreshDocumentSummary,
+      loadFreshDocumentSummary
     });
 
     const result = await service.generateDocumentSummary({
@@ -91,18 +91,18 @@ describe("ai summary service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentId: "doc-1",
       documentUpdatedAt: "20260403150208",
       documentTitle: "AI 摘要测试",
-      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
+      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段"
     });
 
     expect(result).toBe("这是精简后的文档摘要。");
     expect(loadFreshDocumentSummary).toHaveBeenCalledWith({
       documentId: "doc-1",
-      documentUpdatedAt: "20260403150208",
+      documentUpdatedAt: "20260403150208"
     });
     expect(forwardProxy).toHaveBeenCalledTimes(1);
   });
@@ -114,11 +114,11 @@ describe("ai summary service", () => {
         choices: [
           {
             message: {
-              content: "  这是精简后的文档摘要。  ",
-            },
-          },
-        ],
-      }),
+              content: "  这是精简后的文档摘要。  "
+            }
+          }
+        ]
+      })
     });
     const service = createAiSummaryService({ forwardProxy });
 
@@ -128,10 +128,10 @@ describe("ai summary service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentTitle: "AI 摘要测试",
-      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
+      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段"
     });
 
     expect(result).toBe("这是精简后的文档摘要。");
@@ -141,7 +141,7 @@ describe("ai summary service", () => {
       expect.stringContaining("\"model\":\"gpt-4.1-mini\""),
       [
         { Authorization: "Bearer sk-test" },
-        { Accept: "application/json" },
+        { Accept: "application/json" }
       ],
       45000,
       "application/json"
@@ -158,12 +158,12 @@ describe("ai summary service", () => {
           {
             message: {
               content: [
-                { type: "text", text: "  - 核心主题：聚焦主题脉络。\n  - 关键概念：补充核心概念间关系。  " },
-              ],
-            },
-          },
-        ],
-      }),
+                { type: "text", text: "  - 核心主题：聚焦主题脉络。\n  - 关键概念：补充核心概念间关系。  " }
+              ]
+            }
+          }
+        ]
+      })
     });
     const service = createAiSummaryService({ forwardProxy });
 
@@ -173,10 +173,10 @@ describe("ai summary service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentTitle: "ClaudeCode 主题",
-      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段",
+      documentMarkdown: "# 标题\n\n正文第一段\n\n正文第二段"
     });
 
     expect(result).toBe("- 核心主题：聚焦主题脉络。\n  - 关键概念：补充核心概念间关系。");
@@ -186,7 +186,7 @@ describe("ai summary service", () => {
       expect.stringContaining("\"model\":\"gpt-4.1-mini\""),
       [
         { Authorization: "Bearer sk-test" },
-        { Accept: "application/json" },
+        { Accept: "application/json" }
       ],
       45000,
       "application/json"
@@ -206,11 +206,11 @@ describe("ai summary service", () => {
         choices: [
           {
             message: {
-              content: "- 核心主题：综合概念。\n  - 子文档要点：子文档内容概述。",
-            },
-          },
-        ],
-      }),
+              content: "- 核心主题：综合概念。\n  - 子文档要点：子文档内容概述。"
+            }
+          }
+        ]
+      })
     });
     const service = createAiSummaryService({ forwardProxy });
 
@@ -220,14 +220,14 @@ describe("ai summary service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentTitle: "主题文档",
       documentMarkdown: "# 主题\n\n正文内容",
       relatedDocuments: [
         { title: "子文档A", markdown: "子文档A 的正文内容" },
-        { title: "链接文档B", markdown: "链接文档B 的正文内容" },
-      ],
+        { title: "链接文档B", markdown: "链接文档B 的正文内容" }
+      ]
     });
 
     expect(result).toBe("- 核心主题：综合概念。\n  - 子文档要点：子文档内容概述。");
@@ -247,11 +247,11 @@ describe("ai summary service", () => {
         choices: [
           {
             message: {
-              content: "- 核心主题：单一文档概念。",
-            },
-          },
-        ],
-      }),
+              content: "- 核心主题：单一文档概念。"
+            }
+          }
+        ]
+      })
     });
     const service = createAiSummaryService({ forwardProxy });
 
@@ -261,10 +261,10 @@ describe("ai summary service", () => {
         baseUrl: "https://api.example.com/v1",
         apiKey: "sk-test",
         model: "gpt-4.1-mini",
-        requestTimeoutSeconds: 45,
+        requestTimeoutSeconds: 45
       },
       documentTitle: "主题文档",
-      documentMarkdown: "# 主题\n\n正文内容",
+      documentMarkdown: "# 主题\n\n正文内容"
     });
 
     const body = String(forwardProxy.mock.calls[0]?.[2] || "");
@@ -282,11 +282,11 @@ describe("ai summary service", () => {
             message: {
               content: "",
               role: "assistant",
-              reasoning_content: "嗯，用户要求生成摘要。这个文档主要介绍了搜索替换插件的功能特性。摘要：这是一个类似 VS Code 风格的搜索替换插件，支持正则表达式、大小写匹配等功能。",
-            },
-          },
-        ],
-      }),
+              reasoning_content: "嗯，用户要求生成摘要。这个文档主要介绍了搜索替换插件的功能特性。摘要：这是一个类似 VS Code 风格的搜索替换插件，支持正则表达式、大小写匹配等功能。"
+            }
+          }
+        ]
+      })
     });
     const service = createAiSummaryService({ forwardProxy });
 
@@ -297,10 +297,10 @@ describe("ai summary service", () => {
         apiKey: "sk-test",
         model: "mimo-v2.5-pro",
         requestTimeoutSeconds: 60,
-        maxTokens: 2048,
+        maxTokens: 2048
       },
       documentTitle: "搜索替换插件",
-      documentMarkdown: "# 搜索替换插件\n\n支持正则表达式、大小写匹配等功能。",
+      documentMarkdown: "# 搜索替换插件\n\n支持正则表达式、大小写匹配等功能。"
     });
 
     expect(result).toContain("搜索替换插件");
@@ -311,7 +311,7 @@ describe("ai summary service", () => {
 
   test("throws a readable error when config is incomplete", async () => {
     const service = createAiSummaryService({
-      forwardProxy: vi.fn(),
+      forwardProxy: vi.fn()
     });
 
     await expect(service.generateDocumentSummary({
@@ -320,9 +320,9 @@ describe("ai summary service", () => {
         baseUrl: "",
         apiKey: "",
         model: "",
-        requestTimeoutSeconds: 30,
+        requestTimeoutSeconds: 30
       },
-      documentMarkdown: "正文",
+      documentMarkdown: "正文"
     })).rejects.toThrow("AI 服务配置不完整");
   });
 });
