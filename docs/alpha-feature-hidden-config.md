@@ -129,6 +129,7 @@ export const ALPHA_FEATURE_HIDE_CONFIG: AlphaFeatureHideConfig = {
 | key | 名称 |
 |-----|------|
 | `ai-service` | AI 服务接入配置（Base URL / API Key / Model） |
+| `mouse-gesture` | 鼠标手势（总开关与手势录制配置面板） |
 
 ## 联动规则
 

@@ -33,6 +33,11 @@ import {
   FloatingTextConfig,
   normalizeFloatingConfig,
 } from "@/core/floating-text-core";
+import {
+  DEFAULT_GESTURE_BINDINGS,
+  GestureBindings,
+  normalizeGestureBindings,
+} from "@/core/gesture-recognition-core";
 
 export type PluginDocMenuState = {
   docActionEnabledState: DocActionEnabledState;
@@ -44,6 +49,8 @@ export type PluginDocMenuState = {
   debugLogEnabled: boolean;
   floatingConfig: FloatingTextConfig;
   startupDocProcessTabEnabled: boolean;
+  mouseGestureEnabled: boolean;
+  mouseGestureBindings: GestureBindings;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
@@ -52,6 +59,8 @@ type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   debugLogEnabled?: unknown;
   floatingConfig?: unknown;
   startupDocProcessTabEnabled?: unknown;
+  mouseGestureEnabled?: unknown;
+  mouseGestureBindings?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -67,6 +76,8 @@ export function buildDefaultPluginDocMenuState(
     debugLogEnabled: false,
     floatingConfig: { ...DEFAULT_FLOATING_TEXT_CONFIG },
     startupDocProcessTabEnabled: false,
+    mouseGestureEnabled: false,
+    mouseGestureBindings: { ...DEFAULT_GESTURE_BINDINGS },
   };
 }
 
@@ -84,6 +95,8 @@ export function normalizePluginDocMenuState(
     debugLogEnabled: normalizeStoredDebugLogEnabled(raw),
     floatingConfig: normalizeStoredFloatingConfig(raw),
     startupDocProcessTabEnabled: normalizeStoredStartupDocProcessTabEnabled(raw),
+    mouseGestureEnabled: normalizeStoredMouseGestureEnabled(raw),
+    mouseGestureBindings: normalizeStoredMouseGestureBindings(raw),
   };
 }
 
@@ -131,6 +144,22 @@ function normalizeStoredStartupDocProcessTabEnabled(raw: unknown): boolean {
   return typeof value === "boolean" ? value : false;
 }
 
+function normalizeStoredMouseGestureEnabled(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") {
+    return false;
+  }
+  const value = (raw as PluginDocMenuStorageV1).mouseGestureEnabled;
+  return typeof value === "boolean" ? value : false;
+}
+
+function normalizeStoredMouseGestureBindings(raw: unknown): GestureBindings {
+  if (!raw || typeof raw !== "object") {
+    return { ...DEFAULT_GESTURE_BINDINGS };
+  }
+  const value = (raw as PluginDocMenuStorageV1).mouseGestureBindings;
+  return normalizeGestureBindings(value);
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -145,6 +174,8 @@ export function serializePluginDocMenuState(
     debugLogEnabled: state.debugLogEnabled,
     floatingConfig: state.floatingConfig,
     startupDocProcessTabEnabled: state.startupDocProcessTabEnabled,
+    mouseGestureEnabled: state.mouseGestureEnabled,
+    mouseGestureBindings: state.mouseGestureBindings,
   };
 }
 
@@ -304,6 +335,26 @@ export function setPluginStartupDocProcessTabEnabled(
   return {
     ...state,
     startupDocProcessTabEnabled: Boolean(enabled),
+  };
+}
+
+export function setPluginMouseGestureEnabled(
+  state: PluginDocMenuState,
+  enabled: boolean
+): PluginDocMenuState {
+  return {
+    ...state,
+    mouseGestureEnabled: Boolean(enabled),
+  };
+}
+
+export function setPluginMouseGestureBindings(
+  state: PluginDocMenuState,
+  bindings: GestureBindings
+): PluginDocMenuState {
+  return {
+    ...state,
+    mouseGestureBindings: normalizeGestureBindings(bindings),
   };
 }
 

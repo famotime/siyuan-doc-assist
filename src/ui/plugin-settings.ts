@@ -6,7 +6,9 @@ import {
 } from "@/core/doc-menu-registration-core";
 import { HiddenPluginSettingKey } from "@/plugin/alpha-feature-config";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
+import { DEFAULT_GESTURE_BINDINGS, GestureBindings } from "@/core/gesture-recognition-core";
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
+import { createGestureSettingsPanel } from "@/ui/plugin-settings-gesture";
 import { installSettingHostNormalizer } from "@/ui/plugin-settings-host";
 import { createMenuRegistrationPanel } from "@/ui/plugin-settings-menu";
 import { createElement } from "@/ui/plugin-settings-shared";
@@ -22,6 +24,8 @@ type CreatePluginSettingsOptions = {
   debugLogEnabled: boolean;
   autoPasteOnSelect?: boolean;
   startupDocProcessTabEnabled?: boolean;
+  mouseGestureEnabled?: boolean;
+  mouseGestureBindings?: GestureBindings;
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
   onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
@@ -31,6 +35,9 @@ type CreatePluginSettingsOptions = {
   onDebugLogEnabledChange: (enabled: boolean) => Promise<void> | void;
   onAutoPasteOnSelectChange?: (enabled: boolean) => Promise<void> | void;
   onStartupDocProcessTabEnabledChange?: (enabled: boolean) => Promise<void> | void;
+  onMouseGestureEnabledChange?: (enabled: boolean) => Promise<void> | void;
+  onMouseGestureBindingsChange?: (bindings: GestureBindings) => Promise<void> | void;
+  onGestureRecordingChange?: (recording: boolean) => void;
 };
 
 function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
@@ -132,6 +139,26 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       element: autoPasteControlWrap,
       fallbackDescription: description,
     });
+  }
+
+  if (options.onMouseGestureEnabledChange && !hiddenSettingKeys.has("mouse-gesture")) {
+    const gesturePanel = createGestureSettingsPanel({
+      enabled: Boolean(options.mouseGestureEnabled),
+      bindings: options.mouseGestureBindings || { ...DEFAULT_GESTURE_BINDINGS },
+      onEnabledChange: options.onMouseGestureEnabledChange,
+      onBindingsChange: (bindings) =>
+        options.onMouseGestureBindingsChange?.(bindings),
+      onRecordingStateChange: options.onGestureRecordingChange,
+    });
+
+    setting.addItem({
+      title: "鼠标手势",
+      direction: "row",
+      description:
+        "开启后可在文档编辑器中按住鼠标右键划动手势：← 切换上一个文档，→ 切换下一个文档，↓→ 关闭当前文档。手势可自定义，切换为移动式（打开目标文档并关闭当前标签页）。",
+      actionElement: gesturePanel,
+    });
+    hostNormalizedPanels.push(gesturePanel);
   }
 
   const menuRegistrationPanel = createMenuRegistrationPanel({

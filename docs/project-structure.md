@@ -87,10 +87,12 @@
 | `src/core/ai-related-suggestions-core.ts` | AI 相关链接与标签建议归一化、去重与合并 |
 | `src/core/dedupe-core.ts` | 重复标题归一化、分组与保留建议 |
 | `src/core/doc-menu-registration-core.ts` | 命令启用与菜单注册状态、排序与标准化 |
+| `src/core/doc-navigation-core.ts` | 兄弟文档选取（含循环绕回）与父级路径计算 |
 | `src/core/dock-doc-action-order-core.ts` | Dock 文档动作排序与拖拽检查 |
 | `src/core/dock-doc-action-drag-core.ts` | Dock 文档动作拖拽几何判断与收藏重排 |
 | `src/core/dock-panel-core.ts` | Dock 标签页与动作面板模型构建 |
 | `src/core/export-media-core.ts` | 导出时媒体路径提取、文件名规范化、链接改写 |
+| `src/core/gesture-recognition-core.ts` | 鼠标手势八方向序列识别、绑定匹配与手势绑定标准化 |
 | `src/core/heading-bold-toggle-core.ts` | 标题加粗切换预览与更新计划 |
 | `src/core/image-display-size-core.ts` | 图片显示尺寸解析与 Markdown 改写 |
 | `src/core/image-webp-core.ts` | 图片格式检查与 WebP 链接改写 |
@@ -148,6 +150,7 @@
 | `src/plugin/key-info-controller.ts` | Key-info 控制器装配层，负责 Dock 注册、刷新调用、导出与回调桥接 |
 | `src/plugin/key-info-navigation.ts` | Key-info 条目点击后的块内定位、协议跳转节流与高亮闪烁 |
 | `src/plugin/key-info-state.ts` | 关键内容列表合并策略 |
+| `src/plugin/mouse-gesture-controller.ts` | 鼠标手势控制器：编辑区右键划动捕获、轨迹反馈与手势动作分发 |
 | `src/plugin/plugin-pinned-tab-manager.ts` | 新页签在钉住页签后的放置协调、已知页签追踪与重试调度 |
 | `src/plugin/plugin-lifecycle-events.ts` | 生命周期事件绑定与解绑辅助 |
 | `src/plugin/plugin-lifecycle-menu.ts` | 标题菜单注册、命令注册与菜单刷新 |
@@ -167,6 +170,7 @@
 | `src/services/ai-summary.ts` | AI 文档摘要请求封装与响应提取 |
 | `src/services/block-lineage.ts` | 将嵌套块映射到直系子块，供删除后续段落等流程使用 |
 | `src/services/dedupe.ts` | 重复文档候选查询、默认删除建议与批量删除 |
+| `src/services/doc-navigation.ts` | 鼠标手势文档导航：兄弟文档查询、打开/关闭标签页与 protyle 反查 |
 | `src/services/exporter-download.ts` | 文本下载、工作区文件下载、导出路由 GET 下载与文件名解析 |
 | `src/services/exporter-staging.ts` | 导出资源暂存、缺失资源容错与临时目录落盘 |
 | `src/services/exporter.ts` | 导出编排服务，负责单文档导出、文档集 zip 导出、关键内容导出 |
@@ -213,12 +217,15 @@
 | `src/ui/action-processing-overlay.ts` | 动作执行中的忙碌遮罩 |
 | `src/ui/confirm-detail-dialog.ts` | 带详情/可选项的确认弹窗 UI helper |
 | `src/ui/dialogs.ts` | 去重对话框渲染与事件桥接 |
+| `src/ui/gesture-capture.ts` | 右键手势捕获 glue：document 捕获监听、方向识别驱动与原生菜单抑制 |
+| `src/ui/gesture-trail-overlay.ts` | 手势划动轨迹覆盖层（canvas 轨迹与方向提示标签） |
 | `src/ui/key-info-dock-controls.ts` | Key-info Dock 的静态控制壳：标签、筛选、页脚、文档处理入口 |
 | `src/ui/key-info-dock-doc-actions.ts` | Dock 文档动作区域渲染与交互 |
 | `src/ui/key-info-dock-state.ts` | Dock 渲染标志与筛选状态投影 |
 | `src/ui/key-info-dock.ts` | Key-info Dock 列表渲染、局部刷新与滚动管理 |
 | `src/ui/plugin-settings-ai.ts` | AI 设置面板 DOM 组装与状态同步 |
 | `src/ui/plugin-settings-diary.ts` | 本月日记模板设置面板 |
+| `src/ui/plugin-settings-gesture.ts` | 鼠标手势设置面板：总开关、手势录制、冲突校验与恢复默认 |
 | `src/ui/plugin-settings-host.ts` | SiYuan `Setting` 宿主节点修正与面板归一化 |
 | `src/ui/plugin-settings-menu.ts` | 文档标题菜单注册分组面板与开关联动 |
 | `src/ui/plugin-settings-shared.ts` | Setting 面板通用 DOM 原语：checkbox、input、textarea、collapse button、field row |

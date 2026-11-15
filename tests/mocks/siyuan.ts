@@ -31,6 +31,14 @@ export function getFrontend(): string {
   return "desktop";
 }
 
+export function openTab(): Promise<any> {
+  return Promise.resolve(undefined);
+}
+
+export function getAllModels(): any {
+  return { editor: [] };
+}
+
 export class Plugin {
   private readonly storage = new Map<string, any>();
 

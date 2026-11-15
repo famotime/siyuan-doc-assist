@@ -1,9 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { ACTIONS } from "@/plugin/actions";
+import { DEFAULT_GESTURE_BINDINGS } from "@/core/gesture-recognition-core";
 import {
   buildDefaultPluginDocMenuState,
   normalizePluginDocMenuState,
   serializePluginDocMenuState,
+  setPluginMouseGestureBindings,
+  setPluginMouseGestureEnabled,
   setPluginStartupDocProcessTabEnabled,
 } from "@/plugin/plugin-lifecycle-state";
 
@@ -99,5 +102,64 @@ describe("plugin lifecycle state", () => {
 
     const reverted = setPluginStartupDocProcessTabEnabled(updated, false);
     expect(reverted.startupDocProcessTabEnabled).toBe(false);
+  });
+
+  test("defaults mouse gesture state", () => {
+    const state = buildDefaultPluginDocMenuState(ACTIONS);
+    expect(state.mouseGestureEnabled).toBe(false);
+    expect(state.mouseGestureBindings).toEqual(DEFAULT_GESTURE_BINDINGS);
+  });
+
+  test("normalizes and serializes mouse gesture state", () => {
+    const normalized = normalizePluginDocMenuState({
+      mouseGestureEnabled: true,
+      mouseGestureBindings: {
+        "previous-doc": "U",
+        "next-doc": "invalid-seq",
+        "close-current-doc": "D,R",
+      },
+    }, ACTIONS);
+
+    expect(normalized.mouseGestureEnabled).toBe(true);
+    expect(normalized.mouseGestureBindings).toEqual({
+      "previous-doc": "U",
+      "next-doc": "R",
+      "close-current-doc": "D,R",
+    });
+
+    expect(serializePluginDocMenuState(normalized)).toEqual(
+      expect.objectContaining({
+        mouseGestureEnabled: true,
+        mouseGestureBindings: {
+          "previous-doc": "U",
+          "next-doc": "R",
+          "close-current-doc": "D,R",
+        },
+      })
+    );
+
+    const fallback = normalizePluginDocMenuState({}, ACTIONS);
+    expect(fallback.mouseGestureEnabled).toBe(false);
+    expect(fallback.mouseGestureBindings).toEqual(DEFAULT_GESTURE_BINDINGS);
+  });
+
+  test("updates mouse gesture state via setters", () => {
+    const initial = buildDefaultPluginDocMenuState(ACTIONS);
+    expect(initial.mouseGestureEnabled).toBe(false);
+
+    const enabled = setPluginMouseGestureEnabled(initial, true);
+    expect(enabled.mouseGestureEnabled).toBe(true);
+    expect(initial.mouseGestureEnabled).toBe(false);
+
+    const rebound = setPluginMouseGestureBindings(enabled, {
+      "previous-doc": "U",
+      "next-doc": "R",
+      "close-current-doc": "",
+    });
+    expect(rebound.mouseGestureBindings).toEqual({
+      "previous-doc": "U",
+      "next-doc": "R",
+      "close-current-doc": "D,R",
+    });
   });
 });

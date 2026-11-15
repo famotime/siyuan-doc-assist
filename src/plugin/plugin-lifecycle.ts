@@ -49,9 +49,13 @@ import {
   setPluginDocActionOrder,
   setPluginStartupDocProcessTabEnabled,
   setPluginKeyInfoFilter,
+  setPluginMouseGestureBindings,
+  setPluginMouseGestureEnabled,
   setSinglePluginDocActionEnabled,
   setSinglePluginDocMenuRegistration,
 } from "@/plugin/plugin-lifecycle-state";
+import { GestureBindings } from "@/core/gesture-recognition-core";
+import { createMouseGestureController } from "@/plugin/mouse-gesture-controller";
 import {
   bindPluginFloatingPersistence,
   setCachedFloatingTextConfig,
@@ -91,7 +95,17 @@ export default class DocLinkToolkitPlugin extends Plugin {
     buildDefaultPluginDocMenuState(ACTIONS).floatingConfig;
   private debugLogEnabled = false;
   private startupDocProcessTabEnabled = false;
+  private mouseGestureEnabled = false;
+  private mouseGestureBindings: GestureBindings = {
+    ...buildDefaultPluginDocMenuState(ACTIONS).mouseGestureBindings,
+  };
   private managedAiConfig: AiServiceConfig | null = null;
+
+  private readonly mouseGestureController = createMouseGestureController({
+    getApp: () => this.app,
+    isEnabled: () => this.mouseGestureEnabled && !this.isMobile,
+    getBindings: () => this.mouseGestureBindings,
+  });
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
     pluginVersion: pluginInfo.version,
     runAction: (action, context) => this.actionRunner.runAction(action, context),
@@ -328,6 +342,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.initApiSwitchSync();
     setTransactionDebugLogEnabled(this.debugLogEnabled);
 
+    if (!this.isMobile) {
+      this.mouseGestureController.bind();
+    }
+
     bindPluginFloatingPersistence((cfg) => {
       this.floatingConfig = cfg;
       void this.persistDocMenuRegistrationState();
@@ -347,6 +365,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onBlockIconMenu: this.onBlockIconMenu,
     });
     this.keyInfoController.destroy();
+    this.mouseGestureController.destroy();
     destroyActionProcessingOverlay();
   }
 
@@ -443,6 +462,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       debugLogEnabled: this.debugLogEnabled,
       autoPasteOnSelect: this.floatingConfig.autoPasteOnSelect ?? false,
       startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
+      mouseGestureEnabled: this.mouseGestureEnabled,
+      mouseGestureBindings: this.mouseGestureBindings,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
@@ -456,6 +477,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
         this.setFloatingConfig({ autoPasteOnSelect: enabled }),
       onStartupDocProcessTabEnabledChange: (enabled) =>
         this.setStartupDocProcessTabEnabled(enabled),
+      onMouseGestureEnabledChange: (enabled) => this.setMouseGestureEnabled(enabled),
+      onMouseGestureBindingsChange: (bindings) => this.setMouseGestureBindings(bindings),
+      onGestureRecordingChange: (recording) =>
+        this.mouseGestureController.setSuspended(recording),
     });
   }
 
@@ -549,6 +574,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       debugLogEnabled: this.debugLogEnabled,
       floatingConfig: this.floatingConfig,
       startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
+      mouseGestureEnabled: this.mouseGestureEnabled,
+      mouseGestureBindings: this.mouseGestureBindings,
     };
   }
 
@@ -562,6 +589,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.debugLogEnabled = state.debugLogEnabled ?? false;
     this.floatingConfig = state.floatingConfig;
     this.startupDocProcessTabEnabled = state.startupDocProcessTabEnabled ?? false;
+    this.mouseGestureEnabled = state.mouseGestureEnabled ?? false;
+    this.mouseGestureBindings = state.mouseGestureBindings;
     setCachedFloatingTextConfig(state.floatingConfig);
     setTransactionDebugLogEnabled(this.debugLogEnabled);
     setDocAssistantDebugEnabled(this.debugLogEnabled);
@@ -665,6 +694,20 @@ export default class DocLinkToolkitPlugin extends Plugin {
   async setFloatingConfig(config: Partial<FloatingTextConfig>) {
     this.applyDocMenuState(
       setFloatingConfig(this.snapshotDocMenuState(), config)
+    );
+    await this.persistDocMenuRegistrationState();
+  }
+
+  async setMouseGestureEnabled(enabled: boolean) {
+    this.applyDocMenuState(
+      setPluginMouseGestureEnabled(this.snapshotDocMenuState(), enabled)
+    );
+    await this.persistDocMenuRegistrationState();
+  }
+
+  async setMouseGestureBindings(bindings: GestureBindings) {
+    this.applyDocMenuState(
+      setPluginMouseGestureBindings(this.snapshotDocMenuState(), bindings)
     );
     await this.persistDocMenuRegistrationState();
   }

@@ -85,6 +85,8 @@ vi.mock("siyuan", () => {
       yes?.();
     },
     showMessage: vi.fn(),
+    openTab: vi.fn(),
+    getAllModels: vi.fn(() => ({ editor: [] })),
   };
 });
 

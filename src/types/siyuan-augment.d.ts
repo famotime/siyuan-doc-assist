@@ -23,6 +23,26 @@ declare module "siyuan" {
         protyle?: unknown;
       }
     | undefined;
+  export function openTab(options: {
+    app: unknown;
+    doc?: {
+      id: string;
+      zoomIn?: boolean;
+    };
+    keepCursor?: boolean;
+    removeCurrentTab?: boolean;
+    openNewTab?: boolean;
+    position?: "right" | "bottom";
+  }): Promise<unknown>;
+  export function getAllModels():
+    | {
+        editor: Array<{
+          editor?: { protyle?: unknown };
+          element?: HTMLElement;
+          parent?: unknown;
+        }>;
+      }
+    | undefined;
 
   export const Plugin: {
     new (...args: any[]): {

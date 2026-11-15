@@ -120,6 +120,8 @@ vi.mock("siyuan", () => {
       yes?.();
     },
     showMessage: showMessageMock,
+    openTab: vi.fn(),
+    getAllModels: vi.fn(() => ({ editor: [] })),
   };
 });
 
@@ -170,11 +172,13 @@ describe("plugin settings", () => {
     const setting = settingInstances[1];
     expect(plugin.setting).toBe(setting);
     expect(setting.items[0]?.title).toBe("启动显示“文档处理”页签");
-    expect(setting.items[1]?.title).toBe("启用命令");
+    expect(setting.items[1]?.title).toBe("鼠标手势");
     expect(setting.items[1]?.direction).toBe("row");
-    expect(setting.items).toHaveLength(2);
+    expect(setting.items[2]?.title).toBe("启用命令");
+    expect(setting.items[2]?.direction).toBe("row");
+    expect(setting.items).toHaveLength(3);
 
-    const menuRegistrationPanel = setting.items[1]?.actionElement as HTMLElement;
+    const menuRegistrationPanel = setting.items[2]?.actionElement as HTMLElement;
     expect(menuRegistrationPanel.classList.contains("doc-assistant-settings__menu-registration")).toBe(
       true
     );
@@ -469,6 +473,7 @@ describe("plugin settings", () => {
       const setting = settingInstances[1];
       expect(setting.items.map((item) => item.title)).toEqual([
         "启动显示“文档处理”页签",
+        "鼠标手势",
         "启用命令",
       ]);
 
@@ -611,7 +616,7 @@ describe("plugin settings", () => {
     host2.remove();
   });
 
-  test("renders settings items in the specified order: 启动显示..., 浮窗..., 启用命令, AI服务, 调试模式", async () => {
+  test("renders settings items in the specified order: 启动显示..., 浮窗..., 鼠标手势, 启用命令, AI服务, 调试模式", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
@@ -623,9 +628,118 @@ describe("plugin settings", () => {
     expect(setting.items.map((item) => item.title)).toEqual([
       "启动显示“文档处理”页签",
       "浮窗命中文本直接粘贴",
+      "鼠标手势",
       "启用命令",
       "AI 服务",
       "调试模式",
     ]);
+  });
+
+  test("gesture settings panel records new bindings, rejects conflicts and resets to defaults", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
+    plugin.openSetting();
+
+    const setting = settingInstances[1];
+    const gestureItem = setting.items.find((item) => item.title === "鼠标手势");
+    expect(gestureItem).toBeDefined();
+    expect(gestureItem?.direction).toBe("row");
+    const panel = gestureItem?.actionElement as HTMLElement;
+    expect(panel.classList.contains("doc-assistant-settings__gesture-panel")).toBe(true);
+
+    const masterToggle = panel.querySelector(
+      '[data-setting-key="gesture-enabled"]'
+    ) as HTMLInputElement;
+    expect(masterToggle.checked).toBe(false);
+    expect(plugin.mouseGestureEnabled).toBe(false);
+
+    const recordButtons = Array.from(
+      panel.querySelectorAll("button[data-gesture-record]")
+    ) as HTMLInputElement[];
+    expect(recordButtons).toHaveLength(3);
+    // 默认关闭时配置区置灰
+    expect(recordButtons.every((button) => button.disabled)).toBe(true);
+
+    const previousRow = panel.querySelector(
+      '[data-gesture-action="previous-doc"]'
+    ) as HTMLElement;
+    const previousSequence = previousRow.querySelector(
+      "[data-gesture-sequence]"
+    ) as HTMLElement;
+    expect(previousSequence.textContent).toBe("←");
+
+    // 开启总开关
+    masterToggle.checked = true;
+    masterToggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+    expect(plugin.mouseGestureEnabled).toBe(true);
+    expect(recordButtons.every((button) => !button.disabled)).toBe(true);
+
+    // 录制：向上划 → 「切换上一个文档」绑定为非默认手势 ↑
+    const recordButton = previousRow.querySelector(
+      "button[data-gesture-record]"
+    ) as HTMLButtonElement;
+    recordButton.click();
+    expect(recordButton.textContent).toContain("按住右键划动手势");
+
+    const fireMouse = (type: string, x: number, y: number) => {
+      document.dispatchEvent(
+        new MouseEvent(type, { bubbles: true, cancelable: true, button: 2, clientX: x, clientY: y })
+      );
+    };
+    fireMouse("mousedown", 500, 500);
+    fireMouse("mousemove", 502, 400);
+    fireMouse("mouseup", 502, 390);
+    await Promise.resolve();
+
+    expect(plugin.mouseGestureBindings["previous-doc"]).toBe("U");
+    expect(previousSequence.textContent).toBe("↑");
+
+    // 冲突：给「切换下一个文档」录制 ↑（已被占用）→ 拒绝并提示，绑定保持不变
+    const nextRow = panel.querySelector('[data-gesture-action="next-doc"]') as HTMLElement;
+    const nextRecordButton = nextRow.querySelector(
+      "button[data-gesture-record]"
+    ) as HTMLButtonElement;
+    nextRecordButton.click();
+    fireMouse("mousedown", 500, 500);
+    fireMouse("mousemove", 502, 400);
+    fireMouse("mouseup", 502, 390);
+    await Promise.resolve();
+
+    expect(plugin.mouseGestureBindings["next-doc"]).toBe("R");
+    expect(showMessageMock).toHaveBeenCalledWith(
+      expect.stringContaining("已绑定"),
+      4500,
+      "error"
+    );
+
+    // 录制多段方向：给「切换下一个文档」绑定为 ←→
+    nextRecordButton.click();
+    fireMouse("mousedown", 500, 500);
+    fireMouse("mousemove", 400, 500);
+    fireMouse("mousemove", 500, 502);
+    fireMouse("mouseup", 510, 502);
+    await Promise.resolve();
+
+    expect(plugin.mouseGestureBindings["next-doc"]).toBe("L,R");
+    expect((nextRow.querySelector("[data-gesture-sequence]") as HTMLElement).textContent).toBe(
+      "←→"
+    );
+
+    // 恢复默认手势
+    const resetButton = panel.querySelector(
+      "button[data-gesture-reset]"
+    ) as HTMLButtonElement;
+    resetButton.click();
+    await Promise.resolve();
+    expect(plugin.mouseGestureBindings).toEqual({
+      "previous-doc": "L",
+      "next-doc": "R",
+      "close-current-doc": "D,R",
+    });
+    expect(previousSequence.textContent).toBe("←");
   });
 });
