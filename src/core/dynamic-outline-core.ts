@@ -96,11 +96,76 @@ export function buildDynamicOutlineItems(
   });
 }
 
+export type ProgressAnchor = {
+  posRatio: number;
+  domTop: number;
+};
+
+export function estimateGlobalDocumentProgress(options: {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  anchors: ProgressAnchor[];
+}): number {
+  const { scrollTop, scrollHeight, clientHeight, anchors } = options;
+  const maxScroll = scrollHeight - clientHeight;
+  if (maxScroll <= 0) {
+    return 0;
+  }
+
+  const viewCenter = scrollTop + clientHeight / 2;
+
+  if (!anchors || anchors.length === 0) {
+    return Math.max(0, Math.min(1, scrollTop / maxScroll));
+  }
+
+  const sorted = [...anchors].sort((a, b) => a.domTop - b.domTop);
+
+  // 视口在第一个锚点之前
+  if (viewCenter <= sorted[0].domTop) {
+    const first = sorted[0];
+    if (first.domTop <= 0) {
+      return first.posRatio;
+    }
+    const ratioBefore = Math.max(0, viewCenter / first.domTop);
+    return first.posRatio * ratioBefore;
+  }
+
+  // 视口在最后一个锚点之后（懒加载未拉取后续块时，平滑推进，避免突跳到底部）
+  const last = sorted[sorted.length - 1];
+  if (viewCenter >= last.domTop) {
+    const remaining = scrollHeight - last.domTop;
+    if (remaining <= 0) {
+      return last.posRatio;
+    }
+    const fraction = Math.min(1, (viewCenter - last.domTop) / remaining);
+    const maxPush = Math.min(0.12, 1 - last.posRatio);
+    return Math.min(1, last.posRatio + fraction * maxPush);
+  }
+
+  // 在两个锚点之间线性插值
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const cur = sorted[i];
+    const next = sorted[i + 1];
+    if (viewCenter >= cur.domTop && viewCenter <= next.domTop) {
+      const span = next.domTop - cur.domTop;
+      if (span <= 0) {
+        return cur.posRatio;
+      }
+      const t = (viewCenter - cur.domTop) / span;
+      return cur.posRatio + t * (next.posRatio - cur.posRatio);
+    }
+  }
+
+  return Math.max(0, Math.min(1, scrollTop / maxScroll));
+}
+
 export function calculateViewportIndicator(
   scrollTop: number,
   scrollHeight: number,
   clientHeight: number,
-  trackHeight: number
+  trackHeight: number,
+  overrideProgressRatio?: number
 ): { top: number; height: number } {
   if (scrollHeight <= 0 || clientHeight <= 0 || trackHeight <= 0) {
     return { top: 0, height: trackHeight };
@@ -110,12 +175,15 @@ export function calculateViewportIndicator(
   }
 
   const viewRatio = Math.min(1, clientHeight / scrollHeight);
-  const minIndicatorHeight = 16;
+  const minIndicatorHeight = 18;
   const rawHeight = trackHeight * viewRatio;
   const height = Math.max(minIndicatorHeight, Math.min(trackHeight, rawHeight));
 
   const maxScroll = scrollHeight - clientHeight;
-  const scrollRatio = Math.max(0, Math.min(1, scrollTop / maxScroll));
+  const scrollRatio =
+    typeof overrideProgressRatio === "number" ?
+      Math.max(0, Math.min(1, overrideProgressRatio)) :
+      Math.max(0, Math.min(1, scrollTop / maxScroll));
   const availableTrack = trackHeight - height;
   const top = scrollRatio * availableTrack;
 

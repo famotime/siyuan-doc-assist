@@ -141,4 +141,25 @@ describe("dynamic-outline-controller", () => {
 
     controller.destroy();
   });
+
+  test("handles jump to top and jump to bottom button clicks", async () => {
+    configState.followKeyInfo = true;
+    const controller = new DynamicOutlineController(deps);
+    controller.syncActiveEditor();
+
+    await vi.waitFor(() => {
+      const topBtn = mockProtyleEl.querySelector(".doc-assistant-dynamic-outline__top-btn") as HTMLButtonElement;
+      const bottomBtn = mockProtyleEl.querySelector(".doc-assistant-dynamic-outline__bottom-btn") as HTMLButtonElement;
+      expect(topBtn).not.toBeNull();
+      expect(bottomBtn).not.toBeNull();
+
+      topBtn.click();
+      expect(deps.navigateBlock).toHaveBeenCalledWith("b-1", expect.anything());
+
+      bottomBtn.click();
+      expect(deps.navigateBlock).toHaveBeenCalledWith("b-2", expect.anything());
+    });
+
+    controller.destroy();
+  });
 });

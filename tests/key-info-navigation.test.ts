@@ -83,4 +83,53 @@ describe("key-info navigation", () => {
 
     expect(openSpy).toHaveBeenCalledTimes(2);
   });
+
+  test("centers target block via contentElement scrollBy when contentElement is available", () => {
+    const root = document.createElement("div");
+    const contentEl = document.createElement("div");
+    contentEl.className = "protyle-content";
+    contentEl.appendChild(root);
+
+    const target = document.createElement("div");
+    target.dataset.nodeId = "block-center";
+    root.appendChild(target);
+
+    contentEl.getBoundingClientRect = () => ({
+      top: 100,
+      height: 600,
+      bottom: 700,
+      left: 0,
+      right: 0,
+      width: 800,
+      x: 0,
+      y: 100,
+      toJSON: () => ({})
+    });
+
+    target.getBoundingClientRect = () => ({
+      top: 650, // 靠近底部 (viewportCenter 是 100 + 300 = 400, targetCenter 是 650 + 20 = 670, delta = 270)
+      height: 40,
+      bottom: 690,
+      left: 0,
+      right: 0,
+      width: 800,
+      x: 0,
+      y: 650,
+      toJSON: () => ({})
+    });
+
+    const scrollBySpy = vi.fn();
+    contentEl.scrollBy = scrollBySpy;
+
+    const navigation = createKeyInfoNavigation();
+    navigation.handleItemClick(item("block-center"), () => ({
+      contentElement: contentEl,
+      wysiwyg: { element: root }
+    }) as any);
+
+    expect(scrollBySpy).toHaveBeenCalledWith({
+      top: 270,
+      behavior: "smooth"
+    });
+  });
 });

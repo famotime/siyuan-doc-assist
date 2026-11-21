@@ -3,6 +3,7 @@ import { KeyInfoItem } from "@/core/key-info-core";
 import {
   buildDynamicOutlineItems,
   calculateViewportIndicator,
+  estimateGlobalDocumentProgress,
   findActiveOutlineItemIndex,
   parseHeadingLevel
 } from "@/core/dynamic-outline-core";
@@ -138,6 +139,53 @@ describe("dynamic-outline-core", () => {
 
     test("returns -1 for empty items", () => {
       expect(findActiveOutlineItemIndex([], 0.5)).toBe(-1);
+    });
+  });
+
+  describe("estimateGlobalDocumentProgress", () => {
+    test("falls back to scroll ratio when anchors are empty", () => {
+      const progress = estimateGlobalDocumentProgress({
+        scrollTop: 200,
+        scrollHeight: 1000,
+        clientHeight: 500,
+        anchors: []
+      });
+      // maxScroll = 500, scrollTop = 200 -> 0.4
+      expect(progress).toBeCloseTo(0.4, 2);
+    });
+
+    test("interpolates between two visible anchors accurately", () => {
+      const anchors = [
+        { posRatio: 0.2, domTop: 1000 },
+        { posRatio: 0.6, domTop: 3000 }
+      ];
+      // viewCenter = scrollTop + clientHeight / 2 = 1500 + 500 = 2000
+      // 2000 在 1000 和 3000 正中间 -> t = 0.5 -> posRatio = 0.2 + 0.5 * 0.4 = 0.4
+      const progress = estimateGlobalDocumentProgress({
+        scrollTop: 1500,
+        scrollHeight: 5000,
+        clientHeight: 1000,
+        anchors
+      });
+      expect(progress).toBeCloseTo(0.4, 3);
+    });
+
+    test("smoothly caps progress at bottom of partial DOM during lazy load instead of jumping to 1.0", () => {
+      // 模拟长文档只有前部分加载：最后一个锚点只有 0.35 进度
+      const anchors = [
+        { posRatio: 0.1, domTop: 400 },
+        { posRatio: 0.35, domTop: 2000 }
+      ];
+      // 滚到当前已渲染 DOM 的底部
+      const progressAtBottom = estimateGlobalDocumentProgress({
+        scrollTop: 2600,
+        scrollHeight: 3200,
+        clientHeight: 600,
+        anchors
+      });
+      // 绝不能跳到 1.0，应保持在最后一个锚点附近（<= 0.47）
+      expect(progressAtBottom).toBeLessThan(0.48);
+      expect(progressAtBottom).toBeGreaterThanOrEqual(0.35);
     });
   });
 });

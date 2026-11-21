@@ -41,8 +41,103 @@ describe("dynamic-outline-view", () => {
     const items = parent.querySelectorAll(".doc-assistant-dynamic-outline__item");
     expect(items).toHaveLength(2);
 
+    // 第一个为标题 (level: 1)，不渲染类型徽章
+    expect(items[0].querySelector(".doc-assistant-dynamic-outline__item-badge")).toBeNull();
+
+    // 第二个为加粗 (level: 0, type: "bold")，在中文环境下徽章应显示为中文 "加粗"
+    const badge = items[1].querySelector(".doc-assistant-dynamic-outline__item-badge") as HTMLElement;
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toBe("加粗");
+    expect(badge.getAttribute("data-type")).toBe("bold");
+
     (items[0] as HTMLElement).click();
     expect(onItemClick).toHaveBeenCalledWith(mockItems[0]);
+
+    handle.destroy();
+  });
+
+  test("renders badges in english when isZh is false", () => {
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      isZh: false
+    });
+
+    const diverseItems: DynamicOutlineItem[] = [
+      { id: "1", blockId: "b-1", text: "加粗", type: "bold", level: 0, posRatio: 0.1, order: 1 },
+      { id: "2", blockId: "b-2", text: "高亮", type: "highlight", level: 0, posRatio: 0.2, order: 2 },
+      { id: "3", blockId: "b-3", text: "备注", type: "remark", level: 0, posRatio: 0.3, order: 3 },
+      { id: "4", blockId: "b-4", text: "代码", type: "code", level: 0, posRatio: 0.4, order: 4 }
+    ];
+
+    handle.setItems(diverseItems);
+    const badges = parent.querySelectorAll(".doc-assistant-dynamic-outline__item-badge");
+    expect(badges).toHaveLength(4);
+    expect(badges[0].textContent).toBe("Bold");
+    expect(badges[1].textContent).toBe("Highlight");
+    expect(badges[2].textContent).toBe("Remark");
+    expect(badges[3].textContent).toBe("Code");
+
+    handle.destroy();
+  });
+
+  test("renders diverse badges in chinese in chinese interface", () => {
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      isZh: true
+    });
+
+    const diverseItems: DynamicOutlineItem[] = [
+      { id: "1", blockId: "b-1", text: "高亮内容", type: "highlight", level: 0, posRatio: 0.1, order: 1 },
+      { id: "2", blockId: "b-2", text: "加粗重点", type: "bold", level: 0, posRatio: 0.2, order: 2 },
+      { id: "3", blockId: "b-3", text: "备注信息", type: "remark", level: 0, posRatio: 0.3, order: 3 },
+      { id: "4", blockId: "b-4", text: "代码块", type: "code", level: 0, posRatio: 0.4, order: 4 }
+    ];
+
+    handle.setItems(diverseItems);
+    const badges = parent.querySelectorAll(".doc-assistant-dynamic-outline__item-badge");
+    expect(badges).toHaveLength(4);
+    expect(badges[0].textContent).toBe("高亮");
+    expect(badges[1].textContent).toBe("加粗");
+    expect(badges[2].textContent).toBe("备注");
+    expect(badges[3].textContent).toBe("代码");
+
+    handle.destroy();
+  });
+
+  test("updates viewport indicator position and height on scroll", () => {
+    const handle = createDynamicOutlineView(parent, { onItemClick: vi.fn() });
+    const viewport = parent.querySelector(".doc-assistant-dynamic-outline__viewport") as HTMLElement;
+    expect(viewport).not.toBeNull();
+
+    handle.setScroll(100, 1000, 500);
+    expect(viewport.style.top).toBeTruthy();
+    expect(viewport.style.height).toBeTruthy();
+
+    handle.destroy();
+  });
+
+  test("renders jump to top and jump to bottom buttons and handles click", () => {
+    const onJumpToTop = vi.fn();
+    const onJumpToBottom = vi.fn();
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      onJumpToTop,
+      onJumpToBottom
+    });
+
+    const topBtn = parent.querySelector(".doc-assistant-dynamic-outline__top-btn") as HTMLButtonElement;
+    const bottomBtn = parent.querySelector(".doc-assistant-dynamic-outline__bottom-btn") as HTMLButtonElement;
+
+    expect(topBtn).not.toBeNull();
+    expect(bottomBtn).not.toBeNull();
+    expect(topBtn.getAttribute("title")).toBe("跳转到文档开头");
+    expect(bottomBtn.getAttribute("title")).toBe("跳转到文档结尾");
+
+    topBtn.click();
+    expect(onJumpToTop).toHaveBeenCalledTimes(1);
+
+    bottomBtn.click();
+    expect(onJumpToBottom).toHaveBeenCalledTimes(1);
 
     handle.destroy();
   });

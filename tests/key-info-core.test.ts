@@ -2,9 +2,11 @@ import { describe, expect, test } from "vitest";
 import {
   buildDefaultKeyInfoFilter,
   filterKeyInfoItems,
+  isChineseInterface,
   KEY_INFO_TYPE_PRIORITY,
   buildKeyInfoMarkdown,
-  extractKeyInfoFromMarkdown
+  extractKeyInfoFromMarkdown,
+  resolveKeyInfoTypeLabel
 } from "@/core/key-info-core";
 
 describe("key-info-core", () => {
@@ -290,5 +292,25 @@ describe("key-info-core", () => {
     expect(KEY_INFO_TYPE_PRIORITY.italic).toBeLessThan(KEY_INFO_TYPE_PRIORITY.code);
     expect(KEY_INFO_TYPE_PRIORITY.code).toBeLessThan(KEY_INFO_TYPE_PRIORITY.remark);
     expect(KEY_INFO_TYPE_PRIORITY.remark).toBeLessThan(KEY_INFO_TYPE_PRIORITY.link);
+  });
+
+  test("resolves localized key info type label according to interface language", () => {
+    expect(resolveKeyInfoTypeLabel("bold", true)).toBe("加粗");
+    expect(resolveKeyInfoTypeLabel("highlight", true)).toBe("高亮");
+    expect(resolveKeyInfoTypeLabel("remark", true)).toBe("备注");
+    expect(resolveKeyInfoTypeLabel("code", true)).toBe("代码");
+
+    expect(resolveKeyInfoTypeLabel("bold", false)).toBe("Bold");
+    expect(resolveKeyInfoTypeLabel("highlight", false)).toBe("Highlight");
+    expect(resolveKeyInfoTypeLabel("remark", false)).toBe("Remark");
+    expect(resolveKeyInfoTypeLabel("code", false)).toBe("Code");
+  });
+
+  test("detects chinese interface correctly", () => {
+    expect(isChineseInterface("zh_CN")).toBe(true);
+    expect(isChineseInterface("zh_CHT")).toBe(true);
+    expect(isChineseInterface("zh-Hans")).toBe(true);
+    expect(isChineseInterface("en_US")).toBe(false);
+    expect(isChineseInterface("ja_JP")).toBe(false);
   });
 });

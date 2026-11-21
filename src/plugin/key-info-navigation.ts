@@ -75,6 +75,58 @@ export function createKeyInfoNavigation() {
     window.requestAnimationFrame(check);
   };
 
+  const scrollToCenter = (target: HTMLElement, resolveProtyle: ResolveProtyle) => {
+    const protyle = resolveProtyle();
+    const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+    const contentEl =
+      ((protyle as any)?.contentElement as HTMLElement | undefined) ||
+      (root?.closest(".protyle-content") as HTMLElement | null) ||
+      (target.closest(".protyle-content") as HTMLElement | null) ||
+      root?.parentElement;
+
+    if (contentEl) {
+      const contentRect = contentEl.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const targetCenter = targetRect.top + targetRect.height / 2;
+      const viewportCenter = contentRect.top + contentRect.height / 2;
+      const delta = targetCenter - viewportCenter;
+      if (Math.abs(delta) > 4) {
+        if (typeof contentEl.scrollBy === "function") {
+          contentEl.scrollBy({ top: delta, behavior: "smooth" });
+        } else {
+          contentEl.scrollTop += delta;
+        }
+      }
+    } else {
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  };
+
+  const scheduleCenterAfterLoad = (
+    blockId: string,
+    jumpId: number,
+    resolveProtyle: ResolveProtyle
+  ) => {
+    const delays = [80, 180, 320, 500, 800, 1200];
+    delays.forEach((delay) => {
+      window.setTimeout(() => {
+        if (jumpId !== keyInfoJumpId) {
+          return;
+        }
+        const protyle = resolveProtyle();
+        const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
+        if (!root) {
+          return;
+        }
+        const target = root.querySelector(`[data-node-id="${blockId}"]`) as HTMLElement | null;
+        if (target) {
+          scrollToCenter(target, resolveProtyle);
+          flashBlockElement(target);
+        }
+      }, delay);
+    });
+  };
+
   return {
     handleItemClick(item: KeyInfoNavigationItem, resolveProtyle: ResolveProtyle) {
       const blockId = item.blockId;
@@ -88,7 +140,7 @@ export function createKeyInfoNavigation() {
       if (root) {
         const target = root.querySelector(`[data-node-id="${blockId}"]`) as HTMLElement | null;
         if (target) {
-          target.scrollIntoView({ block: "center", behavior: "smooth" });
+          scrollToCenter(target, resolveProtyle);
           scheduleFlashAfterScroll(target, jumpId, () => {
             openBlockByProtocolThrottled(blockId);
           });
@@ -97,6 +149,7 @@ export function createKeyInfoNavigation() {
       }
 
       openBlockByProtocolThrottled(blockId);
+      scheduleCenterAfterLoad(blockId, jumpId, resolveProtyle);
     }
   };
 }

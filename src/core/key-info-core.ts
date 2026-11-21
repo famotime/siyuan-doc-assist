@@ -86,6 +86,41 @@ const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
   ref: "引用"
 };
 
+export const KEY_INFO_TYPE_LABELS_EN: Record<KeyInfoType, string> = {
+  title: "Title",
+  bold: "Bold",
+  italic: "Italic",
+  underline: "Underline",
+  highlight: "Highlight",
+  code: "Code",
+  remark: "Remark",
+  tag: "Tag",
+  link: "Link",
+  ref: "Ref"
+};
+
+export function isChineseInterface(lang?: string): boolean {
+  if (typeof lang === "string") {
+    return lang.toLowerCase().startsWith("zh");
+  }
+  if (typeof window !== "undefined") {
+    const siyuanLang = (window as any).siyuan?.config?.lang;
+    if (typeof siyuanLang === "string") {
+      return siyuanLang.toLowerCase().startsWith("zh");
+    }
+  }
+  // 未明确配置思源非中文语言时，默认按中文界面处理
+  return true;
+}
+
+export function resolveKeyInfoTypeLabel(type: KeyInfoType, isZh?: boolean): string {
+  const useZh = typeof isZh === "boolean" ? isZh : isChineseInterface();
+  if (useZh) {
+    return KEY_INFO_TYPE_LABELS[type] || type;
+  }
+  return KEY_INFO_TYPE_LABELS_EN[type] || type;
+}
+
 export function keyInfoTypeLabel(type: KeyInfoType): string {
   return KEY_INFO_TYPE_LABELS[type] || type;
 }

@@ -3,6 +3,7 @@ import {
   DynamicOutlineItem,
   DynamicOutlinePosition
 } from "@/core/dynamic-outline-core";
+import { resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { HeadingLevel } from "@/core/key-info-heading-color-core";
 import { applyHeadingColorsToElement } from "@/services/key-info-heading-color";
 
@@ -15,16 +16,30 @@ const LUCIDE_PIN_ACTIVE_SVG =
 const LUCIDE_SWITCH_SIDE_SVG =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7 3 12l5 5"></path><path d="M3 12h18"></path><path d="m16 17 5-5-5-5"></path></svg>';
 
+const LUCIDE_ARROW_UP_TO_LINE_SVG =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path><path d="M6 5h12"></path></svg>';
+
+const LUCIDE_ARROW_DOWN_TO_LINE_SVG =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path><path d="M6 19h12"></path></svg>';
+
 export type DynamicOutlineViewOptions = {
   position?: DynamicOutlinePosition;
+  isZh?: boolean;
   onItemClick: (item: DynamicOutlineItem) => void;
   onPinChange?: (pinned: boolean) => void;
   onTogglePosition?: (nextPosition: DynamicOutlinePosition) => void;
+  onJumpToTop?: () => void;
+  onJumpToBottom?: () => void;
 };
 
 export type DynamicOutlineViewHandle = {
   setItems: (items: DynamicOutlineItem[], modeLabel?: string) => void;
-  setScroll: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
+  setScroll: (
+    scrollTop: number,
+    scrollHeight: number,
+    clientHeight: number,
+    overrideProgressRatio?: number
+  ) => void;
   setActiveIndex: (index: number) => void;
   setPosition: (position: DynamicOutlinePosition) => void;
   setHeadingColors: (colors: Record<HeadingLevel, string>) => void;
@@ -70,9 +85,25 @@ export function createDynamicOutlineView(
   countBadge.textContent = "0";
   titleWrap.appendChild(countBadge);
 
+  const isZh = options.isZh !== undefined ? options.isZh : true;
+
   const actionsWrap = document.createElement("div");
   actionsWrap.className = "doc-assistant-dynamic-outline__header-actions";
   header.appendChild(actionsWrap);
+
+  const toTopBtn = document.createElement("button");
+  toTopBtn.className = "doc-assistant-dynamic-outline__btn doc-assistant-dynamic-outline__top-btn";
+  toTopBtn.setAttribute("type", "button");
+  toTopBtn.setAttribute("title", isZh ? "跳转到文档开头" : "Jump to top");
+  toTopBtn.innerHTML = LUCIDE_ARROW_UP_TO_LINE_SVG;
+  actionsWrap.appendChild(toTopBtn);
+
+  const toBottomBtn = document.createElement("button");
+  toBottomBtn.className = "doc-assistant-dynamic-outline__btn doc-assistant-dynamic-outline__bottom-btn";
+  toBottomBtn.setAttribute("type", "button");
+  toBottomBtn.setAttribute("title", isZh ? "跳转到文档结尾" : "Jump to bottom");
+  toBottomBtn.innerHTML = LUCIDE_ARROW_DOWN_TO_LINE_SVG;
+  actionsWrap.appendChild(toBottomBtn);
 
   const switchSideBtn = document.createElement("button");
   switchSideBtn.className = "doc-assistant-dynamic-outline__btn doc-assistant-dynamic-outline__switch-btn";
@@ -128,6 +159,16 @@ export function createDynamicOutlineView(
 
   container.addEventListener("mouseenter", openFlyout);
   container.addEventListener("mouseleave", closeFlyoutLater);
+
+  toTopBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    options.onJumpToTop?.();
+  });
+
+  toBottomBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    options.onJumpToBottom?.();
+  });
 
   pinBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -194,7 +235,8 @@ export function createDynamicOutlineView(
       if (item.level === 0 && item.type !== "title") {
         const badge = document.createElement("span");
         badge.className = "doc-assistant-dynamic-outline__item-badge";
-        badge.textContent = item.type;
+        badge.setAttribute("data-type", item.type);
+        badge.textContent = resolveKeyInfoTypeLabel(item.type, options.isZh);
         row.appendChild(badge);
       }
 
@@ -223,13 +265,19 @@ export function createDynamicOutlineView(
     renderList(modeLabel);
   };
 
-  const setScroll = (scrollTop: number, scrollHeight: number, clientHeight: number) => {
+  const setScroll = (
+    scrollTop: number,
+    scrollHeight: number,
+    clientHeight: number,
+    overrideProgressRatio?: number
+  ) => {
     const trackHeight = minimap.clientHeight || 260;
     const { top, height } = calculateViewportIndicator(
       scrollTop,
       scrollHeight,
       clientHeight,
-      trackHeight
+      trackHeight,
+      overrideProgressRatio
     );
     viewportIndicator.style.top = `${top}px`;
     viewportIndicator.style.height = `${height}px`;

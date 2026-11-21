@@ -3,9 +3,11 @@ import {
   DynamicOutlineConfig,
   DynamicOutlineItem,
   DynamicOutlinePosition,
-  findActiveOutlineItemIndex
+  estimateGlobalDocumentProgress,
+  findActiveOutlineItemIndex,
+  ProgressAnchor
 } from "@/core/dynamic-outline-core";
-import { KeyInfoFilter, KeyInfoItem } from "@/core/key-info-core";
+import { KeyInfoFilter, KeyInfoItem, resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { ProtyleLike } from "@/plugin/doc-context";
 import { resolveCurrentHeadingColors } from "@/services/key-info-heading-color";
 import {
@@ -110,6 +112,12 @@ export class DynamicOutlineController {
       },
       onTogglePosition: (nextPos) => {
         void this.deps.setPosition?.(nextPos);
+      },
+      onJumpToTop: () => {
+        this.jumpToTop(protyle);
+      },
+      onJumpToBottom: () => {
+        this.jumpToBottom(protyle);
       }
     });
 
@@ -138,6 +146,54 @@ export class DynamicOutlineController {
     void this.refreshData(protyle);
   }
 
+  private jumpToTop(protyle?: ProtyleLike) {
+    const protyleEl = this.currentProtyleElement;
+    const upBtn = protyleEl?.querySelector(".protyle-scroll__up") as HTMLElement | null;
+    if (upBtn) {
+      upBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      return;
+    }
+
+    if (this.scrollContainer) {
+      if (typeof this.scrollContainer.scrollTo === "function") {
+        this.scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        this.scrollContainer.scrollTop = 0;
+      }
+    }
+    const docId = this.deps.getCurrentDocId();
+    const activeProtyle = protyle || this.deps.getCurrentProtyle();
+    if (this.currentItems.length > 0) {
+      this.deps.navigateBlock(this.currentItems[0].blockId, activeProtyle);
+    } else if (docId) {
+      this.deps.navigateBlock(docId, activeProtyle);
+    }
+  }
+
+  private jumpToBottom(protyle?: ProtyleLike) {
+    const protyleEl = this.currentProtyleElement;
+    const downBtn = protyleEl?.querySelector(".protyle-scroll__down") as HTMLElement | null;
+    if (downBtn) {
+      downBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      return;
+    }
+
+    if (this.currentItems.length > 0) {
+      const last = this.currentItems[this.currentItems.length - 1];
+      const activeProtyle = protyle || this.deps.getCurrentProtyle();
+      this.deps.navigateBlock(last.blockId, activeProtyle);
+    } else if (this.scrollContainer) {
+      if (typeof this.scrollContainer.scrollTo === "function") {
+        this.scrollContainer.scrollTo({
+          top: this.scrollContainer.scrollHeight,
+          behavior: "smooth"
+        });
+      } else {
+        this.scrollContainer.scrollTop = this.scrollContainer.scrollHeight;
+      }
+    }
+  }
+
   private handleScroll() {
     if (!this.view || !this.scrollContainer) {
       return;
@@ -149,12 +205,45 @@ export class DynamicOutlineController {
     }
 
     const { scrollTop, scrollHeight, clientHeight } = target;
-    this.view.setScroll(scrollTop, scrollHeight, clientHeight);
+
+    let progressRatio: number | undefined;
+
+    if (this.currentItems.length > 0 && this.currentProtyleElement) {
+      const wysiwygEl = this.currentProtyleElement.querySelector(".protyle-wysiwyg") as HTMLElement | null;
+      if (wysiwygEl) {
+        const anchors: ProgressAnchor[] = [];
+        const containerRect = target.getBoundingClientRect();
+        for (const item of this.currentItems) {
+          if (!item.blockId) continue;
+          const el = wysiwygEl.querySelector(`[data-node-id="${item.blockId}"]`) as HTMLElement | null;
+          if (el) {
+            const elRect = el.getBoundingClientRect();
+            const domTop = elRect.top - containerRect.top + scrollTop;
+            anchors.push({
+              posRatio: item.posRatio,
+              domTop
+            });
+          }
+        }
+        if (anchors.length > 0) {
+          progressRatio = estimateGlobalDocumentProgress({
+            scrollTop,
+            scrollHeight,
+            clientHeight,
+            anchors
+          });
+        }
+      }
+    }
+
+    this.view.setScroll(scrollTop, scrollHeight, clientHeight, progressRatio);
 
     if (this.currentItems.length > 0) {
-      const maxScroll = scrollHeight - clientHeight;
-      const scrollRatio = maxScroll > 0 ? scrollTop / maxScroll : 0;
-      const activeIdx = findActiveOutlineItemIndex(this.currentItems, scrollRatio);
+      const effectiveRatio =
+        typeof progressRatio === "number" ?
+          progressRatio :
+          (scrollHeight - clientHeight > 0 ? scrollTop / (scrollHeight - clientHeight) : 0);
+      const activeIdx = findActiveOutlineItemIndex(this.currentItems, effectiveRatio);
       this.view.setActiveIndex(activeIdx);
     }
   }
@@ -191,19 +280,8 @@ export class DynamicOutlineController {
       let modeLabel = "文档大纲";
       if (config.followKeyInfo) {
         if (activeFilter && activeFilter.length === 1) {
-          const typeMap: Record<string, string> = {
-            title: "标题",
-            bold: "加粗",
-            highlight: "高亮",
-            remark: "备注",
-            italic: "斜体",
-            underline: "下划",
-            code: "代码",
-            tag: "标签",
-            link: "链接",
-            ref: "引用"
-          };
-          modeLabel = `关键内容 · ${typeMap[activeFilter[0]] || activeFilter[0]}`;
+          const typeName = resolveKeyInfoTypeLabel(activeFilter[0]);
+          modeLabel = `关键内容 · ${typeName}`;
         } else {
           modeLabel = "关键内容 · 全部";
         }
