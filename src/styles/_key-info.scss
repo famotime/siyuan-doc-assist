@@ -748,7 +748,8 @@
   box-shadow: 0 10px 16px rgba(0, 0, 0, 0.12);
 }
 
-.doc-assistant-keyinfo__footer-btn--refresh {
+.doc-assistant-keyinfo__footer-btn--refresh,
+.doc-assistant-keyinfo__footer-btn--float {
   --keyinfo-footer-color: var(--doc-assistant-accent-strong);
   color: var(--keyinfo-footer-color);
   border-color: color-mix(in srgb, var(--keyinfo-footer-color) 64%, var(--b3-border-color));
@@ -763,7 +764,8 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.34);
 }
 
-.doc-assistant-keyinfo__footer-btn--refresh:hover {
+.doc-assistant-keyinfo__footer-btn--refresh:hover,
+.doc-assistant-keyinfo__footer-btn--float:hover {
   border-color: color-mix(in srgb, var(--keyinfo-footer-color) 72%, var(--b3-border-color));
   background:
     linear-gradient(

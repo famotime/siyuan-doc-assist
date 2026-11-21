@@ -27,14 +27,32 @@ type KeyInfoControllerDockDeps = {
 export function createKeyInfoControllerDockCallbacks(options: {
   deps: KeyInfoControllerDockDeps;
   onExport: () => void;
+  onFloatSelectedText?: () => void;
   onGenerateCanvas: () => void;
   onRefresh: () => Promise<void> | void;
   onDocProcessActivate?: () => Promise<void> | void;
   onItemClick: (item: KeyInfoItem) => void;
 }): KeyInfoDockCallbacks {
-  const { deps, onExport, onGenerateCanvas, onRefresh, onDocProcessActivate, onItemClick } = options;
+  const {
+    deps,
+    onExport,
+    onFloatSelectedText,
+    onGenerateCanvas,
+    onRefresh,
+    onDocProcessActivate,
+    onItemClick
+  } = options;
   return {
     onExport,
+    onFloatSelectedText: () => {
+      if (onFloatSelectedText) {
+        onFloatSelectedText();
+        return;
+      }
+      const currentDocId = deps.getCurrentDocId();
+      const currentProtyle = deps.getCurrentProtyle();
+      void deps.runAction("float-selected-text", currentDocId, currentProtyle);
+    },
     onGenerateCanvas,
     onRefresh: () => {
       void onRefresh();

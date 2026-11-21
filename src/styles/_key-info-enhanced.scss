@@ -401,6 +401,7 @@
 }
 
 .doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline,
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--float.b3-button.b3-button--outline,
 .doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--export.b3-button.b3-button--outline {
   color: var(--da-footer-btn-text);
   border-color: var(--da-footer-btn-border);
@@ -423,6 +424,7 @@
 }
 
 .doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--refresh.b3-button.b3-button--outline:hover,
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--float.b3-button.b3-button--outline:hover,
 .doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--export.b3-button.b3-button--outline:hover {
   color: var(--doc-assistant-accent-text);
   border-color: color-mix(in srgb, var(--doc-assistant-accent-strong) 82%, var(--b3-border-color));
@@ -445,6 +447,7 @@
 }
 
 .doc-assistant-keyinfo__footer-btn--refresh .doc-assistant-keyinfo__footer-icon,
+.doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--float .doc-assistant-keyinfo__footer-icon,
 .doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--export .doc-assistant-keyinfo__footer-icon,
 .doc-assistant-keyinfo__footer .doc-assistant-keyinfo__footer-btn--canvas .doc-assistant-keyinfo__footer-icon {
   color: inherit;

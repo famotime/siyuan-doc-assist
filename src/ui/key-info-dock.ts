@@ -60,6 +60,7 @@ export type KeyInfoDockState = {
 
 export type KeyInfoDockCallbacks = {
   onExport: () => void;
+  onFloatSelectedText?: () => void;
   onGenerateCanvas?: () => void;
   onRefresh?: () => void;
   onDocProcessActivate?: () => void;
@@ -171,6 +172,7 @@ export function createKeyInfoDock(
       setState({ filtersExpanded: !state.filtersExpanded });
     },
     onRefresh: () => callbacks.onRefresh?.(),
+    onFloatSelectedText: () => callbacks.onFloatSelectedText?.(),
     onExport: () => callbacks.onExport(),
     onGenerateCanvas: () => callbacks.onGenerateCanvas?.(),
     onDocActionOrderReset: () => callbacks.onDocActionOrderReset?.()

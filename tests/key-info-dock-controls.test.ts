@@ -80,11 +80,22 @@ describe("key-info-dock controls", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
 
+    const onFloatSelectedText = vi.fn();
     const onGenerateCanvas = vi.fn();
-    const dock = createKeyInfoDock(host, { onExport: () => {}, onGenerateCanvas });
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onFloatSelectedText,
+      onGenerateCanvas
+    });
 
+    const footerButtons = Array.from(
+      host.querySelectorAll(".doc-assistant-keyinfo__footer > .doc-assistant-keyinfo__footer-btn")
+    ) as HTMLButtonElement[];
     const refreshBtn = host.querySelector(
       ".doc-assistant-keyinfo__footer-btn--refresh"
+    ) as HTMLButtonElement | null;
+    const floatBtn = host.querySelector(
+      ".doc-assistant-keyinfo__footer-btn--float"
     ) as HTMLButtonElement | null;
     const exportBtn = host.querySelector(
       ".doc-assistant-keyinfo__footer-btn--export"
@@ -94,36 +105,52 @@ describe("key-info-dock controls", () => {
     ) as HTMLButtonElement | null;
 
     expect(refreshBtn).not.toBeNull();
+    expect(floatBtn).not.toBeNull();
     expect(exportBtn).not.toBeNull();
     expect(canvasBtn).not.toBeNull();
+    expect(footerButtons).toEqual([refreshBtn, floatBtn, exportBtn, canvasBtn]);
 
     expect(refreshBtn?.textContent).toContain("刷新");
+    expect(floatBtn?.textContent).toContain("悬浮");
     expect(exportBtn?.textContent).toContain("导出");
     expect(canvasBtn?.textContent).toContain("无界");
 
     expect(refreshBtn?.classList.contains("ariaLabel")).toBe(true);
+    expect(floatBtn?.classList.contains("ariaLabel")).toBe(true);
     expect(exportBtn?.classList.contains("ariaLabel")).toBe(true);
     expect(canvasBtn?.classList.contains("ariaLabel")).toBe(true);
 
     expect(refreshBtn?.getAttribute("aria-label")).toBe("重新提取当前文档关键信息");
+    expect(floatBtn?.getAttribute("aria-label")).toBe("悬浮选中文本，未选中文本时自动悬浮整篇文档");
     expect(exportBtn?.getAttribute("aria-label")).toBe("将关键信息导出为 Markdown 文档");
     expect(canvasBtn?.getAttribute("aria-label")).toBe("将关键信息发送至「无界」插件生成画板");
 
     expect(refreshBtn?.title).toBe("");
+    expect(floatBtn?.title).toBe("");
     expect(exportBtn?.title).toBe("");
     expect(canvasBtn?.title).toBe("");
 
     const refreshSvg = refreshBtn?.querySelector(".doc-assistant-keyinfo__footer-icon-svg");
+    const floatSvg = floatBtn?.querySelector(".doc-assistant-keyinfo__footer-icon-svg");
     const exportSvg = exportBtn?.querySelector(".doc-assistant-keyinfo__footer-icon-svg");
     const canvasSvg = canvasBtn?.querySelector(".doc-assistant-keyinfo__footer-icon-svg");
 
     expect(refreshSvg).not.toBeNull();
+    expect(floatSvg).not.toBeNull();
     expect(exportSvg).not.toBeNull();
     expect(canvasSvg).not.toBeNull();
 
     expect(refreshSvg?.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(floatSvg?.getAttribute("viewBox")).toBe("0 0 24 24");
     expect(exportSvg?.getAttribute("viewBox")).toBe("0 0 24 24");
     expect(canvasSvg?.getAttribute("viewBox")).toBe("0 0 24 24");
+
+    const mousedownEvent = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    floatBtn?.dispatchEvent(mousedownEvent);
+    expect(mousedownEvent.defaultPrevented).toBe(true);
+
+    floatBtn?.click();
+    expect(onFloatSelectedText).toHaveBeenCalledTimes(1);
 
     canvasBtn?.click();
     expect(onGenerateCanvas).toHaveBeenCalledTimes(1);
