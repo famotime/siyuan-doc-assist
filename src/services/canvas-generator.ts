@@ -133,7 +133,7 @@ export function preprocessItemsForCanvas(items: KeyInfoItem[], docTitle: string)
     return items;
   }
   return [
-    { ...first!, id: `synth-h1-${Date.now()}`, type: "title" as const, text: docTitle, raw: `# ${docTitle}` },
+    { ...first!, id: `synth-h1-${Date.now()}`, type: "title" as const, headingLevel: 1, text: docTitle, raw: `# ${docTitle}` },
     ...items
   ];
 }
@@ -274,6 +274,7 @@ export function parseMarkdownToKeyInfoItems(markdown: string): KeyInfoItem[] {
       items.push({
         id: `ai-canvas-item-${counter}`,
         type: "title",
+        headingLevel: headingMatch[1].length,
         text: titleText,
         raw: trimmed,
         offset: 0,

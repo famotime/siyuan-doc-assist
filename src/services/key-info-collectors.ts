@@ -43,6 +43,7 @@ export function collectHeadingItems(
       items.push({
         id: `${row.id}-heading-${order}`,
         type: "title",
+        headingLevel: level,
         text: listLine.listPrefix ? normalizeListDecoratedText(text) : text,
         raw: `${"#".repeat(level)} ${text}`,
         offset: 0,

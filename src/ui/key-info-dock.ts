@@ -2,8 +2,9 @@ import {
   buildDefaultKeyInfoFilter,
   KeyInfoFilter,
   KeyInfoItem,
-  keyInfoTypeLabel
+  keyInfoItemBadgeText
 } from "@/core/key-info-core";
+import { refreshDockHeadingColors } from "@/services/key-info-heading-color";
 import {
   consumeKeyInfoListPostRenderAction,
   createKeyInfoListScrollState,
@@ -123,6 +124,7 @@ export function createKeyInfoDock(
   };
 
   const {
+    root,
     entryAnimationTimer,
     docTitle,
     loadingTag,
@@ -409,6 +411,11 @@ export function createKeyInfoDock(
     row.className = "doc-assistant-keyinfo__row";
     row.dataset.keyinfoId = item.id;
     row.dataset.type = item.type;
+    if (item.type === "title") {
+      row.dataset.headingLevel = String(item.headingLevel || 1);
+    } else {
+      row.removeAttribute("data-heading-level");
+    }
     if (item.blockId) {
       row.dataset.blockId = item.blockId;
     } else {
@@ -428,7 +435,7 @@ export function createKeyInfoDock(
     }
 
     badge.className = `doc-assistant-keyinfo__badge doc-assistant-keyinfo__badge--${item.type}`;
-    badge.textContent = keyInfoTypeLabel(item.type);
+    badge.textContent = keyInfoItemBadgeText(item);
     const renderedText = formatKeyInfoDockText(item);
     text.textContent = preserveVisibleSpaces(renderedText);
 
@@ -476,6 +483,7 @@ export function createKeyInfoDock(
   };
 
   const renderList = () => {
+    refreshDockHeadingColors(root, root.ownerDocument || document);
     const visible = filterKeyInfoDockItems(state.items, state.filter);
     if (state.loading && !visible.length) {
       list.replaceChildren();
@@ -615,6 +623,25 @@ export function createKeyInfoDock(
     }
   };
 
+  const doc = root.ownerDocument || document;
+  refreshDockHeadingColors(root, doc);
+  let themeObserver: MutationObserver | null = null;
+  if (typeof MutationObserver !== "undefined" && doc.documentElement) {
+    themeObserver = new MutationObserver(() => {
+      refreshDockHeadingColors(root, doc);
+    });
+    themeObserver.observe(doc.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme-mode", "class"]
+    });
+    if (doc.body) {
+      themeObserver.observe(doc.body, {
+        attributes: true,
+        attributeFilter: ["data-theme-mode", "class"]
+      });
+    }
+  }
+
   updateFilterButtons();
   updateTabButtons();
   renderTabPanels();
@@ -632,6 +659,7 @@ export function createKeyInfoDock(
     getState: () => ({ ...state }),
     getVisibleItems: () => filterKeyInfoDockItems(state.items, state.filter),
     destroy: () => {
+      themeObserver?.disconnect();
       clearTimeout(entryAnimationTimer);
       pendingRestoreFrames.forEach((frame) => cancelAnimationFrame(frame));
       pendingRestoreFrames.clear();

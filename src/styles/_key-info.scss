@@ -12,6 +12,12 @@
   --doc-assistant-accent-text: color-mix(in srgb, #ffffff 96%, #ecfff4 4%);
   --keyinfo-all: #7f754c;
   --keyinfo-title: #88abda;
+  --da-heading-color-1: #2563eb;
+  --da-heading-color-2: #0d9488;
+  --da-heading-color-3: #d97706;
+  --da-heading-color-4: #7c3aed;
+  --da-heading-color-5: #db2777;
+  --da-heading-color-6: #4b5563;
   --keyinfo-bold: #f06d5e;
   --keyinfo-italic: #919177;
   --keyinfo-underline: #4b9a6d;
@@ -21,6 +27,16 @@
   --keyinfo-tag: #2bb673;
   --keyinfo-link: #3aa5b6;
   --keyinfo-ref: #8f67d8;
+}
+
+[data-theme-mode="dark"] .doc-assistant-keyinfo,
+.doc-assistant-keyinfo[data-theme-mode="dark"] {
+  --da-heading-color-1: #60a5fa;
+  --da-heading-color-2: #2dd4bf;
+  --da-heading-color-3: #fbbf24;
+  --da-heading-color-4: #a78bfa;
+  --da-heading-color-5: #f472b6;
+  --da-heading-color-6: #9ca3af;
 }
 
 .doc-assistant-keyinfo__header {
@@ -628,9 +644,10 @@
 }
 
 .doc-assistant-keyinfo__badge--title {
-  color: var(--keyinfo-title);
-  background: color-mix(in srgb, var(--keyinfo-title) 16%, transparent);
-  border-color: color-mix(in srgb, var(--keyinfo-title) 35%, transparent);
+  --badge-title-color: var(--heading-color, var(--keyinfo-title));
+  color: var(--badge-title-color);
+  background: color-mix(in srgb, var(--badge-title-color) 16%, transparent);
+  border-color: color-mix(in srgb, var(--badge-title-color) 35%, transparent);
 }
 
 .doc-assistant-keyinfo__badge--bold {

@@ -47,6 +47,7 @@ export type KeyInfoExtract = {
   text: string;
   raw: string;
   offset: number;
+  headingLevel?: number;
 };
 
 export type KeyInfoItem = KeyInfoExtract & {
@@ -87,6 +88,16 @@ const KEY_INFO_TYPE_LABELS: Record<KeyInfoType, string> = {
 
 export function keyInfoTypeLabel(type: KeyInfoType): string {
   return KEY_INFO_TYPE_LABELS[type] || type;
+}
+
+export function keyInfoItemBadgeText(item: Pick<KeyInfoExtract, "type" | "headingLevel">): string {
+  if (item.type === "title") {
+    const isLevelValid =
+      typeof item.headingLevel === "number" && item.headingLevel >= 1 && item.headingLevel <= 6;
+    const level = isLevelValid ? Math.round(item.headingLevel!) : 1;
+    return `H${level}`;
+  }
+  return keyInfoTypeLabel(item.type);
 }
 
 export function buildKeyInfoMarkdown(
@@ -335,6 +346,7 @@ function extractHeadings(
       if (cleaned) {
         items.push({
           type: "title",
+          headingLevel: match[1].length,
           text: cleaned,
           raw: raw.trim() || `# ${cleaned}`,
           offset

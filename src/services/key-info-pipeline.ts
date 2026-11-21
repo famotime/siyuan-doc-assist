@@ -482,6 +482,7 @@ export function appendDocTitleItemIfMissing(
     ...items,
     {
       id: `doc-title-${nextOrder}`,
+      headingLevel: 1,
       type: "title",
       text: docTitle,
       raw: `# ${docTitle}`,

@@ -4,6 +4,7 @@ import {
   KeyInfoFilter,
   KeyInfoItem,
   KeyInfoType,
+  keyInfoItemBadgeText,
   keyInfoTypeLabel
 } from "@/core/key-info-core";
 import { DockTabKey, DOCK_TABS } from "@/core/dock-panel-core";
@@ -29,6 +30,7 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
 ];
 
 export type KeyInfoDockChrome = {
+  root: HTMLDivElement;
   entryAnimationTimer: number;
   docTitle: HTMLDivElement;
   loadingTag: HTMLSpanElement;
@@ -60,10 +62,11 @@ export function filterKeyInfoDockItems(items: KeyInfoItem[], filter: KeyInfoFilt
   return filterKeyInfoItems(items, filter);
 }
 
-function buildTypeBadge(type: KeyInfoType): HTMLSpanElement {
+function buildTypeBadge(itemOrType: KeyInfoItem | KeyInfoType): HTMLSpanElement {
+  const type = typeof itemOrType === "string" ? itemOrType : itemOrType.type;
   const badge = document.createElement("span");
   badge.className = `doc-assistant-keyinfo__badge doc-assistant-keyinfo__badge--${type}`;
-  badge.textContent = keyInfoTypeLabel(type);
+  badge.textContent = typeof itemOrType === "string" ? keyInfoTypeLabel(itemOrType) : keyInfoItemBadgeText(itemOrType);
   return badge;
 }
 
@@ -89,8 +92,13 @@ export function preserveVisibleSpaces(text: string): string {
 export function buildKeyInfoDockRow(item: KeyInfoItem): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "doc-assistant-keyinfo__row";
+  row.dataset.keyinfoId = item.id;
+  row.dataset.type = item.type;
+  if (item.type === "title") {
+    row.dataset.headingLevel = String(item.headingLevel || 1);
+  }
 
-  const badge = buildTypeBadge(item.type);
+  const badge = buildTypeBadge(item);
   const text = document.createElement("div");
   text.className = "doc-assistant-keyinfo__text";
   text.textContent = preserveVisibleSpaces(formatKeyInfoDockText(item));
@@ -284,6 +292,7 @@ export function createKeyInfoDockChrome(
   element.replaceChildren(root);
 
   return {
+    root,
     entryAnimationTimer,
     docTitle,
     loadingTag,
