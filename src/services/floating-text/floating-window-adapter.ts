@@ -228,6 +228,12 @@ export async function openFloatingTextWindow(options: {
       const win = new remote.BrowserWindow({
         width: config.width || 420,
         height: config.height || 320,
+        minWidth: 260,
+        minHeight: 180,
+        maxWidth: 1200,
+        maxHeight: 1000,
+        maximizable: false,
+        fullscreenable: false,
         frame: false,
         transparent: true,
         alwaysOnTop: true,
@@ -281,7 +287,13 @@ export async function openFloatingTextWindow(options: {
         },
         setPosition: (x: number, y: number) => {
           if (!win.isDestroyed()) {
-            win.setPosition(Math.round(x), Math.round(y));
+            const [w, h] = win.getSize();
+            if (typeof win.setBounds === "function") {
+              win.setBounds({ x: Math.round(x), y: Math.round(y), width: w, height: h });
+            } else {
+              win.setPosition(Math.round(x), Math.round(y));
+              win.setSize(w, h);
+            }
           }
         },
         focus: () => {
@@ -339,7 +351,13 @@ export async function openFloatingTextWindow(options: {
           electron.ipcRenderer.removeAllListeners(IPC_MOVE_CHANNEL);
           electron.ipcRenderer.on(IPC_MOVE_CHANNEL, (_event: any, pos: { x: number; y: number }) => {
             if (currentElectronWindow && !currentElectronWindow.isDestroyed() && pos && typeof pos.x === "number") {
-              currentElectronWindow.setPosition(Math.round(pos.x), Math.round(pos.y));
+              const [w, h] = currentElectronWindow.getSize();
+              if (typeof currentElectronWindow.setBounds === "function") {
+                currentElectronWindow.setBounds({ x: Math.round(pos.x), y: Math.round(pos.y), width: w, height: h });
+              } else {
+                currentElectronWindow.setPosition(Math.round(pos.x), Math.round(pos.y));
+                currentElectronWindow.setSize(w, h);
+              }
             }
           });
           electron.ipcRenderer.removeAllListeners(IPC_PASTE_CHANNEL);
@@ -384,7 +402,13 @@ export async function openFloatingTextWindow(options: {
             }
           } else if (channel === IPC_MOVE_CHANNEL && payload && typeof payload.x === "number") {
             if (!win.isDestroyed()) {
-              win.setPosition(Math.round(payload.x), Math.round(payload.y));
+              const [w, h] = win.getSize();
+              if (typeof win.setBounds === "function") {
+                win.setBounds({ x: Math.round(payload.x), y: Math.round(payload.y), width: w, height: h });
+              } else {
+                win.setPosition(Math.round(payload.x), Math.round(payload.y));
+                win.setSize(w, h);
+              }
             }
           } else if (channel === IPC_PASTE_CHANNEL) {
             if (!win.isDestroyed()) {

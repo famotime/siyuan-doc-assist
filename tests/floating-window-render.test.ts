@@ -259,8 +259,10 @@ describe("floating-window-render", () => {
       expect(html).toContain("标题栏鼠标拖动增强与多环境兜底");
       expect(html).toContain("siyuan-doc-assist-move-window");
       expect(html).toContain("electronWin.setPosition");
+      expect(html).toContain("electronWin.setBounds");
       expect(html).toContain("window.__docAssistantHost.setPosition");
       expect(html).toContain("headerEl.addEventListener(\"mousedown\"");
+      expect(html).toContain("hasNativeAppRegionDrag");
     });
   });
 

@@ -43,9 +43,9 @@ export const MAX_FONT_SIZE = 42;
 export const MIN_OPACITY = 0.1;
 export const MAX_OPACITY = 1.0;
 export const MIN_WINDOW_WIDTH = 240;
-export const MAX_WINDOW_WIDTH = 1920;
+export const MAX_WINDOW_WIDTH = 1200;
 export const MIN_WINDOW_HEIGHT = 160;
-export const MAX_WINDOW_HEIGHT = 1440;
+export const MAX_WINDOW_HEIGHT = 1000;
 
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) {
@@ -74,14 +74,24 @@ export function normalizeFloatingConfig(
         clamp(Math.round(raw.fontSize), MIN_FONT_SIZE, MAX_FONT_SIZE) :
       DEFAULT_FLOATING_TEXT_CONFIG.fontSize;
 
+  // 历史 Snap 贴靠或拖拽异常拉大的保护自愈：悬浮便签窗口若大于 1000px 宽或 850px 高，自动重置回默认尺寸
+  let rawWidth = raw.width;
+  let rawHeight = raw.height;
+  if (typeof rawWidth === "number" && rawWidth > 1000) {
+    rawWidth = DEFAULT_FLOATING_TEXT_CONFIG.width;
+  }
+  if (typeof rawHeight === "number" && rawHeight > 850) {
+    rawHeight = DEFAULT_FLOATING_TEXT_CONFIG.height;
+  }
+
   const width =
-    typeof raw.width === "number" ?
-        clamp(Math.round(raw.width), MIN_WINDOW_WIDTH, MAX_WINDOW_WIDTH) :
+    typeof rawWidth === "number" ?
+        clamp(Math.round(rawWidth), MIN_WINDOW_WIDTH, MAX_WINDOW_WIDTH) :
       DEFAULT_FLOATING_TEXT_CONFIG.width;
 
   const height =
-    typeof raw.height === "number" ?
-        clamp(Math.round(raw.height), MIN_WINDOW_HEIGHT, MAX_WINDOW_HEIGHT) :
+    typeof rawHeight === "number" ?
+        clamp(Math.round(rawHeight), MIN_WINDOW_HEIGHT, MAX_WINDOW_HEIGHT) :
       DEFAULT_FLOATING_TEXT_CONFIG.height;
 
   const themeMode: FloatingThemeMode =

@@ -62,6 +62,28 @@ describe("floating-text-core", () => {
       expect(normalizeFloatingConfig({ autoPasteOnSelect: false }).autoPasteOnSelect).toBe(false);
       expect(normalizeFloatingConfig({ autoPasteOnSelect: "invalid" as any }).autoPasteOnSelect).toBe(false);
     });
+
+    test("clamps window dimensions within limits and recovers abnormal oversized window sizes", () => {
+      // 正常合法范围
+      const normal = normalizeFloatingConfig({ width: 500, height: 400 });
+      expect(normal.width).toBe(500);
+      expect(normal.height).toBe(400);
+
+      // 下限 clamp
+      const tooSmall = normalizeFloatingConfig({ width: 100, height: 50 });
+      expect(tooSmall.width).toBe(240);
+      expect(tooSmall.height).toBe(160);
+
+      // 异常超大尺寸（如 Windows 贴靠 Snap 或拖拽飞移导致的半屏/全屏残留数据 1310x1275）自动自愈为默认尺寸
+      const snapped = normalizeFloatingConfig({ width: 1310, height: 1275 });
+      expect(snapped.width).toBe(DEFAULT_FLOATING_TEXT_CONFIG.width);
+      expect(snapped.height).toBe(DEFAULT_FLOATING_TEXT_CONFIG.height);
+
+      // 边界合理大尺寸 clamp 到 MAX_WINDOW_WIDTH / MAX_WINDOW_HEIGHT
+      const bigValid = normalizeFloatingConfig({ width: 950, height: 750 });
+      expect(bigValid.width).toBe(950);
+      expect(bigValid.height).toBe(750);
+    });
   });
 
   describe("calculateSteppedFontSize", () => {

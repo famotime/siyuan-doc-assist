@@ -1287,7 +1287,12 @@ const CLIENT_SCRIPT_BODY_PART2 = `          let resizeTimer = null;
               let moved = false;
               if (electronWin && typeof electronWin.setPosition === "function") {
                 try {
-                  electronWin.setPosition(rx, ry);
+                  if (typeof electronWin.setBounds === "function" && typeof electronWin.getSize === "function") {
+                    var winSize = electronWin.getSize();
+                    electronWin.setBounds({ x: rx, y: ry, width: winSize[0], height: winSize[1] });
+                  } else {
+                    electronWin.setPosition(rx, ry);
+                  }
                   moved = true;
                 } catch (e) {}
               }
@@ -1359,6 +1364,18 @@ const CLIENT_SCRIPT_BODY_PART2 = `          let resizeTimer = null;
                 }
                 window.focus();
               } catch (focusErr) {}
+
+              // 若处于原生 Electron 窗口环境，-webkit-app-region: drag 已由操作系统底层原生驱动拖拽，
+              // 禁止同时在 JS mousemove 中高频调用 setPosition，避免在 Windows 125%/150% 等高 DPI 缩放下
+              // 触发 Electron 底层尺寸跳变与系统 Aero Snap 贴靠冲突，导致横向宽度自动扩大。
+              var hasNativeAppRegionDrag = Boolean(
+                (electronWin || window.__docAssistantHost) &&
+                window.getComputedStyle &&
+                window.getComputedStyle(headerEl).webkitAppRegion === "drag"
+              );
+              if (hasNativeAppRegionDrag) {
+                return;
+              }
 
               isDragging = true;
               hasMoved = false;
