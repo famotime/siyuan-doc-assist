@@ -38,6 +38,7 @@ import {
   GestureBindings,
   normalizeGestureBindings
 } from "@/core/gesture-recognition-core";
+import { DynamicOutlinePosition } from "@/core/dynamic-outline-core";
 
 export type PluginDocMenuState = {
   docActionEnabledState: DocActionEnabledState;
@@ -51,6 +52,9 @@ export type PluginDocMenuState = {
   startupDocProcessTabEnabled: boolean;
   mouseGestureEnabled: boolean;
   mouseGestureBindings: GestureBindings;
+  dynamicOutlineEnabled: boolean;
+  dynamicOutlineFollowKeyInfo: boolean;
+  dynamicOutlinePosition: DynamicOutlinePosition;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
@@ -61,6 +65,9 @@ type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   startupDocProcessTabEnabled?: unknown;
   mouseGestureEnabled?: unknown;
   mouseGestureBindings?: unknown;
+  dynamicOutlineEnabled?: unknown;
+  dynamicOutlineFollowKeyInfo?: unknown;
+  dynamicOutlinePosition?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -77,7 +84,10 @@ export function buildDefaultPluginDocMenuState(
     floatingConfig: { ...DEFAULT_FLOATING_TEXT_CONFIG },
     startupDocProcessTabEnabled: false,
     mouseGestureEnabled: false,
-    mouseGestureBindings: { ...DEFAULT_GESTURE_BINDINGS }
+    mouseGestureBindings: { ...DEFAULT_GESTURE_BINDINGS },
+    dynamicOutlineEnabled: false,
+    dynamicOutlineFollowKeyInfo: false,
+    dynamicOutlinePosition: "right"
   };
 }
 
@@ -96,7 +106,10 @@ export function normalizePluginDocMenuState(
     floatingConfig: normalizeStoredFloatingConfig(raw),
     startupDocProcessTabEnabled: normalizeStoredStartupDocProcessTabEnabled(raw),
     mouseGestureEnabled: normalizeStoredMouseGestureEnabled(raw),
-    mouseGestureBindings: normalizeStoredMouseGestureBindings(raw)
+    mouseGestureBindings: normalizeStoredMouseGestureBindings(raw),
+    dynamicOutlineEnabled: normalizeStoredDynamicOutlineEnabled(raw),
+    dynamicOutlineFollowKeyInfo: normalizeStoredDynamicOutlineFollowKeyInfo(raw),
+    dynamicOutlinePosition: normalizeStoredDynamicOutlinePosition(raw)
   };
 }
 
@@ -160,6 +173,30 @@ function normalizeStoredMouseGestureBindings(raw: unknown): GestureBindings {
   return normalizeGestureBindings(value);
 }
 
+function normalizeStoredDynamicOutlineEnabled(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") {
+    return false;
+  }
+  const value = (raw as PluginDocMenuStorageV1).dynamicOutlineEnabled;
+  return typeof value === "boolean" ? value : false;
+}
+
+function normalizeStoredDynamicOutlineFollowKeyInfo(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") {
+    return false;
+  }
+  const value = (raw as PluginDocMenuStorageV1).dynamicOutlineFollowKeyInfo;
+  return typeof value === "boolean" ? value : false;
+}
+
+function normalizeStoredDynamicOutlinePosition(raw: unknown): DynamicOutlinePosition {
+  if (!raw || typeof raw !== "object") {
+    return "right";
+  }
+  const value = (raw as PluginDocMenuStorageV1).dynamicOutlinePosition;
+  return value === "left" ? "left" : "right";
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -175,7 +212,10 @@ export function serializePluginDocMenuState(
     floatingConfig: state.floatingConfig,
     startupDocProcessTabEnabled: state.startupDocProcessTabEnabled,
     mouseGestureEnabled: state.mouseGestureEnabled,
-    mouseGestureBindings: state.mouseGestureBindings
+    mouseGestureBindings: state.mouseGestureBindings,
+    dynamicOutlineEnabled: state.dynamicOutlineEnabled,
+    dynamicOutlineFollowKeyInfo: state.dynamicOutlineFollowKeyInfo,
+    dynamicOutlinePosition: state.dynamicOutlinePosition
   };
 }
 
@@ -355,6 +395,36 @@ export function setPluginMouseGestureBindings(
   return {
     ...state,
     mouseGestureBindings: normalizeGestureBindings(bindings)
+  };
+}
+
+export function setPluginDynamicOutlineEnabled(
+  state: PluginDocMenuState,
+  enabled: boolean
+): PluginDocMenuState {
+  return {
+    ...state,
+    dynamicOutlineEnabled: Boolean(enabled)
+  };
+}
+
+export function setPluginDynamicOutlineFollowKeyInfo(
+  state: PluginDocMenuState,
+  follow: boolean
+): PluginDocMenuState {
+  return {
+    ...state,
+    dynamicOutlineFollowKeyInfo: Boolean(follow)
+  };
+}
+
+export function setPluginDynamicOutlinePosition(
+  state: PluginDocMenuState,
+  position: DynamicOutlinePosition
+): PluginDocMenuState {
+  return {
+    ...state,
+    dynamicOutlinePosition: position === "left" ? "left" : "right"
   };
 }
 

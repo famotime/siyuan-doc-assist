@@ -7,6 +7,7 @@ import {
   buildDefaultDocMenuRegistration
 } from "@/core/doc-menu-registration-core";
 import { buildDockDocActions } from "@/core/dock-panel-core";
+import { DOC_ASSIST_ICON_SVG } from "@/icons";
 import { ALPHA_FEATURE_HIDE_CONFIG, filterVisibleActions } from "@/plugin/alpha-feature-config";
 
 const {
@@ -148,7 +149,12 @@ describe("plugin settings", () => {
     ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ACTIONS
       .filter((action) => action.group === "ai")
       .map((action) => action.key);
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode", "floating-text"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [
+      "ai-service",
+      "debug-mode",
+      "floating-text",
+      "dynamic-outline"
+    ];
   });
 
   afterEach(() => {
@@ -165,7 +171,7 @@ describe("plugin settings", () => {
 
     expect(settingInstances).toHaveLength(1);
     expect(plugin.setting).toBe(settingInstances[0]);
-    expect(addIconsMock).not.toHaveBeenCalled();
+    expect(addIconsMock).toHaveBeenCalledWith(DOC_ASSIST_ICON_SVG);
     expect(topBarConfigs).toHaveLength(0);
 
     plugin.openSetting();
@@ -463,7 +469,12 @@ describe("plugin settings", () => {
   test("hides alpha actions and related settings panels when configured", async () => {
     const { ALPHA_FEATURE_HIDE_CONFIG } = await import("@/plugin/alpha-feature-config");
     ALPHA_FEATURE_HIDE_CONFIG.hiddenActionKeys = ["clean-ai-output"];
-    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = ["ai-service", "debug-mode", "floating-text"];
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [
+      "ai-service",
+      "debug-mode",
+      "floating-text",
+      "dynamic-outline"
+    ];
 
     try {
       const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
@@ -618,6 +629,49 @@ describe("plugin settings", () => {
     host2.remove();
   });
 
+  test("dynamicOutlineEnabled and followKeyInfo toggles control outline state and child switch disabled state", async () => {
+    const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
+    const plugin = new DocLinkToolkitPlugin() as any;
+    await plugin.onload();
+
+    ALPHA_FEATURE_HIDE_CONFIG.hiddenSettingKeys = [];
+    plugin.openSetting();
+
+    const setting = settingInstances[1];
+    const outlineItem = setting.items.find((item) => item.title === "灵动大纲");
+    const followItem = setting.items.find((item) => item.title === "灵动大纲：跟随关键内容");
+
+    expect(outlineItem).toBeDefined();
+    expect(followItem).toBeDefined();
+
+    const outlineToggle = (outlineItem?.actionElement as HTMLElement).querySelector("input[type='checkbox']") as HTMLInputElement;
+    const followToggle = (followItem?.actionElement as HTMLElement).querySelector("input[type='checkbox']") as HTMLInputElement;
+
+    expect(outlineToggle.checked).toBe(false);
+    expect(followToggle.checked).toBe(false);
+    expect(followToggle.disabled).toBe(true);
+
+    outlineToggle.checked = true;
+    outlineToggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.dynamicOutlineEnabled).toBe(true);
+    expect(followToggle.disabled).toBe(false);
+
+    followToggle.checked = true;
+    followToggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.dynamicOutlineFollowKeyInfo).toBe(true);
+
+    outlineToggle.checked = false;
+    outlineToggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.dynamicOutlineEnabled).toBe(false);
+    expect(followToggle.disabled).toBe(true);
+  });
+
   test("renders settings items in the specified order: 启动显示..., 浮窗..., 鼠标手势, 启用命令, AI服务, 调试模式", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
@@ -630,6 +684,8 @@ describe("plugin settings", () => {
     expect(setting.items.map((item) => item.title)).toEqual([
       "启动显示“文档处理”页签",
       "浮窗命中文本直接粘贴",
+      "灵动大纲",
+      "灵动大纲：跟随关键内容",
       "鼠标手势",
       "启用命令",
       "AI 服务",

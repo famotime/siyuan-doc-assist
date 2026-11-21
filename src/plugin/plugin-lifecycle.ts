@@ -53,12 +53,19 @@ import {
   setPluginDocActionFavorite,
   setPluginDocActionOrder,
   setPluginStartupDocProcessTabEnabled,
+  setPluginDynamicOutlineEnabled,
+  setPluginDynamicOutlineFollowKeyInfo,
+  setPluginDynamicOutlinePosition,
   setPluginKeyInfoFilter,
   setPluginMouseGestureBindings,
   setPluginMouseGestureEnabled,
   setSinglePluginDocActionEnabled,
   setSinglePluginDocMenuRegistration
 } from "@/plugin/plugin-lifecycle-state";
+import { DynamicOutlinePosition } from "@/core/dynamic-outline-core";
+import { DynamicOutlineController } from "@/plugin/dynamic-outline-controller";
+import { createKeyInfoNavigation } from "@/plugin/key-info-navigation";
+import { getDocKeyInfo } from "@/services/key-info";
 import { GestureBindings } from "@/core/gesture-recognition-core";
 import { createMouseGestureController } from "@/plugin/mouse-gesture-controller";
 import {
@@ -108,6 +115,31 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private mouseGestureBindings: GestureBindings = {
     ...buildDefaultPluginDocMenuState(ACTIONS).mouseGestureBindings
   };
+
+  private dynamicOutlineEnabled = false;
+  private dynamicOutlineFollowKeyInfo = false;
+  private dynamicOutlinePosition: DynamicOutlinePosition = "right";
+  private readonly dynamicOutlineNavigation = createKeyInfoNavigation();
+
+  private readonly dynamicOutlineController: DynamicOutlineController = new DynamicOutlineController({
+    isMobile: () => this.isMobile,
+    getCurrentProtyle: () => this.currentProtyle,
+    getCurrentDocId: () => this.syncPairedCursor(),
+    getKeyInfoFilter: () => this.keyInfoFilterState,
+    fetchDocKeyInfo: (docId, protyle) => getDocKeyInfo(docId, protyle),
+    navigateBlock: (blockId, protyle) => {
+      this.dynamicOutlineNavigation.handleItemClick(
+        { blockId } as any,
+        () => protyle || this.currentProtyle
+      );
+    },
+    setPosition: (position) => this.setDynamicOutlinePosition(position),
+    getConfig: () => ({
+      enabled: this.dynamicOutlineEnabled,
+      followKeyInfo: this.dynamicOutlineFollowKeyInfo,
+      position: this.dynamicOutlinePosition
+    })
+  });
 
   private managedAiConfig: AiServiceConfig | null = null;
   private apiSwitchReadyListener?: () => void;
@@ -174,6 +206,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.currentDocId = id;
     this.currentProtyle = protyle;
     void this.keyInfoController.refresh(id, protyle);
+    this.dynamicOutlineController.syncActiveEditor(protyle);
   };
 
   private readonly onEditorTitleMenu = (event: CustomEvent<{
@@ -327,6 +360,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
       this.floatingConfig = cfg;
       void this.persistDocMenuRegistrationState();
     });
+
+    this.dynamicOutlineController.syncActiveEditor(
+      getActiveEditor()?.protyle as ProtyleLike | undefined
+    );
   }
 
   onunload() {
@@ -354,6 +391,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onBlockIconMenu: this.onBlockIconMenu
     });
     this.keyInfoController.destroy();
+    this.dynamicOutlineController.destroy();
     this.mouseGestureController.destroy();
     destroyActionProcessingOverlay();
   }
@@ -463,6 +501,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
       mouseGestureEnabled: this.mouseGestureEnabled,
       mouseGestureBindings: this.mouseGestureBindings,
+      dynamicOutlineEnabled: this.dynamicOutlineEnabled,
+      dynamicOutlineFollowKeyInfo: this.dynamicOutlineFollowKeyInfo,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
@@ -479,7 +519,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onMouseGestureEnabledChange: (enabled) => this.setMouseGestureEnabled(enabled),
       onMouseGestureBindingsChange: (bindings) => this.setMouseGestureBindings(bindings),
       onGestureRecordingChange: (recording) =>
-        this.mouseGestureController.setSuspended(recording)
+        this.mouseGestureController.setSuspended(recording),
+      onDynamicOutlineEnabledChange: (enabled) => this.setDynamicOutlineEnabled(enabled),
+      onDynamicOutlineFollowKeyInfoChange: (follow) =>
+        this.setDynamicOutlineFollowKeyInfo(follow)
     });
   }
 
@@ -584,7 +627,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
       floatingConfig: this.floatingConfig,
       startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
       mouseGestureEnabled: this.mouseGestureEnabled,
-      mouseGestureBindings: this.mouseGestureBindings
+      mouseGestureBindings: this.mouseGestureBindings,
+      dynamicOutlineEnabled: this.dynamicOutlineEnabled,
+      dynamicOutlineFollowKeyInfo: this.dynamicOutlineFollowKeyInfo,
+      dynamicOutlinePosition: this.dynamicOutlinePosition
     };
   }
 
@@ -600,6 +646,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.startupDocProcessTabEnabled = state.startupDocProcessTabEnabled ?? false;
     this.mouseGestureEnabled = state.mouseGestureEnabled ?? false;
     this.mouseGestureBindings = state.mouseGestureBindings;
+    this.dynamicOutlineEnabled = state.dynamicOutlineEnabled ?? false;
+    this.dynamicOutlineFollowKeyInfo = state.dynamicOutlineFollowKeyInfo ?? false;
+    this.dynamicOutlinePosition = state.dynamicOutlinePosition ?? "right";
     setCachedFloatingTextConfig(state.floatingConfig);
     setTransactionDebugLogEnabled(this.debugLogEnabled);
     setDocAssistantDebugEnabled(this.debugLogEnabled);
@@ -674,6 +723,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
       setPluginKeyInfoFilter(this.snapshotDocMenuState(), filter)
     );
     await this.persistDocMenuRegistrationState();
+    if (this.dynamicOutlineFollowKeyInfo) {
+      this.dynamicOutlineController.refresh();
+    }
   }
 
   async setAiSummaryConfig(config: AiServiceConfig) {
@@ -717,6 +769,29 @@ export default class DocLinkToolkitPlugin extends Plugin {
   async setMouseGestureBindings(bindings: GestureBindings) {
     this.applyDocMenuState(
       setPluginMouseGestureBindings(this.snapshotDocMenuState(), bindings)
+    );
+    await this.persistDocMenuRegistrationState();
+  }
+
+  async setDynamicOutlineEnabled(enabled: boolean) {
+    this.applyDocMenuState(
+      setPluginDynamicOutlineEnabled(this.snapshotDocMenuState(), enabled)
+    );
+    await this.persistDocMenuRegistrationState();
+    this.dynamicOutlineController.refresh();
+  }
+
+  async setDynamicOutlineFollowKeyInfo(follow: boolean) {
+    this.applyDocMenuState(
+      setPluginDynamicOutlineFollowKeyInfo(this.snapshotDocMenuState(), follow)
+    );
+    await this.persistDocMenuRegistrationState();
+    this.dynamicOutlineController.refresh();
+  }
+
+  async setDynamicOutlinePosition(position: DynamicOutlinePosition) {
+    this.applyDocMenuState(
+      setPluginDynamicOutlinePosition(this.snapshotDocMenuState(), position)
     );
     await this.persistDocMenuRegistrationState();
   }

@@ -7,7 +7,8 @@ import {
   serializePluginDocMenuState,
   setPluginMouseGestureBindings,
   setPluginMouseGestureEnabled,
-  setPluginStartupDocProcessTabEnabled
+  setPluginStartupDocProcessTabEnabled,
+  setPluginDynamicOutlinePosition
 } from "@/plugin/plugin-lifecycle-state";
 
 describe("plugin lifecycle state", () => {
@@ -161,5 +162,25 @@ describe("plugin lifecycle state", () => {
       "next-doc": "R",
       "close-current-doc": "D,R"
     });
+  });
+
+  test("normalizes, serializes and updates dynamic outline position", () => {
+    const initial = buildDefaultPluginDocMenuState(ACTIONS);
+    expect(initial.dynamicOutlinePosition).toBe("right");
+
+    const leftState = setPluginDynamicOutlinePosition(initial, "left");
+    expect(leftState.dynamicOutlinePosition).toBe("left");
+
+    const normalized = normalizePluginDocMenuState({ dynamicOutlinePosition: "left" }, ACTIONS);
+    expect(normalized.dynamicOutlinePosition).toBe("left");
+
+    const normalizedInvalid = normalizePluginDocMenuState({ dynamicOutlinePosition: "invalid" }, ACTIONS);
+    expect(normalizedInvalid.dynamicOutlinePosition).toBe("right");
+
+    expect(serializePluginDocMenuState(leftState)).toEqual(
+      expect.objectContaining({
+        dynamicOutlinePosition: "left"
+      })
+    );
   });
 });

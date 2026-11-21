@@ -26,6 +26,8 @@ type CreatePluginSettingsOptions = {
   startupDocProcessTabEnabled?: boolean;
   mouseGestureEnabled?: boolean;
   mouseGestureBindings?: GestureBindings;
+  dynamicOutlineEnabled?: boolean;
+  dynamicOutlineFollowKeyInfo?: boolean;
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
   onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
@@ -38,6 +40,8 @@ type CreatePluginSettingsOptions = {
   onMouseGestureEnabledChange?: (enabled: boolean) => Promise<void> | void;
   onMouseGestureBindingsChange?: (bindings: GestureBindings) => Promise<void> | void;
   onGestureRecordingChange?: (recording: boolean) => void;
+  onDynamicOutlineEnabledChange?: (enabled: boolean) => Promise<void> | void;
+  onDynamicOutlineFollowKeyInfoChange?: (follow: boolean) => Promise<void> | void;
 };
 
 function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
@@ -144,6 +148,73 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     hostNormalizedRows.push({
       element: autoPasteControlWrap,
       fallbackDescription: description
+    });
+  }
+
+  if (options.onDynamicOutlineEnabledChange && !hiddenSettingKeys.has("dynamic-outline")) {
+    const dynamicOutlineToggle = document.createElement("input");
+    dynamicOutlineToggle.className = "b3-switch fn__flex-center";
+    dynamicOutlineToggle.type = "checkbox";
+    dynamicOutlineToggle.checked = Boolean(options.dynamicOutlineEnabled);
+
+    const followKeyInfoToggle = document.createElement("input");
+    followKeyInfoToggle.className = "b3-switch fn__flex-center";
+    followKeyInfoToggle.type = "checkbox";
+    followKeyInfoToggle.checked = Boolean(options.dynamicOutlineFollowKeyInfo);
+
+    const updateFollowState = (enabled: boolean) => {
+      if (enabled) {
+        followKeyInfoToggle.removeAttribute("disabled");
+      } else {
+        followKeyInfoToggle.setAttribute("disabled", "true");
+      }
+    };
+    updateFollowState(Boolean(options.dynamicOutlineEnabled));
+
+    dynamicOutlineToggle.addEventListener("change", () => {
+      const isEnabled = dynamicOutlineToggle.checked;
+      updateFollowState(isEnabled);
+      options.onDynamicOutlineEnabledChange?.(isEnabled);
+    });
+
+    followKeyInfoToggle.addEventListener("change", () => {
+      options.onDynamicOutlineFollowKeyInfoChange?.(followKeyInfoToggle.checked);
+    });
+
+    const outlineControlWrap = createElement(
+      "div",
+      "doc-assistant-settings__dynamic-outline-control"
+    );
+    outlineControlWrap.append(dynamicOutlineToggle);
+    const outlineDesc =
+      "开启后在文档编辑区右边缘显示微型 Minimap 大纲标尺，悬浮可展开层级标题大纲并支持点击跳转和钉住。";
+
+    setting.addItem({
+      title: "灵动大纲",
+      description: outlineDesc,
+      actionElement: outlineControlWrap
+    });
+    hostNormalizedRows.push({
+      element: outlineControlWrap,
+      fallbackDescription: outlineDesc
+    });
+
+    const followControlWrap = createElement(
+      "div",
+      "doc-assistant-settings__dynamic-outline-follow-control"
+    );
+    followControlWrap.append(followKeyInfoToggle);
+    const followDesc =
+      "开启后，灵动大纲显示内容与侧栏“关键内容”Dock 当前选择的过滤类型保持一致；关闭时默认显示层级标题大纲。";
+
+    setting.addItem({
+      title: "灵动大纲：跟随关键内容",
+      description: followDesc,
+      actionElement: followControlWrap
+    });
+    hostNormalizedRows.push({
+      element: followControlWrap,
+      fallbackDescription: followDesc
     });
   }
 

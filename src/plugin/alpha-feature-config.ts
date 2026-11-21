@@ -4,7 +4,8 @@ export type HiddenPluginSettingKey =
   | "ai-service" |
   "debug-mode" |
   "floating-text" |
-  "mouse-gesture";
+  "mouse-gesture" |
+  "dynamic-outline";
 
 export type AlphaFeatureHideConfig = {
   hiddenActionKeys: ActionKey[];
