@@ -162,4 +162,43 @@ describe("dynamic-outline-controller", () => {
 
     controller.destroy();
   });
+
+  test("persists search within same doc and resets search across different docs", async () => {
+    configState.followKeyInfo = true;
+    const controller = new DynamicOutlineController(deps);
+    controller.syncActiveEditor();
+
+    await vi.waitFor(() => {
+      const searchInput = mockProtyleEl.querySelector(".doc-assistant-dynamic-outline__search-input") as HTMLInputElement;
+      expect(searchInput).not.toBeNull();
+    });
+
+    const searchInput = mockProtyleEl.querySelector(".doc-assistant-dynamic-outline__search-input") as HTMLInputElement;
+    searchInput.value = "重点";
+    searchInput.dispatchEvent(new Event("input"));
+
+    let items = mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__item");
+    expect(items.length).toBe(1);
+
+    // Document edited in same doc -> refreshData retains search query
+    controller.notifyDocEdited();
+    vi.advanceTimersByTime(1550);
+    await vi.waitFor(() => {
+      items = mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__item");
+      expect(items.length).toBe(1);
+      expect(searchInput.value).toBe("重点");
+    });
+
+    // Switch to another document -> resets search
+    (deps.getCurrentDocId as any).mockReturnValue("doc-456");
+    await controller.refreshData();
+
+    await vi.waitFor(() => {
+      expect(searchInput.value).toBe("");
+      items = mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__item");
+      expect(items.length).toBe(2);
+    });
+
+    controller.destroy();
+  });
 });

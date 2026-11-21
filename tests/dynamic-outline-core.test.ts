@@ -4,7 +4,9 @@ import {
   buildDynamicOutlineItems,
   calculateViewportIndicator,
   estimateGlobalDocumentProgress,
+  filterDynamicOutlineItems,
   findActiveOutlineItemIndex,
+  highlightMatchRanges,
   parseHeadingLevel
 } from "@/core/dynamic-outline-core";
 
@@ -186,6 +188,114 @@ describe("dynamic-outline-core", () => {
       // 绝不能跳到 1.0，应保持在最后一个锚点附近（<= 0.47）
       expect(progressAtBottom).toBeLessThan(0.48);
       expect(progressAtBottom).toBeGreaterThanOrEqual(0.35);
+    });
+  });
+
+  describe("filterDynamicOutlineItems", () => {
+    const outlineItems = [
+      { id: "1", blockId: "b-1", text: "项目背景与目标", type: "title" as const, level: 1 as const, posRatio: 0, order: 10 },
+      { id: "2", blockId: "b-2", text: "系统架构总体设计", type: "title" as const, level: 1 as const, posRatio: 0.2, order: 20 },
+      { id: "3", blockId: "b-3", text: "前端架构模块", type: "title" as const, level: 2 as const, posRatio: 0.4, order: 30 },
+      { id: "4", blockId: "b-4", text: "后端微服务体系", type: "title" as const, level: 2 as const, posRatio: 0.6, order: 40 },
+      { id: "5", blockId: "b-5", text: "Docker 部署指南", type: "title" as const, level: 3 as const, posRatio: 0.8, order: 50 }
+    ];
+
+    test("returns all items when query is empty or whitespace", () => {
+      const emptyResult = filterDynamicOutlineItems(outlineItems, "");
+      expect(emptyResult).toHaveLength(5);
+      expect(emptyResult.every((r) => !r.isAncestor)).toBe(true);
+
+      const whitespaceResult = filterDynamicOutlineItems(outlineItems, "   ");
+      expect(whitespaceResult).toHaveLength(5);
+    });
+
+    test("matches by direct Chinese keyword substring and returns matchRange", () => {
+      const results = filterDynamicOutlineItems(outlineItems, "架构");
+      expect(results).toHaveLength(2);
+      expect(results[0].item.text).toBe("系统架构总体设计");
+      expect(results[0].matchRange).toBeDefined();
+      expect(results[1].item.text).toBe("前端架构模块");
+    });
+
+    test("matches by pinyin initials (首字母) like xtjg", () => {
+      const results = filterDynamicOutlineItems(outlineItems, "xtjg");
+      expect(results).toHaveLength(1);
+      expect(results[0].item.text).toBe("系统架构总体设计");
+      expect(results[0].matchRange).toEqual([0, 3]);
+    });
+
+    test("matches by pinyin full spell (全拼) and case-insensitively", () => {
+      const results = filterDynamicOutlineItems(outlineItems, "houduan");
+      expect(results).toHaveLength(1);
+      expect(results[0].item.text).toBe("后端微服务体系");
+
+      const upperResult = filterDynamicOutlineItems(outlineItems, "DOCKER");
+      expect(upperResult).toHaveLength(1);
+      expect(upperResult[0].item.text).toBe("Docker 部署指南");
+    });
+
+    test("compact mode only returns directly matched items", () => {
+      // "部署" only matches Docker 部署指南 (H3)
+      const results = filterDynamicOutlineItems(outlineItems, "部署", { showTreeContext: false });
+      expect(results).toHaveLength(1);
+      expect(results[0].item.text).toBe("Docker 部署指南");
+      expect(results[0].isAncestor).toBe(false);
+    });
+
+    test("tree context mode retains ancestor parent headers", () => {
+      // Docker 部署指南 (level 3) matches "部署"
+      // Its ancestors are: 后端微服务体系 (level 2) and 系统架构总体设计 (level 1)
+      const results = filterDynamicOutlineItems(outlineItems, "部署", { showTreeContext: true });
+      expect(results).toHaveLength(3);
+      expect(results[0].item.text).toBe("系统架构总体设计");
+      expect(results[0].isAncestor).toBe(true);
+      expect(results[0].matchRange).toBeUndefined();
+
+      expect(results[1].item.text).toBe("后端微服务体系");
+      expect(results[1].isAncestor).toBe(true);
+      expect(results[1].matchRange).toBeUndefined();
+
+      expect(results[2].item.text).toBe("Docker 部署指南");
+      expect(results[2].isAncestor).toBe(false);
+      expect(results[2].matchRange).toBeDefined();
+    });
+
+    test("returns empty array when no item matches", () => {
+      const results = filterDynamicOutlineItems(outlineItems, "xyz不存在的内容123");
+      expect(results).toHaveLength(0);
+    });
+  });
+
+  describe("highlightMatchRanges", () => {
+    test("returns single unhighlighted part when range is missing or text empty", () => {
+      expect(highlightMatchRanges("")).toEqual([]);
+      expect(highlightMatchRanges("hello")).toEqual([{ text: "hello", highlight: false }]);
+      expect(highlightMatchRanges("hello", undefined)).toEqual([{ text: "hello", highlight: false }]);
+    });
+
+    test("splits text with highlighted segment in middle", () => {
+      const parts = highlightMatchRanges("系统架构总体设计", [2, 3]);
+      expect(parts).toEqual([
+        { text: "系统", highlight: false },
+        { text: "架构", highlight: true },
+        { text: "总体设计", highlight: false }
+      ]);
+    });
+
+    test("handles match at start of text", () => {
+      const parts = highlightMatchRanges("Docker 部署指南", [0, 5]);
+      expect(parts).toEqual([
+        { text: "Docker", highlight: true },
+        { text: " 部署指南", highlight: false }
+      ]);
+    });
+
+    test("handles match at end of text", () => {
+      const parts = highlightMatchRanges("前端架构模块", [4, 5]);
+      expect(parts).toEqual([
+        { text: "前端架构", highlight: false },
+        { text: "模块", highlight: true }
+      ]);
     });
   });
 });

@@ -213,4 +213,41 @@ describe("dynamic-outline-view", () => {
 
     handle.destroy();
   });
+
+  test("keeps outline flyout visible when mouse leaves during input focus or IME composition", () => {
+    const handle = createDynamicOutlineView(parent, { onItemClick: vi.fn() });
+    const container = parent.querySelector(".doc-assistant-dynamic-outline") as HTMLElement;
+    const flyout = parent.querySelector(".doc-assistant-dynamic-outline__flyout") as HTMLElement;
+    const searchInput = parent.querySelector(".doc-assistant-dynamic-outline__search-input") as HTMLInputElement;
+
+    // 打开面板
+    container.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(flyout.classList.contains("is-open")).toBe(true);
+
+    // 聚焦输入框
+    searchInput.focus();
+
+    // 鼠标移出容器
+    container.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(350);
+    // 因为 searchInput 处于聚焦状态，大纲面板保持显示，不消失
+    expect(flyout.classList.contains("is-open")).toBe(true);
+
+    // 中文输入法状态下 (compositionstart)
+    searchInput.dispatchEvent(new CompositionEvent("compositionstart"));
+    container.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(350);
+    expect(flyout.classList.contains("is-open")).toBe(true);
+
+    // 中文输入结束
+    searchInput.dispatchEvent(new CompositionEvent("compositionend"));
+
+    // 输入框失焦且鼠标在外部时，面板才平滑关闭
+    searchInput.blur();
+    searchInput.dispatchEvent(new Event("blur"));
+    vi.advanceTimersByTime(500);
+    expect(flyout.classList.contains("is-open")).toBe(false);
+
+    handle.destroy();
+  });
 });

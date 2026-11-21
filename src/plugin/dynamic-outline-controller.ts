@@ -36,6 +36,7 @@ export class DynamicOutlineController {
   private currentItems: DynamicOutlineItem[] = [];
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private refreshRequestId = 0;
+  private lastDocId = "";
 
   constructor(private readonly deps: DynamicOutlineControllerDeps) {}
 
@@ -242,7 +243,7 @@ export class DynamicOutlineController {
       const effectiveRatio =
         typeof progressRatio === "number" ?
           progressRatio :
-          (scrollHeight - clientHeight > 0 ? scrollTop / (scrollHeight - clientHeight) : 0);
+            (scrollHeight - clientHeight > 0 ? scrollTop / (scrollHeight - clientHeight) : 0);
       const activeIdx = findActiveOutlineItemIndex(this.currentItems, effectiveRatio);
       this.view.setActiveIndex(activeIdx);
     }
@@ -256,9 +257,16 @@ export class DynamicOutlineController {
     const docId = this.deps.getCurrentDocId();
     if (!docId) {
       this.currentItems = [];
+      this.lastDocId = "";
+      this.view.resetSearch();
       this.view.setItems([], "文档大纲");
       return;
     }
+
+    if (this.lastDocId && this.lastDocId !== docId) {
+      this.view.resetSearch();
+    }
+    this.lastDocId = docId;
 
     const requestId = ++this.refreshRequestId;
     const config = this.deps.getConfig();
@@ -323,5 +331,6 @@ export class DynamicOutlineController {
     this.onScrollHandler = undefined;
     this.onInputHandler = undefined;
     this.currentItems = [];
+    this.lastDocId = "";
   }
 }

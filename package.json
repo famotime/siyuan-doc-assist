@@ -25,7 +25,8 @@
     "preinstall": "npx --yes only-allow pnpm"
   },
   "dependencies": {
-    "marked": "^18.0.11"
+    "marked": "^18.0.11",
+    "pinyin-match": "^1.2.10"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.8.1",
@@ -35,6 +36,7 @@
     "eslint-plugin-perfectionist": "^4.2.0",
     "fast-glob": "^3.2.12",
     "jsdom": "^28.1.0",
+    "jszip": "^3.10.1",
     "minimist": "^1.2.8",
     "rollup-plugin-livereload": "^2.0.5",
     "sass": "^1.62.1",
@@ -43,8 +45,7 @@
     "vite": "^6.2.1",
     "vite-plugin-static-copy": "^0.15.0",
     "vite-plugin-zip-pack": "^1.0.5",
-    "vitest": "^3.2.4",
-    "jszip": "^3.10.1"
+    "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@10.18.3"
 }

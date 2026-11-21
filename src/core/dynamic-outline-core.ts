@@ -1,3 +1,4 @@
+import PinyinMatch from "pinyin-match";
 import {
   filterKeyInfoItems,
   KeyInfoFilter,
@@ -182,8 +183,8 @@ export function calculateViewportIndicator(
   const maxScroll = scrollHeight - clientHeight;
   const scrollRatio =
     typeof overrideProgressRatio === "number" ?
-      Math.max(0, Math.min(1, overrideProgressRatio)) :
-      Math.max(0, Math.min(1, scrollTop / maxScroll));
+        Math.max(0, Math.min(1, overrideProgressRatio)) :
+        Math.max(0, Math.min(1, scrollTop / maxScroll));
   const availableTrack = trackHeight - height;
   const top = scrollRatio * availableTrack;
 
@@ -213,4 +214,117 @@ export function findActiveOutlineItemIndex(
     }
   }
   return activeIdx;
+}
+
+export type FilteredOutlineItem = {
+  item: DynamicOutlineItem;
+  matchRange?: [number, number];
+  isAncestor?: boolean;
+};
+
+export type FilterOutlineOptions = {
+  showTreeContext?: boolean;
+};
+
+export function filterDynamicOutlineItems(
+  items: DynamicOutlineItem[],
+  query: string,
+  options?: FilterOutlineOptions
+): FilteredOutlineItem[] {
+  if (!items || items.length === 0) {
+    return [];
+  }
+
+  const trimmed = (query || "").trim();
+  if (!trimmed) {
+    return items.map((item) => ({ item, isAncestor: false }));
+  }
+
+  const directMatches = new Map<number, [number, number]>();
+  items.forEach((item, index) => {
+    const matched = PinyinMatch.match(item.text, trimmed);
+    if (matched) {
+      directMatches.set(index, matched);
+    }
+  });
+
+  if (options?.showTreeContext) {
+    const includedIndices = new Set<number>();
+    const ancestorIndices = new Set<number>();
+
+    for (const matchIdx of directMatches.keys()) {
+      includedIndices.add(matchIdx);
+      const matchItem = items[matchIdx];
+      let targetLevel = matchItem.level > 0 ? matchItem.level : 1;
+
+      for (let j = matchIdx - 1; j >= 0; j--) {
+        const candidate = items[j];
+        if (candidate.level > 0 && candidate.level < targetLevel) {
+          includedIndices.add(j);
+          if (!directMatches.has(j)) {
+            ancestorIndices.add(j);
+          }
+          targetLevel = candidate.level;
+          if (targetLevel === 1) {
+            break;
+          }
+        }
+      }
+    }
+
+    const sortedIndices = Array.from(includedIndices).sort((a, b) => a - b);
+    return sortedIndices.map((idx) => {
+      const isAncestor = ancestorIndices.has(idx);
+      return {
+        item: items[idx],
+        matchRange: isAncestor ? undefined : directMatches.get(idx),
+        isAncestor
+      };
+    });
+  }
+
+  const result: FilteredOutlineItem[] = [];
+  items.forEach((item, index) => {
+    const matchRange = directMatches.get(index);
+    if (matchRange) {
+      result.push({
+        item,
+        matchRange,
+        isAncestor: false
+      });
+    }
+  });
+  return result;
+}
+
+export function highlightMatchRanges(
+  text: string,
+  matchRange?: [number, number]
+): { text: string; highlight: boolean }[] {
+  if (!text) {
+    return [];
+  }
+  if (!matchRange || matchRange.length < 2) {
+    return [{ text, highlight: false }];
+  }
+
+  const rawStart = matchRange[0];
+  const rawEnd = matchRange[1];
+  const start = Math.max(0, Math.min(text.length - 1, rawStart));
+  const end = Math.max(0, Math.min(text.length - 1, rawEnd));
+
+  if (start > end) {
+    return [{ text, highlight: false }];
+  }
+
+  const parts: { text: string; highlight: boolean }[] = [];
+  if (start > 0) {
+    parts.push({ text: text.slice(0, start), highlight: false });
+  }
+  parts.push({ text: text.slice(start, end + 1), highlight: true });
+  if (end + 1 < text.length) {
+    parts.push({ text: text.slice(end + 1), highlight: false });
+  }
+
+  return parts;
 }
