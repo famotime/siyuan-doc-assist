@@ -729,8 +729,11 @@
 .doc-assistant-keyinfo__footer-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 6px 8px;
   border-radius: 999px;
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -854,9 +857,23 @@
 }
 
 .doc-assistant-keyinfo__footer-icon {
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   line-height: 1;
   color: var(--keyinfo-footer-color);
   text-shadow: 0 0 6px color-mix(in srgb, var(--keyinfo-footer-color) 50%, transparent);
+}
+
+.doc-assistant-keyinfo__footer-icon-svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
 }
 

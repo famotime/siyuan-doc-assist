@@ -6,6 +6,7 @@ import {
   showMessage
 } from "siyuan";
 import pluginInfo from "@/../plugin.json";
+import { DOC_ASSIST_ICON_SVG } from "@/icons";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
 import {
   DocActionEnabledState,
@@ -304,6 +305,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onDocTreeMenu: this.onDocTreeMenu,
       onBlockIconMenu: this.onBlockIconMenu
     });
+    this.addIcons(DOC_ASSIST_ICON_SVG);
     this.keyInfoController.registerDock(this);
 
     registerPluginCommands({

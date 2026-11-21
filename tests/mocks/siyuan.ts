@@ -49,6 +49,7 @@ export class Plugin {
 
   addCommand(): void {}
   addDock(): void {}
+  addIcons(): void {}
 
   async loadData(storageName: string): Promise<any> {
     return this.storage.get(storageName);

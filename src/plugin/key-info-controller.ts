@@ -20,6 +20,7 @@ import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { ProtyleLike } from "@/plugin/doc-context";
 import { buildCanvasFromKeyInfoItems, preprocessItemsForCanvas } from "@/services/canvas-generator";
 import type { CanvasPluginLike } from "@/services/canvas-plugin-resolver";
+import { DOC_ASSIST_ICON_ID } from "@/icons";
 import { getDocReadonlyState } from "@/services/kernel";
 import { getDocKeyInfo } from "@/services/key-info";
 import { createKeyInfoDock, KeyInfoDockHandle } from "@/ui/key-info-dock";
@@ -65,7 +66,7 @@ export class KeyInfoController {
       data: {},
       config: {
         title: "文档助手",
-        icon: "iconList",
+        icon: DOC_ASSIST_ICON_ID,
         position: "RightTop",
         size: {
           width: 320,

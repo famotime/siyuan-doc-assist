@@ -29,6 +29,29 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: string }> = [
   { key: "ref", label: "引用", icon: "引" }
 ];
 
+const FOOTER_LUCIDE_ICONS = {
+  refresh:
+    '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />',
+  export:
+    '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M12 18v-6" /><path d="m9 15 3 3 3-3" />',
+  canvas:
+    '<rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" />'
+};
+
+function createFooterIconNode(innerSvg: string): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.classList.add("doc-assistant-keyinfo__footer-icon-svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.innerHTML = innerSvg;
+  return svg;
+}
+
 export type KeyInfoDockChrome = {
   root: HTMLDivElement;
   entryAnimationTimer: number;
@@ -211,34 +234,42 @@ export function createKeyInfoDockChrome(
   footer.className = "doc-assistant-keyinfo__footer";
   const refreshBtn = document.createElement("button");
   refreshBtn.className =
-    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--refresh";
+    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--refresh ariaLabel";
+  refreshBtn.setAttribute("aria-label", "重新提取当前文档关键信息");
+  refreshBtn.setAttribute("data-position", "parent");
   const refreshIcon = document.createElement("span");
   refreshIcon.className = "doc-assistant-keyinfo__footer-icon";
-  refreshIcon.textContent = "↻";
+  refreshIcon.appendChild(createFooterIconNode(FOOTER_LUCIDE_ICONS.refresh));
   const refreshLabel = document.createElement("span");
   refreshLabel.textContent = "刷新";
   refreshBtn.appendChild(refreshIcon);
   refreshBtn.appendChild(refreshLabel);
   refreshBtn.addEventListener("click", callbacks.onRefresh);
+
   const exportBtn = document.createElement("button");
   exportBtn.className =
-    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--export";
+    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--export ariaLabel";
+  exportBtn.setAttribute("aria-label", "将关键信息导出为 Markdown 文档");
+  exportBtn.setAttribute("data-position", "parent");
   const exportIcon = document.createElement("span");
   exportIcon.className = "doc-assistant-keyinfo__footer-icon";
-  exportIcon.textContent = "⬇";
+  exportIcon.appendChild(createFooterIconNode(FOOTER_LUCIDE_ICONS.export));
   const exportLabel = document.createElement("span");
-  exportLabel.textContent = "导出 MD";
+  exportLabel.textContent = "导出";
   exportBtn.appendChild(exportIcon);
   exportBtn.appendChild(exportLabel);
   exportBtn.addEventListener("click", callbacks.onExport);
+
   const canvasBtn = document.createElement("button");
   canvasBtn.className =
-    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--canvas";
+    "b3-button b3-button--outline b3-button--small doc-assistant-keyinfo__footer-btn doc-assistant-keyinfo__footer-btn--canvas ariaLabel";
+  canvasBtn.setAttribute("aria-label", "将关键信息发送至「无界」插件生成画板");
+  canvasBtn.setAttribute("data-position", "parent");
   const canvasIcon = document.createElement("span");
   canvasIcon.className = "doc-assistant-keyinfo__footer-icon";
-  canvasIcon.textContent = "◆";
+  canvasIcon.appendChild(createFooterIconNode(FOOTER_LUCIDE_ICONS.canvas));
   const canvasLabel = document.createElement("span");
-  canvasLabel.textContent = "生成Canvas";
+  canvasLabel.textContent = "无界";
   canvasBtn.appendChild(canvasIcon);
   canvasBtn.appendChild(canvasLabel);
   canvasBtn.addEventListener("click", callbacks.onGenerateCanvas);

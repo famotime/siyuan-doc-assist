@@ -1,0 +1,10 @@
+export const DOC_ASSIST_ICON_ID = "iconDocAssist";
+
+export const DOC_ASSIST_ICON_SVG = `<symbol id="${DOC_ASSIST_ICON_ID}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="0.833" stroke-linecap="round" stroke-linejoin="round">
+  <g>
+    <rect x="1.75" y="2.5" width="12.5" height="11" rx="2"/>
+    <line x1="7.5" y1="2.5" x2="7.5" y2="13.5"/>
+    <line x1="4" y1="5.5" x2="5.25" y2="5.5"/>
+    <line x1="4" y1="8.5" x2="5.25" y2="8.5"/>
+  </g>
+</symbol>`;

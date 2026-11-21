@@ -76,6 +76,62 @@ describe("key-info-dock controls", () => {
     host.remove();
   });
 
+  test("renders footer buttons with concise labels, lucide svg icons, and tooltips", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const onGenerateCanvas = vi.fn();
+    const dock = createKeyInfoDock(host, { onExport: () => {}, onGenerateCanvas });
+
+    const refreshBtn = host.querySelector(
+      ".doc-assistant-keyinfo__footer-btn--refresh"
+    ) as HTMLButtonElement | null;
+    const exportBtn = host.querySelector(
+      ".doc-assistant-keyinfo__footer-btn--export"
+    ) as HTMLButtonElement | null;
+    const canvasBtn = host.querySelector(
+      ".doc-assistant-keyinfo__footer-btn--canvas"
+    ) as HTMLButtonElement | null;
+
+    expect(refreshBtn).not.toBeNull();
+    expect(exportBtn).not.toBeNull();
+    expect(canvasBtn).not.toBeNull();
+
+    expect(refreshBtn?.textContent).toContain("刷新");
+    expect(exportBtn?.textContent).toContain("导出");
+    expect(canvasBtn?.textContent).toContain("无界");
+
+    expect(refreshBtn?.classList.contains("ariaLabel")).toBe(true);
+    expect(exportBtn?.classList.contains("ariaLabel")).toBe(true);
+    expect(canvasBtn?.classList.contains("ariaLabel")).toBe(true);
+
+    expect(refreshBtn?.getAttribute("aria-label")).toBe("重新提取当前文档关键信息");
+    expect(exportBtn?.getAttribute("aria-label")).toBe("将关键信息导出为 Markdown 文档");
+    expect(canvasBtn?.getAttribute("aria-label")).toBe("将关键信息发送至「无界」插件生成画板");
+
+    expect(refreshBtn?.title).toBe("");
+    expect(exportBtn?.title).toBe("");
+    expect(canvasBtn?.title).toBe("");
+
+    const refreshSvg = refreshBtn?.querySelector(".doc-assistant-keyinfo__footer-icon-svg");
+    const exportSvg = exportBtn?.querySelector(".doc-assistant-keyinfo__footer-icon-svg");
+    const canvasSvg = canvasBtn?.querySelector(".doc-assistant-keyinfo__footer-icon-svg");
+
+    expect(refreshSvg).not.toBeNull();
+    expect(exportSvg).not.toBeNull();
+    expect(canvasSvg).not.toBeNull();
+
+    expect(refreshSvg?.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(exportSvg?.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(canvasSvg?.getAttribute("viewBox")).toBe("0 0 24 24");
+
+    canvasBtn?.click();
+    expect(onGenerateCanvas).toHaveBeenCalledTimes(1);
+
+    dock.destroy();
+    host.remove();
+  });
+
   test("updates tab and filter active state from dock state and user clicks", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
