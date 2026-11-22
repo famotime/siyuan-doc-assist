@@ -1,4 +1,5 @@
 import { ClipboardHistoryItem } from "@/core/clipboard-core";
+import { createGenerationGuard } from "@/core/generation-guard-core";
 import {
   buildDynamicOutlineItems,
   DynamicOutlineConfig,
@@ -59,6 +60,7 @@ export type DynamicOutlineControllerDeps = {
 
 export class DynamicOutlineController {
   private view?: DynamicOutlineViewHandle;
+  private activeProtyle?: ProtyleLike;
   private currentProtyleElement?: HTMLElement;
   private scrollContainer?: HTMLElement;
   private additionalScrollContainer?: HTMLElement;
@@ -68,8 +70,9 @@ export class DynamicOutlineController {
   private currentOpenDocRefs: OpenDocTabRef[] = [];
   private viewMode: DynamicOutlineViewMode = "outline";
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private refreshRequestId = 0;
-  private recentDocsRequestId = 0;
+  private readonly refreshGuard = createGenerationGuard();
+  private readonly recentDocsGuard = createGenerationGuard();
+  private readonly clipboardGuard = createGenerationGuard();
   private lastDocId = "";
 
   constructor(private readonly deps: DynamicOutlineControllerDeps) {}
@@ -93,6 +96,7 @@ export class DynamicOutlineController {
       return;
     }
 
+    this.activeProtyle = targetProtyle;
     if (this.currentProtyleElement === protyleElement && this.view) {
       void this.refreshData(targetProtyle);
       return;
@@ -152,6 +156,7 @@ export class DynamicOutlineController {
       mountContainer.style.position = "relative";
     }
 
+    this.activeProtyle = protyle || this.activeProtyle || this.deps.getCurrentProtyle();
     this.currentProtyleElement = protyleElement;
     const config = this.deps.getConfig();
     const allowedModes = normalizeDynamicOutlineViewModes(config.viewModes);
@@ -166,7 +171,7 @@ export class DynamicOutlineController {
       initialOpenDocsExpanded: config.openDocsExpanded ?? true,
       initialRecentDocsExpanded: config.recentDocsExpanded ?? false,
       onItemClick: (item) => {
-        const activeProtyle = protyle || this.deps.getCurrentProtyle();
+        const activeProtyle = this.activeProtyle || this.deps.getCurrentProtyle();
         this.deps.navigateBlock(item.blockId, activeProtyle);
       },
       onOpenDocClick: (docItem: OpenDocTabItem) => {
@@ -185,14 +190,14 @@ export class DynamicOutlineController {
       onViewModeChange: (mode) => {
         this.viewMode = mode;
         if (mode === "open-docs") {
-          this.refreshOpenDocs(protyle || this.deps.getCurrentProtyle());
+          this.refreshOpenDocs(this.activeProtyle || this.deps.getCurrentProtyle());
         } else if (mode === "clipboard") {
           void this.refreshClipboard();
         }
       },
       onFlyoutOpen: () => {
         if (this.viewMode === "open-docs") {
-          this.refreshOpenDocs(protyle || this.deps.getCurrentProtyle());
+          this.refreshOpenDocs(this.activeProtyle || this.deps.getCurrentProtyle());
         } else if (this.viewMode === "clipboard") {
           void this.refreshClipboard();
         }
@@ -201,13 +206,13 @@ export class DynamicOutlineController {
         void this.deps.setPosition?.(nextPos);
       },
       onJumpToTop: () => {
-        this.jumpToTop(protyle);
+        this.jumpToTop(this.activeProtyle);
       },
       onJumpToBottom: () => {
-        this.jumpToBottom(protyle);
+        this.jumpToBottom(this.activeProtyle);
       },
       onFloatSelectedText: () => {
-        this.deps.onFloatSelectedText?.(protyle || this.deps.getCurrentProtyle());
+        this.deps.onFloatSelectedText?.(this.activeProtyle || this.deps.getCurrentProtyle());
       },
       onClipboardCopy: async (item) => {
         return (await this.deps.onClipboardCopy?.(item)) || { ok: false, reason: "剪贴板服务不可用" };
@@ -394,10 +399,10 @@ export class DynamicOutlineController {
     if (!this.deps.getRecentDocs) {
       return;
     }
-    const requestId = ++this.recentDocsRequestId;
+    const requestId = this.recentDocsGuard.begin();
     void this.deps.getRecentDocs().then(
       (recentDocs) => {
-        if (requestId !== this.recentDocsRequestId || !this.view) {
+        if (!this.recentDocsGuard.isCurrent(requestId) || !this.view) {
           return;
         }
         this.view.setRecentDocs(recentDocs || []);
@@ -413,8 +418,12 @@ export class DynamicOutlineController {
       return;
     }
     if (this.deps.ensureClipboardLoaded) {
+      const requestId = this.clipboardGuard.begin();
       const items = await this.deps.ensureClipboardLoaded();
-      this.view?.setClipboardItems(items);
+      if (!this.clipboardGuard.isCurrent(requestId) || !this.view) {
+        return;
+      }
+      this.view.setClipboardItems(items);
       return;
     }
     if (this.deps.getClipboardItems) {
@@ -458,11 +467,11 @@ export class DynamicOutlineController {
     }
     this.lastDocId = docId;
 
-    const requestId = ++this.refreshRequestId;
+    const requestId = this.refreshGuard.begin();
 
     try {
       const result = await this.deps.fetchDocKeyInfo(docId, protyle);
-      if (requestId !== this.refreshRequestId || !this.view) {
+      if (!this.refreshGuard.isCurrent(requestId) || !this.view) {
         return;
       }
 
@@ -495,6 +504,9 @@ export class DynamicOutlineController {
   }
 
   public destroy() {
+    this.refreshGuard.invalidateAll();
+    this.recentDocsGuard.invalidateAll();
+    this.clipboardGuard.invalidateAll();
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
@@ -514,6 +526,7 @@ export class DynamicOutlineController {
 
     this.view?.destroy();
     this.view = undefined;
+    this.activeProtyle = undefined;
     this.currentProtyleElement = undefined;
     this.scrollContainer = undefined;
     this.additionalScrollContainer = undefined;

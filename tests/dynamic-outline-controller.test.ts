@@ -348,4 +348,30 @@ describe("dynamic-outline-controller", () => {
 
     controller.destroy();
   });
+
+  test("destroy invalidates in-flight refreshClipboard and syncActiveEditor refreshes protyle reference", async () => {
+    let releaseClipboard!: (items: any[]) => void;
+    deps.ensureClipboardLoaded = vi.fn(
+      () => new Promise<any[]>((resolve) => {
+        releaseClipboard = resolve;
+      })
+    );
+
+    const protyleA = { element: mockProtyleEl, label: "A" } as any;
+    const protyleB = { element: mockProtyleEl, label: "B" } as any;
+
+    const controller = new DynamicOutlineController(deps);
+    controller.syncActiveEditor(protyleA);
+    await vi.waitFor(() => expect(mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__item")).toHaveLength(1));
+
+    // Reuse same element with new protyle object.
+    controller.syncActiveEditor(protyleB);
+    (mockProtyleEl.querySelector(".doc-assistant-dynamic-outline__item") as HTMLElement).click();
+    expect(deps.navigateBlock).toHaveBeenLastCalledWith("b-1", protyleB);
+
+    const pendingClipboard = controller.refreshClipboard();
+    controller.destroy();
+    releaseClipboard([{ id: "c1", kind: "text", createdAt: 1, updatedAt: 1, favorited: false, signature: "s", previewText: "hi" }]);
+    await expect(pendingClipboard).resolves.toBeUndefined();
+  });
 });
