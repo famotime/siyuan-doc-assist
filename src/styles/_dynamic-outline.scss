@@ -538,10 +538,17 @@
 
   &__list {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-anchor: none;
     padding: 6px 4px;
     margin: 0;
     list-style: none;
+  }
+
+  &__virtual-spacer {
+    flex-shrink: 0;
+    pointer-events: none;
   }
 
   &__item {

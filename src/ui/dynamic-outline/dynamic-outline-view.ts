@@ -344,6 +344,7 @@ export function createDynamicOutlineView(
   let selectedRowElement: HTMLElement | null = null;
   let outlineRenderPending = false;
   let outlineVirtualActive = false;
+  let measuredRowHeight = OUTLINE_ROW_HEIGHT_PX;
   let lastRenderedRange: { start: number; end: number } | null = null;
   const tickEntries: Array<{ el: HTMLElement; representedIds: string[] }> = [];
 
@@ -751,7 +752,17 @@ export function createDynamicOutlineView(
     });
   };
 
-  const renderOutlineList = () => {
+  const replaceListChildren = (node: Node) => {
+    if (typeof list.replaceChildren === "function") {
+      list.replaceChildren(node);
+      return;
+    }
+    list.innerHTML = "";
+    list.appendChild(node);
+  };
+
+  const renderOutlineList = (scrollTopOverride?: number) => {
+    itemElements.length = 0;
     itemElementByFilteredIndex.clear();
     activeRowElement = null;
     selectedRowElement = null;
@@ -765,17 +776,20 @@ export function createDynamicOutlineView(
       empty.textContent = searchQuery.trim() ?
           (isZh ? "未匹配到相关章节" : "No matching chapters") :
           (isZh ? "暂无大纲内容" : "No outline items");
-      list.appendChild(empty);
+      replaceListChildren(empty);
       return;
     }
 
     // 浮岛未展开且标题数较多时延迟构建 DOM，展开瞬间再渲染
     if (!isFlyoutVisible() && filteredItems.length > OUTLINE_LAZY_RENDER_THRESHOLD) {
       outlineRenderPending = true;
+      replaceListChildren(document.createDocumentFragment());
       return;
     }
     outlineRenderPending = false;
 
+    const targetScrollTop =
+      scrollTopOverride !== undefined ? scrollTopOverride : list.scrollTop;
     const isFiltering = searchQuery.trim().length > 0;
     const expandableIds = !isFiltering ? currentExpandableIds : new Set<string>();
     const hasAnyExpandable = expandableIds.size > 0;
@@ -785,9 +799,9 @@ export function createDynamicOutlineView(
     const windowRange = isVirtual ?
         computeVirtualOutlineWindow({
           totalCount: filteredItems.length,
-          scrollTop: list.scrollTop,
+          scrollTop: targetScrollTop,
           viewportHeight: list.clientHeight || 420,
-          rowHeight: OUTLINE_ROW_HEIGHT_PX
+          rowHeight: measuredRowHeight
         }) :
         {
           startIndex: 0,
@@ -805,6 +819,7 @@ export function createDynamicOutlineView(
       fragment.appendChild(topSpacer);
     }
 
+    let firstRowEl: HTMLElement | null = null;
     for (let index = windowRange.startIndex; index < windowRange.endIndex; index += 1) {
       const fItem = filteredItems[index];
       const item = fItem.item;
@@ -866,20 +881,40 @@ export function createDynamicOutlineView(
       appendHighlightedText(textSpan, item.text, fItem.matchRange);
       row.appendChild(textSpan);
 
+      if (!firstRowEl) {
+        firstRowEl = row;
+      }
       fragment.appendChild(row);
       itemElements.push(row);
       itemElementByFilteredIndex.set(index, row);
     }
 
+    let bottomSpacerEl: HTMLElement | null = null;
     if (windowRange.bottomSpacerHeight > 0) {
-      const bottomSpacer = document.createElement("div");
-      bottomSpacer.className = "doc-assistant-dynamic-outline__virtual-spacer";
-      bottomSpacer.setAttribute("aria-hidden", "true");
-      bottomSpacer.style.height = `${windowRange.bottomSpacerHeight}px`;
-      fragment.appendChild(bottomSpacer);
+      bottomSpacerEl = document.createElement("div");
+      bottomSpacerEl.className = "doc-assistant-dynamic-outline__virtual-spacer";
+      bottomSpacerEl.setAttribute("aria-hidden", "true");
+      bottomSpacerEl.style.height = `${windowRange.bottomSpacerHeight}px`;
+      fragment.appendChild(bottomSpacerEl);
     }
 
-    list.appendChild(fragment);
+    replaceListChildren(fragment);
+    if (isVirtual && firstRowEl) {
+      const rect = firstRowEl.getBoundingClientRect?.();
+      const rowBoxHeight = rect && rect.height > 0 ? Math.round(rect.height) + 1 : 0;
+      if (rowBoxHeight > 0 && rowBoxHeight !== measuredRowHeight) {
+        measuredRowHeight = rowBoxHeight;
+        if (bottomSpacerEl) {
+          bottomSpacerEl.style.height = `${Math.max(
+            0,
+            (filteredItems.length - windowRange.endIndex) * measuredRowHeight
+          )}px`;
+        }
+      }
+    }
+    if (targetScrollTop > 0 && list.scrollTop !== targetScrollTop) {
+      list.scrollTop = targetScrollTop;
+    }
     outlineVirtualActive = isVirtual;
     lastRenderedRange = { start: windowRange.startIndex, end: windowRange.endIndex };
   };
@@ -933,11 +968,12 @@ export function createDynamicOutlineView(
     if (viewMode !== "outline" || !outlineVirtualActive) {
       return;
     }
+    const currentScrollTop = list.scrollTop;
     const nextRange = computeVirtualOutlineWindow({
       totalCount: filteredItems.length,
-      scrollTop: list.scrollTop,
+      scrollTop: currentScrollTop,
       viewportHeight: list.clientHeight || 420,
-      rowHeight: OUTLINE_ROW_HEIGHT_PX
+      rowHeight: measuredRowHeight
     });
     if (
       lastRenderedRange &&
@@ -946,9 +982,7 @@ export function createDynamicOutlineView(
     ) {
       return;
     }
-    list.innerHTML = "";
-    itemElements.length = 0;
-    renderOutlineList();
+    renderOutlineList(currentScrollTop);
   };
 
   list.addEventListener("scroll", () => {
@@ -967,10 +1001,15 @@ export function createDynamicOutlineView(
 
   const renderList = () => {
     docPopover.resetListState();
+    syncModeControls();
+
+    if (viewMode === "outline") {
+      renderOutlineList();
+      return;
+    }
+
     list.innerHTML = "";
     itemElements.length = 0;
-
-    syncModeControls();
 
     if (viewMode === "open-docs") {
       visibleDocEntries = renderOpenDocsPanel({
@@ -1039,13 +1078,11 @@ export function createDynamicOutlineView(
       }
       if (outlineVirtualActive && !itemElementByFilteredIndex.has(selectedFilteredIndex)) {
         const viewportH = list.clientHeight || 420;
-        list.scrollTop = Math.max(
+        const targetScrollTop = Math.max(
           0,
-          selectedFilteredIndex * OUTLINE_ROW_HEIGHT_PX - Math.floor(viewportH / 2)
+          selectedFilteredIndex * measuredRowHeight - Math.floor(viewportH / 2)
         );
-        list.innerHTML = "";
-        itemElements.length = 0;
-        renderOutlineList();
+        renderOutlineList(targetScrollTop);
       }
       const targetRow = itemElementByFilteredIndex.get(selectedFilteredIndex);
       if (targetRow) {

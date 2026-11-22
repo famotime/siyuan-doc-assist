@@ -958,4 +958,76 @@ describe("dynamic-outline-view", () => {
 
     handle.destroy();
   });
+
+  test("preserves list scrollTop across virtual window updates when scrolling down large outlines", () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    try {
+      const handle = createDynamicOutlineView(parent, { onItemClick: vi.fn() });
+      const largeItems: DynamicOutlineItem[] = Array.from({ length: 300 }, (_, i) => ({
+        id: `h-${i}`,
+        blockId: `b-${i}`,
+        text: `章节 ${i}`,
+        type: "title",
+        level: 1,
+        posRatio: i / 299,
+        order: i
+      }));
+
+      handle.setItems(largeItems, "文档大纲");
+      const container = parent.querySelector(".doc-assistant-dynamic-outline") as HTMLElement;
+      container.dispatchEvent(new MouseEvent("mouseenter"));
+
+      const list = parent.querySelector(".doc-assistant-dynamic-outline__list") as HTMLElement;
+      // 模拟 Chromium 行为：若通过 innerHTML = "" 清空容器，scrollHeight 归零导致 scrollTop 被强制重置为 0
+      const replaceSpy = vi.spyOn(list, "replaceChildren");
+      let simulatedScrollTop = 0;
+      Object.defineProperty(list, "scrollTop", {
+        configurable: true,
+        get: () => simulatedScrollTop,
+        set: (value: number) => {
+          simulatedScrollTop = value;
+        }
+      });
+      const innerHtmlSetterSpy = vi.fn();
+      const origDesc = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML");
+      Object.defineProperty(list, "innerHTML", {
+        configurable: true,
+        get: () => origDesc?.get?.call(list) ?? "",
+        set: (value: string) => {
+          innerHtmlSetterSpy(value);
+          if (value === "") {
+            simulatedScrollTop = 0;
+          }
+          origDesc?.set?.call(list, value);
+        }
+      });
+
+      // 向下滚动到第 150 项附近 (150 * 31 = 4650px)
+      list.scrollTop = 4650;
+      list.dispatchEvent(new Event("scroll"));
+      expect(rafCallbacks.length).toBe(1);
+      rafCallbacks.shift()?.(16);
+
+      // 必须使用 replaceChildren 原子替换，绝不调用 innerHTML = "" 重置 scrollTop
+      expect(innerHtmlSetterSpy).not.toHaveBeenCalled();
+      expect(replaceSpy).toHaveBeenCalled();
+      expect(list.scrollTop).toBe(4650);
+
+      const renderedIndices = Array.from(
+        parent.querySelectorAll(".doc-assistant-dynamic-outline__item")
+      ).map((el) => Number(el.getAttribute("data-filtered-index")));
+      expect(renderedIndices[0]).toBeGreaterThan(100);
+      expect(renderedIndices).toContain(150);
+
+      handle.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
