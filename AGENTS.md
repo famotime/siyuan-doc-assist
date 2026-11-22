@@ -49,6 +49,7 @@
   - `src/core/dock-doc-action-drag-core.ts` for drag/reorder model logic
 - Kernel access is funneled through `src/services/kernel.ts` and related `kernel-*` modules.
 - Floating window (`src/ui/floating-text/`, `src/services/floating-text/`): `floating-window-template.ts` assembles the HTML, `floating-window-client-script.ts` embeds the in-window ES5 script as a template string, `marked-source.ts` vendors the marked UMD bundle.
+- Dynamic outline (`src/ui/dynamic-outline/`, `src/plugin/dynamic-outline-controller.ts`, `src/core/dynamic-outline-core.ts`) & desktop clipboard monitor (`src/services/clipboard-monitor.ts`, `src/services/clipboard-runtime.ts`, `src/core/clipboard-codec-core.ts`, `src/core/clipboard-core.ts`).
 - **Dual-implementation rule**: floating-window search logic exists as a typed source of truth in `src/core/floating-text-search-core.ts` AND a hand-ported ES5 copy inside `floating-window-client-script.ts` (the iframe cannot import core modules). Both sides must be changed together; `tests/floating-window-search-parity.test.ts` guards the equivalence and will fail on drift.
 - Global styles enter through `src/index.scss` and are organized as feature partials in `src/styles/`.
 - Prefer keeping logic boundaries sharp:
