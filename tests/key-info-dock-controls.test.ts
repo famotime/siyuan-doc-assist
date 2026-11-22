@@ -572,4 +572,106 @@ describe("key-info-dock controls", () => {
     dock.destroy();
     host.remove();
   });
+
+  test("preserves collapsed group state across re-render and supports favorite and group drag reordering", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+
+    const onDocFavoriteActionReorder = vi.fn();
+    const onDocActionReorder = vi.fn();
+    const dock = createKeyInfoDock(host, {
+      onExport: () => {},
+      onDocFavoriteActionReorder,
+      onDocActionReorder
+    });
+
+    const docActions = [
+      {
+        key: "insert-backlinks",
+        label: "插入反链文档列表",
+        icon: "iconList",
+        group: "insert" as const,
+        groupLabel: "插入",
+        disabled: false,
+        menuRegistered: false,
+        menuToggleDisabled: false
+      },
+      {
+        key: "insert-child-docs",
+        label: "插入子文档列表",
+        icon: "iconList",
+        group: "insert" as const,
+        groupLabel: "插入",
+        disabled: false,
+        menuRegistered: false,
+        menuToggleDisabled: false
+      }
+    ];
+
+    dock.setState({
+      activeTab: "doc-process",
+      docActions,
+      favoriteActionKeys: ["insert-backlinks", "insert-child-docs"]
+    });
+
+    const favRows = host.querySelectorAll(
+      '.doc-assistant-keyinfo__action-row[data-favorite-copy="true"]'
+    ) as NodeListOf<HTMLDivElement>;
+    expect(favRows).toHaveLength(2);
+    favRows[0].getBoundingClientRect = () =>
+      ({ top: 0, height: 40, bottom: 40, left: 0, right: 100, width: 100, x: 0, y: 0, toJSON: () => {} } as DOMRect);
+
+    const dataTransfer = {
+      effectAllowed: "",
+      setData: vi.fn(),
+      getData: () => ""
+    };
+    favRows[1].dispatchEvent(Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer }));
+    favRows[0].dispatchEvent(
+      Object.assign(new Event("drop", { bubbles: true, cancelable: true }), {
+        clientY: 5,
+        dataTransfer
+      })
+    );
+    favRows[1].dispatchEvent(new Event("dragend", { bubbles: true }));
+    expect(onDocFavoriteActionReorder).toHaveBeenCalledWith([
+      "insert-child-docs",
+      "insert-backlinks"
+    ]);
+
+    const groupRows = host.querySelectorAll(
+      '.doc-assistant-keyinfo__action-row[data-favorite-copy="false"]'
+    ) as NodeListOf<HTMLDivElement>;
+    expect(groupRows).toHaveLength(2);
+    groupRows[0].getBoundingClientRect = () =>
+      ({ top: 0, height: 40, bottom: 40, left: 0, right: 100, width: 100, x: 0, y: 0, toJSON: () => {} } as DOMRect);
+    groupRows[1].dispatchEvent(Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer }));
+    groupRows[0].dispatchEvent(
+      Object.assign(new Event("drop", { bubbles: true, cancelable: true }), {
+        clientY: 5,
+        dataTransfer
+      })
+    );
+    groupRows[1].dispatchEvent(new Event("dragend", { bubbles: true }));
+    expect(onDocActionReorder).toHaveBeenCalledWith([
+      "insert-child-docs",
+      "insert-backlinks"
+    ]);
+
+    const insertToggle = host.querySelector(
+      '.doc-assistant-keyinfo__action-separator[data-group-key="insert"] button'
+    ) as HTMLButtonElement;
+    insertToggle.click();
+    expect(
+      host.querySelectorAll('.doc-assistant-keyinfo__action-row[data-favorite-copy="false"]')
+    ).toHaveLength(0);
+
+    dock.setState({ docActions });
+    expect(
+      host.querySelectorAll('.doc-assistant-keyinfo__action-row[data-favorite-copy="false"]')
+    ).toHaveLength(0);
+
+    dock.destroy();
+    host.remove();
+  });
 });

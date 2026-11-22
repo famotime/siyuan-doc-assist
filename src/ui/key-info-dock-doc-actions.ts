@@ -177,30 +177,221 @@ function resolveInsertBefore(row: HTMLDivElement, event: DragEvent): boolean {
   });
 }
 
-export function renderKeyInfoDockDocActions({
-  container,
-  actions,
-  favoriteActionKeys = [],
-  onDocActionClick,
-  runningActionKeys = [],
-  onDocActionFavoriteToggle,
-  onFavoriteActionsReorder,
-  onDocActionsReorder,
-  selectionPreservedActionKeys = new Set<string>()
-}: RenderDocActionsOptions) {
-  const clearDropIndicator = () => {
-    container
-      .querySelectorAll(".doc-assistant-keyinfo__action-row.is-drop-before, .doc-assistant-keyinfo__action-row.is-drop-after")
-      .forEach((node) => {
-        node.classList.remove("is-drop-before");
-        node.classList.remove("is-drop-after");
+function clearContainerDropIndicators(container: HTMLDivElement): void {
+  container
+    .querySelectorAll(".doc-assistant-keyinfo__action-row.is-drop-before, .doc-assistant-keyinfo__action-row.is-drop-after")
+    .forEach((node) => {
+      node.classList.remove("is-drop-before", "is-drop-after");
+    });
+  container
+    .querySelectorAll(".doc-assistant-keyinfo__action-separator.is-drop-target")
+    .forEach((node) => {
+      node.classList.remove("is-drop-target");
+    });
+}
+
+function setActionButtonRunning(button: HTMLButtonElement, running: boolean): void {
+  button.classList.toggle("is-running", running);
+  button.setAttribute("aria-busy", running ? "true" : "false");
+  let spinner = button.querySelector(".doc-assistant-keyinfo__action-running-spinner") as HTMLSpanElement | null;
+  if (running) {
+    if (!spinner) {
+      spinner = document.createElement("span");
+      spinner.className = "doc-assistant-keyinfo__action-running-spinner";
+      spinner.setAttribute("aria-hidden", "true");
+      button.appendChild(spinner);
+    }
+    return;
+  }
+  spinner?.remove();
+}
+
+function buildFavoriteButton(
+  action: DockDocAction,
+  isFavorited: boolean,
+  onToggle?: (actionKey: string, favorited: boolean) => void
+): HTMLButtonElement {
+  const favoriteButton = document.createElement("button");
+  favoriteButton.type = "button";
+  favoriteButton.className = "b3-button b3-button--small doc-assistant-keyinfo__action-favorite-btn";
+  if (isFavorited) {
+    favoriteButton.classList.add("is-active");
+  }
+  favoriteButton.textContent = isFavorited ? "★" : "☆";
+  favoriteButton.title = isFavorited ? "取消收藏" : "收藏到快捷区";
+  favoriteButton.setAttribute("aria-label", favoriteButton.title);
+  favoriteButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onToggle?.(action.key, !isFavorited);
+  });
+  return favoriteButton;
+}
+
+function buildActionButton(
+  action: DockDocAction,
+  params: {
+    running: boolean;
+    selectionPreservedActionKeys: ReadonlySet<string>;
+    onDocActionClick?: (actionKey: string) => void | Promise<void>;
+  }
+): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "b3-button doc-assistant-keyinfo__action-btn";
+
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "doc-assistant-keyinfo__action-icon";
+  iconWrap.appendChild(createActionIconNode(action));
+
+  const label = document.createElement("span");
+  label.className = "doc-assistant-keyinfo__action-label";
+  label.textContent = action.label;
+
+  button.append(iconWrap, label);
+  button.disabled = action.disabled;
+  button.title = formatActionTooltip(action.tooltip, action.label, action.disabledReason);
+  setActionButtonRunning(button, params.running);
+  button.addEventListener("mousedown", (event) => {
+    if (params.selectionPreservedActionKeys.has(action.key)) {
+      event.preventDefault();
+    }
+  });
+  button.addEventListener("click", () => {
+    if (action.disabled) {
+      return;
+    }
+    const result = params.onDocActionClick?.(action.key);
+    if (action.runInBackground && result && typeof result.then === "function") {
+      setActionButtonRunning(button, true);
+      result.finally(() => {
+        setActionButtonRunning(button, false);
       });
-    container
-      .querySelectorAll(".doc-assistant-keyinfo__action-separator.is-drop-target")
-      .forEach((node) => {
-        node.classList.remove("is-drop-target");
-      });
+    }
+  });
+  return button;
+}
+
+function bindSortableRowDragEvents(params: {
+  row: HTMLDivElement;
+  targetKey: string;
+  transferPayload: string;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  resolveSourceKey: (event: DragEvent) => string;
+  canDrop: (sourceKey: string, targetKey: string) => boolean;
+  onDrop: (sourceKey: string, insertBefore: boolean) => void;
+  clearDropIndicator: () => void;
+}): void {
+  const { row, targetKey, clearDropIndicator } = params;
+  row.draggable = true;
+
+  row.addEventListener("dragstart", (event) => {
+    params.onDragStart();
+    row.classList.add("is-dragging");
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", params.transferPayload);
+    }
+  });
+
+  row.addEventListener("dragend", () => {
+    params.onDragEnd();
+    row.classList.remove("is-dragging");
+    clearDropIndicator();
+  });
+
+  row.addEventListener("dragover", (event) => {
+    const sourceKey = params.resolveSourceKey(event as DragEvent);
+    if (!params.canDrop(sourceKey, targetKey)) {
+      clearDropIndicator();
+      return;
+    }
+    event.preventDefault();
+    clearDropIndicator();
+    row.classList.add(
+      resolveInsertBefore(row, event as DragEvent) ? "is-drop-before" : "is-drop-after"
+    );
+  });
+
+  row.addEventListener("dragleave", () => {
+    row.classList.remove("is-drop-before", "is-drop-after");
+  });
+
+  row.addEventListener("drop", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const sourceKey = params.resolveSourceKey(event as DragEvent);
+    if (!params.canDrop(sourceKey, targetKey)) {
+      clearDropIndicator();
+      return;
+    }
+    params.onDrop(sourceKey, resolveInsertBefore(row, event as DragEvent));
+    clearDropIndicator();
+  });
+}
+
+function buildActionSearchBox(params: {
+  container: HTMLDivElement;
+  searchKeyword: string;
+  onRerender: () => void;
+}): HTMLDivElement {
+  const { container, searchKeyword, onRerender } = params;
+  const wrapper = document.createElement("div");
+  wrapper.className = "doc-assistant-keyinfo__action-search";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "doc-assistant-keyinfo__action-search-input";
+  input.placeholder = "搜索命令…";
+  input.value = searchKeyword;
+  let isComposing = false;
+  const triggerSearch = () => {
+    actionSearchKeywordsByContainer.set(container, input.value);
+    onRerender();
   };
+  input.addEventListener("compositionstart", () => {
+    isComposing = true;
+  });
+  input.addEventListener("compositionend", () => {
+    isComposing = false;
+    triggerSearch();
+  });
+  input.addEventListener("input", () => {
+    if (!isComposing) {
+      triggerSearch();
+    }
+  });
+  wrapper.appendChild(input);
+  if (searchKeyword) {
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "doc-assistant-keyinfo__action-search-clear";
+    clearBtn.textContent = "×";
+    clearBtn.title = "清除搜索";
+    clearBtn.addEventListener("click", () => {
+      actionSearchKeywordsByContainer.set(container, "");
+      onRerender();
+    });
+    wrapper.appendChild(clearBtn);
+  }
+  return wrapper;
+}
+
+export function renderKeyInfoDockDocActions(options: RenderDocActionsOptions) {
+  const {
+    container,
+    actions,
+    favoriteActionKeys = [],
+    onDocActionClick,
+    runningActionKeys = [],
+    onDocActionFavoriteToggle,
+    onFavoriteActionsReorder,
+    onDocActionsReorder,
+    selectionPreservedActionKeys = new Set<string>()
+  } = options;
+
+  const clearDropIndicator = () => clearContainerDropIndicators(container);
+  const rerender = () => renderKeyInfoDockDocActions(options);
 
   const docActions = normalizeDocActionsByGroup(actions);
   const docActionMap = new Map(docActions.map((action) => [action.key, action]));
@@ -209,44 +400,30 @@ export function renderKeyInfoDockDocActions({
   const runningActionSet = new Set(runningActionKeys);
   const collapsedGroups = getCollapsedDocActionGroups(container);
   const dragState = getDragState(container);
+
   const toggleGroup = (groupKey: string) => {
     if (collapsedGroups.has(groupKey)) {
       collapsedGroups.delete(groupKey);
     } else {
       collapsedGroups.add(groupKey);
     }
-    renderKeyInfoDockDocActions({
-      container,
-      actions,
-      favoriteActionKeys,
-      onDocActionClick,
-      runningActionKeys,
-      onDocActionFavoriteToggle,
-      onFavoriteActionsReorder,
-      onDocActionsReorder,
-      selectionPreservedActionKeys
-    });
+    rerender();
   };
 
   const updateDocActionOrder = (next: DockDocAction[]) => {
-    if (!hasDocActionOrderChanged(docActions, next)) {
-      return;
+    if (hasDocActionOrderChanged(docActions, next)) {
+      onDocActionsReorder?.(next);
     }
-    onDocActionsReorder?.(next);
   };
 
   const resolveSourceKey = (event: DragEvent) =>
-    dragState.draggingKey ||
-    (event.dataTransfer?.getData("text/plain") || "").trim();
+    dragState.draggingKey || (event.dataTransfer?.getData("text/plain") || "").trim();
   const resolveFavoriteSourceKey = (event: DragEvent) => {
     if (dragState.draggingFavoriteKey) {
       return dragState.draggingFavoriteKey;
     }
     const raw = (event.dataTransfer?.getData("text/plain") || "").trim();
-    if (!raw.startsWith("favorite:")) {
-      return "";
-    }
-    return raw.slice("favorite:".length);
+    return raw.startsWith("favorite:") ? raw.slice("favorite:".length) : "";
   };
   const canDropToTarget = (sourceKey: string, targetKey: string) =>
     canDropDocActionWithinGroup(actionGroupMap, sourceKey, targetKey);
@@ -259,227 +436,83 @@ export function renderKeyInfoDockDocActions({
       favoriteActionSet.has(targetKey)
     );
 
-  const buildFavoriteButton = (
-    action: DockDocAction,
-    isFavorited: boolean
-  ): HTMLButtonElement => {
-    const favoriteButton = document.createElement("button");
-    favoriteButton.type = "button";
-    favoriteButton.className = "b3-button b3-button--small doc-assistant-keyinfo__action-favorite-btn";
-    if (isFavorited) {
-      favoriteButton.classList.add("is-active");
-    }
-    favoriteButton.textContent = isFavorited ? "★" : "☆";
-    favoriteButton.title = isFavorited ? "取消收藏" : "收藏到快捷区";
-    favoriteButton.setAttribute("aria-label", favoriteButton.title);
-    favoriteButton.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      onDocActionFavoriteToggle?.(action.key, !isFavorited);
-    });
-    return favoriteButton;
-  };
-
-  const setActionButtonRunning = (button: HTMLButtonElement, running: boolean): void => {
-    button.classList.toggle("is-running", running);
-    button.setAttribute("aria-busy", running ? "true" : "false");
-    let spinner = button.querySelector(".doc-assistant-keyinfo__action-running-spinner") as HTMLSpanElement | null;
-    if (running) {
-      if (!spinner) {
-        spinner = document.createElement("span");
-        spinner.className = "doc-assistant-keyinfo__action-running-spinner";
-        spinner.setAttribute("aria-hidden", "true");
-        button.appendChild(spinner);
-      }
-      return;
-    }
-    spinner?.remove();
-  };
-
-  const buildActionButton = (action: DockDocAction): HTMLButtonElement => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "b3-button doc-assistant-keyinfo__action-btn";
-
-    const iconWrap = document.createElement("span");
-    iconWrap.className = "doc-assistant-keyinfo__action-icon";
-    iconWrap.appendChild(createActionIconNode(action));
-
-    const label = document.createElement("span");
-    label.className = "doc-assistant-keyinfo__action-label";
-    label.textContent = action.label;
-
-    button.appendChild(iconWrap);
-    button.appendChild(label);
-    button.disabled = action.disabled;
-    button.title = formatActionTooltip(action.tooltip, action.label, action.disabledReason);
-    setActionButtonRunning(button, Boolean(action.runInBackground && runningActionSet.has(action.key)));
-    button.addEventListener("mousedown", (event) => {
-      if (!selectionPreservedActionKeys.has(action.key)) {
-        return;
-      }
-      event.preventDefault();
-    });
-    button.addEventListener("click", () => {
-      if (action.disabled) {
-        return;
-      }
-      const result = onDocActionClick?.(action.key);
-      if (action.runInBackground && result && typeof result.then === "function") {
-        setActionButtonRunning(button, true);
-        result.finally(() => {
-          setActionButtonRunning(button, false);
-        });
-      }
-    });
-    return button;
-  };
-
   const buildActionRow = (
     action: DockDocAction,
-    options: { favoriteCopy: boolean }
+    rowOptions: { favoriteCopy: boolean }
   ): HTMLDivElement => {
     const row = document.createElement("div");
     row.className = "doc-assistant-keyinfo__action-row";
     row.dataset.actionKey = action.key;
-    row.dataset.favoriteCopy = options.favoriteCopy ? "true" : "false";
+    row.dataset.favoriteCopy = rowOptions.favoriteCopy ? "true" : "false";
 
-    const favoriteButton = buildFavoriteButton(
-      action,
-      favoriteActionSet.has(action.key)
-    );
-    const actionButton = buildActionButton(action);
-
-    if (options.favoriteCopy) {
-      row.draggable = true;
-      const dragHandle = document.createElement("span");
-      dragHandle.className = "doc-assistant-keyinfo__action-drag-handle";
-      dragHandle.textContent = "⋮⋮";
-      dragHandle.title = "拖动收藏排序";
-      dragHandle.setAttribute("aria-hidden", "true");
-
-      row.addEventListener("dragstart", (event) => {
-        dragState.draggingFavoriteKey = action.key;
-        row.classList.add("is-dragging");
-        if (event.dataTransfer) {
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData("text/plain", `favorite:${action.key}`);
-        }
-      });
-
-      row.addEventListener("dragend", () => {
-        dragState.draggingFavoriteKey = "";
-        row.classList.remove("is-dragging");
-        clearDropIndicator();
-      });
-
-      row.addEventListener("dragover", (event) => {
-        const sourceKey = resolveFavoriteSourceKey(event as DragEvent);
-        if (!canDropToFavoriteTarget(sourceKey, action.key)) {
-          clearDropIndicator();
-          return;
-        }
-        event.preventDefault();
-        clearDropIndicator();
-        if (resolveInsertBefore(row, event as DragEvent)) {
-          row.classList.add("is-drop-before");
-        } else {
-          row.classList.add("is-drop-after");
-        }
-      });
-
-      row.addEventListener("dragleave", () => {
-        row.classList.remove("is-drop-before");
-        row.classList.remove("is-drop-after");
-      });
-
-      row.addEventListener("drop", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const sourceKey = resolveFavoriteSourceKey(event as DragEvent);
-        if (!canDropToFavoriteTarget(sourceKey, action.key)) {
-          clearDropIndicator();
-          return;
-        }
-        const next = reorderFavoriteActionKeys(
-          favoriteActionKeys,
-          sourceKey,
-          action.key,
-          resolveInsertBefore(row, event as DragEvent)
-        );
-        onFavoriteActionsReorder?.(next);
-        clearDropIndicator();
-      });
-
-      row.appendChild(dragHandle);
-      row.appendChild(favoriteButton);
-      row.appendChild(actionButton);
-      return row;
-    }
-
-    row.draggable = true;
     const dragHandle = document.createElement("span");
     dragHandle.className = "doc-assistant-keyinfo__action-drag-handle";
     dragHandle.textContent = "⋮⋮";
-    dragHandle.title = "拖动排序";
+    dragHandle.title = rowOptions.favoriteCopy ? "拖动收藏排序" : "拖动排序";
     dragHandle.setAttribute("aria-hidden", "true");
 
-    row.addEventListener("dragstart", (event) => {
-      dragState.draggingKey = action.key;
-      row.classList.add("is-dragging");
-      if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", action.key);
-      }
+    const favoriteButton = buildFavoriteButton(
+      action,
+      favoriteActionSet.has(action.key),
+      onDocActionFavoriteToggle
+    );
+    const actionButton = buildActionButton(action, {
+      running: Boolean(action.runInBackground && runningActionSet.has(action.key)),
+      selectionPreservedActionKeys,
+      onDocActionClick
     });
 
-    row.addEventListener("dragend", () => {
-      dragState.draggingKey = "";
-      row.classList.remove("is-dragging");
-      clearDropIndicator();
-    });
+    if (rowOptions.favoriteCopy) {
+      bindSortableRowDragEvents({
+        row,
+        targetKey: action.key,
+        transferPayload: `favorite:${action.key}`,
+        onDragStart: () => {
+          dragState.draggingFavoriteKey = action.key;
+        },
+        onDragEnd: () => {
+          dragState.draggingFavoriteKey = "";
+        },
+        resolveSourceKey: resolveFavoriteSourceKey,
+        canDrop: canDropToFavoriteTarget,
+        onDrop: (sourceKey, insertBefore) => {
+          const next = reorderFavoriteActionKeys(
+            favoriteActionKeys,
+            sourceKey,
+            action.key,
+            insertBefore
+          );
+          onFavoriteActionsReorder?.(next);
+        },
+        clearDropIndicator
+      });
+    } else {
+      bindSortableRowDragEvents({
+        row,
+        targetKey: action.key,
+        transferPayload: action.key,
+        onDragStart: () => {
+          dragState.draggingKey = action.key;
+        },
+        onDragEnd: () => {
+          dragState.draggingKey = "";
+        },
+        resolveSourceKey,
+        canDrop: canDropToTarget,
+        onDrop: (sourceKey, insertBefore) => {
+          const next = reorderDocActionsWithinGroup(
+            docActions,
+            sourceKey,
+            action.key,
+            insertBefore
+          );
+          updateDocActionOrder(next);
+        },
+        clearDropIndicator
+      });
+    }
 
-    row.addEventListener("dragover", (event) => {
-      const sourceKey = resolveSourceKey(event as DragEvent);
-      if (!canDropToTarget(sourceKey, action.key)) {
-        clearDropIndicator();
-        return;
-      }
-      event.preventDefault();
-      clearDropIndicator();
-      if (resolveInsertBefore(row, event as DragEvent)) {
-        row.classList.add("is-drop-before");
-      } else {
-        row.classList.add("is-drop-after");
-      }
-    });
-
-    row.addEventListener("dragleave", () => {
-      row.classList.remove("is-drop-before");
-      row.classList.remove("is-drop-after");
-    });
-
-    row.addEventListener("drop", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const sourceKey = resolveSourceKey(event as DragEvent);
-      if (!canDropToTarget(sourceKey, action.key)) {
-        clearDropIndicator();
-        return;
-      }
-      const next = reorderDocActionsWithinGroup(
-        docActions,
-        sourceKey,
-        action.key,
-        resolveInsertBefore(row, event as DragEvent)
-      );
-      updateDocActionOrder(next);
-      clearDropIndicator();
-    });
-
-    row.appendChild(dragHandle);
-    row.appendChild(favoriteButton);
-    row.appendChild(actionButton);
+    row.append(dragHandle, favoriteButton, actionButton);
     return row;
   };
 
@@ -495,15 +528,14 @@ export function renderKeyInfoDockDocActions({
 
   const fragment = document.createDocumentFragment();
   const favoriteCollapsed = collapsedGroups.has(FAVORITE_DOC_ACTION_GROUP_KEY);
-  const favoriteSeparator = buildGroupLabel({
-    text: "收藏",
-    groupKey: FAVORITE_DOC_ACTION_GROUP_KEY,
-    collapsed: favoriteCollapsed,
-    onToggle: () => {
-      toggleGroup(FAVORITE_DOC_ACTION_GROUP_KEY);
-    }
-  });
-  fragment.appendChild(favoriteSeparator);
+  fragment.appendChild(
+    buildGroupLabel({
+      text: "收藏",
+      groupKey: FAVORITE_DOC_ACTION_GROUP_KEY,
+      collapsed: favoriteCollapsed,
+      onToggle: () => toggleGroup(FAVORITE_DOC_ACTION_GROUP_KEY)
+    })
+  );
   if (!favoriteCollapsed) {
     const favoriteActions = favoriteActionKeys
       .map((key) => docActionMap.get(key))
@@ -522,67 +554,13 @@ export function renderKeyInfoDockDocActions({
   }
 
   const searchKeyword = (actionSearchKeywordsByContainer.get(container) || "").trim();
-  const buildSearchBox = (): HTMLDivElement => {
-    const wrapper = document.createElement("div");
-    wrapper.className = "doc-assistant-keyinfo__action-search";
-    const input = document.createElement("input");
-    input.type = "text";
-    input.className = "doc-assistant-keyinfo__action-search-input";
-    input.placeholder = "搜索命令…";
-    input.value = searchKeyword;
-    let isComposing = false;
-    const triggerSearch = () => {
-      actionSearchKeywordsByContainer.set(container, input.value);
-      renderKeyInfoDockDocActions({
-        container,
-        actions,
-        favoriteActionKeys,
-        onDocActionClick,
-        runningActionKeys,
-        onDocActionFavoriteToggle,
-        onFavoriteActionsReorder,
-        onDocActionsReorder,
-        selectionPreservedActionKeys
-      });
-    };
-    input.addEventListener("compositionstart", () => {
-      isComposing = true;
-    });
-    input.addEventListener("compositionend", () => {
-      isComposing = false;
-      triggerSearch();
-    });
-    input.addEventListener("input", () => {
-      if (!isComposing) {
-        triggerSearch();
-      }
-    });
-    wrapper.appendChild(input);
-    if (searchKeyword) {
-      const clearBtn = document.createElement("button");
-      clearBtn.type = "button";
-      clearBtn.className = "doc-assistant-keyinfo__action-search-clear";
-      clearBtn.textContent = "×";
-      clearBtn.title = "清除搜索";
-      clearBtn.addEventListener("click", () => {
-        actionSearchKeywordsByContainer.set(container, "");
-        renderKeyInfoDockDocActions({
-          container,
-          actions,
-          favoriteActionKeys,
-          onDocActionClick,
-          runningActionKeys,
-          onDocActionFavoriteToggle,
-          onFavoriteActionsReorder,
-          onDocActionsReorder,
-          selectionPreservedActionKeys
-        });
-      });
-      wrapper.appendChild(clearBtn);
-    }
-    return wrapper;
-  };
-  fragment.appendChild(buildSearchBox());
+  fragment.appendChild(
+    buildActionSearchBox({
+      container,
+      searchKeyword,
+      onRerender: rerender
+    })
+  );
 
   const lowerKeyword = searchKeyword.toLowerCase();
   const matchesKeyword = (action: DockDocAction): boolean => {
@@ -611,9 +589,7 @@ export function renderKeyInfoDockDocActions({
         text: action.groupLabel,
         groupKey: action.group,
         collapsed: collapsedGroups.has(action.group),
-        onToggle: () => {
-          toggleGroup(action.group);
-        }
+        onToggle: () => toggleGroup(action.group)
       });
       separator.addEventListener("dragover", (event) => {
         const sourceKey = resolveSourceKey(event as DragEvent);
@@ -642,11 +618,7 @@ export function renderKeyInfoDockDocActions({
       });
       fragment.appendChild(separator);
     }
-    if (collapsedGroups.has(action.group)) {
-      previousGroup = action.group;
-      return;
-    }
-    if (!matchesKeyword(action)) {
+    if (collapsedGroups.has(action.group) || !matchesKeyword(action)) {
       previousGroup = action.group;
       return;
     }
@@ -673,10 +645,9 @@ export function renderKeyInfoDockDocActions({
   }
 
   container.ondragover = (event) => {
-    if (!dragState.draggingKey) {
-      return;
+    if (dragState.draggingKey) {
+      event.preventDefault();
     }
-    event.preventDefault();
   };
 
   container.ondrop = (event) => {

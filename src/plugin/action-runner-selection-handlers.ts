@@ -1,4 +1,5 @@
 import { showMessage } from "siyuan";
+import { isHighRiskForMarkdownWrite } from "@/core/cleanup-preview-core";
 import { removeEmojiFromText } from "@/core/emoji-cleanup-core";
 import { buildMergeSelectedListBlocksPreview } from "@/core/list-block-merge-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
@@ -53,19 +54,6 @@ type StyleFailureDetail = {
 const styleLogger = createDocAssistantLogger("Style");
 const DELETE_BLOCK_CONCURRENCY = 6;
 
-function isHighRiskForMarkdownWrite(value: string): boolean {
-  if (!value) {
-    return false;
-  }
-  return (
-    /inline-memo/i.test(value) ||
-    /data-inline-memo-content/i.test(value) ||
-    /data-memo-content/i.test(value) ||
-    /data-memo=/i.test(value) ||
-    /\(\([^)]+\)\)\{:/.test(value)
-  );
-}
-
 function summarizeStyleFailures(failures: StyleFailureDetail[]): string {
   if (!failures.length) {
     return "";
@@ -103,45 +91,12 @@ function toTextTransform(
   };
 }
 
-function applySelectedBlocksSpacingCleanupFromDom(
-  protyle: ProtyleLike | undefined,
-  selectedIds: string[]
-): { cleanedBlockCount: number; removedCount: number } | null {
-  const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  const result = applyTextTransformToSelectedBlocks(root, selectedIds, toTextTransform(removeSpaceLikeChars));
-  if (!result) {
-    return null;
-  }
-  return { cleanedBlockCount: result.changedBlockCount, removedCount: result.changedCount };
-}
-
-function applyPartialSelectionSpacingCleanup(
-  protyle?: ProtyleLike
-): { handled: boolean; removedCount: number } {
-  const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  const result = applyTextTransformToPartialSelection(root, toTextTransform(removeSpaceLikeChars));
-  return { handled: result.handled, removedCount: result.changedCount };
-}
-
-function applySelectedBlocksEmojiCleanupFromDom(
-  protyle: ProtyleLike | undefined,
-  selectedIds: string[]
-): { cleanedBlockCount: number; removedCount: number } | null {
-  const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  const result = applyTextTransformToSelectedBlocks(root, selectedIds, toTextTransform(removeEmojiFromText));
-  if (!result) {
-    return null;
-  }
-  return { cleanedBlockCount: result.changedBlockCount, removedCount: result.changedCount };
-}
-
-function applyPartialSelectionEmojiCleanup(
-  protyle?: ProtyleLike
-): { handled: boolean; removedCount: number } {
-  const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  const result = applyTextTransformToPartialSelection(root, toTextTransform(removeEmojiFromText));
-  return { handled: result.handled, removedCount: result.changedCount };
-}
+type DomSelectionTextTransformMessages = {
+  partialChanged: (count: number) => string;
+  partialEmpty: string;
+  blocksChanged: (blockCount: number, count: number) => string;
+  blocksEmpty: string;
+};
 
 function applySelectedBlocksPunctuationToggleFromDom(
   protyle: ProtyleLike | undefined,
@@ -162,12 +117,90 @@ function applySelectedBlocksPunctuationToggleFromDom(
     convertChineseEnglishPunctuation(text, mode));
 }
 
-function applyPartialSelectionPunctuationToggle(
-  protyle?: ProtyleLike
-): { handled: boolean; changedCount: number } {
+function tryApplyDomSelectionTextTransform(
+  protyle: ProtyleLike | undefined,
+  explicitSelectedIds: string[],
+  options: {
+    applyPartial: (root: HTMLElement | undefined) => { handled: boolean; changedCount: number };
+    applyBlocks: (
+      root: HTMLElement | undefined,
+      selectedIds: string[]
+    ) => { changedBlockCount: number; changedCount: number } | null;
+    messages: DomSelectionTextTransformMessages;
+  }
+): boolean {
   const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-  return applyTextTransformToPartialSelection(root, (text) =>
-    convertChineseEnglishPunctuation(text, detectPunctuationToggleMode(text)));
+  if (!explicitSelectedIds.length) {
+    const partialResult = options.applyPartial(root);
+    if (partialResult.handled) {
+      if (partialResult.changedCount > 0) {
+        showMessage(options.messages.partialChanged(partialResult.changedCount), 5000, "info");
+      } else {
+        showMessage(options.messages.partialEmpty, 4000, "info");
+      }
+      return true;
+    }
+    return false;
+  }
+
+  const selectedBlockResult = options.applyBlocks(root, explicitSelectedIds);
+  if (!selectedBlockResult) {
+    return false;
+  }
+  if (selectedBlockResult.changedCount > 0) {
+    showMessage(
+      options.messages.blocksChanged(
+        selectedBlockResult.changedBlockCount,
+        selectedBlockResult.changedCount
+      ),
+      5000,
+      "info"
+    );
+  } else {
+    showMessage(options.messages.blocksEmpty, 4000, "info");
+  }
+  return true;
+}
+
+async function applyKramdownSelectionUpdates(
+  updates: Array<{ id: string; next: string; changedCount: number }>,
+  missingSourceCount: number,
+  messages: {
+    empty: string;
+    success: (blockCount: number, changedCount: number) => string;
+  }
+): Promise<void> {
+  if (!updates.length) {
+    if (missingSourceCount > 0) {
+      showMessage(`读取块源码失败，已跳过 ${missingSourceCount} 个块`, 6000, "error");
+      return;
+    }
+    showMessage(messages.empty, 4000, "info");
+    return;
+  }
+
+  let success = 0;
+  let failed = 0;
+  let changedCount = 0;
+  for (const item of updates) {
+    try {
+      await updateBlockMarkdown(item.id, item.next);
+      success += 1;
+      changedCount += item.changedCount;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  if (failed > 0 || missingSourceCount > 0) {
+    showMessage(
+      `处理完成：成功 ${success} 个块，失败 ${failed} 个块，跳过 ${missingSourceCount} 个块`,
+      7000,
+      "error"
+    );
+    return;
+  }
+  showMessage(messages.success(success, changedCount), 5000, "info");
 }
 
 export function createSelectionActionHandlers(
@@ -282,32 +315,21 @@ export function createSelectionActionHandlers(
 
   const handleRemoveSelectedSpacing = async (_docId: string, protyle?: ProtyleLike) => {
     const explicitSelectedIds = getExplicitlySelectedBlockIds(protyle);
-    if (!explicitSelectedIds.length) {
-      const partialResult = applyPartialSelectionSpacingCleanup(protyle);
-      if (partialResult.handled) {
-        if (partialResult.removedCount > 0) {
-          showMessage(`已清理选中内容，移除 ${partialResult.removedCount} 个字符`, 5000, "info");
-        } else {
-          showMessage("选中内容未发现可清理字符", 4000, "info");
+    const spacingTransform = toTextTransform(removeSpaceLikeChars);
+    if (
+      tryApplyDomSelectionTextTransform(protyle, explicitSelectedIds, {
+        applyPartial: (root) => applyTextTransformToPartialSelection(root, spacingTransform),
+        applyBlocks: (root, ids) => applyTextTransformToSelectedBlocks(root, ids, spacingTransform),
+        messages: {
+          partialChanged: (count) => `已清理选中内容，移除 ${count} 个字符`,
+          partialEmpty: "选中内容未发现可清理字符",
+          blocksChanged: (blockCount, count) =>
+            `已清理 ${blockCount} 个块，移除 ${count} 个字符`,
+          blocksEmpty: "未发现可清理字符"
         }
-        return;
-      }
-    }
-
-    if (explicitSelectedIds.length > 0) {
-      const selectedBlockResult = applySelectedBlocksSpacingCleanupFromDom(protyle, explicitSelectedIds);
-      if (selectedBlockResult) {
-        if (selectedBlockResult.removedCount > 0) {
-          showMessage(
-            `已清理 ${selectedBlockResult.cleanedBlockCount} 个块，移除 ${selectedBlockResult.removedCount} 个字符`,
-            5000,
-            "info"
-          );
-        } else {
-          showMessage("未发现可清理字符", 4000, "info");
-        }
-        return;
-      }
+      })
+    ) {
+      return;
     }
 
     const selectedIds = explicitSelectedIds.length ?
@@ -320,7 +342,7 @@ export function createSelectionActionHandlers(
 
     const rows = await getBlockKramdowns(selectedIds);
     const sourceMap = new Map(rows.map((item) => [item.id, item.kramdown || ""]));
-    const updates: Array<{ id: string; next: string; removedCount: number }> = [];
+    const updates: Array<{ id: string; next: string; changedCount: number }> = [];
     let missingSourceCount = 0;
     for (const id of selectedIds) {
       const source = sourceMap.get(id);
@@ -335,71 +357,33 @@ export function createSelectionActionHandlers(
       updates.push({
         id,
         next: cleaned.next,
-        removedCount: cleaned.removedCount
+        changedCount: cleaned.removedCount
       });
     }
 
-    if (!updates.length) {
-      if (missingSourceCount > 0) {
-        showMessage(`读取块源码失败，已跳过 ${missingSourceCount} 个块`, 6000, "error");
-        return;
-      }
-      showMessage("未发现可清理字符", 4000, "info");
-      return;
-    }
-
-    let success = 0;
-    let failed = 0;
-    let removedCount = 0;
-    for (const item of updates) {
-      try {
-        await updateBlockMarkdown(item.id, item.next);
-        success += 1;
-        removedCount += item.removedCount;
-      } catch {
-        failed += 1;
-      }
-    }
-
-    if (failed > 0 || missingSourceCount > 0) {
-      showMessage(
-        `处理完成：成功 ${success} 个块，失败 ${failed} 个块，跳过 ${missingSourceCount} 个块`,
-        7000,
-        "error"
-      );
-      return;
-    }
-    showMessage(`已清理 ${success} 个块，移除 ${removedCount} 个字符`, 5000, "info");
+    await applyKramdownSelectionUpdates(updates, missingSourceCount, {
+      empty: "未发现可清理字符",
+      success: (blockCount, count) => `已清理 ${blockCount} 个块，移除 ${count} 个字符`
+    });
   };
 
   const handleCleanEmoji = async (docId: string, protyle?: ProtyleLike) => {
     const explicitSelectedIds = getExplicitlySelectedBlockIds(protyle);
-    if (!explicitSelectedIds.length) {
-      const partialResult = applyPartialSelectionEmojiCleanup(protyle);
-      if (partialResult.handled) {
-        if (partialResult.removedCount > 0) {
-          showMessage(`已清理选中内容，移除 ${partialResult.removedCount} 个 Emoji 表情`, 5000, "info");
-        } else {
-          showMessage("选中内容未发现 Emoji 表情", 4000, "info");
+    const emojiTransform = toTextTransform(removeEmojiFromText);
+    if (
+      tryApplyDomSelectionTextTransform(protyle, explicitSelectedIds, {
+        applyPartial: (root) => applyTextTransformToPartialSelection(root, emojiTransform),
+        applyBlocks: (root, ids) => applyTextTransformToSelectedBlocks(root, ids, emojiTransform),
+        messages: {
+          partialChanged: (count) => `已清理选中内容，移除 ${count} 个 Emoji 表情`,
+          partialEmpty: "选中内容未发现 Emoji 表情",
+          blocksChanged: (blockCount, count) =>
+            `已清理 ${blockCount} 个块，移除 ${count} 个 Emoji 表情`,
+          blocksEmpty: "选中块未发现 Emoji 表情"
         }
-        return;
-      }
-    }
-
-    if (explicitSelectedIds.length > 0) {
-      const selectedBlockResult = applySelectedBlocksEmojiCleanupFromDom(protyle, explicitSelectedIds);
-      if (selectedBlockResult) {
-        if (selectedBlockResult.removedCount > 0) {
-          showMessage(
-            `已清理 ${selectedBlockResult.cleanedBlockCount} 个块，移除 ${selectedBlockResult.removedCount} 个 Emoji 表情`,
-            5000,
-            "info"
-          );
-        } else {
-          showMessage("选中块未发现 Emoji 表情", 4000, "info");
-        }
-        return;
-      }
+      })
+    ) {
+      return;
     }
 
     const rawSelectedIds = explicitSelectedIds.length ?
@@ -524,32 +508,22 @@ export function createSelectionActionHandlers(
 
   const handleToggleSelectedPunctuation = async (_docId: string, protyle?: ProtyleLike) => {
     const explicitSelectedIds = getExplicitlySelectedBlockIds(protyle);
-    if (!explicitSelectedIds.length) {
-      const partialResult = applyPartialSelectionPunctuationToggle(protyle);
-      if (partialResult.handled) {
-        if (partialResult.changedCount > 0) {
-          showMessage(`已互转选中内容标点 ${partialResult.changedCount} 处`, 5000, "info");
-        } else {
-          showMessage("选中内容未发现可互转标点", 4000, "info");
+    if (
+      tryApplyDomSelectionTextTransform(protyle, explicitSelectedIds, {
+        applyPartial: (root) =>
+          applyTextTransformToPartialSelection(root, (text) =>
+            convertChineseEnglishPunctuation(text, detectPunctuationToggleMode(text))),
+        applyBlocks: (_root, ids) => applySelectedBlocksPunctuationToggleFromDom(protyle, ids),
+        messages: {
+          partialChanged: (count) => `已互转选中内容标点 ${count} 处`,
+          partialEmpty: "选中内容未发现可互转标点",
+          blocksChanged: (blockCount, count) =>
+            `已处理 ${blockCount} 个块，转换 ${count} 处标点`,
+          blocksEmpty: "选中内容未发现可互转标点"
         }
-        return;
-      }
-    }
-
-    if (explicitSelectedIds.length > 0) {
-      const selectedBlockResult = applySelectedBlocksPunctuationToggleFromDom(protyle, explicitSelectedIds);
-      if (selectedBlockResult) {
-        if (selectedBlockResult.changedCount > 0) {
-          showMessage(
-            `已处理 ${selectedBlockResult.changedBlockCount} 个块，转换 ${selectedBlockResult.changedCount} 处标点`,
-            5000,
-            "info"
-          );
-        } else {
-          showMessage("选中内容未发现可互转标点", 4000, "info");
-        }
-        return;
-      }
+      })
+    ) {
+      return;
     }
 
     const selectedIds = explicitSelectedIds.length ?
@@ -563,37 +537,10 @@ export function createSelectionActionHandlers(
     const rows = await getBlockKramdowns(selectedIds);
     const sourceMap = new Map(rows.map((item) => [item.id, item.kramdown || ""]));
     const { updates, missingSourceCount } = buildPunctuationUpdates(selectedIds, sourceMap);
-    if (!updates.length) {
-      if (missingSourceCount > 0) {
-        showMessage(`读取块源码失败，已跳过 ${missingSourceCount} 个块`, 6000, "error");
-        return;
-      }
-      showMessage("选中内容未发现可互转标点", 4000, "info");
-      return;
-    }
-
-    let success = 0;
-    let failed = 0;
-    let changedCount = 0;
-    for (const item of updates) {
-      try {
-        await updateBlockMarkdown(item.id, item.next);
-        success += 1;
-        changedCount += item.changedCount;
-      } catch {
-        failed += 1;
-      }
-    }
-
-    if (failed > 0 || missingSourceCount > 0) {
-      showMessage(
-        `处理完成：成功 ${success} 个块，失败 ${failed} 个块，跳过 ${missingSourceCount} 个块`,
-        7000,
-        "error"
-      );
-      return;
-    }
-    showMessage(`已处理 ${success} 个块，转换 ${changedCount} 处标点`, 5000, "info");
+    await applyKramdownSelectionUpdates(updates, missingSourceCount, {
+      empty: "选中内容未发现可互转标点",
+      success: (blockCount, count) => `已处理 ${blockCount} 个块，转换 ${count} 处标点`
+    });
   };
 
   const handleToggleLinebreaksParagraphs = async (docId: string, protyle?: ProtyleLike) => {

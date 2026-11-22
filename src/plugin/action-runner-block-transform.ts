@@ -93,3 +93,84 @@ export async function applyMarkdownTransformToBlocks<T extends BlockTransformBas
     skippedRiskyIds
   };
 }
+
+export type DeleteBlocksWithTransactionFallbackOptions = {
+  docId: string;
+  protyle?: ProtyleLike;
+  blocks: Array<{ id: string }>;
+  deleteIds: string[];
+  getBlockDOMs: (ids: string[]) => Promise<Array<{ id: string; dom: string }>>;
+  deleteBlocksByIds: (
+    ids: string[],
+    options?: { concurrency?: number }
+  ) => Promise<{ deletedCount: number; failedIds: string[] }>;
+  concurrency?: number;
+};
+
+export type DeleteBlocksWithTransactionFallbackResult = {
+  usedTransaction: boolean;
+  deletedCount: number;
+  failedCount: number;
+};
+
+export async function deleteBlocksWithTransactionFallback(
+  options: DeleteBlocksWithTransactionFallbackOptions
+): Promise<DeleteBlocksWithTransactionFallbackResult> {
+  const {
+    docId,
+    protyle,
+    blocks,
+    deleteIds,
+    getBlockDOMs,
+    deleteBlocksByIds,
+    concurrency
+  } = options;
+
+  if (protyle) {
+    const doOperations: IOperation[] = [];
+    const undoOperations: IOperation[] = [];
+    let canUseTransaction = true;
+
+    const domRes = await getBlockDOMs(deleteIds);
+    const domMap = new Map(domRes.map((r) => [r.id, r.dom]));
+
+    for (const deleteId of deleteIds) {
+      const domStr = domMap.get(deleteId);
+      if (!domStr) {
+        console.warn(`[doc-assist] Fallback: Block ${deleteId} DOM not returned by backend`);
+        canUseTransaction = false;
+        break;
+      }
+
+      const blockIndex = blocks.findIndex((b) => b.id === deleteId);
+      const previousID = blockIndex > 0 ? blocks[blockIndex - 1].id : undefined;
+
+      doOperations.push({ action: "delete", id: deleteId });
+      undoOperations.push({
+        action: "insert",
+        id: deleteId,
+        data: domStr,
+        previousID,
+        parentID: docId
+      });
+    }
+
+    if (canUseTransaction && runProtyleTransaction(protyle, doOperations, undoOperations)) {
+      return {
+        usedTransaction: true,
+        deletedCount: deleteIds.length,
+        failedCount: 0
+      };
+    }
+  }
+
+  const deleteResult = await deleteBlocksByIds(
+    deleteIds,
+    concurrency !== undefined ? { concurrency } : undefined
+  );
+  return {
+    usedTransaction: false,
+    deletedCount: deleteResult.deletedCount,
+    failedCount: deleteResult.failedIds.length
+  };
+}

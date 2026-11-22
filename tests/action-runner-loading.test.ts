@@ -3664,4 +3664,56 @@ describe("action-runner loading guard", () => {
 
     expect(askConfirm).not.toHaveBeenCalled();
   });
+
+  test("remove-extra-blank-lines uses protyle transaction when DOMs are returned and falls back otherwise", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", content: "正文", markdown: "正文", resolved: true } as any,
+      { id: "b", type: "p", content: "", markdown: "", resolved: true } as any
+    ]);
+    getBlockDOMsMock.mockResolvedValueOnce([{ id: "b", dom: "<div data-node-id='b'></div>" }]);
+    const txSpy = vi.fn();
+    const protyle = { block: { rootID: "doc-1" }, transaction: txSpy } as any;
+    const runner = createRunner();
+
+    await runner.runAction("remove-extra-blank-lines" as any, undefined, protyle);
+    expect(txSpy).toHaveBeenCalledTimes(1);
+    expect(deleteBlocksByIdsMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("已去除 1 个空段落 (支持撤销)", 5000, "info");
+
+    // 当 getBlockDOMs 缺失某块 DOM 时，回退 deleteBlocksByIds
+    txSpy.mockClear();
+    getBlockDOMsMock.mockResolvedValueOnce([]);
+    deleteBlocksByIdsMock.mockResolvedValueOnce({ deletedCount: 1, failedIds: [] });
+    await runner.runAction("remove-extra-blank-lines" as any, undefined, protyle);
+    expect(txSpy).not.toHaveBeenCalled();
+    expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["b"], { concurrency: 6 });
+    expect(showMessageMock).toHaveBeenCalledWith("已成功去除 1 个空段落", 4000, "info");
+  });
+
+  test("delete-from-start-to-current uses protyle transaction and falls back when DOM is missing", async () => {
+    getChildBlocksByParentIdMock.mockResolvedValue([
+      { id: "a", type: "p", content: "前段", markdown: "前段", resolved: true } as any,
+      { id: "b", type: "p", content: "当前", markdown: "当前", resolved: true } as any
+    ]);
+    getBlockDOMsMock.mockResolvedValueOnce([
+      { id: "a", dom: "<div data-node-id='a'>前段</div>" },
+      { id: "b", dom: "<div data-node-id='b'>当前</div>" }
+    ]);
+    const txSpy = vi.fn();
+    const protyle = { block: { rootID: "doc-1", id: "b" }, transaction: txSpy } as any;
+    const runner = createRunner();
+
+    await runner.runAction("delete-from-start-to-current" as any, undefined, protyle);
+    expect(txSpy).toHaveBeenCalledTimes(1);
+    expect(deleteBlocksByIdsMock).not.toHaveBeenCalled();
+    expect(showMessageMock).toHaveBeenCalledWith("已删除 2 个段落 (支持撤销)", 5000, "info");
+
+    txSpy.mockClear();
+    getBlockDOMsMock.mockResolvedValueOnce([]);
+    deleteBlocksByIdsMock.mockResolvedValueOnce({ deletedCount: 2, failedIds: [] });
+    await runner.runAction("delete-from-start-to-current" as any, undefined, protyle);
+    expect(txSpy).not.toHaveBeenCalled();
+    expect(deleteBlocksByIdsMock).toHaveBeenCalledWith(["a", "b"], { concurrency: 6 });
+    expect(showMessageMock).toHaveBeenCalledWith("已删除 2 个段落", 5000, "info");
+  });
 });

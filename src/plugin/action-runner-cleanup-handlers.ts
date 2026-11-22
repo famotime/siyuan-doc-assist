@@ -31,9 +31,11 @@ import {
   insertBlockBefore,
   updateBlockMarkdown
 } from "@/services/kernel";
-import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
+import {
+  applyMarkdownTransformToBlocks,
+  deleteBlocksWithTransactionFallback
+} from "@/plugin/action-runner-block-transform";
 import { ACTION_CANCELLED, PartialActionHandlerMap } from "@/plugin/action-runner-dispatcher";
-import { IOperation, runProtyleTransaction } from "@/plugin/transaction-runner";
 import { ProtyleLike } from "@/plugin/doc-context";
 
 import type { ConfirmDetailItem } from "@/plugin/action-runner";
@@ -79,57 +81,29 @@ export function createCleanupActionHandlers(
     }
     deps.setBusy?.(true);
 
-    if (protyle) {
-      const doOperations: IOperation[] = [];
-      const undoOperations: IOperation[] = [];
-      let canUseTransaction = true;
-
-      const domRes = await getBlockDOMs(result.deleteIds);
-      const domMap = new Map(domRes.map((r) => [r.id, r.dom]));
-
-      for (const deleteId of result.deleteIds) {
-        const domStr = domMap.get(deleteId);
-        if (!domStr) {
-          console.warn(`[doc-assist] Fallback: Block ${deleteId} DOM not returned by backend`);
-          canUseTransaction = false;
-          break;
-        }
-
-        const blockIndex = blocks.findIndex((b) => b.id === deleteId);
-        let previousID: string | undefined;
-        if (blockIndex > 0) {
-          previousID = blocks[blockIndex - 1].id;
-        }
-
-        doOperations.push({ action: "delete", id: deleteId });
-        undoOperations.push({
-          action: "insert",
-          id: deleteId,
-          data: domStr,
-          previousID,
-          parentID: docId
-        });
-      }
-
-      if (canUseTransaction && runProtyleTransaction(protyle, doOperations, undoOperations)) {
-        showMessage(`已去除 ${result.removedCount} 个空段落 (支持撤销)`, 5000, "info");
-        return;
-      }
-    }
-
-    const deleteResult = await deleteBlocksByIds(result.deleteIds, {
+    const deleteOutcome = await deleteBlocksWithTransactionFallback({
+      docId,
+      protyle,
+      blocks,
+      deleteIds: result.deleteIds,
+      getBlockDOMs,
+      deleteBlocksByIds,
       concurrency: DELETE_BLOCK_CONCURRENCY
     });
-    if (deleteResult.failedIds.length > 0) {
+    if (deleteOutcome.usedTransaction) {
+      showMessage(`已去除 ${result.removedCount} 个空段落 (支持撤销)`, 5000, "info");
+      return;
+    }
+    if (deleteOutcome.failedCount > 0) {
       showMessage(
-        `去除空行部分完成：成功 ${deleteResult.deletedCount} 个，失败 ${deleteResult.failedIds.length} 个`,
+        `去除空行部分完成：成功 ${deleteOutcome.deletedCount} 个，失败 ${deleteOutcome.failedCount} 个`,
         7000,
         "error"
       );
       return;
     }
 
-    showMessage(`已成功去除 ${deleteResult.deletedCount} 个空段落`, 4000, "info");
+    showMessage(`已成功去除 ${deleteOutcome.deletedCount} 个空段落`, 4000, "info");
   };
 
   const handleInsertBlankBeforeHeadings = async (docId: string) => {

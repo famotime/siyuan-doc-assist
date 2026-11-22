@@ -1,5 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
-import { applyMarkdownTransformToBlocks } from "@/plugin/action-runner-block-transform";
+import {
+  applyMarkdownTransformToBlocks,
+  deleteBlocksWithTransactionFallback
+} from "@/plugin/action-runner-block-transform";
 
 describe("action-runner-block-transform", () => {
   test("updates changed blocks and aggregates successful change count", async () => {
@@ -84,5 +87,56 @@ describe("action-runner-block-transform", () => {
       failedBlockCount: 0,
       skippedRiskyIds: []
     });
+  });
+
+  test("deleteBlocksWithTransactionFallback commits undoable transaction when all DOMs exist", async () => {
+    const transaction = vi.fn();
+    const getBlockDOMs = vi.fn().mockResolvedValue([
+      { id: "b", dom: "<div data-node-id='b'>B</div>" }
+    ]);
+    const deleteBlocksByIds = vi.fn();
+
+    const result = await deleteBlocksWithTransactionFallback({
+      docId: "doc-1",
+      protyle: { transaction } as any,
+      blocks: [{ id: "a" }, { id: "b" }],
+      deleteIds: ["b"],
+      getBlockDOMs,
+      deleteBlocksByIds,
+      concurrency: 6
+    });
+
+    expect(result).toEqual({ usedTransaction: true, deletedCount: 1, failedCount: 0 });
+    expect(transaction).toHaveBeenCalledWith(
+      [{ action: "delete", id: "b" }],
+      [{
+        action: "insert",
+        id: "b",
+        data: "<div data-node-id='b'>B</div>",
+        previousID: "a",
+        parentID: "doc-1"
+      }]
+    );
+    expect(deleteBlocksByIds).not.toHaveBeenCalled();
+  });
+
+  test("deleteBlocksWithTransactionFallback falls back to deleteBlocksByIds when DOM is missing", async () => {
+    const transaction = vi.fn();
+    const getBlockDOMs = vi.fn().mockResolvedValue([]);
+    const deleteBlocksByIds = vi.fn().mockResolvedValue({ deletedCount: 1, failedIds: ["c"] });
+
+    const result = await deleteBlocksWithTransactionFallback({
+      docId: "doc-1",
+      protyle: { transaction } as any,
+      blocks: [{ id: "a" }, { id: "b" }, { id: "c" }],
+      deleteIds: ["b", "c"],
+      getBlockDOMs,
+      deleteBlocksByIds,
+      concurrency: 6
+    });
+
+    expect(transaction).not.toHaveBeenCalled();
+    expect(deleteBlocksByIds).toHaveBeenCalledWith(["b", "c"], { concurrency: 6 });
+    expect(result).toEqual({ usedTransaction: false, deletedCount: 1, failedCount: 1 });
   });
 });
