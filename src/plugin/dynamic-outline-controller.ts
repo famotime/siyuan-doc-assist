@@ -1,3 +1,4 @@
+import { ClipboardHistoryItem } from "@/core/clipboard-core";
 import {
   buildDynamicOutlineItems,
   DynamicOutlineConfig,
@@ -6,6 +7,7 @@ import {
   DynamicOutlineViewMode,
   estimateGlobalDocumentProgress,
   findActiveOutlineItemIndex,
+  normalizeDynamicOutlineViewModes,
   OpenDocTabItem,
   ProgressAnchor
 } from "@/core/dynamic-outline-core";
@@ -29,6 +31,13 @@ export type DynamicOutlineControllerDeps = {
   activateOpenDocTab?: (item: OpenDocTabRef) => Promise<unknown> | void;
   getConfig: () => DynamicOutlineConfig;
   setPosition?: (position: DynamicOutlinePosition) => Promise<void> | void;
+  getClipboardItems?: () => ClipboardHistoryItem[];
+  ensureClipboardLoaded?: () => Promise<ClipboardHistoryItem[]>;
+  onClipboardCopy?: (item: ClipboardHistoryItem) => Promise<{ ok: boolean; reason?: string }>;
+  onClipboardToggleFavorite?: (id: string) => Promise<ClipboardHistoryItem[]>;
+  onClipboardDelete?: (id: string) => Promise<ClipboardHistoryItem[]>;
+  onClipboardClearNonFavorites?: () => Promise<ClipboardHistoryItem[]>;
+  resolveClipboardImageUrl?: (imageFileName?: string) => string | null;
 };
 
 export class DynamicOutlineController {
@@ -90,11 +99,25 @@ export class DynamicOutlineController {
     }, 1500);
   }
 
+  public notifyClipboardChanged(items: ClipboardHistoryItem[]) {
+    this.view?.setClipboardItems(items);
+  }
+
   public refresh() {
     const config = this.deps.getConfig();
     if (!config.enabled || this.deps.isMobile()) {
       this.destroy();
       return;
+    }
+    const allowedModes = normalizeDynamicOutlineViewModes(config.viewModes);
+    if (!allowedModes.includes(this.viewMode)) {
+      this.viewMode = allowedModes[0];
+    }
+    if (this.view) {
+      this.view.setAvailableViewModes(allowedModes);
+      if (this.view.getViewMode() !== this.viewMode) {
+        this.view.setViewMode(this.viewMode);
+      }
     }
     this.syncActiveEditor();
   }
@@ -112,9 +135,14 @@ export class DynamicOutlineController {
 
     this.currentProtyleElement = protyleElement;
     const config = this.deps.getConfig();
+    const allowedModes = normalizeDynamicOutlineViewModes(config.viewModes);
+    if (!allowedModes.includes(this.viewMode)) {
+      this.viewMode = allowedModes[0];
+    }
     this.view = createDynamicOutlineView(mountContainer, {
       position: config.position,
       initialViewMode: this.viewMode,
+      availableViewModes: allowedModes,
       onItemClick: (item) => {
         const activeProtyle = protyle || this.deps.getCurrentProtyle();
         this.deps.navigateBlock(item.blockId, activeProtyle);
@@ -130,11 +158,15 @@ export class DynamicOutlineController {
         this.viewMode = mode;
         if (mode === "open-docs") {
           this.refreshOpenDocs(protyle || this.deps.getCurrentProtyle());
+        } else if (mode === "clipboard") {
+          void this.refreshClipboard();
         }
       },
       onFlyoutOpen: () => {
         if (this.viewMode === "open-docs") {
           this.refreshOpenDocs(protyle || this.deps.getCurrentProtyle());
+        } else if (this.viewMode === "clipboard") {
+          void this.refreshClipboard();
         }
       },
       onTogglePosition: (nextPos) => {
@@ -145,7 +177,29 @@ export class DynamicOutlineController {
       },
       onJumpToBottom: () => {
         this.jumpToBottom(protyle);
-      }
+      },
+      onClipboardCopy: async (item) => {
+        return (await this.deps.onClipboardCopy?.(item)) || { ok: false, reason: "剪贴板服务不可用" };
+      },
+      onClipboardToggleFavorite: async (id) => {
+        const next = await this.deps.onClipboardToggleFavorite?.(id);
+        if (next) {
+          this.view?.setClipboardItems(next);
+        }
+      },
+      onClipboardDelete: async (id) => {
+        const next = await this.deps.onClipboardDelete?.(id);
+        if (next) {
+          this.view?.setClipboardItems(next);
+        }
+      },
+      onClipboardClearNonFavorites: async () => {
+        const next = await this.deps.onClipboardClearNonFavorites?.();
+        if (next) {
+          this.view?.setClipboardItems(next);
+        }
+      },
+      resolveClipboardImageUrl: (fileName) => this.deps.resolveClipboardImageUrl?.(fileName) || null
     });
 
     // 真正产生滚动并触发 scroll 事件的是 .protyle-content，部分主题或视图可能在 .protyle-wysiwyg
@@ -285,6 +339,20 @@ export class DynamicOutlineController {
     this.view.setOpenDocs(refs);
   }
 
+  public async refreshClipboard() {
+    if (!this.view) {
+      return;
+    }
+    if (this.deps.ensureClipboardLoaded) {
+      const items = await this.deps.ensureClipboardLoaded();
+      this.view?.setClipboardItems(items);
+      return;
+    }
+    if (this.deps.getClipboardItems) {
+      this.view.setClipboardItems(this.deps.getClipboardItems());
+    }
+  }
+
   public async refreshData(protyle?: ProtyleLike) {
     if (!this.view) {
       return;
@@ -292,6 +360,8 @@ export class DynamicOutlineController {
 
     if (this.viewMode === "open-docs") {
       this.refreshOpenDocs(protyle);
+    } else if (this.viewMode === "clipboard") {
+      void this.refreshClipboard();
     }
 
     const docId = this.deps.getCurrentDocId();

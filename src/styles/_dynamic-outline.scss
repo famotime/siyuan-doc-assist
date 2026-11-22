@@ -208,6 +208,7 @@
   }
 
   &__title {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -215,8 +216,49 @@
     height: 24px;
     min-height: 24px;
     line-height: 1;
-    overflow: hidden;
+    overflow: visible;
     white-space: nowrap;
+  }
+
+  &__title-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: -6px;
+    z-index: 20;
+    min-width: 124px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    background-color: var(--b3-menu-background, var(--b3-theme-surface));
+    border: 1px solid var(--b3-border-color);
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  &__title-dropdown-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+
+    &:hover {
+      background-color: var(--b3-list-hover, var(--b3-theme-surface-lighter));
+    }
+
+    &.is-active {
+      background-color: color-mix(in srgb, var(--b3-theme-primary) 14%, transparent);
+      color: var(--b3-theme-primary);
+      font-weight: 600;
+    }
   }
 
   &__title-btn {
@@ -624,5 +666,213 @@
     border-radius: 2px;
     padding: 0 1px;
     box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--b3-theme-primary) 35%, transparent);
+  }
+
+  &__clipboard-filters {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 4px 10px 6px;
+    border-bottom: 1px solid var(--b3-border-color);
+    flex-shrink: 0;
+  }
+
+  &__clipboard-filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  &__clipboard-filter-btn {
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--b3-theme-on-surface-light);
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+
+    &:hover {
+      background-color: var(--b3-theme-surface-lighter);
+      color: var(--b3-theme-on-surface);
+    }
+
+    &.is-active {
+      background-color: color-mix(in srgb, var(--b3-theme-primary) 14%, transparent);
+      border-color: color-mix(in srgb, var(--b3-theme-primary) 35%, transparent);
+      color: var(--b3-theme-primary);
+      font-weight: 600;
+    }
+  }
+
+  &__clipboard-clear-btn {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+  }
+
+  &__clipboard-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 8px;
+    margin: 2px 0;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+
+    &:hover {
+      background-color: var(--b3-list-hover, var(--b3-theme-surface-lighter));
+    }
+
+    &.is-expanded {
+      background-color: color-mix(in srgb, var(--b3-theme-surface-lighter) 65%, transparent);
+      border-color: var(--b3-border-color);
+    }
+
+    &.is-favorited {
+      border-left: 2px solid var(--b3-theme-primary);
+    }
+  }
+
+  &__clipboard-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &__clipboard-kind {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background-color: var(--b3-theme-surface-lighter);
+    color: var(--b3-theme-on-surface-light);
+
+    &.is-image {
+      color: #0d9488;
+    }
+
+    &.is-file {
+      color: #d97706;
+    }
+
+    &.is-text {
+      color: #2563eb;
+    }
+  }
+
+  &__clipboard-summary {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--b3-theme-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__clipboard-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  &__clipboard-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--b3-theme-on-surface-light);
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+
+    &:hover {
+      background-color: var(--b3-theme-surface-lighter);
+      color: var(--b3-theme-on-surface);
+    }
+
+    &.is-copied {
+      color: #16a34a;
+    }
+
+    &.is-favorited {
+      color: #d97706;
+
+      svg {
+        fill: currentColor;
+      }
+    }
+
+    &.is-danger:hover {
+      color: var(--b3-theme-error, #ef4444);
+    }
+  }
+
+  &__clipboard-meta {
+    padding-left: 24px;
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--b3-theme-on-surface-light);
+  }
+
+  &__clipboard-preview {
+    margin-top: 4px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background-color: var(--b3-theme-background, var(--b3-theme-surface));
+    border: 1px solid var(--b3-border-color);
+    max-height: 200px;
+    overflow: auto;
+  }
+
+  &__clipboard-preview-text {
+    margin: 0;
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--b3-theme-on-surface);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  &__clipboard-preview-img {
+    display: block;
+    max-width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+
+  &__clipboard-preview-files {
+    margin: 0;
+    padding-left: 14px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--b3-theme-on-surface);
+    word-break: break-all;
+  }
+
+  &__clipboard-preview-miss {
+    font-size: 11px;
+    color: var(--b3-theme-on-surface-light);
   }
 }

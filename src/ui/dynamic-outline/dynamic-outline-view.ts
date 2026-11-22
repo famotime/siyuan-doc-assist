@@ -1,18 +1,29 @@
 import {
+  ClipboardFilterKey,
+  ClipboardHistoryItem,
+  filterClipboardItems
+} from "@/core/clipboard-core";
+import {
   calculateViewportIndicator,
+  DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
   DynamicOutlineItem,
   DynamicOutlinePosition,
   DynamicOutlineViewMode,
   filterDynamicOutlineItems,
-  FilteredOpenDocItem,
   FilteredOutlineItem,
+  FilteredOpenDocItem,
   filterOpenDocItems,
   highlightMatchRanges,
+  normalizeDynamicOutlineViewModes,
   OpenDocTabItem
 } from "@/core/dynamic-outline-core";
 import { resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { HeadingLevel } from "@/core/key-info-heading-color-core";
 import { applyHeadingColorsToElement } from "@/services/key-info-heading-color";
+import {
+  createClipboardFilterBar,
+  renderClipboardListItems
+} from "@/ui/dynamic-outline/dynamic-outline-clipboard-panel";
 
 const LUCIDE_SEARCH_SVG =
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" fill="none"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
@@ -47,6 +58,7 @@ const LUCIDE_DOC_PIN_SVG =
 export type DynamicOutlineViewOptions = {
   position?: DynamicOutlinePosition;
   initialViewMode?: DynamicOutlineViewMode;
+  availableViewModes?: DynamicOutlineViewMode[];
   isZh?: boolean;
   onItemClick: (item: DynamicOutlineItem) => void;
   onOpenDocClick?: (item: OpenDocTabItem) => void;
@@ -57,11 +69,18 @@ export type DynamicOutlineViewOptions = {
   onJumpToTop?: () => void;
   onJumpToBottom?: () => void;
   onSearchChange?: (query: string, showTreeContext: boolean) => void;
+  onClipboardCopy?: (item: ClipboardHistoryItem) => Promise<{ ok: boolean; reason?: string }>;
+  onClipboardToggleFavorite?: (id: string) => Promise<void> | void;
+  onClipboardDelete?: (id: string) => Promise<void> | void;
+  onClipboardClearNonFavorites?: () => Promise<void> | void;
+  resolveClipboardImageUrl?: (imageFileName?: string) => string | null;
 };
 
 export type DynamicOutlineViewHandle = {
   setItems: (items: DynamicOutlineItem[], modeLabel?: string) => void;
   setOpenDocs: (items: OpenDocTabItem[]) => void;
+  setClipboardItems: (items: ClipboardHistoryItem[]) => void;
+  setAvailableViewModes: (modes: DynamicOutlineViewMode[]) => void;
   setViewMode: (mode: DynamicOutlineViewMode) => void;
   getViewMode: () => DynamicOutlineViewMode;
   setScroll: (
@@ -129,6 +148,11 @@ export function createDynamicOutlineView(
   countBadge.className = "doc-assistant-dynamic-outline__count";
   countBadge.textContent = "0";
   titleWrap.appendChild(countBadge);
+
+  const titleDropdown = document.createElement("div");
+  titleDropdown.className = "doc-assistant-dynamic-outline__title-dropdown";
+  titleDropdown.style.display = "none";
+  titleWrap.appendChild(titleDropdown);
 
   const actionsWrap = document.createElement("div");
   actionsWrap.className = "doc-assistant-dynamic-outline__header-actions";
@@ -210,12 +234,23 @@ export function createDynamicOutlineView(
   flyout.appendChild(list);
 
   const DOC_POPOVER_HOVER_DELAY_MS = 350;
-  let viewMode: DynamicOutlineViewMode = options.initialViewMode || "outline";
+  let availableViewModes: DynamicOutlineViewMode[] = normalizeDynamicOutlineViewModes(
+    options.availableViewModes || DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
+  );
+  let viewMode: DynamicOutlineViewMode =
+    options.initialViewMode && availableViewModes.includes(options.initialViewMode) ?
+      options.initialViewMode :
+      availableViewModes[0];
   let currentItems: DynamicOutlineItem[] = [];
   let currentModeLabel = "文档大纲";
   let filteredItems: FilteredOutlineItem[] = [];
   let currentOpenDocs: OpenDocTabItem[] = [];
   let filteredOpenDocs: FilteredOpenDocItem[] = [];
+  let currentClipboardItems: ClipboardHistoryItem[] = [];
+  let filteredClipboardItems: ClipboardHistoryItem[] = [];
+  let clipboardFilter: ClipboardFilterKey = "all";
+  const expandedClipboardIds = new Set<string>();
+  let isDropdownOpen = false;
   let searchQuery = "";
   let showTreeContext = false;
   let selectedFilteredIndex = -1;
@@ -232,30 +267,126 @@ export function createDynamicOutlineView(
   const itemElements: HTMLElement[] = [];
   const tickElements: HTMLElement[] = [];
 
+  const clipboardFilterBar = createClipboardFilterBar({
+    initialFilter: clipboardFilter,
+    onFilterChange: (nextFilter) => {
+      clipboardFilter = nextFilter;
+      clipboardFilterBar.setActiveFilter(nextFilter);
+      selectedFilteredIndex = -1;
+      updateFilteredView();
+    },
+    onClearNonFavorites: () => {
+      void options.onClipboardClearNonFavorites?.();
+    }
+  });
+  flyout.insertBefore(clipboardFilterBar.element, list);
+
+  const getModeDisplayLabel = (mode: DynamicOutlineViewMode): string => {
+    if (mode === "open-docs") {
+      return isZh ? "已打开文档" : "Open Docs";
+    }
+    if (mode === "clipboard") {
+      return isZh ? "剪贴板" : "Clipboard";
+    }
+    return currentModeLabel || (isZh ? "文档大纲" : "Outline");
+  };
+
+  const closeTitleDropdown = () => {
+    if (!isDropdownOpen) {
+      return;
+    }
+    isDropdownOpen = false;
+    titleDropdown.style.display = "none";
+    titleBtn.classList.remove("is-dropdown-open");
+  };
+
+  const switchToViewMode = (mode: DynamicOutlineViewMode) => {
+    closeTitleDropdown();
+    if (viewMode === mode) {
+      return;
+    }
+    viewMode = mode;
+    searchInput.value = "";
+    searchQuery = "";
+    selectedFilteredIndex = -1;
+    syncModeControls();
+    options.onViewModeChange?.(viewMode);
+    updateFilteredView();
+  };
+
+  const renderTitleDropdown = () => {
+    titleDropdown.innerHTML = "";
+    availableViewModes.forEach((mode) => {
+      const itemBtn = document.createElement("button");
+      itemBtn.type = "button";
+      itemBtn.className = "doc-assistant-dynamic-outline__title-dropdown-item";
+      if (mode === viewMode) {
+        itemBtn.classList.add("is-active");
+      }
+      itemBtn.textContent = getModeDisplayLabel(mode);
+      itemBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        switchToViewMode(mode);
+      });
+      titleDropdown.appendChild(itemBtn);
+    });
+  };
+
   const syncModeControls = () => {
     const isOpenDocs = viewMode === "open-docs";
+    const isClipboard = viewMode === "clipboard";
+    const hideDocControls = isOpenDocs || isClipboard;
     container.classList.toggle("is-open-docs-mode", isOpenDocs);
-    toTopBtn.style.display = isOpenDocs ? "none" : "";
-    toBottomBtn.style.display = isOpenDocs ? "none" : "";
-    treeToggleBtn.style.display = isOpenDocs ? "none" : "";
+    container.classList.toggle("is-clipboard-mode", isClipboard);
+    toTopBtn.style.display = hideDocControls ? "none" : "";
+    toBottomBtn.style.display = hideDocControls ? "none" : "";
+    treeToggleBtn.style.display = hideDocControls ? "none" : "";
+    clipboardFilterBar.element.style.display = isClipboard ? "flex" : "none";
+
+    const canSwitch = availableViewModes.length > 1;
+    titleSwitchIcon.style.display = canSwitch ? "inline-flex" : "none";
+    titleBtn.style.cursor = canSwitch ? "pointer" : "default";
+    titleBtn.removeAttribute("title");
+
+    if (canSwitch) {
+      titleBtn.classList.add("ariaLabel");
+      titleBtn.setAttribute("data-position", "parent");
+      if (availableViewModes.length === 2) {
+        const otherMode = availableViewModes.find((m) => m !== viewMode) || availableViewModes[0];
+        titleBtn.setAttribute(
+          "aria-label",
+          isZh ? `点击切换为${getModeDisplayLabel(otherMode)}` : `Switch to ${getModeDisplayLabel(otherMode)}`
+        );
+      } else {
+        titleBtn.setAttribute(
+          "aria-label",
+          isZh ? "点击选择切换面板" : "Click to switch panel"
+        );
+      }
+    } else {
+      titleBtn.classList.remove("ariaLabel");
+      titleBtn.removeAttribute("aria-label");
+      titleBtn.removeAttribute("data-position");
+    }
+
     if (isOpenDocs) {
       searchInput.placeholder = isZh ?
         "过滤已打开文档 (拼音首字母/关键词)" :
         "Filter open docs (pinyin/keyword)";
-      titleBtn.setAttribute(
-        "title",
-        isZh ? "点击切换回文档大纲" : "Click to switch to outline"
-      );
-      titleText.textContent = isZh ? "已打开文档" : "Open Docs";
+      titleText.textContent = getModeDisplayLabel("open-docs");
+    } else if (isClipboard) {
+      searchInput.placeholder = isZh ?
+        "过滤剪贴板 (文本/文件名/拼音)" :
+        "Filter clipboard (text/filename/pinyin)";
+      titleText.textContent = getModeDisplayLabel("clipboard");
     } else {
       searchInput.placeholder = isZh ?
         "过滤章节 (拼音首字母/关键词)" :
         "Filter chapters (pinyin/keyword)";
-      titleBtn.setAttribute(
-        "title",
-        isZh ? "点击切换为已打开文档" : "Click to switch to open docs"
-      );
-      titleText.textContent = currentModeLabel || "文档大纲";
+      titleText.textContent = getModeDisplayLabel("outline");
+    }
+    if (isDropdownOpen) {
+      renderTitleDropdown();
     }
   };
   syncModeControls();
@@ -436,15 +567,31 @@ export function createDynamicOutlineView(
     closeFlyoutLater(e.relatedTarget);
   });
 
+  const handleDocumentClick = (e: MouseEvent) => {
+    if (isDropdownOpen && !titleWrap.contains(e.target as Node)) {
+      closeTitleDropdown();
+    }
+  };
+  document.addEventListener("click", handleDocumentClick);
+
   titleBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    viewMode = viewMode === "outline" ? "open-docs" : "outline";
-    searchInput.value = "";
-    searchQuery = "";
-    selectedFilteredIndex = -1;
-    syncModeControls();
-    options.onViewModeChange?.(viewMode);
-    updateFilteredView();
+    if (availableViewModes.length <= 1) {
+      return;
+    }
+    if (availableViewModes.length === 2) {
+      const nextMode = availableViewModes.find((m) => m !== viewMode) || availableViewModes[0];
+      switchToViewMode(nextMode);
+      return;
+    }
+    if (isDropdownOpen) {
+      closeTitleDropdown();
+    } else {
+      renderTitleDropdown();
+      isDropdownOpen = true;
+      titleDropdown.style.display = "flex";
+      titleBtn.classList.add("is-dropdown-open");
+    }
   });
 
   toTopBtn.addEventListener("click", (e) => {
@@ -747,6 +894,37 @@ export function createDynamicOutlineView(
       return;
     }
 
+    if (viewMode === "clipboard") {
+      const renderedRows = renderClipboardListItems({
+        list,
+        items: filteredClipboardItems,
+        expandedIds: expandedClipboardIds,
+        selectedIndex: selectedFilteredIndex,
+        hasQueryOrFilter: Boolean(searchQuery.trim() || clipboardFilter !== "all"),
+        resolveImageUrl: options.resolveClipboardImageUrl,
+        onToggleExpand: (id) => {
+          if (expandedClipboardIds.has(id)) {
+            expandedClipboardIds.delete(id);
+          } else {
+            expandedClipboardIds.add(id);
+          }
+          renderList();
+        },
+        onCopy: async (item) => {
+          return (await options.onClipboardCopy?.(item)) || { ok: false, reason: "复制不可用" };
+        },
+        onToggleFavorite: (id) => {
+          void options.onClipboardToggleFavorite?.(id);
+        },
+        onDelete: (id) => {
+          expandedClipboardIds.delete(id);
+          void options.onClipboardDelete?.(id);
+        }
+      });
+      itemElements.push(...renderedRows);
+      return;
+    }
+
     if (filteredItems.length === 0) {
       const empty = document.createElement("div");
       empty.className = "doc-assistant-dynamic-outline__empty";
@@ -823,6 +1001,29 @@ export function createDynamicOutlineView(
       }
       updateMinimapFilterMarks(new Set());
       if (selectedFilteredIndex >= filteredOpenDocs.length) {
+        selectedFilteredIndex = -1;
+      }
+      renderList();
+      return;
+    }
+
+    if (viewMode === "clipboard") {
+      filteredClipboardItems = filterClipboardItems(currentClipboardItems, clipboardFilter, query);
+      const isFiltering = Boolean(query || clipboardFilter !== "all");
+      searchBar.classList.toggle("is-filtering", Boolean(query));
+      if (!isFiltering) {
+        countBadge.textContent = String(currentClipboardItems.length);
+        matchCountBadge.textContent = isZh ?
+          `${currentClipboardItems.length} 项` :
+          `${currentClipboardItems.length} items`;
+      } else {
+        countBadge.textContent = `${filteredClipboardItems.length}/${currentClipboardItems.length}`;
+        matchCountBadge.textContent = isZh ?
+          `${filteredClipboardItems.length}/${currentClipboardItems.length} 项` :
+          `${filteredClipboardItems.length}/${currentClipboardItems.length}`;
+      }
+      updateMinimapFilterMarks(new Set());
+      if (selectedFilteredIndex >= filteredClipboardItems.length) {
         selectedFilteredIndex = -1;
       }
       renderList();
@@ -1006,8 +1207,24 @@ export function createDynamicOutlineView(
     }
   };
 
+  const setClipboardItems = (items: ClipboardHistoryItem[]) => {
+    currentClipboardItems = items;
+    if (viewMode === "clipboard") {
+      updateFilteredView();
+    }
+  };
+
+  const setAvailableViewModes = (modes: DynamicOutlineViewMode[]) => {
+    availableViewModes = normalizeDynamicOutlineViewModes(modes);
+    if (!availableViewModes.includes(viewMode)) {
+      viewMode = availableViewModes[0];
+    }
+    syncModeControls();
+    updateFilteredView();
+  };
+
   const setViewMode = (mode: DynamicOutlineViewMode) => {
-    if (viewMode === mode) {
+    if (viewMode === mode || !availableViewModes.includes(mode)) {
       return;
     }
     viewMode = mode;
@@ -1075,6 +1292,7 @@ export function createDynamicOutlineView(
   };
 
   const destroy = () => {
+    document.removeEventListener("click", handleDocumentClick);
     clearPopoverMoveListener();
     clearRowPopoverTimers();
     pendingPopoverRow = null;
@@ -1089,6 +1307,8 @@ export function createDynamicOutlineView(
   return {
     setItems,
     setOpenDocs,
+    setClipboardItems,
+    setAvailableViewModes,
     setViewMode,
     getViewMode,
     setScroll,

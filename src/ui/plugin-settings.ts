@@ -1,6 +1,11 @@
 import { Setting } from "siyuan";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
 import {
+  DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
+  DynamicOutlineViewMode,
+  normalizeDynamicOutlineViewModes
+} from "@/core/dynamic-outline-core";
+import {
   DocActionEnabledState,
   DocMenuRegistrationState
 } from "@/core/doc-menu-registration-core";
@@ -28,6 +33,7 @@ type CreatePluginSettingsOptions = {
   mouseGestureBindings?: GestureBindings;
   dynamicOutlineEnabled?: boolean;
   dynamicOutlineFollowKeyInfo?: boolean;
+  dynamicOutlineViewModes?: DynamicOutlineViewMode[];
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
   onToggleAllEnabled: (enabled: boolean) => Promise<void> | void;
@@ -42,6 +48,7 @@ type CreatePluginSettingsOptions = {
   onGestureRecordingChange?: (recording: boolean) => void;
   onDynamicOutlineEnabledChange?: (enabled: boolean) => Promise<void> | void;
   onDynamicOutlineFollowKeyInfoChange?: (follow: boolean) => Promise<void> | void;
+  onDynamicOutlineViewModesChange?: (modes: DynamicOutlineViewMode[]) => Promise<void> | void;
 };
 
 function applyManagedStyles(aiPanel: HTMLElement, managedConfig: any) {
@@ -162,11 +169,71 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     followKeyInfoToggle.type = "checkbox";
     followKeyInfoToggle.checked = Boolean(options.dynamicOutlineFollowKeyInfo);
 
+    const viewModeOptions: Array<{ mode: DynamicOutlineViewMode; label: string }> = [
+      { mode: "outline", label: "文档大纲" },
+      { mode: "open-docs", label: "已打开文档" },
+      { mode: "clipboard", label: "剪贴板" }
+    ];
+    let selectedViewModes = normalizeDynamicOutlineViewModes(
+      options.dynamicOutlineViewModes || DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
+    );
+    const viewModeCheckboxes = new Map<DynamicOutlineViewMode, HTMLInputElement>();
+    const viewModesWrap = createElement(
+      "div",
+      "doc-assistant-settings__dynamic-outline-modes fn__flex"
+    );
+    viewModesWrap.style.gap = "12px";
+    viewModesWrap.style.flexWrap = "wrap";
+    viewModesWrap.style.alignItems = "center";
+
+    viewModeOptions.forEach(({ mode, label }) => {
+      const itemLabel = document.createElement("label");
+      itemLabel.className = "fn__flex";
+      itemLabel.style.gap = "4px";
+      itemLabel.style.alignItems = "center";
+      itemLabel.style.cursor = "pointer";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "b3-checkbox";
+      checkbox.checked = selectedViewModes.includes(mode);
+      checkbox.addEventListener("change", () => {
+        const next = viewModeOptions
+          .map((opt) => opt.mode)
+          .filter((m) => {
+            const box = viewModeCheckboxes.get(m);
+            return box ? box.checked : false;
+          });
+        if (next.length === 0) {
+          checkbox.checked = true;
+          return;
+        }
+        selectedViewModes = next;
+        options.onDynamicOutlineViewModesChange?.([...selectedViewModes]);
+      });
+
+      const textSpan = document.createElement("span");
+      textSpan.textContent = label;
+      itemLabel.append(checkbox, textSpan);
+      viewModesWrap.append(itemLabel);
+      viewModeCheckboxes.set(mode, checkbox);
+    });
+
     const updateFollowState = (enabled: boolean) => {
       if (enabled) {
         followKeyInfoToggle.removeAttribute("disabled");
+        viewModeCheckboxes.forEach((box, mode) => {
+          if (mode === "clipboard" && options.isMobile) {
+            box.setAttribute("disabled", "true");
+          } else {
+            box.removeAttribute("disabled");
+          }
+        });
       } else {
         followKeyInfoToggle.setAttribute("disabled", "true");
+        viewModeCheckboxes.forEach((box) => {
+          box.setAttribute("disabled", "true");
+        });
       }
     };
     updateFollowState(Boolean(options.dynamicOutlineEnabled));
@@ -215,6 +282,18 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     hostNormalizedRows.push({
       element: followControlWrap,
       fallbackDescription: followDesc
+    });
+
+    const viewModesDesc =
+      "勾选要在灵动大纲左上角标题切换的面板（至少保留 1 个；勾选「剪贴板」将在桌面端后台静默记录系统剪贴板）。";
+    setting.addItem({
+      title: "灵动大纲：可切换面板",
+      description: viewModesDesc,
+      actionElement: viewModesWrap
+    });
+    hostNormalizedRows.push({
+      element: viewModesWrap,
+      fallbackDescription: viewModesDesc
     });
   }
 

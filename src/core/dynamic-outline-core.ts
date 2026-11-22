@@ -19,7 +19,37 @@ export type DynamicOutlineItem = {
 
 export type DynamicOutlinePosition = "left" | "right";
 
-export type DynamicOutlineViewMode = "outline" | "open-docs";
+export type DynamicOutlineViewMode = "outline" | "open-docs" | "clipboard";
+
+export const ALL_DYNAMIC_OUTLINE_VIEW_MODES: DynamicOutlineViewMode[] = [
+  "outline",
+  "open-docs",
+  "clipboard"
+];
+
+export const DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES: DynamicOutlineViewMode[] = [
+  "outline",
+  "open-docs"
+];
+
+export function isDynamicOutlineViewMode(value: unknown): value is DynamicOutlineViewMode {
+  return value === "outline" || value === "open-docs" || value === "clipboard";
+}
+
+export function normalizeDynamicOutlineViewModes(
+  raw: unknown
+): DynamicOutlineViewMode[] {
+  if (!Array.isArray(raw)) {
+    return [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES];
+  }
+  const unique: DynamicOutlineViewMode[] = [];
+  for (const item of raw) {
+    if (isDynamicOutlineViewMode(item) && !unique.includes(item)) {
+      unique.push(item);
+    }
+  }
+  return unique.length > 0 ? unique : [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES];
+}
 
 export type OpenDocTabItem = {
   tabId: string;
@@ -39,12 +69,14 @@ export type DynamicOutlineConfig = {
   enabled: boolean;
   followKeyInfo: boolean;
   position: DynamicOutlinePosition;
+  viewModes: DynamicOutlineViewMode[];
 };
 
 export const DEFAULT_DYNAMIC_OUTLINE_CONFIG: DynamicOutlineConfig = {
   enabled: false,
   followKeyInfo: false,
-  position: "right"
+  position: "right",
+  viewModes: [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES]
 };
 
 export function parseHeadingLevel(item: KeyInfoItem): HeadingLevel | 0 {

@@ -56,13 +56,19 @@ import {
   setPluginDynamicOutlineEnabled,
   setPluginDynamicOutlineFollowKeyInfo,
   setPluginDynamicOutlinePosition,
+  setPluginDynamicOutlineViewModes,
   setPluginKeyInfoFilter,
   setPluginMouseGestureBindings,
   setPluginMouseGestureEnabled,
   setSinglePluginDocActionEnabled,
   setSinglePluginDocMenuRegistration
 } from "@/plugin/plugin-lifecycle-state";
-import { DynamicOutlinePosition } from "@/core/dynamic-outline-core";
+import {
+  DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
+  DynamicOutlinePosition,
+  DynamicOutlineViewMode
+} from "@/core/dynamic-outline-core";
+import { ClipboardMonitorService } from "@/services/clipboard-monitor";
 import { DynamicOutlineController } from "@/plugin/dynamic-outline-controller";
 import { createKeyInfoNavigation } from "@/plugin/key-info-navigation";
 import {
@@ -123,7 +129,17 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private dynamicOutlineEnabled = false;
   private dynamicOutlineFollowKeyInfo = false;
   private dynamicOutlinePosition: DynamicOutlinePosition = "right";
+  private dynamicOutlineViewModes: DynamicOutlineViewMode[] = [
+    ...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
+  ];
+
   private readonly dynamicOutlineNavigation = createKeyInfoNavigation();
+
+  private readonly clipboardMonitor = new ClipboardMonitorService({
+    loadData: (name) => this.loadData(name),
+    saveData: (name, data) => this.saveData(name, data),
+    onChange: (items) => this.dynamicOutlineController.notifyClipboardChanged(items)
+  });
 
   private readonly dynamicOutlineController: DynamicOutlineController = new DynamicOutlineController({
     isMobile: () => this.isMobile,
@@ -140,10 +156,22 @@ export default class DocLinkToolkitPlugin extends Plugin {
     getOpenDocTabs: (protyle) => collectCurrentWndOpenDocTabs(protyle || this.currentProtyle),
     activateOpenDocTab: (item) => activateOpenDocTab(item, this.app),
     setPosition: (position) => this.setDynamicOutlinePosition(position),
+    getClipboardItems: () => this.clipboardMonitor.getItems(),
+    ensureClipboardLoaded: async () => {
+      const items = await this.clipboardMonitor.ensureLoaded();
+      this.clipboardMonitor.syncNow();
+      return this.clipboardMonitor.getItems().length > 0 ? this.clipboardMonitor.getItems() : items;
+    },
+    onClipboardCopy: (item) => this.clipboardMonitor.copyItem(item),
+    onClipboardToggleFavorite: (id) => this.clipboardMonitor.toggleFavorite(id),
+    onClipboardDelete: (id) => this.clipboardMonitor.deleteItem(id),
+    onClipboardClearNonFavorites: () => this.clipboardMonitor.clearNonFavorites(),
+    resolveClipboardImageUrl: (fileName) => this.clipboardMonitor.getImageDataUrl(fileName),
     getConfig: () => ({
       enabled: this.dynamicOutlineEnabled,
       followKeyInfo: this.dynamicOutlineFollowKeyInfo,
-      position: this.dynamicOutlinePosition
+      position: this.dynamicOutlinePosition,
+      viewModes: this.dynamicOutlineViewModes
     })
   });
 
@@ -332,9 +360,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
         pluginInfo.displayName?.default ||
         "文档助手";
     }
-    await this.loadDocMenuRegistrationState();
     const frontend = getFrontend();
     this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
+    await this.loadDocMenuRegistrationState();
     this.setting = this.buildPluginSettingPage();
 
     bindPluginLifecycleEvents(this.eventBus, {
@@ -370,6 +398,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.dynamicOutlineController.syncActiveEditor(
       getActiveEditor()?.protyle as ProtyleLike | undefined
     );
+    this.syncClipboardMonitorLifecycle();
   }
 
   onunload() {
@@ -398,6 +427,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     });
     this.keyInfoController.destroy();
     this.dynamicOutlineController.destroy();
+    this.clipboardMonitor.stop();
     this.mouseGestureController.destroy();
     destroyActionProcessingOverlay();
   }
@@ -509,6 +539,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       mouseGestureBindings: this.mouseGestureBindings,
       dynamicOutlineEnabled: this.dynamicOutlineEnabled,
       dynamicOutlineFollowKeyInfo: this.dynamicOutlineFollowKeyInfo,
+      dynamicOutlineViewModes: this.dynamicOutlineViewModes,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
@@ -528,7 +559,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
         this.mouseGestureController.setSuspended(recording),
       onDynamicOutlineEnabledChange: (enabled) => this.setDynamicOutlineEnabled(enabled),
       onDynamicOutlineFollowKeyInfoChange: (follow) =>
-        this.setDynamicOutlineFollowKeyInfo(follow)
+        this.setDynamicOutlineFollowKeyInfo(follow),
+      onDynamicOutlineViewModesChange: (modes) =>
+        this.setDynamicOutlineViewModes(modes)
     });
   }
 
@@ -636,7 +669,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       mouseGestureBindings: this.mouseGestureBindings,
       dynamicOutlineEnabled: this.dynamicOutlineEnabled,
       dynamicOutlineFollowKeyInfo: this.dynamicOutlineFollowKeyInfo,
-      dynamicOutlinePosition: this.dynamicOutlinePosition
+      dynamicOutlinePosition: this.dynamicOutlinePosition,
+      dynamicOutlineViewModes: this.dynamicOutlineViewModes
     };
   }
 
@@ -655,6 +689,10 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.dynamicOutlineEnabled = state.dynamicOutlineEnabled ?? false;
     this.dynamicOutlineFollowKeyInfo = state.dynamicOutlineFollowKeyInfo ?? false;
     this.dynamicOutlinePosition = state.dynamicOutlinePosition ?? "right";
+    this.dynamicOutlineViewModes = state.dynamicOutlineViewModes ?? [
+      ...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
+    ];
+    this.syncClipboardMonitorLifecycle();
     setCachedFloatingTextConfig(state.floatingConfig);
     setTransactionDebugLogEnabled(this.debugLogEnabled);
     setDocAssistantDebugEnabled(this.debugLogEnabled);
@@ -800,5 +838,33 @@ export default class DocLinkToolkitPlugin extends Plugin {
       setPluginDynamicOutlinePosition(this.snapshotDocMenuState(), position)
     );
     await this.persistDocMenuRegistrationState();
+  }
+
+  async setDynamicOutlineViewModes(modes: DynamicOutlineViewMode[]) {
+    this.applyDocMenuState(
+      setPluginDynamicOutlineViewModes(this.snapshotDocMenuState(), modes)
+    );
+    await this.persistDocMenuRegistrationState();
+    this.dynamicOutlineController.refresh();
+  }
+
+  private syncClipboardMonitorLifecycle() {
+    const shouldRun =
+      !this.isMobile &&
+      this.dynamicOutlineEnabled &&
+      this.dynamicOutlineViewModes.includes("clipboard");
+    if (this.debugLogEnabled) {
+      console.info("[DocAssistant][Clipboard] syncLifecycle", {
+        shouldRun,
+        isMobile: this.isMobile,
+        dynamicOutlineEnabled: this.dynamicOutlineEnabled,
+        viewModes: this.dynamicOutlineViewModes
+      });
+    }
+    if (shouldRun) {
+      void this.clipboardMonitor.start();
+    } else {
+      this.clipboardMonitor.stop();
+    }
   }
 }

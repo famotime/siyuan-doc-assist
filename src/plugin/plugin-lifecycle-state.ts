@@ -38,7 +38,12 @@ import {
   GestureBindings,
   normalizeGestureBindings
 } from "@/core/gesture-recognition-core";
-import { DynamicOutlinePosition } from "@/core/dynamic-outline-core";
+import {
+  DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
+  DynamicOutlinePosition,
+  DynamicOutlineViewMode,
+  normalizeDynamicOutlineViewModes
+} from "@/core/dynamic-outline-core";
 
 export type PluginDocMenuState = {
   docActionEnabledState: DocActionEnabledState;
@@ -55,6 +60,7 @@ export type PluginDocMenuState = {
   dynamicOutlineEnabled: boolean;
   dynamicOutlineFollowKeyInfo: boolean;
   dynamicOutlinePosition: DynamicOutlinePosition;
+  dynamicOutlineViewModes: DynamicOutlineViewMode[];
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
@@ -68,6 +74,7 @@ type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   dynamicOutlineEnabled?: unknown;
   dynamicOutlineFollowKeyInfo?: unknown;
   dynamicOutlinePosition?: unknown;
+  dynamicOutlineViewModes?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -87,7 +94,8 @@ export function buildDefaultPluginDocMenuState(
     mouseGestureBindings: { ...DEFAULT_GESTURE_BINDINGS },
     dynamicOutlineEnabled: false,
     dynamicOutlineFollowKeyInfo: false,
-    dynamicOutlinePosition: "right"
+    dynamicOutlinePosition: "right",
+    dynamicOutlineViewModes: [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES]
   };
 }
 
@@ -109,7 +117,8 @@ export function normalizePluginDocMenuState(
     mouseGestureBindings: normalizeStoredMouseGestureBindings(raw),
     dynamicOutlineEnabled: normalizeStoredDynamicOutlineEnabled(raw),
     dynamicOutlineFollowKeyInfo: normalizeStoredDynamicOutlineFollowKeyInfo(raw),
-    dynamicOutlinePosition: normalizeStoredDynamicOutlinePosition(raw)
+    dynamicOutlinePosition: normalizeStoredDynamicOutlinePosition(raw),
+    dynamicOutlineViewModes: normalizeStoredDynamicOutlineViewModes(raw)
   };
 }
 
@@ -197,6 +206,15 @@ function normalizeStoredDynamicOutlinePosition(raw: unknown): DynamicOutlinePosi
   return value === "left" ? "left" : "right";
 }
 
+function normalizeStoredDynamicOutlineViewModes(raw: unknown): DynamicOutlineViewMode[] {
+  if (!raw || typeof raw !== "object") {
+    return [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES];
+  }
+  return normalizeDynamicOutlineViewModes(
+    (raw as PluginDocMenuStorageV1).dynamicOutlineViewModes
+  );
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -215,7 +233,8 @@ export function serializePluginDocMenuState(
     mouseGestureBindings: state.mouseGestureBindings,
     dynamicOutlineEnabled: state.dynamicOutlineEnabled,
     dynamicOutlineFollowKeyInfo: state.dynamicOutlineFollowKeyInfo,
-    dynamicOutlinePosition: state.dynamicOutlinePosition
+    dynamicOutlinePosition: state.dynamicOutlinePosition,
+    dynamicOutlineViewModes: state.dynamicOutlineViewModes
   };
 }
 
@@ -425,6 +444,16 @@ export function setPluginDynamicOutlinePosition(
   return {
     ...state,
     dynamicOutlinePosition: position === "left" ? "left" : "right"
+  };
+}
+
+export function setPluginDynamicOutlineViewModes(
+  state: PluginDocMenuState,
+  viewModes: DynamicOutlineViewMode[]
+): PluginDocMenuState {
+  return {
+    ...state,
+    dynamicOutlineViewModes: normalizeDynamicOutlineViewModes(viewModes)
   };
 }
 
