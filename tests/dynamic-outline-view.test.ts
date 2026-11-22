@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DynamicOutlineItem, OpenDocTabItem, RecentDocItem } from "@/core/dynamic-outline-core";
+import { ClipboardHistoryItem } from "@/core/clipboard-core";
 import { createDynamicOutlineView } from "@/ui/dynamic-outline/dynamic-outline-view";
 
 describe("dynamic-outline-view", () => {
@@ -667,6 +668,135 @@ describe("dynamic-outline-view", () => {
     handle.destroy();
   });
 
+  test("handles clipboard filtering, shift range selection, ctrl anchor preservation, batch merge/aggregate/delete and mode exit", async () => {
+    const onClipboardCopyMerged = vi.fn().mockResolvedValue({ ok: true, skippedImageCount: 1 });
+    const onClipboardAggregate = vi.fn().mockResolvedValue({ ok: true });
+    const onClipboardDeleteBatch = vi.fn().mockResolvedValue(undefined);
+    const onClipboardClearNonFavorites = vi.fn().mockResolvedValue(undefined);
+
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      initialViewMode: "clipboard",
+      availableViewModes: ["outline", "clipboard"],
+      onClipboardCopyMerged,
+      onClipboardAggregate,
+      onClipboardDeleteBatch,
+      onClipboardClearNonFavorites
+    });
+
+    const items: ClipboardHistoryItem[] = [
+      {
+        id: "c1",
+        kind: "text",
+        createdAt: 1,
+        updatedAt: 1,
+        favorited: false,
+        signature: "s1",
+        previewText: "Alpha",
+        text: "Alpha"
+      },
+      {
+        id: "c2",
+        kind: "image",
+        createdAt: 2,
+        updatedAt: 2,
+        favorited: true,
+        signature: "s2",
+        previewText: "Image 10x10",
+        imageFileName: "img.png"
+      },
+      {
+        id: "c3",
+        kind: "text",
+        createdAt: 3,
+        updatedAt: 3,
+        favorited: false,
+        signature: "s3",
+        previewText: "Gamma",
+        text: "Gamma"
+      }
+    ];
+    handle.setClipboardItems(items);
+
+    const cards = () =>
+      parent.querySelectorAll(".doc-assistant-dynamic-outline__clipboard-item") as NodeListOf<HTMLElement>;
+    expect(cards()).toHaveLength(3);
+    expect(parent.querySelector(".doc-assistant-dynamic-outline__count")?.textContent).toBe("3");
+
+    // 过滤：文本
+    const textFilterBtn = parent.querySelector(
+      '.doc-assistant-dynamic-outline__clipboard-filter-btn[data-filter="text"]'
+    ) as HTMLButtonElement;
+    textFilterBtn.click();
+    expect(cards()).toHaveLength(2);
+    expect(parent.querySelector(".doc-assistant-dynamic-outline__count")?.textContent).toBe("2/3");
+
+    // 切回全部
+    const allFilterBtn = parent.querySelector(
+      '.doc-assistant-dynamic-outline__clipboard-filter-btn[data-filter="all"]'
+    ) as HTMLButtonElement;
+    allFilterBtn.click();
+    expect(cards()).toHaveLength(3);
+
+    // 先普通点击 c1 展开（记录 anchor=c1），再 Ctrl+点击 c3 -> 应保留 c1 并选中 c3
+    cards()[0].click();
+    expect(cards()[0].classList.contains("is-expanded")).toBe(true);
+    cards()[2].dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+
+    const batchBar = parent.querySelector(".doc-assistant-dynamic-outline__clipboard-batch-bar") as HTMLElement;
+    const batchCount = parent.querySelector(".doc-assistant-dynamic-outline__clipboard-batch-count") as HTMLElement;
+    expect(batchBar.style.display).toBe("flex");
+    expect(batchCount.textContent).toBe("已选 2 项");
+
+    // 退出批量后再测试 Shift 范围选：点击 c1 设锚点，再 Shift+点击 c3 -> 选中 c1, c2, c3
+    const batchButtons = batchBar.querySelectorAll("button");
+    const exitBatchBtn = batchButtons[batchButtons.length - 1] as HTMLButtonElement;
+    exitBatchBtn.click();
+    expect(batchBar.style.display).toBe("none");
+
+    cards()[0].click();
+    cards()[2].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+    expect(batchCount.textContent).toBe("已选 3 项");
+
+    // 合并复制
+    const mergeCopyBtn = batchBar.querySelectorAll(".doc-assistant-dynamic-outline__clipboard-batch-btn")[0] as HTMLButtonElement;
+    mergeCopyBtn.click();
+    await Promise.resolve();
+    expect(onClipboardCopyMerged).toHaveBeenCalledWith(["c1", "c2", "c3"]);
+
+    // 聚合（完成后自动退出批量模式）
+    const aggregateBtn = batchBar.querySelectorAll(".doc-assistant-dynamic-outline__clipboard-batch-btn")[1] as HTMLButtonElement;
+    aggregateBtn.click();
+    await Promise.resolve();
+    expect(onClipboardAggregate).toHaveBeenCalledWith(["c1", "c2", "c3"]);
+    expect(batchBar.style.display).toBe("none");
+
+    // 全选并批量删除（mocks/siyuan 的 confirm 自动确认）
+    const batchToggleBtn = parent.querySelectorAll(
+      ".doc-assistant-dynamic-outline__clipboard-filter-tools button"
+    )[0] as HTMLButtonElement;
+    batchToggleBtn.click();
+    const selectAllBtn = batchBar.querySelector(
+      ".doc-assistant-dynamic-outline__clipboard-batch-text-btn"
+    ) as HTMLButtonElement;
+    selectAllBtn.click();
+    expect(batchCount.textContent).toBe("已选 3 项");
+
+    const deleteBatchBtn = batchBar.querySelectorAll(".doc-assistant-dynamic-outline__clipboard-batch-btn")[2] as HTMLButtonElement;
+    deleteBatchBtn.click();
+    await Promise.resolve();
+    expect(onClipboardDeleteBatch).toHaveBeenCalledWith(["c1", "c2", "c3"]);
+    expect(batchBar.style.display).toBe("none");
+
+    // 切入批量模式后切换到大纲模式 -> 自动退出批量态
+    batchToggleBtn.click();
+    expect(batchBar.style.display).toBe("flex");
+    handle.setViewMode("outline");
+    expect(batchBar.style.display).toBe("none");
+
+    handle.destroy();
+  });
+
   test("renders collapse toggle only for headings with subheadings or key info and toggles children", () => {
     const onItemClick = vi.fn();
     const handle = createDynamicOutlineView(parent, { onItemClick });
@@ -721,5 +851,54 @@ describe("dynamic-outline-view", () => {
     expect(getRows().map((r) => r.getAttribute("data-block-id"))).toEqual(["b1", "b2", "b4"]);
 
     handle.destroy();
+  });
+
+  test("clipboard mode handles ArrowDown and Enter in searchInput without navigating outline items", () => {
+    const onItemClick = vi.fn();
+    const onClipboardCopy = vi.fn().mockResolvedValue({ ok: true });
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick,
+      onClipboardCopy,
+      availableViewModes: ["outline", "clipboard"],
+      initialViewMode: "clipboard"
+    });
+    handle.setItems([
+      { id: "h1", blockId: "b1", text: "大纲标题", type: "title", level: 1, posRatio: 0, order: 1 }
+    ]);
+    handle.setClipboardItems([
+      {
+        id: "clip-1",
+        kind: "text",
+        createdAt: 1,
+        updatedAt: 1,
+        favorited: false,
+        signature: "s1",
+        previewText: "第一条",
+        text: "first"
+      },
+      {
+        id: "clip-2",
+        kind: "text",
+        createdAt: 2,
+        updatedAt: 2,
+        favorited: false,
+        signature: "s2",
+        previewText: "第二条",
+        text: "second"
+      }
+    ]);
+
+    const searchInput = parent.querySelector(".doc-assistant-dynamic-outline__search-input") as HTMLInputElement;
+    searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(onItemClick).not.toHaveBeenCalled();
+    expect(onClipboardCopy).toHaveBeenCalledWith(expect.objectContaining({ id: "clip-2" }));
+
+    // blur 后立即 destroy，不应遗留未取消的定时器
+    searchInput.dispatchEvent(new FocusEvent("blur"));
+    handle.destroy();
+    vi.advanceTimersByTime(300);
   });
 });

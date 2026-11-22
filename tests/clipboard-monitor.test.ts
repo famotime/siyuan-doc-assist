@@ -170,4 +170,178 @@ describe("clipboardMonitorService batch operations & openFileLocation", () => {
     const res3 = await service.openFileLocation("Z:\\nonexistent\\file.txt");
     expect(res3.ok).toBe(false);
   });
+
+  test("polls system clipboard, deduplicates unchanged entries, suppresses self-copy loop, and flushes on stop", async () => {
+    vi.useFakeTimers();
+    let currentText = "first clip";
+    const writeText = vi.fn();
+    const onChange = vi.fn();
+    const saveData = vi.fn(async () => undefined);
+
+    (globalThis as { window?: unknown }).window = {
+      require: (id: string) => {
+        if (id === "electron") {
+          return {
+            clipboard: {
+              readText: () => currentText,
+              writeText
+            }
+          };
+        }
+        if (id === "os") {
+          return { platform: () => "win32", tmpdir: () => "C:\\tmp" };
+        }
+        return undefined;
+      }
+    };
+
+    const service = new ClipboardMonitorService({
+      loadData: async () => ({ version: 1, items: [] }),
+      saveData,
+      onChange
+    });
+
+    await service.start();
+    expect(service.getItems()).toHaveLength(1);
+    expect(service.getItems()[0].text).toBe("first clip");
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    // 相同内容轮询不重复触发
+    await vi.advanceTimersByTimeAsync(750);
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    // 新内容被捕获
+    currentText = "second clip";
+    await vi.advanceTimersByTimeAsync(750);
+    expect(service.getItems()).toHaveLength(2);
+    expect(onChange).toHaveBeenCalledTimes(2);
+
+    // 自写入后系统剪贴板变为该内容时，suppressedSignature 防止回环重复记录
+    const firstItem = service.getItems()[1];
+    await service.copyItem(firstItem);
+    expect(writeText).toHaveBeenCalledWith("first clip");
+    currentText = "first clip";
+    await vi.advanceTimersByTimeAsync(750);
+    expect(onChange).toHaveBeenCalledTimes(2);
+
+    // stop() 立即触发待保存数据刷盘
+    service.stop();
+    await Promise.resolve();
+    expect(saveData).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  test("falls back to async clipboard.read() and reads image data URL from disk", async () => {
+    const pngBytes = new Uint8Array([137, 80, 78, 71]);
+    const writtenFiles = new Map<string, Uint8Array>();
+
+    (globalThis as { window?: unknown }).window = {
+      siyuan: { config: { system: { dataDir: "C:\\siyuan-data" } } },
+      require: (id: string) => {
+        if (id === "electron") {
+          return {
+            clipboard: {
+              readText: () => "",
+              read: async () => [
+                {
+                  types: ["image/png"],
+                  getType: async () => ({
+                    arrayBuffer: async () => pngBytes.buffer
+                  })
+                }
+              ]
+            }
+          };
+        }
+        if (id === "fs") {
+          return {
+            existsSync: (p: string) => p.endsWith("clipboard-images") || writtenFiles.has(p),
+            mkdirSync: vi.fn(),
+            writeFileSync: (p: string, data: Uint8Array) => {
+              writtenFiles.set(p, data);
+            },
+            readFileSync: (p: string) => writtenFiles.get(p) || new Uint8Array(),
+            unlinkSync: (p: string) => {
+              writtenFiles.delete(p);
+            }
+          };
+        }
+        if (id === "path") {
+          return {
+            join: (...parts: string[]) => parts.join("\\")
+          };
+        }
+        if (id === "os") {
+          return { platform: () => "win32", tmpdir: () => "C:\\tmp" };
+        }
+        return undefined;
+      }
+    };
+
+    const service = new ClipboardMonitorService({
+      loadData: async () => ({ version: 1, items: [] }),
+      saveData: async () => undefined
+    });
+
+    await service.start();
+    const items = service.getItems();
+    expect(items).toHaveLength(1);
+    expect(items[0].kind).toBe("image");
+    expect(items[0].imageFileName).toBeTruthy();
+
+    const dataUrl = service.getImageDataUrl(items[0].imageFileName);
+    expect(dataUrl).toMatch(/^data:image\/png;base64,/);
+    expect(service.getImageDataUrl("missing.png")).toBeNull();
+
+    service.stop();
+  });
+
+  test("stop during async start prevents zombie interval and deduplicates concurrent ensureLoaded", async () => {
+    vi.useFakeTimers();
+    let readCount = 0;
+    let releaseLoad!: (val: any) => void;
+    const loadData = vi.fn(
+      () => new Promise((resolve) => {
+        releaseLoad = resolve;
+      })
+    );
+
+    (globalThis as { window?: unknown }).window = {
+      require: (id: string) => {
+        if (id === "electron") {
+          return {
+            clipboard: {
+              readText: () => {
+                readCount += 1;
+                return `clip-${readCount}`;
+              }
+            }
+          };
+        }
+        if (id === "os") {
+          return { platform: () => "win32", tmpdir: () => "C:\\tmp" };
+        }
+        return undefined;
+      }
+    };
+
+    const service = new ClipboardMonitorService({
+      loadData,
+      saveData: async () => undefined
+    });
+
+    const loadA = service.ensureLoaded();
+    const startPromise = service.start();
+    expect(loadData).toHaveBeenCalledTimes(1);
+
+    // stop() while start() is suspended in loadData/pollOnce
+    service.stop();
+    releaseLoad({ version: 1, items: [] });
+    await Promise.all([loadA, startPromise]);
+
+    const countAtStop = readCount;
+    await vi.advanceTimersByTimeAsync(2500);
+    expect(readCount).toBe(countAtStop);
+    vi.useRealTimers();
+  });
 });
