@@ -76,10 +76,41 @@ export function buildClipboardImageSignature(
   return `image:${width}x${height}:${bytes.length}:${hashBytesFnv1a(bytes)}`;
 }
 
+export function normalizeLocalFilePath(filePath: string): string {
+  let normalized = (filePath || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  const winUriMatch = normalized.match(/^\/([a-z]:[\\/].*)$/i);
+  if (winUriMatch) {
+    normalized = winUriMatch[1];
+  }
+  if (/^[a-z]:[\\/]/i.test(normalized)) {
+    normalized = normalized.replace(/\//g, "\\");
+  }
+  return normalized;
+}
+
 export function extractFileName(filePath: string): string {
-  const normalized = (filePath || "").replace(/[\\/]+$/, "");
+  const normalized = normalizeLocalFilePath(filePath).replace(/[\\/]+$/, "");
   const idx = Math.max(normalized.lastIndexOf("/"), normalized.lastIndexOf("\\"));
   return idx >= 0 ? normalized.slice(idx + 1) : normalized;
+}
+
+export function extractParentDir(filePath: string): string {
+  const normalized = normalizeLocalFilePath(filePath).replace(/[\\/]+$/, "");
+  const idx = Math.max(normalized.lastIndexOf("/"), normalized.lastIndexOf("\\"));
+  if (idx < 0) {
+    return "";
+  }
+  if (idx === 0) {
+    return normalized.slice(0, 1);
+  }
+  // Windows 盘符根目录如 C:\a -> C:\
+  if (idx === 2 && /^[a-z]:/i.test(normalized)) {
+    return normalized.slice(0, 3);
+  }
+  return normalized.slice(0, idx);
 }
 
 export function formatFileNamesSummary(paths: string[]): string {
@@ -206,6 +237,227 @@ export function deleteClipboardItem(
     return false;
   });
   return { nextItems, removedImageFile };
+}
+
+export function deleteClipboardItems(
+  items: ClipboardHistoryItem[],
+  ids: readonly string[]
+): {
+  nextItems: ClipboardHistoryItem[];
+  removedImageFiles: string[];
+} {
+  const idSet = new Set(ids);
+  if (idSet.size === 0) {
+    return { nextItems: items, removedImageFiles: [] };
+  }
+  const nextItems: ClipboardHistoryItem[] = [];
+  const removedImageFiles: string[] = [];
+  for (const item of items) {
+    if (!idSet.has(item.id)) {
+      nextItems.push(item);
+      continue;
+    }
+    if (item.kind === "image" && item.imageFileName) {
+      removedImageFiles.push(item.imageFileName);
+    }
+  }
+  return { nextItems, removedImageFiles };
+}
+
+export type MergeClipboardResult =
+  | {
+    ok: true;
+    kind: "text";
+    text: string;
+    previewText: string;
+    signature: string;
+    favorited: boolean;
+    consumedIds: string[];
+    skippedImageCount: number;
+  }
+  | {
+    ok: true;
+    kind: "file";
+    filePaths: string[];
+    previewText: string;
+    signature: string;
+    favorited: boolean;
+    consumedIds: string[];
+    skippedImageCount: number;
+  }
+  | {
+    ok: true;
+    kind: "image";
+    item: ClipboardHistoryItem;
+    favorited: boolean;
+    consumedIds: string[];
+    skippedImageCount: number;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+export function mergeClipboardItems(
+  items: ClipboardHistoryItem[],
+  orderedIds: readonly string[]
+): MergeClipboardResult {
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const selected: ClipboardHistoryItem[] = [];
+  const seen = new Set<string>();
+  for (const id of orderedIds) {
+    if (seen.has(id)) {
+      continue;
+    }
+    const found = itemById.get(id);
+    if (found) {
+      seen.add(id);
+      selected.push(found);
+    }
+  }
+
+  if (selected.length === 0) {
+    return { ok: false, reason: "未选择有效的剪贴板记录" };
+  }
+
+  const imageItems = selected.filter((item) => item.kind === "image");
+  const nonImageItems = selected.filter((item) => item.kind !== "image");
+
+  if (nonImageItems.length === 0) {
+    if (imageItems.length === 1) {
+      return {
+        ok: true,
+        kind: "image",
+        item: imageItems[0],
+        favorited: imageItems[0].favorited,
+        consumedIds: [imageItems[0].id],
+        skippedImageCount: 0
+      };
+    }
+    return { ok: false, reason: "图像仅支持单张复制，不支持多图合并" };
+  }
+
+  const skippedImageCount = imageItems.length;
+  const consumedIds = nonImageItems.map((item) => item.id);
+  const favorited = nonImageItems.some((item) => item.favorited);
+
+  if (nonImageItems.every((item) => item.kind === "file")) {
+    const uniquePaths: string[] = [];
+    const pathSeen = new Set<string>();
+    for (const item of nonImageItems) {
+      for (const fp of item.filePaths || []) {
+        const trimmed = fp.trim();
+        if (trimmed && !pathSeen.has(trimmed)) {
+          pathSeen.add(trimmed);
+          uniquePaths.push(trimmed);
+        }
+      }
+    }
+    if (uniquePaths.length === 0) {
+      return { ok: false, reason: "所选文件条目不包含有效路径" };
+    }
+    return {
+      ok: true,
+      kind: "file",
+      filePaths: uniquePaths,
+      previewText: formatFileNamesSummary(uniquePaths),
+      signature: buildClipboardFileSignature(uniquePaths),
+      favorited,
+      consumedIds,
+      skippedImageCount
+    };
+  }
+
+  const textParts: string[] = [];
+  for (const item of nonImageItems) {
+    if (item.kind === "text") {
+      const content = item.text ?? item.previewText ?? "";
+      if (content.length > 0) {
+        textParts.push(content);
+      }
+    } else if (item.kind === "file") {
+      const paths = (item.filePaths || []).map((fp) => fp.trim()).filter(Boolean);
+      if (paths.length > 0) {
+        textParts.push(paths.join("\n"));
+      }
+    }
+  }
+
+  if (textParts.length === 0) {
+    return { ok: false, reason: "所选条目无可合并的文本内容" };
+  }
+
+  const mergedText = textParts.join("\n\n");
+  return {
+    ok: true,
+    kind: "text",
+    text: mergedText,
+    previewText: buildClipboardTextPreview(mergedText),
+    signature: buildClipboardTextSignature(mergedText),
+    favorited,
+    consumedIds,
+    skippedImageCount
+  };
+}
+
+export function aggregateClipboardItems(
+  items: ClipboardHistoryItem[],
+  orderedIds: readonly string[],
+  options?: {
+    now?: number;
+    id?: string;
+    maxNonFavorite?: number;
+  }
+): {
+  ok: true;
+  nextItems: ClipboardHistoryItem[];
+  createdItem: ClipboardHistoryItem;
+  removedImageFiles: string[];
+  skippedImageCount: number;
+} | {
+  ok: false;
+  reason: string;
+} {
+  const merged = mergeClipboardItems(items, orderedIds);
+  if (!merged.ok) {
+    return merged;
+  }
+  if (merged.kind === "image" || merged.consumedIds.length < 2) {
+    return { ok: false, reason: "至少需要 2 条可合并的文本或文件记录才能聚合" };
+  }
+
+  const { nextItems: remainingItems, removedImageFiles: deletedImages } = deleteClipboardItems(
+    items,
+    merged.consumedIds
+  );
+
+  const incoming: IncomingClipboardEntry =
+    merged.kind === "file" ?
+        {
+          kind: "file",
+          signature: merged.signature,
+          previewText: merged.previewText,
+          filePaths: merged.filePaths
+        } :
+        {
+          kind: "text",
+          signature: merged.signature,
+          previewText: merged.previewText,
+          text: merged.kind === "text" ? merged.text : ""
+        };
+
+  const upserted = upsertClipboardHistoryItem(remainingItems, incoming, options);
+  const nextItems = merged.favorited ?
+      upserted.nextItems.map((item, idx) => (idx === 0 ? { ...item, favorited: true } : item)) :
+    upserted.nextItems;
+
+  return {
+    ok: true,
+    nextItems,
+    createdItem: nextItems[0],
+    removedImageFiles: [...deletedImages, ...upserted.removedImageFiles],
+    skippedImageCount: merged.skippedImageCount
+  };
 }
 
 export function clearNonFavoriteClipboardItems(

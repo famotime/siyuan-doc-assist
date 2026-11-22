@@ -1,12 +1,16 @@
 import { describe, expect, test } from "vitest";
 import {
+  aggregateClipboardItems,
   buildClipboardFileSignature,
   buildClipboardImageSignature,
   buildClipboardTextSignature,
   clearNonFavoriteClipboardItems,
   deleteClipboardItem,
+  deleteClipboardItems,
+  extractParentDir,
   filterClipboardItems,
   formatFileNamesSummary,
+  mergeClipboardItems,
   normalizeClipboardStorageIndex,
   toggleClipboardItemFavorite,
   upsertClipboardHistoryItem
@@ -157,5 +161,135 @@ describe("clipboard-core", () => {
   test("normalizes corrupted storage payloads safely", () => {
     expect(normalizeClipboardStorageIndex(null)).toEqual([]);
     expect(normalizeClipboardStorageIndex({ version: 1, items: [{ id: "1", kind: "text", signature: "s" }, { bad: true }] })).toHaveLength(1);
+  });
+
+  test("extracts parent directory across Windows and POSIX paths", () => {
+    expect(extractParentDir("C:\\Users\\demo\\a.txt")).toBe("C:\\Users\\demo");
+    expect(extractParentDir("/D:/MyCodingProjects/siyuan-doc-assist/.env")).toBe("D:\\MyCodingProjects\\siyuan-doc-assist");
+    expect(extractParentDir("C:\\a.txt")).toBe("C:\\");
+    expect(extractParentDir("/home/user/notes/doc.md")).toBe("/home/user/notes");
+    expect(extractParentDir("/file.txt")).toBe("/");
+    expect(extractParentDir("plain.txt")).toBe("");
+  });
+
+  test("deletes multiple items and collects removed image filenames", () => {
+    let items = upsertClipboardHistoryItem([], {
+      kind: "text",
+      signature: "t1",
+      previewText: "one",
+      text: "one"
+    }, { now: 1, id: "1" }).nextItems;
+    items = upsertClipboardHistoryItem(items, {
+      kind: "image",
+      signature: "i1",
+      previewText: "img",
+      imageFileName: "img-1.png"
+    }, { now: 2, id: "2" }).nextItems;
+    items = upsertClipboardHistoryItem(items, {
+      kind: "text",
+      signature: "t2",
+      previewText: "two",
+      text: "two"
+    }, { now: 3, id: "3" }).nextItems;
+
+    const deleted = deleteClipboardItems(items, ["1", "2"]);
+    expect(deleted.nextItems.map((i) => i.id)).toEqual(["3"]);
+    expect(deleted.removedImageFiles).toEqual(["img-1.png"]);
+  });
+
+  test("merges text, file, and mixed items in selection order while skipping images", () => {
+    let items = upsertClipboardHistoryItem([], {
+      kind: "text",
+      signature: "t1",
+      previewText: "first",
+      text: "第一段"
+    }, { now: 1, id: "t1" }).nextItems;
+    items = upsertClipboardHistoryItem(items, {
+      kind: "text",
+      signature: "t2",
+      previewText: "second",
+      text: "第二段"
+    }, { now: 2, id: "t2" }).nextItems;
+    items = upsertClipboardHistoryItem(items, {
+      kind: "file",
+      signature: "f1",
+      previewText: "a.md",
+      filePaths: ["D:\\a.md", "D:\\b.md"]
+    }, { now: 3, id: "f1" }).nextItems;
+    items = upsertClipboardHistoryItem(items, {
+      kind: "file",
+      signature: "f2",
+      previewText: "b.md",
+      filePaths: ["D:\\b.md", "D:\\c.md"]
+    }, { now: 4, id: "f2" }).nextItems;
+    items = upsertClipboardHistoryItem(items, {
+      kind: "image",
+      signature: "i1",
+      previewText: "img1",
+      imageFileName: "1.png"
+    }, { now: 5, id: "i1" }).nextItems;
+    items = upsertClipboardHistoryItem(items, {
+      kind: "image",
+      signature: "i2",
+      previewText: "img2",
+      imageFileName: "2.png"
+    }, { now: 6, id: "i2" }).nextItems;
+
+    const textMerged = mergeClipboardItems(items, ["t1", "t2"]);
+    expect(textMerged.ok).toBe(true);
+    if (textMerged.ok && textMerged.kind === "text") {
+      expect(textMerged.text).toBe("第一段\n\n第二段");
+    }
+
+    const filesMerged = mergeClipboardItems(items, ["f1", "f2"]);
+    expect(filesMerged.ok).toBe(true);
+    if (filesMerged.ok && filesMerged.kind === "file") {
+      expect(filesMerged.filePaths).toEqual(["D:\\a.md", "D:\\b.md", "D:\\c.md"]);
+    }
+
+    const mixedMerged = mergeClipboardItems(items, ["t1", "f1", "i1"]);
+    expect(mixedMerged.ok).toBe(true);
+    if (mixedMerged.ok && mixedMerged.kind === "text") {
+      expect(mixedMerged.text).toBe("第一段\n\nD:\\a.md\nD:\\b.md");
+      expect(mixedMerged.skippedImageCount).toBe(1);
+    }
+
+    const multiImages = mergeClipboardItems(items, ["i1", "i2"]);
+    expect(multiImages.ok).toBe(false);
+  });
+
+  test("aggregates selected items into a new top item and removes consumed originals", () => {
+    let items = upsertClipboardHistoryItem([], {
+      kind: "text",
+      signature: "t1",
+      previewText: "first",
+      text: "Alpha"
+    }, { now: 1, id: "t1" }).nextItems;
+    items = toggleClipboardItemFavorite(items, "t1");
+    items = upsertClipboardHistoryItem(items, {
+      kind: "text",
+      signature: "t2",
+      previewText: "second",
+      text: "Beta"
+    }, { now: 2, id: "t2" }).nextItems;
+    items = upsertClipboardHistoryItem(items, {
+      kind: "image",
+      signature: "i1",
+      previewText: "img",
+      imageFileName: "keep.png"
+    }, { now: 3, id: "i1" }).nextItems;
+
+    const aggregated = aggregateClipboardItems(items, ["t1", "t2", "i1"], {
+      now: 10,
+      id: "agg-1"
+    });
+    expect(aggregated.ok).toBe(true);
+    if (aggregated.ok) {
+      expect(aggregated.skippedImageCount).toBe(1);
+      expect(aggregated.createdItem.id).toBe("agg-1");
+      expect(aggregated.createdItem.text).toBe("Alpha\n\nBeta");
+      expect(aggregated.createdItem.favorited).toBe(true);
+      expect(aggregated.nextItems.map((i) => i.id)).toEqual(["agg-1", "i1"]);
+    }
   });
 });

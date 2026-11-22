@@ -1,5 +1,6 @@
 import { createDocAssistantLogger } from "@/core/logger-core";
 import {
+  aggregateClipboardItems,
   buildClipboardFileSignature,
   buildClipboardImageSignature,
   buildClipboardTextPreview,
@@ -8,9 +9,13 @@ import {
   ClipboardHistoryItem,
   ClipboardStorageIndex,
   deleteClipboardItem,
+  deleteClipboardItems,
+  extractParentDir,
   formatFileNamesSummary,
   IncomingClipboardEntry,
+  mergeClipboardItems,
   normalizeClipboardStorageIndex,
+  normalizeLocalFilePath,
   toggleClipboardItemFavorite,
   upsertClipboardHistoryItem
 } from "@/core/clipboard-core";
@@ -45,6 +50,11 @@ type ElectronClipboardLike = {
 type ElectronNativeImageLike = {
   createFromPath: (path: string) => { isEmpty: () => boolean };
   createFromBuffer: (buf: Uint8Array) => { isEmpty: () => boolean };
+};
+
+type ElectronShellLike = {
+  showItemInFolder?: (fullPath: string) => void;
+  openPath?: (path: string) => Promise<string>;
 };
 
 type NodeFsLike = {
@@ -133,9 +143,9 @@ export function parseLinuxUriList(raw: string): string[] {
     }
     if (trimmed.startsWith("file://")) {
       try {
-        paths.push(decodeURIComponent(trimmed.slice(7)));
+        paths.push(normalizeLocalFilePath(decodeURIComponent(trimmed.slice(7))));
       } catch {
-        paths.push(trimmed.slice(7));
+        paths.push(normalizeLocalFilePath(trimmed.slice(7)));
       }
     }
   }
@@ -212,18 +222,22 @@ function resolveNodeRequire(): ((id: string) => unknown) | null {
 function resolveElectronClipboardModules(req: (id: string) => unknown): {
   clipboard?: ElectronClipboardLike;
   nativeImage?: ElectronNativeImageLike;
+  shell?: ElectronShellLike;
 } {
   let electronMod: {
     clipboard?: ElectronClipboardLike;
     nativeImage?: ElectronNativeImageLike;
+    shell?: ElectronShellLike;
     remote?: {
       clipboard?: ElectronClipboardLike;
       nativeImage?: ElectronNativeImageLike;
+      shell?: ElectronShellLike;
     };
   } | undefined;
   let remoteMod: {
     clipboard?: ElectronClipboardLike;
     nativeImage?: ElectronNativeImageLike;
+    shell?: ElectronShellLike;
   } | undefined;
   try {
     electronMod = req("electron") as typeof electronMod;
@@ -237,7 +251,8 @@ function resolveElectronClipboardModules(req: (id: string) => unknown): {
   }
   return {
     clipboard: electronMod?.clipboard || remoteMod?.clipboard,
-    nativeImage: electronMod?.nativeImage || remoteMod?.nativeImage
+    nativeImage: electronMod?.nativeImage || remoteMod?.nativeImage,
+    shell: electronMod?.shell || remoteMod?.shell
   };
 }
 
@@ -376,6 +391,18 @@ export class ClipboardMonitorService {
     return this.items;
   }
 
+  public async deleteItems(ids: readonly string[]): Promise<ClipboardHistoryItem[]> {
+    await this.ensureLoaded();
+    const { nextItems, removedImageFiles } = deleteClipboardItems(this.items, ids);
+    this.items = nextItems;
+    for (const fileName of removedImageFiles) {
+      this.removeImageFile(fileName);
+    }
+    this.scheduleSave();
+    this.deps.onChange?.(this.items);
+    return this.items;
+  }
+
   public async clearNonFavorites(): Promise<ClipboardHistoryItem[]> {
     await this.ensureLoaded();
     const { nextItems, removedImageFiles } = clearNonFavoriteClipboardItems(this.items);
@@ -393,20 +420,12 @@ export class ClipboardMonitorService {
     if (!env) {
       return { ok: false, reason: "仅支持桌面端剪贴板" };
     }
-    const { clipboard, nativeImage, fs, platform } = env;
+    const { clipboard, nativeImage, fs } = env;
     this.suppressedSignature = item.signature;
     this.lastPolledSignature = item.signature;
 
     if (item.kind === "text") {
-      if (typeof clipboard.writeText === "function") {
-        await Promise.resolve(clipboard.writeText(item.text || ""));
-        return { ok: true };
-      }
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(item.text || "");
-        return { ok: true };
-      }
-      return { ok: false, reason: "剪贴板写入不可用" };
+      return this.writeTextToClipboard(env, item.text || "");
     }
 
     if (item.kind === "image") {
@@ -426,28 +445,147 @@ export class ClipboardMonitorService {
     }
 
     if (item.kind === "file") {
-      const paths = fs ? (item.filePaths || []).filter((p) => fs.existsSync(p)) : (item.filePaths || []);
-      if (paths.length === 0) {
-        return { ok: false, reason: "原文件不存在或已被移动" };
-      }
-      if (typeof clipboard.writeBuffer !== "function") {
-        return { ok: false, reason: "当前环境不支持文件剪贴板写回" };
-      }
-      if (platform === "win32") {
-        await Promise.resolve(clipboard.writeBuffer("CF_HDROP", encodeWindowsCfHdropBuffer(paths)));
-        return { ok: true };
-      }
-      if (platform === "darwin") {
-        const xml = encodeMacOsPlistFileList(paths);
-        await Promise.resolve(clipboard.writeBuffer("NSFilenamesPboardType", new TextEncoder().encode(xml)));
-        return { ok: true };
-      }
-      const uriList = encodeLinuxUriList(paths);
-      await Promise.resolve(clipboard.writeBuffer("text/uri-list", new TextEncoder().encode(uriList)));
-      return { ok: true };
+      return this.writeFilesToClipboard(env, item.filePaths || []);
     }
 
     return { ok: false, reason: "不支持的剪贴板类型" };
+  }
+
+  public async copyMergedItems(
+    orderedIds: readonly string[]
+  ): Promise<{ ok: boolean; reason?: string; skippedImageCount?: number }> {
+    await this.ensureLoaded();
+    const merged = mergeClipboardItems(this.items, orderedIds);
+    if (!merged.ok) {
+      return { ok: false, reason: merged.reason };
+    }
+    if (merged.kind === "image") {
+      const res = await this.copyItem(merged.item);
+      return { ...res, skippedImageCount: 0 };
+    }
+    const env = this.getRuntimeModules();
+    if (!env) {
+      return { ok: false, reason: "仅支持桌面端剪贴板" };
+    }
+    this.suppressedSignature = merged.signature;
+    this.lastPolledSignature = merged.signature;
+
+    const writeRes =
+      merged.kind === "file" ?
+          await this.writeFilesToClipboard(env, merged.filePaths) :
+          await this.writeTextToClipboard(env, merged.text);
+    if (!writeRes.ok) {
+      return writeRes;
+    }
+    return {
+      ok: true,
+      skippedImageCount: merged.skippedImageCount
+    };
+  }
+
+  public async aggregateItems(orderedIds: readonly string[]): Promise<{
+    ok: boolean;
+    items?: ClipboardHistoryItem[];
+    reason?: string;
+    skippedImageCount?: number;
+  }> {
+    await this.ensureLoaded();
+    const result = aggregateClipboardItems(this.items, orderedIds);
+    if (!result.ok) {
+      return { ok: false, reason: result.reason };
+    }
+    this.items = result.nextItems;
+    for (const fileName of result.removedImageFiles) {
+      this.removeImageFile(fileName);
+    }
+    this.scheduleSave();
+    this.deps.onChange?.(this.items);
+    return {
+      ok: true,
+      items: this.items,
+      skippedImageCount: result.skippedImageCount
+    };
+  }
+
+  public async openFileLocation(filePath: string): Promise<{ ok: boolean; reason?: string }> {
+    const trimmed = normalizeLocalFilePath(filePath);
+    if (!trimmed) {
+      return { ok: false, reason: "文件路径为空" };
+    }
+    const req = resolveNodeRequire();
+    if (!req) {
+      return { ok: false, reason: "仅支持桌面端打开本地目录" };
+    }
+    const { shell } = resolveElectronClipboardModules(req);
+    if (!shell) {
+      return { ok: false, reason: "当前环境不支持打开系统目录" };
+    }
+    let fs: NodeFsLike | undefined;
+    try {
+      fs = req("fs") as NodeFsLike | undefined;
+    } catch {
+      fs = undefined;
+    }
+
+    const fileExists = fs ? fs.existsSync(trimmed) : true;
+    if (fileExists && typeof shell.showItemInFolder === "function") {
+      shell.showItemInFolder(trimmed);
+      return { ok: true };
+    }
+
+    const parentDir = extractParentDir(trimmed);
+    const dirExists = parentDir ? (fs ? fs.existsSync(parentDir) : true) : false;
+    if (dirExists && typeof shell.openPath === "function") {
+      const errMsg = await shell.openPath(parentDir);
+      if (errMsg) {
+        return { ok: false, reason: errMsg };
+      }
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "文件或所在目录不存在" };
+  }
+
+  private async writeTextToClipboard(
+    env: RuntimeModules,
+    text: string
+  ): Promise<{ ok: boolean; reason?: string }> {
+    if (typeof env.clipboard.writeText === "function") {
+      await Promise.resolve(env.clipboard.writeText(text));
+      return { ok: true };
+    }
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return { ok: true };
+    }
+    return { ok: false, reason: "剪贴板写入不可用" };
+  }
+
+  private async writeFilesToClipboard(
+    env: RuntimeModules,
+    rawPaths: string[]
+  ): Promise<{ ok: boolean; reason?: string }> {
+    const { clipboard, fs, platform } = env;
+    const normalizedPaths = rawPaths.map((p) => normalizeLocalFilePath(p)).filter(Boolean);
+    const paths = fs ? normalizedPaths.filter((p) => fs.existsSync(p)) : normalizedPaths;
+    if (paths.length === 0) {
+      return { ok: false, reason: "原文件不存在或已被移动" };
+    }
+    if (typeof clipboard.writeBuffer !== "function") {
+      return { ok: false, reason: "当前环境不支持文件剪贴板写回" };
+    }
+    if (platform === "win32") {
+      await Promise.resolve(clipboard.writeBuffer("CF_HDROP", encodeWindowsCfHdropBuffer(paths)));
+      return { ok: true };
+    }
+    if (platform === "darwin") {
+      const xml = encodeMacOsPlistFileList(paths);
+      await Promise.resolve(clipboard.writeBuffer("NSFilenamesPboardType", new TextEncoder().encode(xml)));
+      return { ok: true };
+    }
+    const uriList = encodeLinuxUriList(paths);
+    await Promise.resolve(clipboard.writeBuffer("text/uri-list", new TextEncoder().encode(uriList)));
+    return { ok: true };
   }
 
   public getImageDataUrl(imageFileName?: string): string | null {

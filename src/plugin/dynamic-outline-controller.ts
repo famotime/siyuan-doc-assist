@@ -34,9 +34,18 @@ export type DynamicOutlineControllerDeps = {
   getClipboardItems?: () => ClipboardHistoryItem[];
   ensureClipboardLoaded?: () => Promise<ClipboardHistoryItem[]>;
   onClipboardCopy?: (item: ClipboardHistoryItem) => Promise<{ ok: boolean; reason?: string }>;
+  onClipboardCopyMerged?: (ids: string[]) => Promise<{ ok: boolean; reason?: string; skippedImageCount?: number }>;
+  onClipboardAggregate?: (ids: string[]) => Promise<{
+    ok: boolean;
+    items?: ClipboardHistoryItem[];
+    reason?: string;
+    skippedImageCount?: number;
+  }>;
   onClipboardToggleFavorite?: (id: string) => Promise<ClipboardHistoryItem[]>;
   onClipboardDelete?: (id: string) => Promise<ClipboardHistoryItem[]>;
+  onClipboardDeleteBatch?: (ids: string[]) => Promise<ClipboardHistoryItem[]>;
   onClipboardClearNonFavorites?: () => Promise<ClipboardHistoryItem[]>;
+  onClipboardOpenFileLocation?: (filePath: string) => Promise<{ ok: boolean; reason?: string }>;
   resolveClipboardImageUrl?: (imageFileName?: string) => string | null;
 };
 
@@ -181,6 +190,16 @@ export class DynamicOutlineController {
       onClipboardCopy: async (item) => {
         return (await this.deps.onClipboardCopy?.(item)) || { ok: false, reason: "剪贴板服务不可用" };
       },
+      onClipboardCopyMerged: async (ids) => {
+        return (await this.deps.onClipboardCopyMerged?.(ids)) || { ok: false, reason: "剪贴板服务不可用" };
+      },
+      onClipboardAggregate: async (ids) => {
+        const res = await this.deps.onClipboardAggregate?.(ids);
+        if (res?.ok && res.items) {
+          this.view?.setClipboardItems(res.items);
+        }
+        return res || { ok: false, reason: "剪贴板服务不可用" };
+      },
       onClipboardToggleFavorite: async (id) => {
         const next = await this.deps.onClipboardToggleFavorite?.(id);
         if (next) {
@@ -193,11 +212,23 @@ export class DynamicOutlineController {
           this.view?.setClipboardItems(next);
         }
       },
+      onClipboardDeleteBatch: async (ids) => {
+        const next = await this.deps.onClipboardDeleteBatch?.(ids);
+        if (next) {
+          this.view?.setClipboardItems(next);
+        }
+      },
       onClipboardClearNonFavorites: async () => {
         const next = await this.deps.onClipboardClearNonFavorites?.();
         if (next) {
           this.view?.setClipboardItems(next);
         }
+      },
+      onClipboardOpenFileLocation: async (filePath) => {
+        return (await this.deps.onClipboardOpenFileLocation?.(filePath)) || {
+          ok: false,
+          reason: "剪贴板服务不可用"
+        };
       },
       resolveClipboardImageUrl: (fileName) => this.deps.resolveClipboardImageUrl?.(fileName) || null
     });

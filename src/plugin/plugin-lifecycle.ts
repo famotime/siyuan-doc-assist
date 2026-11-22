@@ -163,9 +163,13 @@ export default class DocLinkToolkitPlugin extends Plugin {
       return this.clipboardMonitor.getItems().length > 0 ? this.clipboardMonitor.getItems() : items;
     },
     onClipboardCopy: (item) => this.clipboardMonitor.copyItem(item),
+    onClipboardCopyMerged: (ids) => this.clipboardMonitor.copyMergedItems(ids),
+    onClipboardAggregate: (ids) => this.clipboardMonitor.aggregateItems(ids),
     onClipboardToggleFavorite: (id) => this.clipboardMonitor.toggleFavorite(id),
     onClipboardDelete: (id) => this.clipboardMonitor.deleteItem(id),
+    onClipboardDeleteBatch: (ids) => this.clipboardMonitor.deleteItems(ids),
     onClipboardClearNonFavorites: () => this.clipboardMonitor.clearNonFavorites(),
+    onClipboardOpenFileLocation: (filePath) => this.clipboardMonitor.openFileLocation(filePath),
     resolveClipboardImageUrl: (fileName) => this.clipboardMonitor.getImageDataUrl(fileName),
     getConfig: () => ({
       enabled: this.dynamicOutlineEnabled,

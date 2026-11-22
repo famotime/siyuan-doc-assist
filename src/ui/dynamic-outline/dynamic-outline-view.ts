@@ -1,3 +1,4 @@
+import { confirm, showMessage } from "siyuan";
 import {
   ClipboardFilterKey,
   ClipboardHistoryItem,
@@ -21,6 +22,7 @@ import { resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { HeadingLevel } from "@/core/key-info-heading-color-core";
 import { applyHeadingColorsToElement } from "@/services/key-info-heading-color";
 import {
+  createClipboardBatchBar,
   createClipboardFilterBar,
   renderClipboardListItems
 } from "@/ui/dynamic-outline/dynamic-outline-clipboard-panel";
@@ -70,9 +72,18 @@ export type DynamicOutlineViewOptions = {
   onJumpToBottom?: () => void;
   onSearchChange?: (query: string, showTreeContext: boolean) => void;
   onClipboardCopy?: (item: ClipboardHistoryItem) => Promise<{ ok: boolean; reason?: string }>;
+  onClipboardCopyMerged?: (ids: string[]) => Promise<{ ok: boolean; reason?: string; skippedImageCount?: number }>;
+  onClipboardAggregate?: (ids: string[]) => Promise<{
+    ok: boolean;
+    items?: ClipboardHistoryItem[];
+    reason?: string;
+    skippedImageCount?: number;
+  }>;
   onClipboardToggleFavorite?: (id: string) => Promise<void> | void;
   onClipboardDelete?: (id: string) => Promise<void> | void;
+  onClipboardDeleteBatch?: (ids: string[]) => Promise<void> | void;
   onClipboardClearNonFavorites?: () => Promise<void> | void;
+  onClipboardOpenFileLocation?: (filePath: string) => Promise<{ ok: boolean; reason?: string }>;
   resolveClipboardImageUrl?: (imageFileName?: string) => string | null;
 };
 
@@ -250,6 +261,9 @@ export function createDynamicOutlineView(
   let filteredClipboardItems: ClipboardHistoryItem[] = [];
   let clipboardFilter: ClipboardFilterKey = "all";
   const expandedClipboardIds = new Set<string>();
+  let isClipboardBatchMode = false;
+  let selectedClipboardIds: string[] = [];
+  let lastBatchAnchorId: string | null = null;
   let isDropdownOpen = false;
   let searchQuery = "";
   let showTreeContext = false;
@@ -267,6 +281,84 @@ export function createDynamicOutlineView(
   const itemElements: HTMLElement[] = [];
   const tickElements: HTMLElement[] = [];
 
+  const syncClipboardBatchBar = () => {
+    const isClipboard = viewMode === "clipboard";
+    const visibleIds = new Set(filteredClipboardItems.map((item) => item.id));
+    const selectedVisibleCount = selectedClipboardIds.filter((id) => visibleIds.has(id)).length;
+    clipboardFilterBar.setBatchMode(isClipboardBatchMode);
+    clipboardBatchBar.updateState({
+      visible: isClipboard && (isClipboardBatchMode || selectedClipboardIds.length > 0),
+      selectedCount: selectedClipboardIds.length,
+      totalCount: filteredClipboardItems.length,
+      allSelected: filteredClipboardItems.length > 0 && selectedVisibleCount === filteredClipboardItems.length
+    });
+  };
+
+  const exitClipboardBatchMode = () => {
+    isClipboardBatchMode = false;
+    selectedClipboardIds = [];
+    lastBatchAnchorId = null;
+    syncClipboardBatchBar();
+    if (viewMode === "clipboard") {
+      renderList();
+    }
+  };
+
+  const toggleClipboardSelect = (
+    id: string,
+    modifiers: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }
+  ) => {
+    const enteringBatchFromSingle = !isClipboardBatchMode;
+    if (enteringBatchFromSingle) {
+      isClipboardBatchMode = true;
+    }
+
+    if (modifiers.shiftKey && lastBatchAnchorId) {
+      const anchorIdx = filteredClipboardItems.findIndex((item) => item.id === lastBatchAnchorId);
+      const targetIdx = filteredClipboardItems.findIndex((item) => item.id === id);
+      if (anchorIdx >= 0 && targetIdx >= 0) {
+        const step = anchorIdx <= targetIdx ? 1 : -1;
+        const nextSet = new Set(selectedClipboardIds);
+        const nextOrdered = [...selectedClipboardIds];
+        for (let i = anchorIdx; ; i += step) {
+          const rangeId = filteredClipboardItems[i].id;
+          if (!nextSet.has(rangeId)) {
+            nextSet.add(rangeId);
+            nextOrdered.push(rangeId);
+          }
+          if (i === targetIdx) {
+            break;
+          }
+        }
+        selectedClipboardIds = nextOrdered;
+        lastBatchAnchorId = id;
+        syncClipboardBatchBar();
+        renderList();
+        return;
+      }
+    }
+
+    if (
+      enteringBatchFromSingle &&
+      (modifiers.ctrlKey || modifiers.metaKey) &&
+      lastBatchAnchorId &&
+      lastBatchAnchorId !== id &&
+      filteredClipboardItems.some((item) => item.id === lastBatchAnchorId) &&
+      !selectedClipboardIds.includes(lastBatchAnchorId)
+    ) {
+      selectedClipboardIds = [...selectedClipboardIds, lastBatchAnchorId];
+    }
+
+    if (selectedClipboardIds.includes(id)) {
+      selectedClipboardIds = selectedClipboardIds.filter((itemId) => itemId !== id);
+    } else {
+      selectedClipboardIds = [...selectedClipboardIds, id];
+    }
+    lastBatchAnchorId = id;
+    syncClipboardBatchBar();
+    renderList();
+  };
+
   const clipboardFilterBar = createClipboardFilterBar({
     initialFilter: clipboardFilter,
     onFilterChange: (nextFilter) => {
@@ -275,11 +367,104 @@ export function createDynamicOutlineView(
       selectedFilteredIndex = -1;
       updateFilteredView();
     },
+    onToggleBatchMode: () => {
+      if (isClipboardBatchMode) {
+        exitClipboardBatchMode();
+      } else {
+        isClipboardBatchMode = true;
+        syncClipboardBatchBar();
+        renderList();
+      }
+    },
     onClearNonFavorites: () => {
       void options.onClipboardClearNonFavorites?.();
     }
   });
   flyout.insertBefore(clipboardFilterBar.element, list);
+
+  const clipboardBatchBar = createClipboardBatchBar({
+    onToggleSelectAll: () => {
+      if (filteredClipboardItems.length === 0) {
+        return;
+      }
+      const visibleIds = filteredClipboardItems.map((item) => item.id);
+      const selectedSet = new Set(selectedClipboardIds);
+      const allSelected = visibleIds.every((id) => selectedSet.has(id));
+      if (allSelected) {
+        const visibleSet = new Set(visibleIds);
+        selectedClipboardIds = selectedClipboardIds.filter((id) => !visibleSet.has(id));
+      } else {
+        const nextOrdered = [...selectedClipboardIds];
+        for (const id of visibleIds) {
+          if (!selectedSet.has(id)) {
+            selectedSet.add(id);
+            nextOrdered.push(id);
+          }
+        }
+        selectedClipboardIds = nextOrdered;
+      }
+      syncClipboardBatchBar();
+      renderList();
+    },
+    onMergeCopy: () => {
+      if (selectedClipboardIds.length === 0) {
+        return;
+      }
+      void options.onClipboardCopyMerged?.([...selectedClipboardIds]).then((res) => {
+        if (!res || !res.ok) {
+          showMessage(res?.reason || "合并复制失败", 3000, "error");
+          return;
+        }
+        const msg =
+          res.skippedImageCount && res.skippedImageCount > 0 ?
+            `已合并复制到系统剪贴板（已跳过 ${res.skippedImageCount} 张图像）` :
+            "已合并复制到系统剪贴板";
+        showMessage(msg, 2500, "info");
+      });
+    },
+    onAggregate: () => {
+      if (selectedClipboardIds.length < 2) {
+        return;
+      }
+      void options.onClipboardAggregate?.([...selectedClipboardIds]).then((res) => {
+        if (!res || !res.ok) {
+          showMessage(res?.reason || "聚合失败", 3000, "error");
+          return;
+        }
+        const msg =
+          res.skippedImageCount && res.skippedImageCount > 0 ?
+            `已聚合为新记录（已跳过 ${res.skippedImageCount} 张图像）` :
+            "已聚合为新记录";
+        showMessage(msg, 2500, "info");
+        exitClipboardBatchMode();
+      });
+    },
+    onDeleteSelected: () => {
+      if (selectedClipboardIds.length === 0) {
+        return;
+      }
+      const idsToDelete = [...selectedClipboardIds];
+      const selectedSet = new Set(idsToDelete);
+      const favCount = currentClipboardItems.filter(
+        (item) => selectedSet.has(item.id) && item.favorited
+      ).length;
+      const confirmDesc =
+        favCount > 0 ?
+          `确定要删除选中的 ${idsToDelete.length} 条剪贴板记录吗？（其中包含 ${favCount} 条已收藏记录）` :
+          `确定要删除选中的 ${idsToDelete.length} 条剪贴板记录吗？`;
+      confirm("批量删除剪贴板记录", confirmDesc, () => {
+        for (const id of idsToDelete) {
+          expandedClipboardIds.delete(id);
+        }
+        void options.onClipboardDeleteBatch?.(idsToDelete);
+        exitClipboardBatchMode();
+      });
+    },
+    onExitBatchMode: () => {
+      exitClipboardBatchMode();
+    }
+  });
+  flyout.insertBefore(clipboardBatchBar.element, list);
 
   const getModeDisplayLabel = (mode: DynamicOutlineViewMode): string => {
     if (mode === "open-docs") {
@@ -342,6 +527,12 @@ export function createDynamicOutlineView(
     toBottomBtn.style.display = hideDocControls ? "none" : "";
     treeToggleBtn.style.display = hideDocControls ? "none" : "";
     clipboardFilterBar.element.style.display = isClipboard ? "flex" : "none";
+    if (!isClipboard && (isClipboardBatchMode || selectedClipboardIds.length > 0)) {
+      isClipboardBatchMode = false;
+      selectedClipboardIds = [];
+      lastBatchAnchorId = null;
+    }
+    syncClipboardBatchBar();
 
     const canSwitch = availableViewModes.length > 1;
     titleSwitchIcon.style.display = canSwitch ? "inline-flex" : "none";
@@ -895,20 +1086,27 @@ export function createDynamicOutlineView(
     }
 
     if (viewMode === "clipboard") {
+      syncClipboardBatchBar();
       const renderedRows = renderClipboardListItems({
         list,
         items: filteredClipboardItems,
         expandedIds: expandedClipboardIds,
         selectedIndex: selectedFilteredIndex,
+        batchMode: isClipboardBatchMode,
+        selectedIds: selectedClipboardIds,
         hasQueryOrFilter: Boolean(searchQuery.trim() || clipboardFilter !== "all"),
         resolveImageUrl: options.resolveClipboardImageUrl,
         onToggleExpand: (id) => {
-          if (expandedClipboardIds.has(id)) {
-            expandedClipboardIds.delete(id);
-          } else {
+          lastBatchAnchorId = id;
+          const wasExpanded = expandedClipboardIds.has(id);
+          expandedClipboardIds.clear();
+          if (!wasExpanded) {
             expandedClipboardIds.add(id);
           }
           renderList();
+        },
+        onToggleSelect: (id, modifiers) => {
+          toggleClipboardSelect(id, modifiers);
         },
         onCopy: async (item) => {
           return (await options.onClipboardCopy?.(item)) || { ok: false, reason: "复制不可用" };
@@ -918,7 +1116,14 @@ export function createDynamicOutlineView(
         },
         onDelete: (id) => {
           expandedClipboardIds.delete(id);
+          selectedClipboardIds = selectedClipboardIds.filter((itemId) => itemId !== id);
           void options.onClipboardDelete?.(id);
+        },
+        onOpenFileLocation: async (filePath) => {
+          return (await options.onClipboardOpenFileLocation?.(filePath)) || {
+            ok: false,
+            reason: "无法打开目录"
+          };
         }
       });
       itemElements.push(...renderedRows);
@@ -1209,6 +1414,10 @@ export function createDynamicOutlineView(
 
   const setClipboardItems = (items: ClipboardHistoryItem[]) => {
     currentClipboardItems = items;
+    if (selectedClipboardIds.length > 0) {
+      const validIds = new Set(items.map((item) => item.id));
+      selectedClipboardIds = selectedClipboardIds.filter((id) => validIds.has(id));
+    }
     if (viewMode === "clipboard") {
       updateFilteredView();
     }
