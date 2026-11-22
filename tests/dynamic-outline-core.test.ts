@@ -150,6 +150,21 @@ describe("dynamic-outline-core", () => {
     test("returns -1 for empty items", () => {
       expect(findActiveOutlineItemIndex([], 0.5)).toBe(-1);
     });
+
+    test("handles large item lists via binary search accurately", () => {
+      const large = Array.from({ length: 1000 }, (_, i) => ({
+        id: `id-${i}`,
+        blockId: `b-${i}`,
+        text: `H ${i}`,
+        type: "title" as const,
+        level: 1 as const,
+        posRatio: i / 999,
+        order: i
+      }));
+      expect(findActiveOutlineItemIndex(large, 0)).toBe(49); // 49/999 = 0.049 <= 0.05
+      expect(findActiveOutlineItemIndex(large, 0.5)).toBe(549); // 549/999 ~= 0.5495 <= 0.55
+      expect(findActiveOutlineItemIndex(large, 1)).toBe(999);
+    });
   });
 
   describe("estimateGlobalDocumentProgress", () => {

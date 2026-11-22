@@ -374,4 +374,81 @@ describe("dynamic-outline-controller", () => {
     releaseClipboard([{ id: "c1", kind: "text", createdAt: 1, updatedAt: 1, favorited: false, signature: "s", previewText: "hi" }]);
     await expect(pendingClipboard).resolves.toBeUndefined();
   });
+
+  test("routes pure outline mode to fetchDocOutline and followKeyInfo mode to fetchDocKeyInfo", async () => {
+    const fetchDocOutline = vi.fn().mockResolvedValue({
+      items: [{ id: "o-1", blockId: "b-1", text: "轻量标题", type: "title", level: 1, order: 0 }]
+    });
+    deps.fetchDocOutline = fetchDocOutline;
+
+    const controller = new DynamicOutlineController(deps);
+    controller.syncActiveEditor();
+
+    await vi.waitFor(() => {
+      expect(fetchDocOutline).toHaveBeenCalledTimes(1);
+      expect(deps.fetchDocKeyInfo).not.toHaveBeenCalled();
+    });
+
+    configState.followKeyInfo = true;
+    await controller.refreshData();
+    expect(deps.fetchDocKeyInfo).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  test("throttles scroll updates via requestAnimationFrame and scans mounted heading nodes once", async () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    let nextRafId = 0;
+    const cancelSpy = vi.fn();
+    const rafSpy = vi.fn((cb: FrameRequestCallback) => {
+      rafCallbacks.push(cb);
+      nextRafId += 1;
+      return nextRafId;
+    });
+    vi.stubGlobal("requestAnimationFrame", rafSpy);
+    vi.stubGlobal("cancelAnimationFrame", cancelSpy);
+
+    try {
+      const wysiwyg = mockProtyleEl.querySelector(".protyle-wysiwyg") as HTMLElement;
+      const content = mockProtyleEl.querySelector(".protyle-content") as HTMLElement;
+      Object.defineProperty(content, "scrollHeight", { value: 2000, configurable: true });
+      Object.defineProperty(content, "clientHeight", { value: 500, configurable: true });
+
+      const h1 = document.createElement("div");
+      h1.setAttribute("data-type", "NodeHeading");
+      h1.setAttribute("data-node-id", "b-1");
+      wysiwyg.appendChild(h1);
+
+      const querySpy = vi.spyOn(wysiwyg, "querySelectorAll");
+
+      const controller = new DynamicOutlineController(deps);
+      controller.syncActiveEditor();
+
+      await vi.waitFor(() => {
+        expect(mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__item")).toHaveLength(1);
+      });
+
+      querySpy.mockClear();
+      content.scrollTop = 100;
+      content.dispatchEvent(new Event("scroll"));
+      content.scrollTop = 250;
+      content.dispatchEvent(new Event("scroll"));
+
+      // 同一帧内多次 scroll 只调度一次 rAF
+      expect(rafSpy).toHaveBeenCalledTimes(1);
+      expect(querySpy).not.toHaveBeenCalled();
+
+      rafCallbacks.shift()?.(16);
+      expect(querySpy).toHaveBeenCalledTimes(1);
+      expect(querySpy).toHaveBeenCalledWith('[data-type="NodeHeading"][data-node-id]');
+
+      // 销毁时取消未执行的 rAF
+      content.dispatchEvent(new Event("scroll"));
+      expect(rafSpy).toHaveBeenCalledTimes(2);
+      controller.destroy();
+      expect(cancelSpy).toHaveBeenCalledWith(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

@@ -273,12 +273,18 @@ export function findActiveOutlineItemIndex(
     return 0;
   }
 
+  const threshold = scrollRatio + 0.05;
+  let lo = 0;
+  let hi = items.length - 1;
   let activeIdx = 0;
-  for (let i = 0; i < items.length; i++) {
-    if (items[i].posRatio <= scrollRatio + 0.05) {
-      activeIdx = i;
+
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (items[mid].posRatio <= threshold) {
+      activeIdx = mid;
+      lo = mid + 1;
     } else {
-      break;
+      hi = mid - 1;
     }
   }
   return activeIdx;

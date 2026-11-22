@@ -80,6 +80,7 @@ import {
   openDocTab
 } from "@/services/doc-navigation";
 import { getDocKeyInfo } from "@/services/key-info";
+import { getDocOutlineItems } from "@/services/key-info-outline";
 import { GestureBindings } from "@/core/gesture-recognition-core";
 import { createMouseGestureController } from "@/plugin/mouse-gesture-controller";
 import {
@@ -190,6 +191,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     getCurrentDocId: () => this.syncPairedCursor(),
     getKeyInfoFilter: () => this.menuState.keyInfoFilterState,
     fetchDocKeyInfo: (docId, protyle) => getDocKeyInfo(docId, protyle),
+    fetchDocOutline: (docId) => getDocOutlineItems(docId),
     navigateBlock: (blockId, protyle) => {
       this.dynamicOutlineNavigation.handleItemClick(
         { blockId } as any,

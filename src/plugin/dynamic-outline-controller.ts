@@ -28,6 +28,7 @@ export type DynamicOutlineControllerDeps = {
   getCurrentDocId: () => string;
   getKeyInfoFilter?: () => KeyInfoFilter | undefined;
   fetchDocKeyInfo: (docId: string, protyle?: unknown) => Promise<{ items: KeyInfoItem[] }>;
+  fetchDocOutline?: (docId: string, protyle?: unknown) => Promise<{ items: KeyInfoItem[] }>;
   navigateBlock: (blockId: string, protyle?: ProtyleLike) => void;
   getOpenDocTabs?: (protyle?: ProtyleLike) => OpenDocTabRef[];
   activateOpenDocTab?: (item: OpenDocTabRef) => Promise<unknown> | void;
@@ -67,6 +68,9 @@ export class DynamicOutlineController {
   private onScrollHandler?: () => void;
   private onInputHandler?: () => void;
   private currentItems: DynamicOutlineItem[] = [];
+  private posRatioByBlockId = new Map<string, number>();
+  private allItemsAreHeadings = true;
+  private scrollRafId: number | null = null;
   private currentOpenDocRefs: OpenDocTabRef[] = [];
   private viewMode: DynamicOutlineViewMode = "outline";
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -337,6 +341,30 @@ export class DynamicOutlineController {
     if (!this.view || !this.scrollContainer) {
       return;
     }
+    if (typeof requestAnimationFrame !== "function") {
+      this.updateScrollNow();
+      return;
+    }
+    if (this.scrollRafId !== null) {
+      return;
+    }
+    this.scrollRafId = requestAnimationFrame(() => {
+      this.scrollRafId = null;
+      this.updateScrollNow();
+    });
+  }
+
+  private cancelPendingScrollRaf() {
+    if (this.scrollRafId !== null && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(this.scrollRafId);
+    }
+    this.scrollRafId = null;
+  }
+
+  private updateScrollNow() {
+    if (!this.view || !this.scrollContainer) {
+      return;
+    }
 
     let target = this.scrollContainer;
     if (this.additionalScrollContainer && this.additionalScrollContainer.scrollTop > 0) {
@@ -347,22 +375,29 @@ export class DynamicOutlineController {
 
     let progressRatio: number | undefined;
 
-    if (this.currentItems.length > 0 && this.currentProtyleElement) {
+    if (this.currentItems.length > 0 && this.currentProtyleElement && this.posRatioByBlockId.size > 0) {
       const wysiwygEl = this.currentProtyleElement.querySelector(".protyle-wysiwyg") as HTMLElement | null;
       if (wysiwygEl) {
         const anchors: ProgressAnchor[] = [];
         const containerRect = target.getBoundingClientRect();
-        for (const item of this.currentItems) {
-          if (!item.blockId) continue;
-          const el = wysiwygEl.querySelector(`[data-node-id="${item.blockId}"]`) as HTMLElement | null;
-          if (el) {
-            const elRect = el.getBoundingClientRect();
-            const domTop = elRect.top - containerRect.top + scrollTop;
-            anchors.push({
-              posRatio: item.posRatio,
-              domTop
-            });
+        // 只扫描当前 DOM 中已挂载的节点，避免长文档对数百个未渲染块逐一 querySelector
+        const selector = this.allItemsAreHeadings ?
+          '[data-type="NodeHeading"][data-node-id]' :
+          "[data-node-id]";
+        const domNodes = wysiwygEl.querySelectorAll(selector);
+        for (let i = 0; i < domNodes.length; i += 1) {
+          const el = domNodes[i] as HTMLElement;
+          const nodeId = el.getAttribute("data-node-id");
+          if (!nodeId) {
+            continue;
           }
+          const posRatio = this.posRatioByBlockId.get(nodeId);
+          if (posRatio === undefined) {
+            continue;
+          }
+          const elRect = el.getBoundingClientRect();
+          const domTop = elRect.top - containerRect.top + scrollTop;
+          anchors.push({ posRatio, domTop });
         }
         if (anchors.length > 0) {
           progressRatio = estimateGlobalDocumentProgress({
@@ -456,6 +491,8 @@ export class DynamicOutlineController {
     const docId = this.deps.getCurrentDocId();
     if (!docId) {
       this.currentItems = [];
+      this.posRatioByBlockId.clear();
+      this.allItemsAreHeadings = true;
       this.lastDocId = "";
       this.view.resetSearch();
       this.view.setItems([], "文档大纲");
@@ -470,7 +507,11 @@ export class DynamicOutlineController {
     const requestId = this.refreshGuard.begin();
 
     try {
-      const result = await this.deps.fetchDocKeyInfo(docId, protyle);
+      const useOutlineFastPath =
+        !config.followKeyInfo && typeof this.deps.fetchDocOutline === "function";
+      const result = useOutlineFastPath ?
+          await this.deps.fetchDocOutline!(docId, protyle) :
+          await this.deps.fetchDocKeyInfo(docId, protyle);
       if (!this.refreshGuard.isCurrent(requestId) || !this.view) {
         return;
       }
@@ -482,6 +523,17 @@ export class DynamicOutlineController {
       });
 
       this.currentItems = outlineItems;
+      this.posRatioByBlockId.clear();
+      let onlyHeadings = true;
+      for (const item of outlineItems) {
+        if (item.blockId && !this.posRatioByBlockId.has(item.blockId)) {
+          this.posRatioByBlockId.set(item.blockId, item.posRatio);
+        }
+        if (item.type !== "title") {
+          onlyHeadings = false;
+        }
+      }
+      this.allItemsAreHeadings = onlyHeadings;
 
       let modeLabel = "文档大纲";
       if (config.followKeyInfo) {
@@ -497,7 +549,8 @@ export class DynamicOutlineController {
       this.view.setHeadingColors(colors);
       this.view.setPosition(config.position);
       this.view.setItems(outlineItems, modeLabel);
-      this.handleScroll();
+      this.cancelPendingScrollRaf();
+      this.updateScrollNow();
     } catch (error) {
       console.warn("[doc-assist] refresh dynamic outline failed:", error);
     }
@@ -507,6 +560,7 @@ export class DynamicOutlineController {
     this.refreshGuard.invalidateAll();
     this.recentDocsGuard.invalidateAll();
     this.clipboardGuard.invalidateAll();
+    this.cancelPendingScrollRaf();
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
@@ -533,6 +587,8 @@ export class DynamicOutlineController {
     this.onScrollHandler = undefined;
     this.onInputHandler = undefined;
     this.currentItems = [];
+    this.posRatioByBlockId.clear();
+    this.allItemsAreHeadings = true;
     this.lastDocId = "";
   }
 }

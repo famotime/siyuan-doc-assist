@@ -33,6 +33,18 @@ export async function listDocBlocks(docId: string): Promise<SqlKeyInfoRow[]> {
   );
 }
 
+export async function listDocHeadingBlocks(
+  docId: string
+): Promise<Array<Pick<SqlKeyInfoRow, "id" | "subtype" | "content" | "sort">>> {
+  return queryAllRows<Pick<SqlKeyInfoRow, "id" | "subtype" | "content" | "sort">>(
+    `select id, subtype, content, sort
+     from blocks
+     where root_id='${escapeSqlLiteral(docId)}'
+       and type='h'
+     order by sort asc`
+  );
+}
+
 export async function resolveRootId(docId: string): Promise<string> {
   if (!docId) {
     return docId;

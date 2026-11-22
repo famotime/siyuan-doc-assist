@@ -66,13 +66,16 @@ export {
   getChildDocsByParent,
   getDocMetaByID,
   getDocMetasByIDs,
+  getDocOutline,
   getDocTreeOrderFromSy,
   listNotebookDocs
 } from "@/services/kernel-doc-query";
 export type {
   ChildDocMeta,
   DocMeta,
-  NotebookDocMeta
+  NotebookDocMeta,
+  SiYuanOutlineBlock,
+  SiYuanOutlineNode
 } from "@/services/kernel-doc-query";
 
 type BacklinkPath = {

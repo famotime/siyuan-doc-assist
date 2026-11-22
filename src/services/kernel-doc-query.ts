@@ -1,6 +1,7 @@
 import { createDocAssistantLogger } from "@/core/logger-core";
 import { getFileTextAllowJson, getPathByID } from "@/services/kernel-file";
 import { escapeSqlLiteral, inClause, sql, sqlPaged } from "@/services/kernel-shared";
+import { requestApi } from "@/services/request";
 
 type SqlDocRow = {
   id: string;
@@ -314,4 +315,41 @@ export async function getDocTreeOrderFromSy(
     failures: failures.slice(0, 6)
   });
   return new Map();
+}
+
+export type SiYuanOutlineBlock = {
+  id: string;
+  content?: string;
+  name?: string;
+  type?: string;
+  subType?: string;
+  number?: string;
+  children?: SiYuanOutlineBlock[];
+};
+
+export type SiYuanOutlineNode = {
+  id: string;
+  name?: string;
+  nameIsHTML?: boolean;
+  number?: string;
+  type?: string;
+  nodeType?: string;
+  subType?: string;
+  blocks?: SiYuanOutlineBlock[];
+  children?: SiYuanOutlineNode[];
+};
+
+export async function getDocOutline(
+  id: string,
+  preview = false
+): Promise<SiYuanOutlineNode[]> {
+  const normalized = (id || "").trim();
+  if (!normalized) {
+    return [];
+  }
+  const res = await requestApi<SiYuanOutlineNode[] | null>(
+    "/api/outline/getDocOutline",
+    { id: normalized, preview }
+  );
+  return Array.isArray(res) ? res : [];
 }

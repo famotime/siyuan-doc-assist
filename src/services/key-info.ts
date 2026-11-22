@@ -34,7 +34,12 @@ import {
   resolveRootId
 } from "@/services/key-info-query";
 
-export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<KeyInfoDocResult> {
+const inFlightKeyInfoRequests = new Map<string, Promise<KeyInfoDocResult>>();
+
+async function fetchDocKeyInfoUncached(
+  docId: string,
+  protyle?: unknown
+): Promise<KeyInfoDocResult> {
   let rootId = docId;
   let rows = await listDocBlocks(rootId);
   if (!rows.length) {
@@ -151,4 +156,23 @@ export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<K
     docTitle,
     items: sortedItems
   };
+}
+
+
+export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<KeyInfoDocResult> {
+  const key = `${(docId || "").trim()}::${protyle ? "dom" : "no-dom"}`;
+  if (!docId) {
+    return fetchDocKeyInfoUncached(docId, protyle);
+  }
+  const existing = inFlightKeyInfoRequests.get(key);
+  if (existing) {
+    return existing;
+  }
+  const pending = fetchDocKeyInfoUncached(docId, protyle).finally(() => {
+    if (inFlightKeyInfoRequests.get(key) === pending) {
+      inFlightKeyInfoRequests.delete(key);
+    }
+  });
+  inFlightKeyInfoRequests.set(key, pending);
+  return pending;
 }
