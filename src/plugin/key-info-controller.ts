@@ -136,6 +136,7 @@ export class KeyInfoController {
     this.refreshGuard.invalidateAll();
     this.readonlySyncGuard.invalidateAll();
     this.runningDocActionCounts.clear();
+    this.navigation.destroy();
     this.keyInfoDock?.destroy();
     this.keyInfoDock = undefined;
   }

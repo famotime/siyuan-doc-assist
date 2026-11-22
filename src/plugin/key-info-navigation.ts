@@ -9,6 +9,19 @@ export function createKeyInfoNavigation() {
   let keyInfoJumpId = 0;
   let lastProtocolOpenId = "";
   let lastProtocolOpenAt = 0;
+  const pendingTimers = new Set<number>();
+  const pendingFrames = new Set<number>();
+
+  const clearScheduledWork = () => {
+    pendingTimers.forEach((timerId) => window.clearTimeout(timerId));
+    pendingTimers.clear();
+    pendingFrames.forEach((frameId) => {
+      if (typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(frameId);
+      }
+    });
+    pendingFrames.clear();
+  };
 
   const openBlockByProtocol = (blockId: string) => {
     const url = `siyuan://blocks/${blockId}`;
@@ -70,9 +83,11 @@ export function createKeyInfoNavigation() {
         onTimeout?.();
         return;
       }
-      window.requestAnimationFrame(check);
+      const frameId = window.requestAnimationFrame(check);
+      pendingFrames.add(frameId);
     };
-    window.requestAnimationFrame(check);
+    const initialFrameId = window.requestAnimationFrame(check);
+    pendingFrames.add(initialFrameId);
   };
 
   const scrollToCenter = (target: HTMLElement, resolveProtyle: ResolveProtyle) => {
@@ -108,23 +123,29 @@ export function createKeyInfoNavigation() {
     resolveProtyle: ResolveProtyle
   ) => {
     const delays = [80, 180, 320, 500, 800, 1200];
-    delays.forEach((delay) => {
-      window.setTimeout(() => {
+    const runAttempt = (index: number, elapsedMs: number) => {
+      if (index >= delays.length || jumpId !== keyInfoJumpId) {
+        return;
+      }
+      const stepDelay = Math.max(0, delays[index] - elapsedMs);
+      const timerId = window.setTimeout(() => {
+        pendingTimers.delete(timerId);
         if (jumpId !== keyInfoJumpId) {
           return;
         }
         const protyle = resolveProtyle();
         const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
-        if (!root) {
-          return;
-        }
-        const target = root.querySelector(`[data-node-id="${blockId}"]`) as HTMLElement | null;
+        const target = root?.querySelector(`[data-node-id="${blockId}"]`) as HTMLElement | null;
         if (target) {
           scrollToCenter(target, resolveProtyle);
           flashBlockElement(target);
+          return;
         }
-      }, delay);
-    });
+        runAttempt(index + 1, delays[index]);
+      }, stepDelay);
+      pendingTimers.add(timerId);
+    };
+    runAttempt(0, 0);
   };
 
   return {
@@ -134,6 +155,7 @@ export function createKeyInfoNavigation() {
         return;
       }
 
+      clearScheduledWork();
       const jumpId = ++keyInfoJumpId;
       const protyle = resolveProtyle();
       const root = protyle?.wysiwyg?.element as HTMLElement | undefined;
@@ -150,6 +172,10 @@ export function createKeyInfoNavigation() {
 
       openBlockByProtocolThrottled(blockId);
       scheduleCenterAfterLoad(blockId, jumpId, resolveProtyle);
+    },
+    destroy() {
+      keyInfoJumpId += 1;
+      clearScheduledWork();
     }
   };
 }

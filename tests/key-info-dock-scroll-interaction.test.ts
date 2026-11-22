@@ -1142,5 +1142,61 @@ describe("key-info-dock scroll interaction", () => {
     dock.destroy();
     host.remove();
   });
+
+  test("cancels prior restoringScroll rAF guard when consecutive programmatic restores occur", () => {
+    const rafQueue: FrameRequestCallback[] = [];
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    });
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+      const idx = id - 1;
+      if (idx >= 0 && idx < rafQueue.length) {
+        rafQueue[idx] = () => {};
+      }
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const dock = createKeyInfoDock(host, { onExport: () => {} });
+    const list = host.querySelector(".doc-assistant-keyinfo__list") as HTMLDivElement;
+
+    dock.setState({
+      items: [item("1"), item("2")],
+      scrollContextKey: "doc-1"
+    });
+
+    // User scrolls to 120.
+    list.scrollTop = 120;
+    list.dispatchEvent(new Event("scroll"));
+
+    // Simulate list re-render resetting scrollTop to 0 and scheduling restore #1 + #2 before rAF #1 flushes.
+    list.scrollTop = 0;
+    dock.setState({ items: [item("1"), item("2"), item("3")], scrollContextKey: "doc-1" });
+    // Flush rAF scheduled by applyPostRenderScroll -> scheduleRestoreScrollFrame (scrollListTo #1).
+    while (rafQueue.length) {
+      const cb = rafQueue.shift();
+      cb?.(0);
+    }
+    expect(list.scrollTop).toBe(120);
+
+    // Now force two rapid programmatic restores via lock/scroll reset without draining rAF between them.
+    list.scrollTop = 40;
+    dock.setState({ items: [item("1"), item("2"), item("3"), item("4")], scrollContextKey: "doc-1" });
+    const frameCountAfterFirst = rafQueue.length;
+    expect(frameCountAfterFirst).toBeGreaterThan(0);
+
+    // Flush scheduled restore frames to trigger scrollListTo, then check cancelAnimationFrame was used if superseded.
+    while (rafQueue.length) {
+      const cb = rafQueue.shift();
+      cb?.(0);
+    }
+    expect(list.scrollTop).toBe(120);
+
+    dock.destroy();
+    host.remove();
+    rafSpy.mockRestore();
+    cancelRafSpy.mockRestore();
+  });
 });
 

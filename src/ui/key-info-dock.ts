@@ -180,6 +180,7 @@ export function createKeyInfoDock(
 
   let scrollLock: KeyInfoListScrollLock | null = null;
   let restoringScroll = false;
+  let restoringScrollClearFrame: number | null = null;
   let scrollState = createKeyInfoListScrollState(state.scrollContextKey);
   const pendingRestoreFrames = new Set<number>();
   const pendingRestoreTimeouts = new Set<number>();
@@ -220,13 +221,22 @@ export function createKeyInfoDock(
       return;
     }
     // Mark the upcoming (async) scroll events as self-induced. Scroll events fire
-    // before rAF callbacks in a rendering update, so the rAF fallback below only
-    // releases the guard when no scroll event consumed it.
+    // before rAF callbacks in a rendering update, so cancelling any prior fallback
+    // frame prevents an earlier scrollListTo from clearing the guard prematurely.
     restoringScroll = true;
+    if (restoringScrollClearFrame !== null) {
+      cancelAnimationFrame(restoringScrollClearFrame);
+      pendingRestoreFrames.delete(restoringScrollClearFrame);
+      restoringScrollClearFrame = null;
+    }
     const frame = requestAnimationFrame(() => {
       pendingRestoreFrames.delete(frame);
+      if (restoringScrollClearFrame === frame) {
+        restoringScrollClearFrame = null;
+      }
       restoringScroll = false;
     });
+    restoringScrollClearFrame = frame;
     pendingRestoreFrames.add(frame);
   };
 

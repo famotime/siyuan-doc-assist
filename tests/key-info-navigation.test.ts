@@ -132,4 +132,45 @@ describe("key-info navigation", () => {
       behavior: "smooth"
     });
   });
+
+  test("stops cross-doc polling once target block renders and cancels timers on destroy", () => {
+    vi.useFakeTimers();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const root = document.createElement("div");
+    const target = document.createElement("div");
+    target.dataset.nodeId = "block-lazy";
+    const scrollIntoView = vi.fn();
+    target.scrollIntoView = scrollIntoView;
+
+    let currentRoot: HTMLElement | null = null;
+    const navigation = createKeyInfoNavigation();
+    navigation.handleItemClick(item("block-lazy"), () =>
+      currentRoot ? ({ wysiwyg: { element: currentRoot } } as any) : undefined
+    );
+
+    vi.advanceTimersByTime(80);
+    expect(scrollIntoView).toHaveBeenCalledTimes(0);
+
+    root.appendChild(target);
+    currentRoot = root;
+    vi.advanceTimersByTime(100);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    // Later delays must not re-scroll or re-flash once found.
+    vi.advanceTimersByTime(1200);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    // destroy() cancels pending timers before target renders.
+    currentRoot = null;
+    navigation.handleItemClick(item("block-cancelled"), () =>
+      currentRoot ? ({ wysiwyg: { element: currentRoot } } as any) : undefined
+    );
+    navigation.destroy();
+    currentRoot = root;
+    vi.advanceTimersByTime(1500);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    openSpy.mockRestore();
+    vi.useRealTimers();
+  });
 });
