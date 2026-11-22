@@ -210,3 +210,20 @@ export async function listDocsByPath(
   });
   return res?.files || [];
 }
+
+export type KernelRecentDoc = {
+  rootID: string;
+  icon?: string;
+  title?: string;
+  viewedAt?: number;
+  closedAt?: number;
+  openAt?: number;
+};
+
+export async function getRecentDocs(sortBy?: string): Promise<KernelRecentDoc[]> {
+  const res = await requestApi<KernelRecentDoc[]>(
+    "/api/storage/getRecentDocs",
+    sortBy ? { sortBy } : {}
+  );
+  return Array.isArray(res) ? res : [];
+}

@@ -61,6 +61,8 @@ export type PluginDocMenuState = {
   dynamicOutlineFollowKeyInfo: boolean;
   dynamicOutlinePosition: DynamicOutlinePosition;
   dynamicOutlineViewModes: DynamicOutlineViewMode[];
+  dynamicOutlineOpenDocsExpanded: boolean;
+  dynamicOutlineRecentDocsExpanded: boolean;
 };
 
 type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
@@ -75,6 +77,8 @@ type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   dynamicOutlineFollowKeyInfo?: unknown;
   dynamicOutlinePosition?: unknown;
   dynamicOutlineViewModes?: unknown;
+  dynamicOutlineOpenDocsExpanded?: unknown;
+  dynamicOutlineRecentDocsExpanded?: unknown;
 };
 
 export function buildDefaultPluginDocMenuState(
@@ -95,7 +99,9 @@ export function buildDefaultPluginDocMenuState(
     dynamicOutlineEnabled: false,
     dynamicOutlineFollowKeyInfo: false,
     dynamicOutlinePosition: "right",
-    dynamicOutlineViewModes: [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES]
+    dynamicOutlineViewModes: [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES],
+    dynamicOutlineOpenDocsExpanded: true,
+    dynamicOutlineRecentDocsExpanded: false
   };
 }
 
@@ -118,7 +124,17 @@ export function normalizePluginDocMenuState(
     dynamicOutlineEnabled: normalizeStoredDynamicOutlineEnabled(raw),
     dynamicOutlineFollowKeyInfo: normalizeStoredDynamicOutlineFollowKeyInfo(raw),
     dynamicOutlinePosition: normalizeStoredDynamicOutlinePosition(raw),
-    dynamicOutlineViewModes: normalizeStoredDynamicOutlineViewModes(raw)
+    dynamicOutlineViewModes: normalizeStoredDynamicOutlineViewModes(raw),
+    dynamicOutlineOpenDocsExpanded: normalizeStoredDynamicOutlineDocSection(
+      raw,
+      "dynamicOutlineOpenDocsExpanded",
+      true
+    ),
+    dynamicOutlineRecentDocsExpanded: normalizeStoredDynamicOutlineDocSection(
+      raw,
+      "dynamicOutlineRecentDocsExpanded",
+      false
+    )
   };
 }
 
@@ -215,6 +231,18 @@ function normalizeStoredDynamicOutlineViewModes(raw: unknown): DynamicOutlineVie
   );
 }
 
+function normalizeStoredDynamicOutlineDocSection(
+  raw: unknown,
+  key: "dynamicOutlineOpenDocsExpanded" | "dynamicOutlineRecentDocsExpanded",
+  fallback: boolean
+): boolean {
+  if (!raw || typeof raw !== "object") {
+    return fallback;
+  }
+  const value = (raw as PluginDocMenuStorageV1)[key];
+  return typeof value === "boolean" ? value : fallback;
+}
+
 export function serializePluginDocMenuState(
   state: PluginDocMenuState
 ): PluginDocMenuStorageV1 {
@@ -234,7 +262,9 @@ export function serializePluginDocMenuState(
     dynamicOutlineEnabled: state.dynamicOutlineEnabled,
     dynamicOutlineFollowKeyInfo: state.dynamicOutlineFollowKeyInfo,
     dynamicOutlinePosition: state.dynamicOutlinePosition,
-    dynamicOutlineViewModes: state.dynamicOutlineViewModes
+    dynamicOutlineViewModes: state.dynamicOutlineViewModes,
+    dynamicOutlineOpenDocsExpanded: state.dynamicOutlineOpenDocsExpanded,
+    dynamicOutlineRecentDocsExpanded: state.dynamicOutlineRecentDocsExpanded
   };
 }
 
@@ -454,6 +484,20 @@ export function setPluginDynamicOutlineViewModes(
   return {
     ...state,
     dynamicOutlineViewModes: normalizeDynamicOutlineViewModes(viewModes)
+  };
+}
+
+export function setPluginDynamicOutlineDocSectionsExpanded(
+  state: PluginDocMenuState,
+  sections: {
+    openDocsExpanded: boolean;
+    recentDocsExpanded: boolean;
+  }
+): PluginDocMenuState {
+  return {
+    ...state,
+    dynamicOutlineOpenDocsExpanded: Boolean(sections.openDocsExpanded),
+    dynamicOutlineRecentDocsExpanded: Boolean(sections.recentDocsExpanded)
   };
 }
 

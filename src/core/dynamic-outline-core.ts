@@ -65,18 +65,36 @@ export type FilteredOpenDocItem = {
   matchRange?: [number, number];
 };
 
+export type RecentDocItem = {
+  docId: string;
+  title: string;
+  iconHtml?: string;
+  viewedAt?: number;
+  closedAt?: number;
+  openAt?: number;
+};
+
+export type FilteredRecentDocItem = {
+  item: RecentDocItem;
+  matchRange?: [number, number];
+};
+
 export type DynamicOutlineConfig = {
   enabled: boolean;
   followKeyInfo: boolean;
   position: DynamicOutlinePosition;
   viewModes: DynamicOutlineViewMode[];
+  openDocsExpanded?: boolean;
+  recentDocsExpanded?: boolean;
 };
 
 export const DEFAULT_DYNAMIC_OUTLINE_CONFIG: DynamicOutlineConfig = {
   enabled: false,
   followKeyInfo: false,
   position: "right",
-  viewModes: [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES]
+  viewModes: [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES],
+  openDocsExpanded: true,
+  recentDocsExpanded: false
 };
 
 export function parseHeadingLevel(item: KeyInfoItem): HeadingLevel | 0 {
@@ -377,10 +395,10 @@ export function highlightMatchRanges(
   return parts;
 }
 
-export function filterOpenDocItems(
-  items: OpenDocTabItem[],
+function filterDocItemsByTitle<T extends { title: string }>(
+  items: T[],
   query: string
-): FilteredOpenDocItem[] {
+): Array<{ item: T; matchRange?: [number, number] }> {
   if (!items || items.length === 0) {
     return [];
   }
@@ -390,7 +408,7 @@ export function filterOpenDocItems(
     return items.map((item) => ({ item }));
   }
 
-  const result: FilteredOpenDocItem[] = [];
+  const result: Array<{ item: T; matchRange?: [number, number] }> = [];
   items.forEach((item) => {
     const matchRange = PinyinMatch.match(item.title || "", trimmed);
     if (matchRange) {
@@ -398,4 +416,80 @@ export function filterOpenDocItems(
     }
   });
   return result;
+}
+
+export function filterOpenDocItems(
+  items: OpenDocTabItem[],
+  query: string
+): FilteredOpenDocItem[] {
+  return filterDocItemsByTitle(items, query);
+}
+
+export function filterRecentDocItems(
+  items: RecentDocItem[],
+  query: string
+): FilteredRecentDocItem[] {
+  return filterDocItemsByTitle(items, query);
+}
+
+export function deduplicateRecentDocs(
+  recentDocs: RecentDocItem[],
+  openDocs: OpenDocTabItem[]
+): RecentDocItem[] {
+  if (!recentDocs || recentDocs.length === 0) {
+    return [];
+  }
+  const openDocIds = new Set(openDocs.map((doc) => doc.docId).filter(Boolean));
+  const seenRecentIds = new Set<string>();
+  const result: RecentDocItem[] = [];
+  for (const doc of recentDocs) {
+    if (!doc.docId || openDocIds.has(doc.docId) || seenRecentIds.has(doc.docId)) {
+      continue;
+    }
+    seenRecentIds.add(doc.docId);
+    result.push(doc);
+  }
+  return result;
+}
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+const DEFAULT_DOC_ICON_SVG = '<svg><use xlink:href="#iconFile"></use></svg>';
+
+/** 将思源文档 icon 字段转换为可用于面板渲染的 HTML 片段 */
+export function formatDocIconHtml(icon?: string): string {
+  const raw = (icon || "").trim();
+  if (!raw) {
+    return DEFAULT_DOC_ICON_SVG;
+  }
+
+  if (raw.startsWith("api/icon/getDynamicIcon") || /^https?:\/\//i.test(raw)) {
+    const normalized = raw.replace(/&amp;/g, "&");
+    const networkAttr = /^https?:\/\//i.test(normalized) ? ' referrerpolicy="no-referrer"' : "";
+    return `<img src="${escapeHtmlAttr(normalized)}"${networkAttr}/>`;
+  }
+
+  if (raw.includes(".") || raw.includes("/")) {
+    return `<img src="/emojis/${escapeHtmlAttr(raw)}"/>`;
+  }
+
+  try {
+    let emoji = "";
+    for (const part of raw.split("-")) {
+      const code = Number.parseInt(part, 16);
+      if (Number.isNaN(code) || code <= 0) {
+        return DEFAULT_DOC_ICON_SVG;
+      }
+      emoji += String.fromCodePoint(code);
+    }
+    return emoji || DEFAULT_DOC_ICON_SVG;
+  } catch {
+    return DEFAULT_DOC_ICON_SVG;
+  }
 }

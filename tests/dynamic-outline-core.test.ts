@@ -3,13 +3,17 @@ import { KeyInfoItem } from "@/core/key-info-core";
 import {
   buildDynamicOutlineItems,
   calculateViewportIndicator,
+  deduplicateRecentDocs,
   estimateGlobalDocumentProgress,
   filterDynamicOutlineItems,
   filterOpenDocItems,
+  filterRecentDocItems,
   findActiveOutlineItemIndex,
+  formatDocIconHtml,
   highlightMatchRanges,
   OpenDocTabItem,
-  parseHeadingLevel
+  parseHeadingLevel,
+  RecentDocItem
 } from "@/core/dynamic-outline-core";
 
 describe("dynamic-outline-core", () => {
@@ -322,6 +326,37 @@ describe("dynamic-outline-core", () => {
       const byPinyin = filterOpenDocItems(mockDocs, "xmjgsj");
       expect(byPinyin).toHaveLength(1);
       expect(byPinyin[0].item.docId).toBe("d1");
+    });
+  });
+
+  describe("deduplicateRecentDocs & filterRecentDocItems & formatDocIconHtml", () => {
+    const openDocs: OpenDocTabItem[] = [
+      { tabId: "t1", docId: "d1", title: "已打开文档一", isPinned: false, isActive: true }
+    ];
+    const recentDocs: RecentDocItem[] = [
+      { docId: "d1", title: "已打开文档一" },
+      { docId: "d2", title: "最近文档二" },
+      { docId: "d2", title: "最近文档二重复" },
+      { docId: "d3", title: "开发周报" }
+    ];
+
+    test("deduplicates against open docs and self duplicates while preserving order", () => {
+      const result = deduplicateRecentDocs(recentDocs, openDocs);
+      expect(result.map((d) => d.docId)).toEqual(["d2", "d3"]);
+    });
+
+    test("filters recent docs by keyword and pinyin", () => {
+      expect(filterRecentDocItems(recentDocs.slice(1, 2), "")).toHaveLength(1);
+      const matched = filterRecentDocItems([recentDocs[1], recentDocs[3]], "kfzb");
+      expect(matched).toHaveLength(1);
+      expect(matched[0].item.docId).toBe("d3");
+    });
+
+    test("formats unicode, custom image, network and default doc icons", () => {
+      expect(formatDocIconHtml("")).toContain("#iconFile");
+      expect(formatDocIconHtml("1f4cc")).toBe("📌");
+      expect(formatDocIconHtml("custom.png")).toBe('<img src="/emojis/custom.png"/>');
+      expect(formatDocIconHtml("https://example.com/a.png")).toContain('src="https://example.com/a.png"');
     });
   });
 });

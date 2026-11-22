@@ -308,4 +308,44 @@ describe("dynamic-outline-controller", () => {
       isActive: false
     });
   });
+
+  test("fetches deduplicated recent docs in open-docs mode and persists section toggle", async () => {
+    const openDocs: OpenDocTabRef[] = [
+      { tabId: "t1", docId: "doc-1", title: "已打开文档", isPinned: false, isActive: true }
+    ];
+    const recentDocs = [
+      { docId: "doc-1", title: "已打开文档" },
+      { docId: "doc-2", title: "最近文档二" }
+    ];
+    const openRecentDoc = vi.fn();
+    const setDocSectionsExpanded = vi.fn();
+    deps.getOpenDocTabs = vi.fn().mockReturnValue(openDocs);
+    deps.getRecentDocs = vi.fn().mockResolvedValue(recentDocs);
+    deps.openRecentDoc = openRecentDoc;
+    deps.setDocSectionsExpanded = setDocSectionsExpanded;
+
+    const controller = new DynamicOutlineController(deps);
+    controller.syncActiveEditor();
+
+    const titleBtn = mockProtyleEl.querySelector(".doc-assistant-dynamic-outline__title-btn") as HTMLButtonElement;
+    titleBtn.click();
+
+    await vi.waitFor(() => {
+      const recentCount = mockProtyleEl.querySelector('[data-section="recent"] .doc-assistant-dynamic-outline__doc-section-count');
+      expect(recentCount?.textContent).toBe("1");
+    });
+
+    (mockProtyleEl.querySelector('[data-section="recent"]') as HTMLButtonElement).click();
+    expect(setDocSectionsExpanded).toHaveBeenCalledWith({
+      openDocsExpanded: true,
+      recentDocsExpanded: true
+    });
+
+    const items = mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__doc-item");
+    expect(items).toHaveLength(2);
+    (items[1] as HTMLElement).click();
+    expect(openRecentDoc).toHaveBeenCalledWith(expect.objectContaining({ docId: "doc-2" }));
+
+    controller.destroy();
+  });
 });

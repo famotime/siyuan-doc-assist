@@ -1,7 +1,7 @@
 import { getAllModels, openTab } from "siyuan";
-import { OpenDocTabItem } from "@/core/dynamic-outline-core";
+import { formatDocIconHtml, OpenDocTabItem, RecentDocItem } from "@/core/dynamic-outline-core";
 import { getParentDocPath, SiblingDocRef } from "@/core/doc-navigation-core";
-import { FileTreeDoc, getPathByID, listDocsByPath } from "@/services/kernel-file";
+import { FileTreeDoc, getPathByID, getRecentDocs, listDocsByPath } from "@/services/kernel-file";
 
 export type OpenDocTabRef = OpenDocTabItem & {
   wnd?: unknown;
@@ -119,4 +119,20 @@ export async function activateOpenDocTab(target: OpenDocTabRef, app?: unknown): 
     return openDocTab(app, target.docId);
   }
   return undefined;
+}
+
+/** 查询思源内置“最近打开的文档”列表，沿用当前 fileTree.recentDocsSort 排序 */
+export async function fetchRecentDocItems(): Promise<RecentDocItem[]> {
+  const sortBy = (window as any)?.siyuan?.config?.fileTree?.recentDocsSort as string | undefined;
+  const recentDocs = await getRecentDocs(sortBy);
+  return recentDocs
+    .filter((doc) => Boolean(doc?.rootID))
+    .map((doc) => ({
+      docId: doc.rootID,
+      title: (doc.title || "").trim() || "未命名文档",
+      iconHtml: formatDocIconHtml(doc.icon),
+      viewedAt: doc.viewedAt,
+      closedAt: doc.closedAt,
+      openAt: doc.openAt
+    }));
 }

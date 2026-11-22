@@ -9,7 +9,8 @@ import {
   findActiveOutlineItemIndex,
   normalizeDynamicOutlineViewModes,
   OpenDocTabItem,
-  ProgressAnchor
+  ProgressAnchor,
+  RecentDocItem
 } from "@/core/dynamic-outline-core";
 import { KeyInfoFilter, KeyInfoItem, resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { ProtyleLike } from "@/plugin/doc-context";
@@ -29,6 +30,12 @@ export type DynamicOutlineControllerDeps = {
   navigateBlock: (blockId: string, protyle?: ProtyleLike) => void;
   getOpenDocTabs?: (protyle?: ProtyleLike) => OpenDocTabRef[];
   activateOpenDocTab?: (item: OpenDocTabRef) => Promise<unknown> | void;
+  getRecentDocs?: () => Promise<RecentDocItem[]>;
+  openRecentDoc?: (item: RecentDocItem) => Promise<unknown> | void;
+  setDocSectionsExpanded?: (sections: {
+    openDocsExpanded: boolean;
+    recentDocsExpanded: boolean;
+  }) => Promise<void> | void;
   getConfig: () => DynamicOutlineConfig;
   setPosition?: (position: DynamicOutlinePosition) => Promise<void> | void;
   getClipboardItems?: () => ClipboardHistoryItem[];
@@ -61,6 +68,7 @@ export class DynamicOutlineController {
   private viewMode: DynamicOutlineViewMode = "outline";
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private refreshRequestId = 0;
+  private recentDocsRequestId = 0;
   private lastDocId = "";
 
   constructor(private readonly deps: DynamicOutlineControllerDeps) {}
@@ -152,6 +160,8 @@ export class DynamicOutlineController {
       position: config.position,
       initialViewMode: this.viewMode,
       availableViewModes: allowedModes,
+      initialOpenDocsExpanded: config.openDocsExpanded ?? true,
+      initialRecentDocsExpanded: config.recentDocsExpanded ?? false,
       onItemClick: (item) => {
         const activeProtyle = protyle || this.deps.getCurrentProtyle();
         this.deps.navigateBlock(item.blockId, activeProtyle);
@@ -162,6 +172,12 @@ export class DynamicOutlineController {
             (ref) => ref.tabId === docItem.tabId && ref.docId === docItem.docId
           ) || docItem;
         void this.deps.activateOpenDocTab?.(matchedRef);
+      },
+      onRecentDocClick: (docItem: RecentDocItem) => {
+        void this.deps.openRecentDoc?.(docItem);
+      },
+      onDocSectionsChange: (sections) => {
+        void this.deps.setDocSectionsExpanded?.(sections);
       },
       onViewModeChange: (mode) => {
         this.viewMode = mode;
@@ -368,6 +384,22 @@ export class DynamicOutlineController {
     const refs = this.deps.getOpenDocTabs?.(targetProtyle) || [];
     this.currentOpenDocRefs = refs;
     this.view.setOpenDocs(refs);
+
+    if (!this.deps.getRecentDocs) {
+      return;
+    }
+    const requestId = ++this.recentDocsRequestId;
+    void this.deps.getRecentDocs().then(
+      (recentDocs) => {
+        if (requestId !== this.recentDocsRequestId || !this.view) {
+          return;
+        }
+        this.view.setRecentDocs(recentDocs || []);
+      },
+      (error) => {
+        console.warn("[doc-assist] fetch recent docs failed:", error);
+      }
+    );
   }
 
   public async refreshClipboard() {

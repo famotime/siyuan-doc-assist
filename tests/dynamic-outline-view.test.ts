@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { DynamicOutlineItem, OpenDocTabItem } from "@/core/dynamic-outline-core";
+import { DynamicOutlineItem, OpenDocTabItem, RecentDocItem } from "@/core/dynamic-outline-core";
 import { createDynamicOutlineView } from "@/ui/dynamic-outline/dynamic-outline-view";
 
 describe("dynamic-outline-view", () => {
@@ -482,6 +482,72 @@ describe("dynamic-outline-view", () => {
 
     unpinnedEl.remove();
     delete (window as any).siyuan;
+    handle.destroy();
+  });
+
+  test("renders collapsible open/recent doc sections with deduplication, search auto-expand and keyboard navigation", () => {
+    const onOpenDocClick = vi.fn();
+    const onRecentDocClick = vi.fn();
+    const onDocSectionsChange = vi.fn();
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      onOpenDocClick,
+      onRecentDocClick,
+      onDocSectionsChange,
+      initialViewMode: "open-docs"
+    });
+
+    const openDocs: OpenDocTabItem[] = [
+      { tabId: "t1", docId: "doc-1", title: "当前文档", isPinned: false, isActive: true }
+    ];
+    const recentDocs: RecentDocItem[] = [
+      { docId: "doc-1", title: "当前文档" },
+      { docId: "doc-2", title: "最近参考文档", iconHtml: "📘" },
+      { docId: "doc-3", title: "周报记录", iconHtml: "📝" }
+    ];
+
+    handle.setOpenDocs(openDocs);
+    handle.setRecentDocs(recentDocs);
+
+    // 顶部合并计数：1 已打开 + 2 去重后最近文档 = 3
+    expect(parent.querySelector(".doc-assistant-dynamic-outline__count")?.textContent).toBe("3");
+    const sectionHeaders = parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-section-header");
+    expect(sectionHeaders).toHaveLength(2);
+    expect(sectionHeaders[0].getAttribute("aria-expanded")).toBe("true");
+    expect(sectionHeaders[0].querySelector(".doc-assistant-dynamic-outline__doc-section-count")?.textContent).toBe("1");
+    expect(sectionHeaders[1].getAttribute("aria-expanded")).toBe("false");
+    expect(sectionHeaders[1].querySelector(".doc-assistant-dynamic-outline__doc-section-count")?.textContent).toBe("2");
+
+    // 默认最近文档折叠，仅显示 1 项已打开文档
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")).toHaveLength(1);
+
+    // 搜索匹配到折叠中的最近文档时，自动临时展开并更新合并计数
+    const searchInput = parent.querySelector(".doc-assistant-dynamic-outline__search-input") as HTMLInputElement;
+    searchInput.value = "ckwd";
+    searchInput.dispatchEvent(new Event("input"));
+    expect(parent.querySelector(".doc-assistant-dynamic-outline__count")?.textContent).toBe("1/3");
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")).toHaveLength(1);
+    expect(parent.querySelector(".doc-assistant-dynamic-outline__doc-item")?.getAttribute("data-doc-id")).toBe("doc-2");
+
+    // 清空搜索后恢复原折叠状态
+    searchInput.value = "";
+    searchInput.dispatchEvent(new Event("input"));
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")).toHaveLength(1);
+
+    // 点击展开“最近的文档”并持久化回调
+    (parent.querySelector('[data-section="recent"]') as HTMLButtonElement).click();
+    expect(onDocSectionsChange).toHaveBeenCalledWith({
+      openDocsExpanded: true,
+      recentDocsExpanded: true
+    });
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")).toHaveLength(3);
+
+    // 键盘上下键跨分组选择并回车打开最近文档
+    searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(onRecentDocClick).toHaveBeenCalledWith(expect.objectContaining({ docId: "doc-2" }));
+
     handle.destroy();
   });
 });

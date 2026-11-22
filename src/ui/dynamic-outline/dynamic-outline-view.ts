@@ -7,16 +7,20 @@ import {
 import {
   calculateViewportIndicator,
   DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
+  deduplicateRecentDocs,
   DynamicOutlineItem,
   DynamicOutlinePosition,
   DynamicOutlineViewMode,
   filterDynamicOutlineItems,
   FilteredOutlineItem,
   FilteredOpenDocItem,
+  FilteredRecentDocItem,
   filterOpenDocItems,
+  filterRecentDocItems,
   highlightMatchRanges,
   normalizeDynamicOutlineViewModes,
-  OpenDocTabItem
+  OpenDocTabItem,
+  RecentDocItem
 } from "@/core/dynamic-outline-core";
 import { resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { HeadingLevel } from "@/core/key-info-heading-color-core";
@@ -57,13 +61,23 @@ const LUCIDE_MODE_SWITCH_SVG =
 const LUCIDE_DOC_PIN_SVG =
   '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="none"></path></svg>';
 
+const LUCIDE_CHEVRON_DOWN_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" fill="none"></path></svg>';
+
 export type DynamicOutlineViewOptions = {
   position?: DynamicOutlinePosition;
   initialViewMode?: DynamicOutlineViewMode;
   availableViewModes?: DynamicOutlineViewMode[];
+  initialOpenDocsExpanded?: boolean;
+  initialRecentDocsExpanded?: boolean;
   isZh?: boolean;
   onItemClick: (item: DynamicOutlineItem) => void;
   onOpenDocClick?: (item: OpenDocTabItem) => void;
+  onRecentDocClick?: (item: RecentDocItem) => void;
+  onDocSectionsChange?: (sections: {
+    openDocsExpanded: boolean;
+    recentDocsExpanded: boolean;
+  }) => void;
   onViewModeChange?: (mode: DynamicOutlineViewMode) => void;
   onFlyoutOpen?: () => void;
   onPinChange?: (pinned: boolean) => void;
@@ -92,6 +106,7 @@ export type DynamicOutlineViewHandle = {
   setOpenDocs: (items: OpenDocTabItem[]) => void;
   setClipboardItems: (items: ClipboardHistoryItem[]) => void;
   setAvailableViewModes: (modes: DynamicOutlineViewMode[]) => void;
+  setRecentDocs: (items: RecentDocItem[]) => void;
   setViewMode: (mode: DynamicOutlineViewMode) => void;
   getViewMode: () => DynamicOutlineViewMode;
   setScroll: (
@@ -256,6 +271,8 @@ export function createDynamicOutlineView(
   let currentModeLabel = "文档大纲";
   let filteredItems: FilteredOutlineItem[] = [];
   let currentOpenDocs: OpenDocTabItem[] = [];
+  let currentRecentDocsRaw: RecentDocItem[] = [];
+  let currentRecentDocs: RecentDocItem[] = [];
   let filteredOpenDocs: FilteredOpenDocItem[] = [];
   let currentClipboardItems: ClipboardHistoryItem[] = [];
   let filteredClipboardItems: ClipboardHistoryItem[] = [];
@@ -265,6 +282,12 @@ export function createDynamicOutlineView(
   let selectedClipboardIds: string[] = [];
   let lastBatchAnchorId: string | null = null;
   let isDropdownOpen = false;
+  let filteredRecentDocs: FilteredRecentDocItem[] = [];
+  let openDocsExpanded = options.initialOpenDocsExpanded ?? true;
+  let recentDocsExpanded = options.initialRecentDocsExpanded ?? false;
+  let visibleDocEntries: Array<
+    { kind: "open"; item: OpenDocTabItem } | { kind: "recent"; item: RecentDocItem }
+  > = [];
   let searchQuery = "";
   let showTreeContext = false;
   let selectedFilteredIndex = -1;
@@ -562,8 +585,8 @@ export function createDynamicOutlineView(
 
     if (isOpenDocs) {
       searchInput.placeholder = isZh ?
-        "过滤已打开文档 (拼音首字母/关键词)" :
-        "Filter open docs (pinyin/keyword)";
+        "过滤文档 (拼音首字母/关键词)" :
+        "Filter docs (pinyin/keyword)";
       titleText.textContent = getModeDisplayLabel("open-docs");
     } else if (isClipboard) {
       searchInput.placeholder = isZh ?
@@ -884,164 +907,148 @@ export function createDynamicOutlineView(
     }
   };
 
-  const renderOpenDocsList = () => {
-    if (filteredOpenDocs.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "doc-assistant-dynamic-outline__empty";
-      empty.textContent = searchQuery.trim() ?
-          (isZh ? "未匹配到已打开文档" : "No matching open docs") :
-          (isZh ? "当前编辑区暂无已打开文档" : "No open documents");
-      list.appendChild(empty);
-      return;
+  type DocRowRenderParams = {
+    docId: string;
+    title: string;
+    iconHtml?: string;
+    matchRange?: [number, number];
+    tabId?: string;
+    isPinned?: boolean;
+    isActive?: boolean;
+    isSelected: boolean;
+    onClick: () => void;
+  };
+
+  const renderDocRow = (params: DocRowRenderParams) => {
+    const row = document.createElement("div");
+    row.className =
+      "doc-assistant-dynamic-outline__item doc-assistant-dynamic-outline__doc-item popover__block";
+    row.setAttribute("data-level", "0");
+    row.setAttribute("data-id", params.docId);
+    row.setAttribute("data-doc-id", params.docId);
+    if (params.tabId) {
+      row.setAttribute("data-tab-id", params.tabId);
+    }
+    row.setAttribute("prevent-popover", "true");
+
+    if (params.isPinned) {
+      row.classList.add("is-doc-pinned");
+    }
+    if (params.isActive) {
+      row.classList.add("is-active");
+    }
+    if (params.isSelected) {
+      row.classList.add("is-selected");
     }
 
-    filteredOpenDocs.forEach((fDoc, index) => {
-      const doc = fDoc.item;
-      const row = document.createElement("div");
-      row.className =
-        "doc-assistant-dynamic-outline__item doc-assistant-dynamic-outline__doc-item popover__block";
-      row.setAttribute("data-level", "0");
-      row.setAttribute("data-id", doc.docId);
-      row.setAttribute("data-doc-id", doc.docId);
-      row.setAttribute("data-tab-id", doc.tabId);
-      row.setAttribute("prevent-popover", "true");
+    if (params.isPinned) {
+      const pinBadge = document.createElement("span");
+      pinBadge.className = "doc-assistant-dynamic-outline__doc-pin";
+      pinBadge.setAttribute("title", isZh ? "常驻钉住" : "Pinned");
+      pinBadge.innerHTML = LUCIDE_DOC_PIN_SVG;
+      row.appendChild(pinBadge);
+    }
 
-      if (doc.isPinned) {
-        row.classList.add("is-doc-pinned");
+    if (params.iconHtml) {
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "doc-assistant-dynamic-outline__doc-icon";
+      iconSpan.innerHTML = params.iconHtml;
+      row.appendChild(iconSpan);
+    }
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "doc-assistant-dynamic-outline__item-text";
+    textSpan.setAttribute("data-level", "0");
+    textSpan.setAttribute("title", params.title);
+    appendHighlightedText(textSpan, params.title, params.matchRange);
+    row.appendChild(textSpan);
+
+    row.addEventListener("click", () => {
+      params.onClick();
+      if (!isPinned) {
+        flyout.classList.remove("is-open");
       }
-      if (doc.isActive) {
-        row.classList.add("is-active");
+    });
+
+    row.addEventListener("mouseenter", () => {
+      hoveredRows.add(row);
+      const pendingCloseTimer = rowCloseTimers.get(row);
+      if (pendingCloseTimer) {
+        clearTimeout(pendingCloseTimer);
+        rowCloseTimers.delete(row);
       }
-      if (index === selectedFilteredIndex) {
-        row.classList.add("is-selected");
+      const existingTimer = rowHoverTimers.get(row);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
       }
 
-      if (doc.isPinned) {
-        const pinBadge = document.createElement("span");
-        pinBadge.className = "doc-assistant-dynamic-outline__doc-pin";
-        pinBadge.setAttribute("title", isZh ? "常驻钉住" : "Pinned");
-        pinBadge.innerHTML = LUCIDE_DOC_PIN_SVG;
-        row.appendChild(pinBadge);
-      }
-
-      if (doc.iconHtml) {
-        const iconSpan = document.createElement("span");
-        iconSpan.className = "doc-assistant-dynamic-outline__doc-icon";
-        iconSpan.innerHTML = doc.iconHtml;
-        row.appendChild(iconSpan);
-      }
-
-      const textSpan = document.createElement("span");
-      textSpan.className = "doc-assistant-dynamic-outline__item-text";
-      textSpan.setAttribute("data-level", "0");
-      textSpan.setAttribute("title", doc.title);
-      appendHighlightedText(textSpan, doc.title, fDoc.matchRange);
-      row.appendChild(textSpan);
-
-      row.addEventListener("click", () => {
-        options.onOpenDocClick?.(doc);
-        if (!isPinned) {
-          flyout.classList.remove("is-open");
+      // 若当前已显示该文档的浮窗，保持 prevent-popover="true" 防止思源重复重建同一浮窗导致闪烁
+      if (hasUnpinnedRowPopover(row)) {
+        row.setAttribute("prevent-popover", "true");
+        if (pendingPopoverRow === row) {
+          pendingPopoverRow = null;
+          hasEnteredPopover = false;
         }
-      });
+        return;
+      }
 
-      row.addEventListener("mouseenter", () => {
-        hoveredRows.add(row);
-        const pendingCloseTimer = rowCloseTimers.get(row);
-        if (pendingCloseTimer) {
-          clearTimeout(pendingCloseTimer);
-          rowCloseTimers.delete(row);
+      const hoverTimer = setTimeout(() => {
+        rowHoverTimers.delete(row);
+        if (hasEnteredPopover || isPointerInPopover()) {
+          return;
         }
-        const existingTimer = rowHoverTimers.get(row);
-        if (existingTimer) {
-          clearTimeout(existingTimer);
-        }
-
-        // 若当前已显示该文档的浮窗，保持 prevent-popover="true" 防止思源重复重建同一浮窗导致闪烁
         if (hasUnpinnedRowPopover(row)) {
           row.setAttribute("prevent-popover", "true");
-          if (pendingPopoverRow === row) {
-            pendingPopoverRow = null;
-            hasEnteredPopover = false;
-          }
           return;
         }
-
-        const hoverTimer = setTimeout(() => {
-          rowHoverTimers.delete(row);
-          if (hasEnteredPopover || isPointerInPopover()) {
-            return;
-          }
-          if (hasUnpinnedRowPopover(row)) {
-            row.setAttribute("prevent-popover", "true");
-            return;
-          }
-          if (pendingPopoverRow && pendingPopoverRow !== row) {
-            destroyUnpinnedRowPopovers(pendingPopoverRow);
-            pendingPopoverRow = null;
-          }
-          resetPreventPopoverAttrs();
-          row.removeAttribute("prevent-popover");
-          row.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-          if (hasUnpinnedRowPopover(row)) {
-            row.setAttribute("prevent-popover", "true");
-          }
-        }, DOC_POPOVER_HOVER_DELAY_MS);
-        rowHoverTimers.set(row, hoverTimer);
-      });
-
-      row.addEventListener("mouseleave", (e) => {
-        hoveredRows.delete(row);
-        const existingHoverTimer = rowHoverTimers.get(row);
-        if (existingHoverTimer) {
-          clearTimeout(existingHoverTimer);
-          rowHoverTimers.delete(row);
+        if (pendingPopoverRow && pendingPopoverRow !== row) {
+          destroyUnpinnedRowPopovers(pendingPopoverRow);
+          pendingPopoverRow = null;
         }
-        row.setAttribute("prevent-popover", "true");
-
-        const hasActivePopoverForRow = hasUnpinnedRowPopover(row);
-
-        if (isPointerInPopover(e.relatedTarget)) {
-          pendingPopoverRow = row;
-          hasEnteredPopover = true;
-          schedulePopoverLeaveWatch();
-          return;
+        resetPreventPopoverAttrs();
+        row.removeAttribute("prevent-popover");
+        row.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+        if (hasUnpinnedRowPopover(row)) {
+          row.setAttribute("prevent-popover", "true");
         }
+      }, DOC_POPOVER_HOVER_DELAY_MS);
+      rowHoverTimers.set(row, hoverTimer);
+    });
 
-        let nextDocRow: HTMLElement | null = null;
-        if (e.relatedTarget instanceof Element) {
-          nextDocRow = e.relatedTarget.closest(".doc-assistant-dynamic-outline__doc-item") as HTMLElement | null;
-        }
-        const movingToSiblingDoc = Boolean(nextDocRow && nextDocRow !== row && list.contains(nextDocRow));
+    row.addEventListener("mouseleave", (e) => {
+      hoveredRows.delete(row);
+      const existingHoverTimer = rowHoverTimers.get(row);
+      if (existingHoverTimer) {
+        clearTimeout(existingHoverTimer);
+        rowHoverTimers.delete(row);
+      }
+      row.setAttribute("prevent-popover", "true");
 
-        const existingCloseTimer = rowCloseTimers.get(row);
-        if (existingCloseTimer) {
-          clearTimeout(existingCloseTimer);
-        }
+      const hasActivePopoverForRow = hasUnpinnedRowPopover(row);
 
-        if (movingToSiblingDoc && hasActivePopoverForRow) {
-          // 鼠标从当前文档向下方/上方移动经过相邻文档项去往浮窗时，保持当前浮窗等待用户进入浮窗
-          pendingPopoverRow = row;
-          hasEnteredPopover = false;
-          schedulePopoverLeaveWatch();
+      if (isPointerInPopover(e.relatedTarget)) {
+        pendingPopoverRow = row;
+        hasEnteredPopover = true;
+        schedulePopoverLeaveWatch();
+        return;
+      }
 
-          const timer = setTimeout(() => {
-            rowCloseTimers.delete(row);
-            rowPopoverTimers = rowPopoverTimers.filter((t) => t !== timer);
-            if (isPointerInElement(row)) {
-              return;
-            }
-            if (isPointerInPopover() || hasEnteredPopover) {
-              return;
-            }
-            destroyUnpinnedRowPopovers(row);
-            resetPreventPopoverAttrs();
-            pendingPopoverRow = null;
-          }, 360);
-          rowCloseTimers.set(row, timer);
-          rowPopoverTimers.push(timer);
-          return;
-        }
+      let nextDocRow: HTMLElement | null = null;
+      if (e.relatedTarget instanceof Element) {
+        nextDocRow = e.relatedTarget.closest(".doc-assistant-dynamic-outline__doc-item") as HTMLElement | null;
+      }
+      const movingToSiblingDoc = Boolean(nextDocRow && nextDocRow !== row && list.contains(nextDocRow));
+
+      const existingCloseTimer = rowCloseTimers.get(row);
+      if (existingCloseTimer) {
+        clearTimeout(existingCloseTimer);
+      }
+
+      if (movingToSiblingDoc && hasActivePopoverForRow) {
+        // 鼠标从当前文档向下方/上方移动经过相邻文档项去往浮窗时，保持当前浮窗等待用户进入浮窗
+        pendingPopoverRow = row;
+        hasEnteredPopover = false;
+        schedulePopoverLeaveWatch();
 
         const timer = setTimeout(() => {
           rowCloseTimers.delete(row);
@@ -1049,26 +1056,196 @@ export function createDynamicOutlineView(
           if (isPointerInElement(row)) {
             return;
           }
-          if (isPointerInPopover()) {
-            pendingPopoverRow = row;
-            hasEnteredPopover = true;
-            schedulePopoverLeaveWatch();
+          if (isPointerInPopover() || hasEnteredPopover) {
             return;
           }
           destroyUnpinnedRowPopovers(row);
           resetPreventPopoverAttrs();
-          if (pendingPopoverRow === row) {
-            pendingPopoverRow = null;
-            hasEnteredPopover = false;
-          }
-        }, 150);
+          pendingPopoverRow = null;
+        }, 360);
         rowCloseTimers.set(row, timer);
         rowPopoverTimers.push(timer);
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        rowCloseTimers.delete(row);
+        rowPopoverTimers = rowPopoverTimers.filter((t) => t !== timer);
+        if (isPointerInElement(row)) {
+          return;
+        }
+        if (isPointerInPopover()) {
+          pendingPopoverRow = row;
+          hasEnteredPopover = true;
+          schedulePopoverLeaveWatch();
+          return;
+        }
+        destroyUnpinnedRowPopovers(row);
+        resetPreventPopoverAttrs();
+        if (pendingPopoverRow === row) {
+          pendingPopoverRow = null;
+          hasEnteredPopover = false;
+        }
+      }, 150);
+      rowCloseTimers.set(row, timer);
+      rowPopoverTimers.push(timer);
+    });
+
+    list.appendChild(row);
+    itemElements.push(row);
+  };
+
+  const renderDocSectionHeader = (params: {
+    sectionKey: "open" | "recent";
+    title: string;
+    countText: string;
+    expanded: boolean;
+    onToggle: () => void;
+  }) => {
+    const headerBtn = document.createElement("button");
+    headerBtn.type = "button";
+    headerBtn.className = "doc-assistant-dynamic-outline__doc-section-header";
+    headerBtn.setAttribute("data-section", params.sectionKey);
+    headerBtn.setAttribute("aria-expanded", String(params.expanded));
+    if (!params.expanded) {
+      headerBtn.classList.add("is-collapsed");
+    }
+
+    const arrow = document.createElement("span");
+    arrow.className = "doc-assistant-dynamic-outline__doc-section-arrow";
+    arrow.innerHTML = LUCIDE_CHEVRON_DOWN_SVG;
+    headerBtn.appendChild(arrow);
+
+    const titleEl = document.createElement("span");
+    titleEl.className = "doc-assistant-dynamic-outline__doc-section-title";
+    titleEl.textContent = params.title;
+    headerBtn.appendChild(titleEl);
+
+    const countEl = document.createElement("span");
+    countEl.className = "doc-assistant-dynamic-outline__doc-section-count";
+    countEl.textContent = params.countText;
+    headerBtn.appendChild(countEl);
+
+    headerBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      params.onToggle();
+    });
+
+    list.appendChild(headerBtn);
+  };
+
+  const renderDocSectionEmpty = (message: string) => {
+    const empty = document.createElement("div");
+    empty.className = "doc-assistant-dynamic-outline__doc-section-empty";
+    empty.textContent = message;
+    list.appendChild(empty);
+  };
+
+  const renderOpenDocsList = () => {
+    visibleDocEntries = [];
+    const hasQuery = searchQuery.trim().length > 0;
+
+    if (hasQuery && filteredOpenDocs.length === 0 && filteredRecentDocs.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "doc-assistant-dynamic-outline__empty";
+      empty.textContent = isZh ? "未匹配到相关文档" : "No matching documents";
+      list.appendChild(empty);
+      return;
+    }
+
+    const showOpenSection = !hasQuery || filteredOpenDocs.length > 0;
+    const showRecentSection = !hasQuery || filteredRecentDocs.length > 0;
+
+    if (showOpenSection) {
+      const isSectionExpanded = hasQuery ? true : openDocsExpanded;
+      const openCountText = hasQuery ?
+        `${filteredOpenDocs.length}/${currentOpenDocs.length}` :
+          String(currentOpenDocs.length);
+      renderDocSectionHeader({
+        sectionKey: "open",
+        title: isZh ? "已打开文档" : "Open Docs",
+        countText: openCountText,
+        expanded: isSectionExpanded,
+        onToggle: () => {
+          openDocsExpanded = !openDocsExpanded;
+          selectedFilteredIndex = -1;
+          options.onDocSectionsChange?.({
+            openDocsExpanded,
+            recentDocsExpanded
+          });
+          renderList();
+        }
       });
 
-      list.appendChild(row);
-      itemElements.push(row);
-    });
+      if (isSectionExpanded) {
+        if (filteredOpenDocs.length === 0) {
+          renderDocSectionEmpty(isZh ? "当前编辑区暂无已打开文档" : "No open documents");
+        } else {
+          filteredOpenDocs.forEach((fDoc) => {
+            const doc = fDoc.item;
+            const entryIndex = visibleDocEntries.length;
+            visibleDocEntries.push({ kind: "open", item: doc });
+            renderDocRow({
+              docId: doc.docId,
+              title: doc.title,
+              iconHtml: doc.iconHtml,
+              matchRange: fDoc.matchRange,
+              tabId: doc.tabId,
+              isPinned: doc.isPinned,
+              isActive: doc.isActive,
+              isSelected: entryIndex === selectedFilteredIndex,
+              onClick: () => {
+                options.onOpenDocClick?.(doc);
+              }
+            });
+          });
+        }
+      }
+    }
+
+    if (showRecentSection) {
+      const isSectionExpanded = hasQuery ? true : recentDocsExpanded;
+      const recentCountText = hasQuery ?
+        `${filteredRecentDocs.length}/${currentRecentDocs.length}` :
+          String(currentRecentDocs.length);
+      renderDocSectionHeader({
+        sectionKey: "recent",
+        title: isZh ? "最近的文档" : "Recent Docs",
+        countText: recentCountText,
+        expanded: isSectionExpanded,
+        onToggle: () => {
+          recentDocsExpanded = !recentDocsExpanded;
+          selectedFilteredIndex = -1;
+          options.onDocSectionsChange?.({
+            openDocsExpanded,
+            recentDocsExpanded
+          });
+          renderList();
+        }
+      });
+
+      if (isSectionExpanded) {
+        if (filteredRecentDocs.length === 0) {
+          renderDocSectionEmpty(isZh ? "暂无更多最近文档" : "No more recent documents");
+        } else {
+          filteredRecentDocs.forEach((fDoc) => {
+            const doc = fDoc.item;
+            const entryIndex = visibleDocEntries.length;
+            visibleDocEntries.push({ kind: "recent", item: doc });
+            renderDocRow({
+              docId: doc.docId,
+              title: doc.title,
+              iconHtml: doc.iconHtml,
+              matchRange: fDoc.matchRange,
+              isSelected: entryIndex === selectedFilteredIndex,
+              onClick: () => {
+                options.onRecentDocClick?.(doc);
+              }
+            });
+          });
+        }
+      }
+    }
   };
 
   const renderList = () => {
@@ -1191,24 +1368,29 @@ export function createDynamicOutlineView(
     clearBtn.style.display = query ? "inline-flex" : "none";
 
     if (viewMode === "open-docs") {
+      const totalDocsCount = currentOpenDocs.length + currentRecentDocs.length;
       if (!query) {
         searchBar.classList.remove("is-filtering");
-        countBadge.textContent = String(currentOpenDocs.length);
-        matchCountBadge.textContent = isZh ? `${currentOpenDocs.length} 项` : `${currentOpenDocs.length} items`;
+        countBadge.textContent = String(totalDocsCount);
+        matchCountBadge.textContent = isZh ? `${totalDocsCount} 项` : `${totalDocsCount} items`;
         filteredOpenDocs = currentOpenDocs.map((item) => ({ item }));
+        filteredRecentDocs = currentRecentDocs.map((item) => ({ item }));
       } else {
         searchBar.classList.add("is-filtering");
         filteredOpenDocs = filterOpenDocItems(currentOpenDocs, query);
-        countBadge.textContent = `${filteredOpenDocs.length}/${currentOpenDocs.length}`;
+        filteredRecentDocs = filterRecentDocItems(currentRecentDocs, query);
+        const matchedTotal = filteredOpenDocs.length + filteredRecentDocs.length;
+        countBadge.textContent = `${matchedTotal}/${totalDocsCount}`;
         matchCountBadge.textContent = isZh ?
-          `${filteredOpenDocs.length}/${currentOpenDocs.length} 项` :
-          `${filteredOpenDocs.length}/${currentOpenDocs.length}`;
+          `${matchedTotal}/${totalDocsCount} 项` :
+          `${matchedTotal}/${totalDocsCount}`;
       }
       updateMinimapFilterMarks(new Set());
-      if (selectedFilteredIndex >= filteredOpenDocs.length) {
-        selectedFilteredIndex = -1;
-      }
       renderList();
+      if (selectedFilteredIndex >= visibleDocEntries.length) {
+        selectedFilteredIndex = -1;
+        updateSelectionHighlight();
+      }
       return;
     }
 
@@ -1310,7 +1492,7 @@ export function createDynamicOutlineView(
 
   searchInput.addEventListener("keydown", (e) => {
     const activeListLength =
-      viewMode === "open-docs" ? filteredOpenDocs.length : filteredItems.length;
+      viewMode === "open-docs" ? visibleDocEntries.length : filteredItems.length;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (activeListLength > 0) {
@@ -1328,13 +1510,17 @@ export function createDynamicOutlineView(
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (viewMode === "open-docs") {
-        if (filteredOpenDocs.length > 0) {
+        if (visibleDocEntries.length > 0) {
           const target =
-            selectedFilteredIndex >= 0 && filteredOpenDocs[selectedFilteredIndex] ?
-              filteredOpenDocs[selectedFilteredIndex] :
-              filteredOpenDocs[0];
+            selectedFilteredIndex >= 0 && visibleDocEntries[selectedFilteredIndex] ?
+              visibleDocEntries[selectedFilteredIndex] :
+              visibleDocEntries[0];
           if (target) {
-            options.onOpenDocClick?.(target.item);
+            if (target.kind === "open") {
+              options.onOpenDocClick?.(target.item);
+            } else {
+              options.onRecentDocClick?.(target.item);
+            }
             if (!isPinned) {
               flyout.classList.remove("is-open");
             }
@@ -1407,6 +1593,15 @@ export function createDynamicOutlineView(
 
   const setOpenDocs = (items: OpenDocTabItem[]) => {
     currentOpenDocs = items;
+    currentRecentDocs = deduplicateRecentDocs(currentRecentDocsRaw, currentOpenDocs);
+    if (viewMode === "open-docs") {
+      updateFilteredView();
+    }
+  };
+
+  const setRecentDocs = (items: RecentDocItem[]) => {
+    currentRecentDocsRaw = items;
+    currentRecentDocs = deduplicateRecentDocs(currentRecentDocsRaw, currentOpenDocs);
     if (viewMode === "open-docs") {
       updateFilteredView();
     }
@@ -1518,6 +1713,7 @@ export function createDynamicOutlineView(
     setOpenDocs,
     setClipboardItems,
     setAvailableViewModes,
+    setRecentDocs,
     setViewMode,
     getViewMode,
     setScroll,
