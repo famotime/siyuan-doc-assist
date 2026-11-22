@@ -74,6 +74,7 @@ export type DynamicOutlineViewOptions = {
   isZh?: boolean;
   onItemClick: (item: DynamicOutlineItem) => void;
   onOpenDocClick?: (item: OpenDocTabItem) => void;
+  onOpenDocClose?: (item: OpenDocTabItem) => void;
   onRecentDocClick?: (item: RecentDocItem) => void;
   onDocSectionsChange?: (sections: {
     openDocsExpanded: boolean;
@@ -1043,6 +1044,12 @@ export function createDynamicOutlineView(
             flyout.classList.remove("is-open");
           }
         },
+        onOpenDocClose: options.onOpenDocClose ?
+            (doc) => {
+              docPopover.resetListState();
+              options.onOpenDocClose?.(doc);
+            } :
+          undefined,
         onRecentDocClick: (doc) => {
           options.onRecentDocClick?.(doc);
           if (!isPinned) {

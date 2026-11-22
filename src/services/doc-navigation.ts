@@ -4,6 +4,7 @@ import { getParentDocPath, SiblingDocRef } from "@/core/doc-navigation-core";
 import { FileTreeDoc, getPathByID, getRecentDocs, listDocsByPath } from "@/services/kernel-file";
 
 export type OpenDocTabRef = OpenDocTabItem & {
+  tab?: unknown;
   wnd?: unknown;
   headElement?: HTMLElement;
 };
@@ -100,6 +101,7 @@ export function collectCurrentWndOpenDocTabs(protyle: unknown): OpenDocTabRef[] 
       iconHtml,
       isPinned,
       isActive,
+      tab,
       wnd,
       headElement
     });
@@ -119,6 +121,21 @@ export async function activateOpenDocTab(target: OpenDocTabRef, app?: unknown): 
     return openDocTab(app, target.docId);
   }
   return undefined;
+}
+
+/** 关闭指定已打开文档页签；优先调用 tab.close()，不可用时回退到 wnd.removeTab */
+export function closeOpenDocTab(target: OpenDocTabRef): boolean {
+  const tab = target.tab as { close?: () => void } | undefined;
+  if (tab && typeof tab.close === "function") {
+    tab.close();
+    return true;
+  }
+  const wnd = target.wnd as { removeTab?: (id: string) => void } | undefined;
+  if (wnd && typeof wnd.removeTab === "function" && target.tabId) {
+    wnd.removeTab(target.tabId);
+    return true;
+  }
+  return false;
 }
 
 /** 查询思源内置“最近打开的文档”列表，沿用当前 fileTree.recentDocsSort 排序 */

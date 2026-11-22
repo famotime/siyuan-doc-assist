@@ -133,7 +133,35 @@ export function createDocPopoverController(
     document.addEventListener("pointermove", popoverMoveListener, { passive: true });
   };
 
+  const isPointerInCloseBtn = (target: EventTarget | null, row: HTMLElement) => {
+    if (target instanceof Element && target.closest(".doc-assistant-dynamic-outline__doc-close")) {
+      return true;
+    }
+    try {
+      return Boolean(row.querySelector(".doc-assistant-dynamic-outline__doc-close:hover"));
+    } catch {
+      return false;
+    }
+  };
+
   const attachRow = (row: HTMLElement) => {
+    row.addEventListener("mouseover", (e) => {
+      if (!isPointerInCloseBtn(e.target, row)) {
+        return;
+      }
+      const existingHoverTimer = rowHoverTimers.get(row);
+      if (existingHoverTimer) {
+        clearTimeout(existingHoverTimer);
+        rowHoverTimers.delete(row);
+      }
+      row.setAttribute("prevent-popover", "true");
+      destroyUnpinnedRowPopovers(row);
+      if (pendingPopoverRow === row) {
+        pendingPopoverRow = null;
+        hasEnteredPopover = false;
+      }
+    });
+
     row.addEventListener("mouseenter", () => {
       hoveredRows.add(row);
       const pendingCloseTimer = rowCloseTimers.get(row);
@@ -158,7 +186,7 @@ export function createDocPopoverController(
 
       const hoverTimer = setTimeout(() => {
         rowHoverTimers.delete(row);
-        if (hasEnteredPopover || isPointerInPopover()) {
+        if (hasEnteredPopover || isPointerInPopover() || isPointerInCloseBtn(null, row)) {
           return;
         }
         if (hasUnpinnedRowPopover(row)) {

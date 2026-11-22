@@ -75,6 +75,7 @@ import { DynamicOutlineController } from "@/plugin/dynamic-outline-controller";
 import { createKeyInfoNavigation } from "@/plugin/key-info-navigation";
 import {
   activateOpenDocTab,
+  closeOpenDocTab,
   collectCurrentWndOpenDocTabs,
   fetchRecentDocItems,
   openDocTab
@@ -200,6 +201,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     },
     getOpenDocTabs: (protyle) => collectCurrentWndOpenDocTabs(protyle || this.currentProtyle),
     activateOpenDocTab: (item) => activateOpenDocTab(item, this.app),
+    closeOpenDocTab: (item) => closeOpenDocTab(item),
     getRecentDocs: () => fetchRecentDocItems(),
     openRecentDoc: (item) => openDocTab(this.app, item.docId),
     setDocSectionsExpanded: (sections) => this.setDynamicOutlineDocSectionsExpanded(sections),

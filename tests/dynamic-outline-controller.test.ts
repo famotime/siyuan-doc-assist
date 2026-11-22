@@ -504,4 +504,42 @@ describe("dynamic-outline-controller", () => {
 
     controller.destroy();
   });
+
+  test("closes unpinned open doc tab via controller and refreshes open-docs list", async () => {
+    const openDocs: OpenDocTabRef[] = [
+      { tabId: "tab-1", docId: "doc-1", title: "文档1", isPinned: true, isActive: true },
+      { tabId: "tab-2", docId: "doc-2", title: "文档2", isPinned: false, isActive: false }
+    ];
+    let currentTabs = [...openDocs];
+    deps.getOpenDocTabs = vi.fn(() => currentTabs);
+    deps.closeOpenDocTab = vi.fn((target: OpenDocTabRef) => {
+      currentTabs = currentTabs.filter((item) => item.tabId !== target.tabId);
+      return true;
+    });
+
+    const controller = new DynamicOutlineController(deps);
+    controller.syncActiveEditor();
+
+    const modeBtn = mockProtyleEl.querySelector(
+      ".doc-assistant-dynamic-outline__title-btn"
+    ) as HTMLButtonElement;
+    modeBtn.click();
+
+    await vi.waitFor(() => {
+      expect(mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")).toHaveLength(2);
+    });
+
+    const closeBtn = mockProtyleEl.querySelector(
+      ".doc-assistant-dynamic-outline__doc-close"
+    ) as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+    closeBtn.click();
+
+    await vi.waitFor(() => {
+      expect(deps.closeOpenDocTab).toHaveBeenCalledWith(openDocs[1]);
+      expect(mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")).toHaveLength(1);
+    });
+
+    controller.destroy();
+  });
 });

@@ -32,6 +32,7 @@ export type DynamicOutlineControllerDeps = {
   navigateBlock: (blockId: string, protyle?: ProtyleLike) => void;
   getOpenDocTabs?: (protyle?: ProtyleLike) => OpenDocTabRef[];
   activateOpenDocTab?: (item: OpenDocTabRef) => Promise<unknown> | void;
+  closeOpenDocTab?: (item: OpenDocTabRef) => boolean | Promise<boolean> | void;
   getRecentDocs?: () => Promise<RecentDocItem[]>;
   openRecentDoc?: (item: RecentDocItem) => Promise<unknown> | void;
   setDocSectionsExpanded?: (sections: {
@@ -221,6 +222,15 @@ export class DynamicOutlineController {
             (ref) => ref.tabId === docItem.tabId && ref.docId === docItem.docId
           ) || docItem;
         void this.deps.activateOpenDocTab?.(matchedRef);
+      },
+      onOpenDocClose: (docItem: OpenDocTabItem) => {
+        const matchedRef =
+          this.currentOpenDocRefs.find(
+            (ref) => ref.tabId === docItem.tabId && ref.docId === docItem.docId
+          ) || docItem;
+        void Promise.resolve(this.deps.closeOpenDocTab?.(matchedRef)).then(() => {
+          this.refreshOpenDocs(this.activeProtyle || this.deps.getCurrentProtyle());
+        });
       },
       onRecentDocClick: (docItem: RecentDocItem) => {
         void this.deps.openRecentDoc?.(docItem);

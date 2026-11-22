@@ -12,6 +12,9 @@ const LUCIDE_DOC_PIN_SVG =
 const LUCIDE_CHEVRON_DOWN_SVG =
   '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" fill="none"></path></svg>';
 
+const LUCIDE_DOC_CLOSE_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
+
 export type VisibleDocEntry =
   | { kind: "open"; item: OpenDocTabItem } |
   { kind: "recent"; item: RecentDocItem };
@@ -52,6 +55,7 @@ type DocRowRenderParams = {
   isSelected: boolean;
   attachRowPopover: (row: HTMLElement) => void;
   onClick: () => void;
+  onClose?: () => void;
 };
 
 function renderDocRow(params: DocRowRenderParams): void {
@@ -97,6 +101,21 @@ function renderDocRow(params: DocRowRenderParams): void {
   textSpan.setAttribute("title", params.title);
   appendHighlightedText(textSpan, params.title, params.matchRange);
   row.appendChild(textSpan);
+
+  if (params.onClose) {
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "doc-assistant-dynamic-outline__doc-close";
+    const closeLabel = params.isZh ? "关闭页签" : "Close tab";
+    closeBtn.setAttribute("title", closeLabel);
+    closeBtn.setAttribute("aria-label", closeLabel);
+    closeBtn.innerHTML = LUCIDE_DOC_CLOSE_SVG;
+    closeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      params.onClose?.();
+    });
+    row.appendChild(closeBtn);
+  }
 
   row.addEventListener("click", params.onClick);
   params.attachRowPopover(row);
@@ -170,6 +189,7 @@ export function renderOpenDocsPanel(params: {
   onToggleOpenSection: () => void;
   onToggleRecentSection: () => void;
   onOpenDocClick: (doc: OpenDocTabItem) => void;
+  onOpenDocClose?: (doc: OpenDocTabItem) => void;
   onRecentDocClick: (doc: RecentDocItem) => void;
 }): VisibleDocEntry[] {
   const { list, itemElements, isZh } = params;
@@ -225,7 +245,10 @@ export function renderOpenDocsPanel(params: {
             isActive: doc.isActive,
             isSelected: entryIndex === params.selectedFilteredIndex,
             attachRowPopover: params.attachRowPopover,
-            onClick: () => params.onOpenDocClick(doc)
+            onClick: () => params.onOpenDocClick(doc),
+            onClose: !doc.isPinned && params.onOpenDocClose ?
+                () => params.onOpenDocClose?.(doc) :
+              undefined
           });
         });
       }

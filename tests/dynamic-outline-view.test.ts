@@ -1030,4 +1030,74 @@ describe("dynamic-outline-view", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  test("renders close button only for unpinned open docs, stops propagation, and suppresses row popover", () => {
+    const onItemClick = vi.fn();
+    const onOpenDocClick = vi.fn();
+    const onOpenDocClose = vi.fn();
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick,
+      onOpenDocClick,
+      onOpenDocClose,
+      availableViewModes: ["outline", "open-docs"],
+      initialViewMode: "open-docs",
+      isZh: true
+    });
+
+    const openDocs: OpenDocTabItem[] = [
+      { tabId: "t1", docId: "d1", title: "钉住文档", isPinned: true, isActive: false },
+      { tabId: "t2", docId: "d2", title: "普通文档", isPinned: false, isActive: true }
+    ];
+    const recentDocs: RecentDocItem[] = [{ docId: "d3", title: "最近文档" }];
+    handle.setOpenDocs(openDocs);
+    handle.setRecentDocs(recentDocs);
+
+    const rows = Array.from(
+      parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")
+    ) as HTMLElement[];
+    expect(rows).toHaveLength(2);
+
+    // 钉住文档没有关闭按钮，未钉住的已打开文档有关闭按钮
+    expect(rows[0].querySelector(".doc-assistant-dynamic-outline__doc-close")).toBeNull();
+    const closeBtn = rows[1].querySelector(
+      ".doc-assistant-dynamic-outline__doc-close"
+    ) as HTMLButtonElement | null;
+    expect(closeBtn).not.toBeNull();
+
+    // 展开“最近的文档”分组后，最近文档也没有关闭按钮
+    const recentHeader = parent.querySelector(
+      '.doc-assistant-dynamic-outline__doc-section-header[data-section="recent"]'
+    ) as HTMLButtonElement;
+    recentHeader.click();
+    const allDocRows = Array.from(
+      parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")
+    ) as HTMLElement[];
+    expect(allDocRows).toHaveLength(3);
+    expect(allDocRows[2].querySelector(".doc-assistant-dynamic-outline__doc-close")).toBeNull();
+
+    // 鼠标移入关闭按钮时阻止预览浮窗并销毁当前行的未钉住浮窗
+    const currentCloseBtn = allDocRows[1].querySelector(
+      ".doc-assistant-dynamic-outline__doc-close"
+    ) as HTMLButtonElement;
+    const destroySpy = vi.fn();
+    (window as any).siyuan = {
+      blockPanels: [{ element: document.createElement("div"), targetElement: allDocRows[1], destroy: destroySpy }]
+    };
+    allDocRows[1].removeAttribute("prevent-popover");
+    currentCloseBtn.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    expect(allDocRows[1].getAttribute("prevent-popover")).toBe("true");
+    expect(destroySpy).toHaveBeenCalledTimes(1);
+
+    // 打开浮岛后点击关闭按钮：只触发 onOpenDocClose，不触发 onOpenDocClick，也不关闭浮岛
+    const flyout = parent.querySelector(".doc-assistant-dynamic-outline__flyout") as HTMLElement;
+    flyout.classList.add("is-open");
+    currentCloseBtn.click();
+    expect(onOpenDocClose).toHaveBeenCalledTimes(1);
+    expect(onOpenDocClose).toHaveBeenCalledWith(openDocs[1]);
+    expect(onOpenDocClick).not.toHaveBeenCalled();
+    expect(flyout.classList.contains("is-open")).toBe(true);
+
+    delete (window as any).siyuan;
+    handle.destroy();
+  });
 });
