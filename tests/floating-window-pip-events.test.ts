@@ -132,13 +132,16 @@ describe("bindPipWindowEvents", () => {
     expect(pip.document.getElementById("ft-font-label")!.textContent).toBe("16px");
   });
 
-  test("toggles view mode with Ctrl+M and shows the markdown view", () => {
+  test("toggles view mode with Ctrl+M, hides active search results, and shows markdown view", () => {
     const pip = createPipWindow();
     bindPipWindowEvents(pip, "text", { fontSize: 15, viewMode: "text" } as any);
+    const searchResults = pip.document.getElementById("ft-search-results")!;
+    searchResults.style.display = "flex";
 
     pip.document.dispatchEvent(
       new KeyboardEvent("keydown", { key: "m", ctrlKey: true, bubbles: true })
     );
+    expect(searchResults.style.display).toBe("none");
     expect(pip.document.getElementById("ft-text-view")!.style.display).toBe("none");
     expect(pip.document.getElementById("ft-markdown-view")!.style.display).toBe("block");
     expect(saveMock).toHaveBeenCalledWith({ viewMode: "markdown" });

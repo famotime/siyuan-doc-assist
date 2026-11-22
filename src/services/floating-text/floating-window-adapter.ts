@@ -12,10 +12,16 @@ import {
 } from "@/services/floating-text/floating-text-storage";
 import { triggerSystemPaste } from "@/services/floating-text/floating-paste-helper";
 import { bindPipWindowEvents } from "@/services/floating-text/floating-window-pip-events";
-import { openInAppFloatingFallback } from "@/services/floating-text/floating-window-fallback";
+import {
+  closeActiveFallbackFloatingDialogs,
+  openInAppFloatingFallback
+} from "@/services/floating-text/floating-window-fallback";
 
 let currentPipWindow: Window | null = null;
 let currentPopupWindow: Window | null = null;
+let electronTempFileSeq = 0;
+let activeElectronFallbackShowTimer: ReturnType<typeof setTimeout> | null = null;
+let activeElectronTempHtmlPath: string | null = null;
 
 function isElectron(): boolean {
   return typeof window !== "undefined" && Boolean((window as any).require?.("electron"));
@@ -105,6 +111,13 @@ export function disposeFloatingWindowHostGlobals(): void {
   }
   (window as any).__docAssistantFloatingBroadcastChannel = undefined;
 
+  if (activeElectronFallbackShowTimer) {
+    clearTimeout(activeElectronFallbackShowTimer);
+    activeElectronFallbackShowTimer = null;
+  }
+  removeTempFloatingHtmlFile(activeElectronTempHtmlPath);
+  activeElectronTempHtmlPath = null;
+
   if (currentElectronWindow) {
     try {
       if (!currentElectronWindow.isDestroyed?.()) {
@@ -113,6 +126,7 @@ export function disposeFloatingWindowHostGlobals(): void {
     } catch {}
     currentElectronWindow = null;
   }
+  closeActiveFallbackFloatingDialogs();
   if (currentPipWindow) {
     try {
       if (!currentPipWindow.closed) {
@@ -129,6 +143,36 @@ export function disposeFloatingWindowHostGlobals(): void {
     } catch {}
     currentPopupWindow = null;
   }
+}
+
+const TEMP_HTML_PREFIX = "siyuan-doc-assist-floating-window";
+
+function removeTempFloatingHtmlFile(filePath: string | null): void {
+  if (!filePath) return;
+  try {
+    const fs = (window as any).require?.("fs");
+    if (fs && typeof fs.existsSync === "function" && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch {}
+}
+
+function sweepStaleFloatingTempFiles(fs: any, path: any, tempDir: string, keepFileName: string): void {
+  try {
+    if (!fs || typeof fs.readdirSync !== "function") return;
+    const entries = fs.readdirSync(tempDir) as string[];
+    for (const entry of entries) {
+      if (
+        entry !== keepFileName &&
+        entry.startsWith(TEMP_HTML_PREFIX) &&
+        entry.endsWith(".html")
+      ) {
+        try {
+          fs.unlinkSync(path.join(tempDir, entry));
+        } catch {}
+      }
+    }
+  } catch {}
 }
 
 function writeFloatingHtmlToTempFile(html: string): string | null {
@@ -154,8 +198,12 @@ function writeFloatingHtmlToTempFile(html: string): string | null {
     }
     if (!tempDir) return null;
 
-    const targetPath = path.join(tempDir, "siyuan-doc-assist-floating-window.html");
+    electronTempFileSeq += 1;
+    const fileName = `${TEMP_HTML_PREFIX}-${electronTempFileSeq}.html`;
+    const targetPath = path.join(tempDir, fileName);
     fs.writeFileSync(targetPath, html, "utf-8");
+    sweepStaleFloatingTempFiles(fs, path, tempDir, fileName);
+    activeElectronTempHtmlPath = targetPath;
     return targetPath;
   } catch (err) {
     console.warn("[DocAssistant][FloatingText] write temp html file failed:", err);
@@ -438,6 +486,7 @@ export async function openFloatingTextWindow(options: {
       win.on("resize", () => {
         if (resizeTimer) clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
+          resizeTimer = null;
           if (!win.isDestroyed()) {
             const [w, h] = win.getSize();
             const cur = loadFloatingTextConfig();
@@ -449,6 +498,19 @@ export async function openFloatingTextWindow(options: {
       });
 
       win.on("close", () => {
+        if (resizeTimer) {
+          clearTimeout(resizeTimer);
+          resizeTimer = null;
+        }
+        if (activeElectronFallbackShowTimer) {
+          clearTimeout(activeElectronFallbackShowTimer);
+          activeElectronFallbackShowTimer = null;
+        }
+        if (currentElectronWindow === win) {
+          currentElectronWindow = null;
+          removeTempFloatingHtmlFile(activeElectronTempHtmlPath);
+          activeElectronTempHtmlPath = null;
+        }
         if (!win.isDestroyed()) {
           const [w, h] = win.getSize();
           const cur = loadFloatingTextConfig();
@@ -496,19 +558,25 @@ export async function openFloatingTextWindow(options: {
         win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
       }
 
-      win.once("ready-to-show", () => {
+      if (activeElectronFallbackShowTimer) {
+        clearTimeout(activeElectronFallbackShowTimer);
+        activeElectronFallbackShowTimer = null;
+      }
+      const showNewAndClosePrevious = () => {
+        if (activeElectronFallbackShowTimer) {
+          clearTimeout(activeElectronFallbackShowTimer);
+          activeElectronFallbackShowTimer = null;
+        }
         if (!win.isDestroyed()) {
           win.show();
           win.focus();
         }
         closePreviousWindow();
-      });
-      setTimeout(() => {
-        if (!win.isDestroyed()) {
-          win.show();
-          win.focus();
-        }
-        closePreviousWindow();
+      };
+      win.once("ready-to-show", showNewAndClosePrevious);
+      activeElectronFallbackShowTimer = setTimeout(() => {
+        activeElectronFallbackShowTimer = null;
+        showNewAndClosePrevious();
       }, 60);
       return;
     } catch (remoteErr) {

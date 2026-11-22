@@ -240,6 +240,13 @@ export function bindPipWindowEvents(
   };
 
   const toggleViewMode = () => {
+    const searchBarEl = doc.getElementById("ft-search-bar");
+    const searchResultsEl = doc.getElementById("ft-search-results");
+    const searchBtnEl = doc.getElementById("ft-btn-search");
+    if (searchBarEl) searchBarEl.style.display = "none";
+    if (searchResultsEl) searchResultsEl.style.display = "none";
+    searchBtnEl?.classList.remove("ft-btn-active");
+
     currentViewMode = currentViewMode === "text" ? "markdown" : "text";
     const viewIconUse = viewBtn?.querySelector("use");
     const viewTooltip = doc.getElementById("ft-view-tooltip");

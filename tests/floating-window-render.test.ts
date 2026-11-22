@@ -178,6 +178,22 @@ describe("floating-window-render", () => {
       expect(renderedHtml).toContain("<h1>新编辑标题</h1>");
       expect(renderedHtml).toContain("<table>");
       expect(renderedHtml).toContain("数据1");
+
+      // 打开搜索并输入关键词后切换视图，搜索结果页必须自动关闭，不得与正文叠层
+      const searchBtn = dom.window.document.getElementById("ft-btn-search");
+      const searchInput = dom.window.document.getElementById("ft-search-input") as HTMLInputElement | null;
+      const searchResults = dom.window.document.getElementById("ft-search-results");
+      searchBtn?.click();
+      if (searchInput) {
+        searchInput.value = "新编辑";
+        searchInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+      }
+      expect(searchResults?.style.display).toBe("flex");
+
+      viewBtn?.click();
+      expect(searchResults?.style.display).toBe("none");
+      expect(textView?.style.display).toBe("block");
+      expect(mdView?.style.display).toBe("none");
     });
   });
 

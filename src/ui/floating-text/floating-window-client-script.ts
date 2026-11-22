@@ -475,6 +475,9 @@ const CLIENT_SCRIPT_BODY_PART1 = `          window.__docAssistantFloatingClientA
           }
 
           function toggleViewMode() {
+            if (isSearchOpen) {
+              closeSearchBar();
+            }
             isMarkdown = !isMarkdown;
             if (viewIconUse) {
               viewIconUse.setAttribute("href", isMarkdown ? "#ft-icon-text" : "#ft-icon-preview");

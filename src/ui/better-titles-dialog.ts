@@ -26,7 +26,9 @@ function escapeHtml(value: string): string {
 function renderCandidateRow(
   title: string,
   onReplace: (newTitle: string) => Promise<void> | void,
-  closeDialog: () => void
+  closeDialog: () => void,
+  setSubmitting: (busy: boolean) => void,
+  isBusy: () => boolean
 ): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "doc-assistant-better-titles__row";
@@ -43,17 +45,20 @@ function renderCandidateRow(
   replaceBtn.textContent = "替换";
 
   replaceBtn.addEventListener("click", async () => {
+    if (isBusy()) {
+      return;
+    }
     const val = input.value.trim();
     if (!val) {
       showMessage("标题内容不能为空", 3000, "info");
       return;
     }
-    replaceBtn.disabled = true;
+    setSubmitting(true);
     try {
       await onReplace(val);
       closeDialog();
     } catch (err: any) {
-      replaceBtn.disabled = false;
+      setSubmitting(false);
       showMessage(`替换标题失败: ${err?.message || err}`, 5000, "error");
     }
   });
@@ -129,6 +134,18 @@ export function openBetterTitlesDialog(
   const loadingText = root.querySelector(".doc-assistant-better-titles__loading-text") as HTMLElement;
 
   const closeDialog = () => dialog.destroy();
+  let busy = false;
+  const syncButtonsDisabled = (disabled: boolean) => {
+    regenBtn.disabled = disabled;
+    closeBtn.disabled = disabled;
+    root.querySelectorAll<HTMLButtonElement>(".doc-assistant-better-titles__replace-btn").forEach((btn) => {
+      btn.disabled = disabled;
+    });
+  };
+  const setSubmitting = (submitting: boolean) => {
+    busy = submitting;
+    syncButtonsDisabled(submitting);
+  };
 
   const updateCandidates = (result: BetterTitlesResult) => {
     catchyList.innerHTML = "";
@@ -136,22 +153,29 @@ export function openBetterTitlesDialog(
 
     const catchyItems = result.catchy.length > 0 ? result.catchy : ["未能生成勾人标题"];
     for (const item of catchyItems) {
-      catchyList.appendChild(renderCandidateRow(item, options.onReplace, closeDialog));
+      catchyList.appendChild(
+        renderCandidateRow(item, options.onReplace, closeDialog, setSubmitting, () => busy)
+      );
     }
 
     const summaryItems = result.summary.length > 0 ? result.summary : ["未能生成平实标题"];
     for (const item of summaryItems) {
-      summaryList.appendChild(renderCandidateRow(item, options.onReplace, closeDialog));
+      summaryList.appendChild(
+        renderCandidateRow(item, options.onReplace, closeDialog, setSubmitting, () => busy)
+      );
+    }
+    if (busy) {
+      syncButtonsDisabled(true);
     }
   };
 
   const setLoading = (loading: boolean, text?: string) => {
+    busy = loading;
     loadingOverlay.style.display = loading ? "flex" : "none";
     if (text) {
       loadingText.textContent = text;
     }
-    regenBtn.disabled = loading;
-    closeBtn.disabled = loading;
+    syncButtonsDisabled(loading);
   };
 
   updateCandidates(options.initialResult);
@@ -164,6 +188,9 @@ export function openBetterTitlesDialog(
   };
 
   regenBtn.addEventListener("click", async () => {
+    if (busy) {
+      return;
+    }
     try {
       await options.onRegenerate(controller);
     } catch (err: any) {

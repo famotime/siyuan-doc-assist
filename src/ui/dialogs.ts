@@ -159,7 +159,11 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
     dialog.destroy();
   });
 
+  let isDeleting = false;
   deleteBtn.addEventListener("click", () => {
+    if (isDeleting) {
+      return;
+    }
     const selectedIds = queryCheckboxes()
       .filter((checkbox) => checkbox.checked)
       .map((checkbox) => checkbox.dataset.id || "")
@@ -174,8 +178,15 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
       "确认删除",
       `将删除 ${selectedIds.length} 篇文档，是否继续？`,
       () => {
+        if (isDeleting) {
+          return;
+        }
+        isDeleting = true;
         void (async () => {
           deleteBtn.setAttribute("disabled", "true");
+          keepEarliestSwitch.disabled = true;
+          selectAllBtn.disabled = true;
+          clearBtn.disabled = true;
           try {
             const report = await args.onDelete(selectedIds);
             const failed = report.failed.length;
@@ -185,7 +196,11 @@ export function openDedupeDialog(args: OpenDedupeDialogArgs): InstanceType<typeo
             showMessage(msg, 7000, failed ? "error" : "info");
             dialog.destroy();
           } finally {
+            isDeleting = false;
             deleteBtn.removeAttribute("disabled");
+            keepEarliestSwitch.disabled = false;
+            selectAllBtn.disabled = false;
+            clearBtn.disabled = false;
           }
         })();
       }

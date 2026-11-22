@@ -82,4 +82,46 @@ describe("openDedupeDialog", () => {
     expect(latest?.checked).toBe(true);
     expect(root.textContent).toContain("保留最早更新");
   });
+
+  test("locks toolbar controls during async deletion and prevents re-entry", async () => {
+    let releaseDelete!: (val: { successIds: string[]; failed: Array<{ id: string; error: string }> }) => void;
+    const onDelete = vi.fn(
+      () => new Promise<{ successIds: string[]; failed: Array<{ id: string; error: string }> }>((resolve) => {
+        releaseDelete = resolve;
+      })
+    );
+    confirmMock.mockImplementation((_title: string, _msg: string, yes?: () => void) => {
+      yes?.();
+    });
+
+    const dialog = openDedupeDialog({
+      candidates: [
+        {
+          groupId: "group-1",
+          score: 0.95,
+          docs: [
+            { id: "doc-oldest", title: "A", updated: "20250101101010", hPath: "/A" },
+            { id: "doc-latest", title: "A", updated: "20260201101010", hPath: "/A-2" }
+          ]
+        }
+      ],
+      onDelete,
+      onInsertLinks: vi.fn(),
+      onOpenAll: vi.fn()
+    });
+    const root = (dialog as any).element as HTMLDivElement;
+    const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>("button"));
+    const deleteBtn = buttons.find((b) => b.textContent === "删除选中")!;
+    const switchEl = root.querySelector<HTMLInputElement>('input[data-role="keep-earliest-switch"]')!;
+
+    deleteBtn.click();
+    deleteBtn.click();
+
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(switchEl.disabled).toBe(true);
+
+    releaseDelete({ successIds: ["doc-oldest"], failed: [] });
+    await vi.waitFor(() => expect((dialog as any).destroy).toHaveBeenCalledTimes(1));
+  });
 });

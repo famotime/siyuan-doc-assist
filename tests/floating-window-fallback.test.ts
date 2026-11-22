@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, vi, test } from "vitest";
-import { openInAppFloatingFallback } from "@/services/floating-text/floating-window-fallback";
+import {
+  closeActiveFallbackFloatingDialogs,
+  openInAppFloatingFallback
+} from "@/services/floating-text/floating-window-fallback";
 
 type DialogOptions = {
   title: string;
@@ -142,5 +145,14 @@ describe("openInAppFloatingFallback", () => {
     expect(() =>
       document.dispatchEvent(new Event("doc-assistant-floating-close"))
     ).not.toThrow();
+  });
+
+  test("closeActiveFallbackFloatingDialogs closes all open fallback dialogs on teardown", () => {
+    openInAppFloatingFallback("窗1", "正文1", defaultConfig, false);
+    openInAppFloatingFallback("窗2", "正文2", defaultConfig, false);
+    expect(document.querySelectorAll(".b3-dialog")).toHaveLength(2);
+
+    closeActiveFallbackFloatingDialogs();
+    expectDialogClosed();
   });
 });

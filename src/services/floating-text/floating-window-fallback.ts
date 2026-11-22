@@ -8,6 +8,15 @@ import { renderMarkdownToHtml } from "@/core/markdown-render-core";
 import { buildFloatingWindowHtml } from "@/ui/floating-text/floating-window-template";
 import { Dialog, showMessage } from "siyuan";
 
+const activeFallbackClosers = new Set<() => void>();
+
+export function closeActiveFallbackFloatingDialogs(): void {
+  for (const close of Array.from(activeFallbackClosers)) {
+    close();
+  }
+  activeFallbackClosers.clear();
+}
+
 export function openInAppFloatingFallback(
   title: string,
   text: string,
@@ -67,6 +76,7 @@ export function openInAppFloatingFallback(
   const cleanup = () => {
     if (isCleanedUp) return;
     isCleanedUp = true;
+    activeFallbackClosers.delete(closeDialog);
     document.removeEventListener("doc-assistant-floating-close", onCloseEvent);
   };
 
@@ -74,6 +84,7 @@ export function openInAppFloatingFallback(
     cleanup();
     dialog.destroy();
   };
+  activeFallbackClosers.add(closeDialog);
 
   const onCloseEvent = (e: Event) => {
     e.preventDefault();
