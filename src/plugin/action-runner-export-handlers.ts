@@ -164,7 +164,39 @@ export function createExportActionHandlers(
         fileInput.type = "file";
         fileInput.accept = ".json";
         const file = await new Promise<File | null>((resolve) => {
-          fileInput.addEventListener("change", () => resolve(fileInput.files?.[0] ?? null));
+          let settled = false;
+          let focusTimer: ReturnType<typeof setTimeout> | null = null;
+          const cleanup = () => {
+            if (focusTimer !== null) {
+              clearTimeout(focusTimer);
+              focusTimer = null;
+            }
+            fileInput.removeEventListener("change", onChange);
+            fileInput.removeEventListener("cancel", onCancel);
+            window.removeEventListener("focus", onWindowFocus);
+          };
+          const settle = (picked: File | null) => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            cleanup();
+            resolve(picked);
+          };
+          const onChange = () => settle(fileInput.files?.[0] ?? null);
+          const onCancel = () => settle(null);
+          const onWindowFocus = () => {
+            if (focusTimer !== null) {
+              clearTimeout(focusTimer);
+            }
+            // 旧版 Electron/Chromium 关闭文件框时可能不派发 cancel；窗口恢复聚焦后兜底释放。
+            focusTimer = setTimeout(() => {
+              settle(fileInput.files?.[0] ?? null);
+            }, 300);
+          };
+          fileInput.addEventListener("change", onChange);
+          fileInput.addEventListener("cancel", onCancel);
+          window.addEventListener("focus", onWindowFocus);
           fileInput.click();
         });
         if (!file) return;

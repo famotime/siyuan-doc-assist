@@ -1,4 +1,5 @@
 import { describe, expect, vi, test } from "vitest";
+import { showMessage } from "siyuan";
 
 import { ACTION_CANCELLED } from "@/plugin/action-runner-dispatcher";
 
@@ -285,5 +286,46 @@ describe("cancelled result contract (audit 2.3, incremental)", () => {
     const result = await runner.runAction("split-doc-by-headings");
 
     expect(result).toEqual({ ok: true, alreadyNotified: true });
+  });
+});
+
+describe("actionRunner background feedback and dispose (SM-02)", () => {
+  test("runActionInBackground surfaces ok:false failure message", async () => {
+    vi.mocked(showMessage).mockClear();
+    const runner = await createRunner();
+    aiBackgroundHandlerImpl = async () => ({
+      ok: false,
+      errorCode: "execution-failed",
+      message: "后台生成失败详情"
+    });
+
+    await runner.runAction("generate-better-titles");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(vi.mocked(showMessage)).toHaveBeenCalledWith("后台生成失败详情", 5000, "error");
+  });
+
+  test("dispose resets running state, clears background keys, and suppresses post-dispose messages", async () => {
+    const setBusy = vi.fn();
+    const runner = await createRunner({ setBusy });
+    let releaseHandler: () => void = () => undefined;
+    organizeHandlerImpl = () => new Promise((resolve) => {
+      releaseHandler = () => resolve({ ok: false, message: "late failure" });
+    });
+
+    const pending = runner.runAction("split-doc-by-headings");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    vi.mocked(showMessage).mockClear();
+
+    runner.dispose();
+    expect(setBusy).toHaveBeenLastCalledWith(false);
+
+    // After dispose, another run is no longer blocked by the stale mutex.
+    organizeHandlerImpl = async () => ({});
+    const nextRun = await runner.runAction("split-doc-by-headings");
+    expect(nextRun.ok).toBe(true);
+
+    releaseHandler();
+    await pending;
   });
 });

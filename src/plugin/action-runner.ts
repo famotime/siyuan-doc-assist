@@ -70,10 +70,18 @@ const STALE_BACKGROUND_TASK_MS = 10 * 60 * 1000;
 export class ActionRunner {
   private isRunning = false;
   private busyDepth = 0;
+  private disposed = false;
   // key -> 启动时间戳；任务 finally 删除，入口按阈值清扫悬挂残留。
   private readonly backgroundTaskKeys = new Map<string, number>();
 
   constructor(private readonly deps: ActionRunnerDeps) {}
+
+  dispose(): void {
+    this.disposed = true;
+    this.isRunning = false;
+    this.backgroundTaskKeys.clear();
+    this.resetBusy();
+  }
 
   // Handler maps are built per invocation so the invoke context travels with each
   // dispatch instead of living in a shared instance slot that concurrent calls overwrite.
@@ -359,23 +367,19 @@ export class ActionRunner {
         }
         if (handlerRes && typeof handlerRes === "object") {
           if (handlerRes.ok === false) {
-            return {
-              ok: false,
-              errorCode: handlerRes.errorCode || "execution-failed",
-              message: handlerRes.message || "执行未完成",
-              alreadyNotified: true
-            };
+            if (!this.disposed && handlerRes.message) {
+              showMessage(handlerRes.message, 5000, "error");
+            }
+            return;
           }
-          if (handlerRes.message) {
-            return {
-              ok: true,
-              alreadyNotified: true,
-              message: handlerRes.message
-            };
+          if (handlerRes.message && !this.disposed) {
+            showMessage(handlerRes.message, 4000, "info");
           }
         }
       } catch (error: unknown) {
-        this.showActionError(error);
+        if (!this.disposed) {
+          this.showActionError(error);
+        }
       } finally {
         this.backgroundTaskKeys.delete(taskKey);
         this.deps.setBackgroundActionRunning?.(action, docId, false);

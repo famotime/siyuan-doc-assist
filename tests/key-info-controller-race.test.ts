@@ -173,4 +173,23 @@ describe("keyInfoController cross-token races", () => {
     expect(polluted).toBe(false);
     expect(firstRecord.some((state) => state.docTitle === "旧文档标题")).toBe(false);
   });
+
+  test("setDocActionRunning reference-counts concurrent background tasks across docs", async () => {
+    const controller = await createInitializedController();
+    const record = dockRecorders[dockRecorders.length - 1] as Array<{
+      runningDocActionKeys?: string[];
+    }>;
+
+    controller.setDocActionRunning("generate-better-titles", true);
+    controller.setDocActionRunning("generate-better-titles", true);
+    expect(record[record.length - 1]?.runningDocActionKeys).toEqual(["generate-better-titles"]);
+
+    // First document finishes: the action must remain marked running for the second doc.
+    controller.setDocActionRunning("generate-better-titles", false);
+    expect(record[record.length - 1]?.runningDocActionKeys).toEqual(["generate-better-titles"]);
+
+    // Second document finishes: now the running key clears.
+    controller.setDocActionRunning("generate-better-titles", false);
+    expect(record[record.length - 1]?.runningDocActionKeys).toEqual([]);
+  });
 });

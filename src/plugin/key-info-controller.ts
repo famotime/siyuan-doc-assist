@@ -55,7 +55,7 @@ export class KeyInfoController {
   private readonly readonlySyncGuard = createGenerationGuard();
   private keyInfoDocId = "";
   private currentDocReadonly = false;
-  private readonly runningDocActionKeys = new Set<ActionKey>();
+  private readonly runningDocActionCounts = new Map<ActionKey, number>();
   private readonly navigation = createKeyInfoNavigation();
 
   constructor(private readonly deps: KeyInfoControllerDeps) {}
@@ -135,18 +135,22 @@ export class KeyInfoController {
   destroy() {
     this.refreshGuard.invalidateAll();
     this.readonlySyncGuard.invalidateAll();
+    this.runningDocActionCounts.clear();
     this.keyInfoDock?.destroy();
     this.keyInfoDock = undefined;
   }
 
   setDocActionRunning(action: ActionKey, running: boolean) {
+    const prevCount = this.runningDocActionCounts.get(action) || 0;
     if (running) {
-      this.runningDocActionKeys.add(action);
+      this.runningDocActionCounts.set(action, prevCount + 1);
+    } else if (prevCount <= 1) {
+      this.runningDocActionCounts.delete(action);
     } else {
-      this.runningDocActionKeys.delete(action);
+      this.runningDocActionCounts.set(action, prevCount - 1);
     }
     this.keyInfoDock?.setState({
-      runningDocActionKeys: Array.from(this.runningDocActionKeys)
+      runningDocActionKeys: Array.from(this.runningDocActionCounts.keys())
     });
   }
 
@@ -163,7 +167,7 @@ export class KeyInfoController {
         favoriteActionKeys: this.deps.getDocFavoriteActionKeys(),
         docReadonly: this.currentDocReadonly
       }),
-      runningDocActionKeys: Array.from(this.runningDocActionKeys)
+      runningDocActionKeys: Array.from(this.runningDocActionCounts.keys())
     });
   }
 
@@ -213,7 +217,7 @@ export class KeyInfoController {
       this.keyInfoDocId = docId;
       this.keyInfoDock.setState(
         buildKeyInfoRefreshSuccessState({
-          currentState,
+          currentState: this.keyInfoDock.getState(),
           currentDocId,
           nextDocId: docId,
           docTitle: data.docTitle,
@@ -233,7 +237,7 @@ export class KeyInfoController {
       showMessage(`加载关键内容失败：${message}`, 7000, "error");
       this.keyInfoDock.setState(
         buildKeyInfoRefreshFailureState({
-          currentState,
+          currentState: this.keyInfoDock.getState(),
           currentDocId,
           nextDocId: docId
         })

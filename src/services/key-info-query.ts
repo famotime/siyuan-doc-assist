@@ -48,25 +48,29 @@ export async function resolveRootId(docId: string): Promise<string> {
   }
 }
 
-let spanOrderColumn: string | null = null;
-let spanColumnsLoaded = false;
+let spanOrderColumnPromise: Promise<string | null> | null = null;
+
+export function resetSpanOrderColumnCache(): void {
+  spanOrderColumnPromise = null;
+}
 
 async function resolveSpanOrderColumn(): Promise<string | null> {
-  if (spanColumnsLoaded) {
-    return spanOrderColumn;
+  if (!spanOrderColumnPromise) {
+    spanOrderColumnPromise = (async () => {
+      try {
+        const columns = await sql<{ name: string }>(`pragma table_info(spans)`);
+        const names = new Set(
+          (columns || []).map((item) => (item.name || "").toLowerCase())
+        );
+        const candidates = ["start_offset", "start", "offset", "pos", "position"];
+        return candidates.find((name) => names.has(name)) || null;
+      } catch {
+        spanOrderColumnPromise = null;
+        return null;
+      }
+    })();
   }
-  spanColumnsLoaded = true;
-  try {
-    const columns = await sql<{ name: string }>(`pragma table_info(spans)`);
-    const names = new Set(
-      (columns || []).map((item) => (item.name || "").toLowerCase())
-    );
-    const candidates = ["start_offset", "start", "offset", "pos", "position"];
-    spanOrderColumn = candidates.find((name) => names.has(name)) || null;
-  } catch {
-    spanOrderColumn = null;
-  }
-  return spanOrderColumn;
+  return spanOrderColumnPromise;
 }
 
 export async function listSpanRows(docId: string): Promise<SqlSpanRow[]> {

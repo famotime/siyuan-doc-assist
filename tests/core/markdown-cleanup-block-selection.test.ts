@@ -178,5 +178,41 @@ describe("select block range core logic", () => {
       manager.deactivate();
       expect(manager.getActiveTargetSet().size).toBe(0);
     });
+
+    test("rangeSelectionObserverManager deactivates on pointerdown or non-modifier keydown", () => {
+      const manager = new RangeSelectionObserverManager();
+      const root = document.createElement("div");
+      root.className = "protyle-wysiwyg";
+      root.innerHTML = `<div data-node-id="b1" class="p"></div>`;
+
+      manager.activate(root, ["b1"]);
+      expect(manager.getActiveTargetSet().size).toBe(1);
+
+      // Modifier-only key press keeps selection active.
+      root.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", shiftKey: true }));
+      expect(manager.getActiveTargetSet().size).toBe(1);
+
+      // Non-modifier key press deactivates selection observer.
+      root.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(manager.getActiveTargetSet().size).toBe(0);
+
+      manager.activate(root, ["b1"]);
+      expect(manager.getActiveTargetSet().size).toBe(1);
+
+      root.dispatchEvent(new Event("pointerdown"));
+      expect(manager.getActiveTargetSet().size).toBe(0);
+    });
+
+    test("ensureRangeBlocksLoadedInDom cancels older polling loop when superseded", async () => {
+      const root = document.createElement("div");
+      root.className = "protyle-wysiwyg";
+      root.innerHTML = `<div data-node-id="b1" class="p"></div>`;
+
+      const first = ensureRangeBlocksLoadedInDom(root, ["b1", "missing"], "to-end", 20, 20);
+      const second = ensureRangeBlocksLoadedInDom(root, ["b1"], "to-start", 5, 10);
+
+      expect(await first).toBe(0);
+      expect(await second).toBe(1);
+    });
   });
 });

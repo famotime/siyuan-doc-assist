@@ -1,4 +1,5 @@
 import { showMessage } from "siyuan";
+import { createGenerationGuard } from "@/core/generation-guard-core";
 import { createDocAssistantLogger } from "@/core/logger-core";
 import {
   findSelectFromCurrentToEndBlockIds,
@@ -48,6 +49,8 @@ export class RangeSelectionObserverManager {
   private activeTargetSet = new Set<string>();
   private observer: MutationObserver | null = null;
   private scrollHandler: (() => void) | null = null;
+  private exitPointerHandler: (() => void) | null = null;
+  private exitKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 
   public activate(root: HTMLElement, targetBlockIds: string[]) {
     this.deactivate();
@@ -90,6 +93,22 @@ export class RangeSelectionObserverManager {
         // Ignore event listener errors in synthetic environments
       }
     }
+
+    this.exitPointerHandler = () => {
+      this.deactivate();
+    };
+    this.exitKeyHandler = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      this.deactivate();
+    };
+    try {
+      root.addEventListener("pointerdown", this.exitPointerHandler, { passive: true });
+      root.addEventListener("keydown", this.exitKeyHandler);
+    } catch {
+      // Ignore event listener errors in synthetic environments
+    }
   }
 
   public deactivate() {
@@ -109,6 +128,20 @@ export class RangeSelectionObserverManager {
         }
       }
     }
+    if (this.activeRoot) {
+      try {
+        if (this.exitPointerHandler) {
+          this.activeRoot.removeEventListener("pointerdown", this.exitPointerHandler);
+        }
+        if (this.exitKeyHandler) {
+          this.activeRoot.removeEventListener("keydown", this.exitKeyHandler);
+        }
+      } catch {
+        // Ignore event unbind errors in synthetic environments
+      }
+    }
+    this.exitPointerHandler = null;
+    this.exitKeyHandler = null;
     this.scrollHandler = null;
     this.activeRoot = null;
     this.activeTargetSet.clear();
@@ -120,6 +153,7 @@ export class RangeSelectionObserverManager {
 }
 
 export const rangeSelectionObserverManager = new RangeSelectionObserverManager();
+const rangeLoadGuard = createGenerationGuard();
 
 export async function ensureRangeBlocksLoadedInDom(
   root: HTMLElement,
@@ -131,6 +165,7 @@ export async function ensureRangeBlocksLoadedInDom(
   if (!targetBlockIds.length) {
     return 0;
   }
+  const generation = rangeLoadGuard.begin();
 
   const scrollContainer =
     (root.closest(".protyle-content") as HTMLElement | null) ||
@@ -146,6 +181,9 @@ export async function ensureRangeBlocksLoadedInDom(
   let attempts = 0;
 
   while (attempts < maxAttempts) {
+    if (!rangeLoadGuard.isCurrent(generation)) {
+      return 0;
+    }
     const renderedNodes = root.querySelectorAll<HTMLElement>("[data-node-id]");
     let renderedCount = 0;
     let hasBoundaryBlock = false;
@@ -181,6 +219,9 @@ export async function ensureRangeBlocksLoadedInDom(
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
+  if (!rangeLoadGuard.isCurrent(generation)) {
+    return 0;
+  }
   return applyBlockSelectionInDom(root, targetBlockIds);
 }
 
