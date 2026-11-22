@@ -33,15 +33,35 @@ export type TranslateDocParagraphsOptions = {
 export type TranslateDocParagraphsReport = {
   scannedParagraphCount: number;
   translatableParagraphCount: number;
+  skippedCount: number;
   translatedCount: number;
   failedCount: number;
   insertedCount: number;
 };
 
+export const TRANSLATION_BLOCK_ATTR = "custom-doc-assist-trans";
+
 type SqlDocBlockRow = {
   id: string;
   type: string;
+  subtype?: string;
   markdown: string;
+  ial?: string;
+};
+
+type TranslatableBlockCandidate = {
+  blockId: string;
+  type: "p" | "h";
+  headingLevel: number;
+  sourceText: string;
+  hasTransAttr: boolean;
+};
+
+type TranslatableBlockItem = {
+  blockId: string;
+  type: "p" | "h";
+  headingLevel: number;
+  sourceText: string;
 };
 
 type ChatMessage = {
@@ -75,21 +95,87 @@ export async function translateDocParagraphs(
   }
 
   const rows = await sqlPaged<SqlDocBlockRow>(
-    `select id, type, markdown
+    `select id, type, subtype, markdown, ial
      from blocks
      where root_id='${escapeSqlLiteral(normalizedDocId)}'
-       and type='p'
+       and type in ('p', 'h')
      order by sort asc`
   );
-  const paragraphs = (rows || [])
-    .filter((row) => row?.id && row.type === "p" && typeof row.markdown === "string")
-    .map((row) => ({ blockId: row.id, markdown: stripBlockAttributes(row.markdown).trim() }))
-    .filter((item) => item.markdown);
-  const translatableItems = paragraphs.filter((item) => containsEnglishLetter(item.markdown));
+  const scannedBlocks = (rows || [])
+    .filter(
+      (row) =>
+        row?.id &&
+        (row.type === "p" || row.type === "h") &&
+        typeof row.markdown === "string"
+    )
+    .map((row): TranslatableBlockCandidate | null => {
+      const cleanMd = stripBlockAttributes(row.markdown).trim();
+      if (!cleanMd) {
+        return null;
+      }
+      const hasTransAttr = hasTranslationAttribute(row.ial, row.markdown);
+      if (row.type === "h") {
+        const headingLevel = getHeadingLevel(cleanMd, row.subtype);
+        const headingText = extractHeadingContent(cleanMd);
+        if (!headingText) {
+          return null;
+        }
+        return {
+          blockId: row.id,
+          type: "h",
+          headingLevel,
+          sourceText: headingText,
+          hasTransAttr
+        };
+      }
+      return {
+        blockId: row.id,
+        type: "p",
+        headingLevel: 0,
+        sourceText: cleanMd,
+        hasTransAttr
+      };
+    })
+    .filter((item): item is TranslatableBlockCandidate => item !== null);
+
+  const translatableItems: TranslatableBlockItem[] = [];
+  let skippedCount = 0;
+  const pairedTranslationBlockIds = new Set<string>();
+
+  for (let i = 0; i < scannedBlocks.length; i += 1) {
+    const current = scannedBlocks[i];
+
+    // 如果当前块本身带有已翻译属性，或者在前序已被识别为上一英文块的译文块，则跳过
+    if (current.hasTransAttr || pairedTranslationBlockIds.has(current.blockId)) {
+      continue;
+    }
+
+    // 若当前块不包含英文字母，无需翻译，跳过
+    if (!containsEnglishLetter(current.sourceText)) {
+      continue;
+    }
+
+    // 检查紧随其后的下一个块是否为译文块（断点续译跳过）
+    const next = scannedBlocks[i + 1];
+    if (next && isProbableTranslationBlock(current, next)) {
+      skippedCount += 1;
+      pairedTranslationBlockIds.add(next.blockId);
+      continue;
+    }
+
+    translatableItems.push({
+      blockId: current.blockId,
+      type: current.type,
+      headingLevel: current.headingLevel,
+      sourceText: current.sourceText
+    });
+  }
+
   if (!translatableItems.length) {
     return {
       ...emptyReport(),
-      scannedParagraphCount: paragraphs.length
+      scannedParagraphCount: scannedBlocks.length,
+      skippedCount
     };
   }
 
@@ -102,7 +188,7 @@ export async function translateDocParagraphs(
     options.concurrency ?? DEFAULT_MAP_CONCURRENCY,
     async (item) => {
       try {
-        return await requestParagraphTranslation(proxyFn, config, item.markdown);
+        return await requestParagraphTranslation(proxyFn, config, item.sourceText);
       } catch {
         return null;
       } finally {
@@ -117,6 +203,7 @@ export async function translateDocParagraphs(
   let insertedCount = 0;
 
   for (let i = 0; i < translatableItems.length; i += 1) {
+    const item = translatableItems[i];
     const translation = translationResults[i];
     if (translation === null) {
       failedCount += 1;
@@ -127,27 +214,32 @@ export async function translateDocParagraphs(
     }
 
     translatedCount += 1;
+    const insertData = item.type === "h" ?
+        formatHeadingTranslation(translation, item.headingLevel) :
+        formatParagraphTranslation(translation);
+
     try {
       await requestApi("/api/block/insertBlock", {
         dataType: "markdown",
-        data: translation,
+        data: insertData,
         nextID: "",
-        previousID: translatableItems[i].blockId,
+        previousID: item.blockId,
         parentID: ""
       });
       insertedCount += 1;
     } catch (error) {
       failedCount += 1;
       aiParagraphTranslationLogger.warn("insert translation failed", {
-        blockId: translatableItems[i].blockId,
+        blockId: item.blockId,
         error
       });
     }
   }
 
   return {
-    scannedParagraphCount: paragraphs.length,
+    scannedParagraphCount: scannedBlocks.length,
     translatableParagraphCount: translatableItems.length,
+    skippedCount,
     translatedCount,
     failedCount,
     insertedCount
@@ -158,6 +250,7 @@ function emptyReport(): TranslateDocParagraphsReport {
   return {
     scannedParagraphCount: 0,
     translatableParagraphCount: 0,
+    skippedCount: 0,
     translatedCount: 0,
     failedCount: 0,
     insertedCount: 0
@@ -171,8 +264,75 @@ function containsEnglishLetter(markdown: string): boolean {
 function stripBlockAttributes(markdown: string): string {
   return (markdown || "")
     .split(/\r?\n/u)
-    .filter((line) => !/^\s*\{:.+\}\s*$/u.test(line))
+    .filter((line) => !/^\s*\{:[^}]*\}\s*$/u.test(line))
+    .map((line) => line.replace(/\s*\{:[^}]*\}\s*/gu, ""))
     .join("\n");
+}
+
+function getHeadingLevel(markdown: string, subtype?: string): number {
+  const match = (markdown || "").match(/^(#{1,6})\s+/u);
+  if (match) {
+    return match[1].length;
+  }
+  const subMatch = (subtype || "").match(/^h([1-6])$/i);
+  if (subMatch) {
+    return Number(subMatch[1]);
+  }
+  return 1;
+}
+
+function extractHeadingContent(markdown: string): string {
+  return (markdown || "").replace(/^#{1,6}\s+/u, "").trim();
+}
+
+function formatParagraphTranslation(translation: string): string {
+  const cleaned = translation.trim();
+  return `${cleaned}\n{: ${TRANSLATION_BLOCK_ATTR}="true"}`;
+}
+
+function formatHeadingTranslation(translation: string, level: number): string {
+  const cleaned = translation
+    .replace(/^#{1,6}\s*/u, "")
+    .replace(/\r?\n+/gu, " ")
+    .trim();
+  const safeLevel = Math.max(1, Math.min(6, level));
+  return `${"#".repeat(safeLevel)} ${cleaned}\n{: ${TRANSLATION_BLOCK_ATTR}="true"}`;
+}
+
+function hasTranslationAttribute(ial?: string, markdown?: string): boolean {
+  if (ial && /custom-doc-assist-trans(?:=["']true["'])?/i.test(ial)) {
+    return true;
+  }
+  if (
+    markdown &&
+    /\{:[^}]*custom-doc-assist-trans[^}]*\}/i.test(markdown)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function hasChineseCharacters(text: string): boolean {
+  return /[\u4E00-\u9FA5]/u.test(text || "");
+}
+
+function isProbableTranslationBlock(
+  source: TranslatableBlockCandidate,
+  target: TranslatableBlockCandidate
+): boolean {
+  // 1. 优先检测专属自定义块属性
+  if (target.hasTransAttr) {
+    return true;
+  }
+  // 2. 兜底判定：块类型/层级必须一致
+  if (source.type !== target.type) {
+    return false;
+  }
+  if (source.type === "h" && source.headingLevel !== target.headingLevel) {
+    return false;
+  }
+  // 3. 语言特征：必须包含中文且非纯英文
+  return hasChineseCharacters(target.sourceText);
 }
 
 async function requestParagraphTranslation(

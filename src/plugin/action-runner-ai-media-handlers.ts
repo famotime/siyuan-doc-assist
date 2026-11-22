@@ -53,11 +53,15 @@ export function createAiMediaActionHandlers(
         }
       });
       if (report.scannedParagraphCount <= 0) {
-        showMessage("当前文档未发现可翻译的段落", 5000, "info");
+        showMessage("当前文档未发现可翻译的段落或标题", 5000, "info");
         return;
       }
       if (report.translatableParagraphCount <= 0) {
-        showMessage("当前文档未发现包含英文内容的段落", 5000, "info");
+        if (report.skippedCount > 0) {
+          showMessage("当前文档所有英文内容均已翻译完成", 5000, "info");
+          return;
+        }
+        showMessage("当前文档未发现包含英文内容的段落或标题", 5000, "info");
         return;
       }
       if (report.insertedCount <= 0) {
@@ -69,8 +73,9 @@ export function createAiMediaActionHandlers(
         return;
       }
       const suffix = report.failedCount > 0 ? `，失败 ${report.failedCount} 段` : "";
+      const skipPrefix = report.skippedCount > 0 ? `跳过已译 ${report.skippedCount} 段，` : "";
       showMessage(
-        `逐段翻译完成：翻译 ${report.translatedCount} 段，插入 ${report.insertedCount} 个译文块${suffix}`,
+        `逐段翻译完成：${skipPrefix}新翻译 ${report.translatedCount} 段，插入 ${report.insertedCount} 个译文块${suffix}`,
         report.failedCount > 0 ? 7000 : 6000,
         report.failedCount > 0 ? "error" : "info"
       );
