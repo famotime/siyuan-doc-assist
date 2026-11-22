@@ -38,6 +38,7 @@ export type DynamicOutlineControllerDeps = {
   }) => Promise<void> | void;
   getConfig: () => DynamicOutlineConfig;
   setPosition?: (position: DynamicOutlinePosition) => Promise<void> | void;
+  onFloatSelectedText?: (protyle?: ProtyleLike) => void;
   getClipboardItems?: () => ClipboardHistoryItem[];
   ensureClipboardLoaded?: () => Promise<ClipboardHistoryItem[]>;
   onClipboardCopy?: (item: ClipboardHistoryItem) => Promise<{ ok: boolean; reason?: string }>;
@@ -204,6 +205,9 @@ export class DynamicOutlineController {
       },
       onJumpToBottom: () => {
         this.jumpToBottom(protyle);
+      },
+      onFloatSelectedText: () => {
+        this.deps.onFloatSelectedText?.(protyle || this.deps.getCurrentProtyle());
       },
       onClipboardCopy: async (item) => {
         return (await this.deps.onClipboardCopy?.(item)) || { ok: false, reason: "剪贴板服务不可用" };

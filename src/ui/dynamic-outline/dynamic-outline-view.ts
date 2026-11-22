@@ -55,6 +55,9 @@ const LUCIDE_ARROW_UP_TO_LINE_SVG =
 const LUCIDE_ARROW_DOWN_TO_LINE_SVG =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" fill="none"></path><path d="M6 19h12"></path></svg>';
 
+const LUCIDE_FLOAT_TEXT_SVG =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"></path><rect width="10" height="7" x="12" y="13" rx="2"></rect></svg>';
+
 const LUCIDE_MODE_SWITCH_SVG =
   '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5" fill="none"></path><path d="m7 9 5-5 5 5" fill="none"></path></svg>';
 
@@ -85,6 +88,7 @@ export type DynamicOutlineViewOptions = {
   onTogglePosition?: (nextPosition: DynamicOutlinePosition) => void;
   onJumpToTop?: () => void;
   onJumpToBottom?: () => void;
+  onFloatSelectedText?: () => void;
   onSearchChange?: (query: string, showTreeContext: boolean) => void;
   onClipboardCopy?: (item: ClipboardHistoryItem) => Promise<{ ok: boolean; reason?: string }>;
   onClipboardCopyMerged?: (ids: string[]) => Promise<{ ok: boolean; reason?: string; skippedImageCount?: number }>;
@@ -220,6 +224,23 @@ export function createDynamicOutlineView(
   toBottomBtn.setAttribute("title", isZh ? "跳转到文档结尾" : "Jump to bottom");
   toBottomBtn.innerHTML = LUCIDE_ARROW_DOWN_TO_LINE_SVG;
   actionsWrap.appendChild(toBottomBtn);
+
+  const floatSelectedBtn = document.createElement("button");
+  floatSelectedBtn.className = "doc-assistant-dynamic-outline__btn doc-assistant-dynamic-outline__float-btn";
+  floatSelectedBtn.setAttribute("type", "button");
+  const floatSelectedLabel = isZh ?
+    "悬浮选中文本（未选中文本时自动悬浮整篇文档）" :
+    "Float selected text (or current doc)";
+  floatSelectedBtn.setAttribute("title", floatSelectedLabel);
+  floatSelectedBtn.setAttribute("aria-label", floatSelectedLabel);
+  floatSelectedBtn.innerHTML = LUCIDE_FLOAT_TEXT_SVG;
+  floatSelectedBtn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+  });
+  floatSelectedBtn.addEventListener("click", () => {
+    options.onFloatSelectedText?.();
+  });
+  actionsWrap.appendChild(floatSelectedBtn);
 
   const switchSideBtn = document.createElement("button");
   switchSideBtn.className = "doc-assistant-dynamic-outline__btn doc-assistant-dynamic-outline__switch-btn";
@@ -607,6 +628,7 @@ export function createDynamicOutlineView(
     container.classList.toggle("is-clipboard-mode", isClipboard);
     toTopBtn.style.display = hideDocControls ? "none" : "";
     toBottomBtn.style.display = hideDocControls ? "none" : "";
+    floatSelectedBtn.style.display = hideDocControls ? "none" : "";
     treeToggleBtn.style.display = hideDocControls ? "none" : "";
     clipboardFilterBar.element.style.display = isClipboard ? "flex" : "none";
     if (!isClipboard && (isClipboardBatchMode || selectedClipboardIds.length > 0)) {

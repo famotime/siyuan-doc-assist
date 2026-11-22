@@ -636,4 +636,34 @@ describe("dynamic-outline-view", () => {
 
     handle.destroy();
   });
+
+  test("renders float selected text button in outline toolbar, preserves selection on mousedown, and hides in other modes", () => {
+    const onFloatSelectedText = vi.fn();
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      onFloatSelectedText,
+      availableViewModes: ["outline", "open-docs"]
+    });
+
+    const floatBtn = parent.querySelector(
+      ".doc-assistant-dynamic-outline__float-btn"
+    ) as HTMLButtonElement;
+    expect(floatBtn).not.toBeNull();
+    expect(floatBtn.style.display).toBe("");
+
+    const mouseDownEvent = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    floatBtn.dispatchEvent(mouseDownEvent);
+    expect(mouseDownEvent.defaultPrevented).toBe(true);
+
+    floatBtn.click();
+    expect(onFloatSelectedText).toHaveBeenCalledTimes(1);
+
+    handle.setViewMode("open-docs");
+    expect(floatBtn.style.display).toBe("none");
+
+    handle.setViewMode("outline");
+    expect(floatBtn.style.display).toBe("");
+
+    handle.destroy();
+  });
 });

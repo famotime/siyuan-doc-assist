@@ -166,6 +166,11 @@ export default class DocLinkToolkitPlugin extends Plugin {
     openRecentDoc: (item) => openDocTab(this.app, item.docId),
     setDocSectionsExpanded: (sections) => this.setDynamicOutlineDocSectionsExpanded(sections),
     setPosition: (position) => this.setDynamicOutlinePosition(position),
+    onFloatSelectedText: (protyle) => {
+      const activeProtyle = protyle || this.currentProtyle;
+      const docId = getProtyleDocId(activeProtyle) || this.syncPairedCursor();
+      void this.actionRunner.runAction("float-selected-text", docId, activeProtyle);
+    },
     getClipboardItems: () => this.clipboardMonitor.getItems(),
     ensureClipboardLoaded: async () => {
       const items = await this.clipboardMonitor.ensureLoaded();
