@@ -344,4 +344,117 @@ describe("clipboardMonitorService batch operations & openFileLocation", () => {
     expect(readCount).toBe(countAtStop);
     vi.useRealTimers();
   });
+
+  test("copies files on Windows via PowerShell Set-Clipboard when writeBuffer is removed (Electron 44)", async () => {
+    const execFile = vi.fn((_file: string, _args: string[], _opts: Record<string, unknown>, cb: (e: Error | null, o: string, s: string) => void) => {
+      cb(null, "", "");
+    });
+    (globalThis as { window?: unknown }).window = {
+      require: (id: string) => {
+        if (id === "electron") {
+          return { clipboard: { readText: () => "", writeText: vi.fn() } };
+        }
+        if (id === "child_process") {
+          return { execFile };
+        }
+        if (id === "fs") {
+          return { existsSync: () => true, mkdirSync: vi.fn(), writeFileSync: vi.fn(), readFileSync: vi.fn(), unlinkSync: vi.fn() };
+        }
+        if (id === "os") {
+          return { platform: () => "win32", tmpdir: () => "C:\\tmp" };
+        }
+        return undefined;
+      }
+    };
+    const { service } = createService([
+      {
+        id: "f1",
+        kind: "file",
+        createdAt: 1,
+        updatedAt: 1,
+        favorited: false,
+        signature: "file:1:x",
+        previewText: "报告.pdf",
+        filePaths: ["C:\\docs\\报告.pdf"]
+      }
+    ]);
+    await service.ensureLoaded();
+
+    const res = await service.copyItem(service.getItems()[0]);
+    expect(res.ok).toBe(true);
+    expect(execFile).toHaveBeenCalledTimes(1);
+    const [file, args, opts] = execFile.mock.calls[0];
+    expect(file).toBe("powershell.exe");
+    expect(args.join(" ")).toContain("Set-Clipboard -LiteralPath");
+    const env = opts.env as Record<string, string>;
+    expect(JSON.parse(env.DOC_ASSIST_CLIP_PATHS)).toEqual(["C:\\docs\\报告.pdf"]);
+  });
+
+  test("copies images through navigator.clipboard when clipboard.writeImage is removed (Electron 44)", async () => {
+    const pngBytes = new Uint8Array([137, 80, 78, 71]);
+    const write = vi.fn(async () => undefined);
+    class FakeClipboardItem {
+      constructor(public readonly data: Record<string, Blob>) {}
+    }
+    const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    const originalItem = (globalThis as { ClipboardItem?: unknown }).ClipboardItem;
+    Object.defineProperty(globalThis, "navigator", {
+      value: { clipboard: { write } },
+      configurable: true
+    });
+    (globalThis as { ClipboardItem?: unknown }).ClipboardItem = FakeClipboardItem;
+
+    try {
+      (globalThis as { window?: unknown }).window = {
+        siyuan: { config: { system: { dataDir: "C:\\siyuan-data" } } },
+        require: (id: string) => {
+          if (id === "electron") {
+            return { clipboard: { readText: () => "" } };
+          }
+          if (id === "fs") {
+            return {
+              existsSync: () => true,
+              mkdirSync: vi.fn(),
+              writeFileSync: vi.fn(),
+              readFileSync: () => pngBytes,
+              unlinkSync: vi.fn()
+            };
+          }
+          if (id === "path") {
+            return { join: (...parts: string[]) => parts.join("\\") };
+          }
+          if (id === "os") {
+            return { platform: () => "win32", tmpdir: () => "C:\\tmp" };
+          }
+          return undefined;
+        }
+      };
+      const { service } = createService([
+        {
+          id: "i1",
+          kind: "image",
+          createdAt: 1,
+          updatedAt: 1,
+          favorited: false,
+          signature: "image:1x1:4:x",
+          previewText: "图像",
+          imageFileName: "img-1.png"
+        }
+      ]);
+      await service.ensureLoaded();
+
+      const res = await service.copyItem(service.getItems()[0]);
+      expect(res.ok).toBe(true);
+      expect(write).toHaveBeenCalledTimes(1);
+      const [items] = write.mock.calls[0] as unknown as [FakeClipboardItem[]];
+      expect(items[0].data["image/png"]).toBeInstanceOf(Blob);
+    } finally {
+      if (originalNavigator) {
+        Object.defineProperty(globalThis, "navigator", originalNavigator);
+      } else {
+        delete (globalThis as { navigator?: unknown }).navigator;
+      }
+      (globalThis as { ClipboardItem?: unknown }).ClipboardItem = originalItem;
+    }
+  });
 });

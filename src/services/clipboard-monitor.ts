@@ -29,10 +29,13 @@ import {
   isDesktopElectronClipboardSupported,
   openClipboardFileLocation,
   readClipboardImageDataUrl,
+  readFilePathsFromKernel,
+  readImageFromWebClipboard,
   removeClipboardImageFile,
   resolveClipboardImagePath,
   writeClipboardImageFile,
   writeFilesToSystemClipboard,
+  writeImageToSystemClipboard,
   writeTextToSystemClipboard
 } from "@/services/clipboard-runtime";
 
@@ -50,6 +53,7 @@ const logger = createDocAssistantLogger("Clipboard");
 
 export const CLIPBOARD_STORAGE_FILE = "clipboard-history.json";
 const CLIPBOARD_POLL_INTERVAL_MS = 700;
+const IMAGE_ECHO_SUPPRESS_MS = 3000;
 
 export type ClipboardMonitorDeps = {
   loadData: (storageName: string) => Promise<unknown>;
@@ -73,6 +77,7 @@ export class ClipboardMonitorService {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private lastPolledSignature = "";
   private suppressedSignature = "";
+  private suppressImageUntil = 0;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly startGuard = createGenerationGuard();
 
@@ -201,7 +206,7 @@ export class ClipboardMonitorService {
     if (!env) {
       return { ok: false, reason: "仅支持桌面端剪贴板" };
     }
-    const { clipboard, nativeImage, fs } = env;
+    const { fs } = env;
     this.suppressedSignature = item.signature;
     this.lastPolledSignature = item.signature;
 
@@ -210,19 +215,22 @@ export class ClipboardMonitorService {
     }
 
     if (item.kind === "image") {
-      if (!item.imageFileName || !nativeImage || typeof clipboard.writeImage !== "function") {
+      if (!item.imageFileName) {
         return { ok: false, reason: "图片数据不可用" };
       }
       const imgPath = resolveClipboardImagePath(env, item.imageFileName);
       if (!imgPath || !fs || !fs.existsSync(imgPath)) {
         return { ok: false, reason: "图片文件已被清理" };
       }
-      const img = nativeImage.createFromPath(imgPath);
-      if (!img || img.isEmpty()) {
+      let bytes: Uint8Array;
+      try {
+        bytes = fs.readFileSync(imgPath);
+      } catch {
         return { ok: false, reason: "读取图片失败" };
       }
-      await Promise.resolve(clipboard.writeImage(img));
-      return { ok: true };
+      // 写回后系统剪贴板里的 PNG 字节可能被重新编码，签名随之变化，需忽略紧随其后的图像捕获
+      this.suppressImageUntil = Date.now() + IMAGE_ECHO_SUPPRESS_MS;
+      return writeImageToSystemClipboard(env, { bytes, filePath: imgPath });
     }
 
     if (item.kind === "file") {
@@ -334,6 +342,11 @@ export class ClipboardMonitorService {
         return;
       }
       this.lastPolledSignature = entry.signature;
+      if (entry.kind === "image" && Date.now() < this.suppressImageUntil) {
+        this.suppressImageUntil = 0;
+        this.suppressedSignature = "";
+        return;
+      }
       if (this.suppressedSignature) {
         const suppressed = this.suppressedSignature;
         this.suppressedSignature = "";
@@ -396,6 +409,11 @@ export class ClipboardMonitorService {
       filePaths = [];
     }
 
+    // Electron 44 移除了 readBuffer/readImage：文件列表改走内核接口（思源自身同款通道）
+    if (filePaths.length === 0) {
+      filePaths = await readFilePathsFromKernel(platform);
+    }
+
     if (filePaths.length > 0) {
       return buildFileEntry(filePaths);
     }
@@ -408,25 +426,18 @@ export class ClipboardMonitorService {
           const pngBytes = img.toPNG();
           if (pngBytes && pngBytes.length > 0) {
             const size = img.getSize();
-            const signature = buildClipboardImageSignature(pngBytes, size.width, size.height);
-            return {
-              kind: "image",
-              signature,
-              imageBytes: pngBytes,
-              incoming: {
-                kind: "image",
-                signature,
-                previewText: `图像 ${size.width}×${size.height}`,
-                imageWidth: size.width,
-                imageHeight: size.height
-              }
-            };
+            return buildImageEntry(pngBytes, size.width, size.height);
           }
         }
       } catch (err) {
         if (verbose) {
           logger.debug("readImage error", err);
         }
+      }
+    } else {
+      const webImage = await readImageFromWebClipboard();
+      if (webImage) {
+        return buildImageEntry(webImage.bytes, webImage.width, webImage.height);
       }
     }
 
@@ -522,6 +533,22 @@ export class ClipboardMonitorService {
       // Ignore storage write errors
     }
   }
+}
+
+function buildImageEntry(bytes: Uint8Array, width: number, height: number): PolledClipboardEntry {
+  const signature = buildClipboardImageSignature(bytes, width, height);
+  return {
+    kind: "image",
+    signature,
+    imageBytes: bytes,
+    incoming: {
+      kind: "image",
+      signature,
+      previewText: width > 0 && height > 0 ? `图像 ${width}×${height}` : "图像",
+      imageWidth: width > 0 ? width : undefined,
+      imageHeight: height > 0 ? height : undefined
+    }
+  };
 }
 
 function buildFileEntry(filePaths: string[]): PolledClipboardEntry {
