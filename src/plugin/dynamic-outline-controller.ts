@@ -66,7 +66,7 @@ export class DynamicOutlineController {
   private scrollContainer?: HTMLElement;
   private additionalScrollContainer?: HTMLElement;
   private onScrollHandler?: () => void;
-  private onInputHandler?: () => void;
+  private onInputHandler?: (event: Event) => void;
   private currentItems: DynamicOutlineItem[] = [];
   private posRatioByBlockId = new Map<string, number>();
   private allItemsAreHeadings = true;
@@ -109,9 +109,12 @@ export class DynamicOutlineController {
     this.mount(protyleElement, targetProtyle);
   }
 
-  public notifyDocEdited() {
+  public notifyDocEdited(event?: Event) {
     const config = this.deps.getConfig();
     if (!config.enabled || this.deps.isMobile() || !this.view) {
+      return;
+    }
+    if (!this.shouldRefreshOutlineOnInput(event, config.followKeyInfo)) {
       return;
     }
 
@@ -123,6 +126,40 @@ export class DynamicOutlineController {
       this.debounceTimer = null;
       void this.refreshData();
     }, 1500);
+  }
+
+  private shouldRefreshOutlineOnInput(event: Event | undefined, followKeyInfo: boolean): boolean {
+    if (followKeyInfo || !event) {
+      return true;
+    }
+    const inputType = typeof (event as InputEvent).inputType === "string" ?
+        (event as InputEvent).inputType :
+      "";
+    const isPlainTextTyping =
+      inputType === "insertText" ||
+      inputType === "insertCompositionText" ||
+      inputType === "insertReplacementText";
+    if (!isPlainTextTyping) {
+      return true;
+    }
+
+    const rawTarget = event.target as Node | null;
+    const anchorNode =
+      rawTarget ||
+      (typeof document !== "undefined" ? document.getSelection?.()?.anchorNode ?? null : null);
+    let targetEl: HTMLElement | null = null;
+    if (anchorNode) {
+      targetEl = anchorNode.nodeType === 1 ? (anchorNode as HTMLElement) : anchorNode.parentElement;
+    }
+    const blockEl = targetEl?.closest?.("[data-node-id]") as HTMLElement | null;
+    if (!blockEl) {
+      return true;
+    }
+    if (blockEl.getAttribute("data-type") === "NodeHeading") {
+      return true;
+    }
+    const blockText = (blockEl.textContent || "").trimStart();
+    return blockText.startsWith("#");
   }
 
   public notifyClipboardChanged(items: ClipboardHistoryItem[]) {
@@ -281,8 +318,8 @@ export class DynamicOutlineController {
       this.additionalScrollContainer.addEventListener("scroll", this.onScrollHandler, { passive: true });
     }
 
-    this.onInputHandler = () => {
-      this.notifyDocEdited();
+    this.onInputHandler = (event: Event) => {
+      this.notifyDocEdited(event);
     };
     protyleElement.addEventListener("input", this.onInputHandler, { passive: true });
 

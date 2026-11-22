@@ -451,4 +451,57 @@ describe("dynamic-outline-controller", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  test("skips plain paragraph typing input in pure outline mode but refreshes on heading edit or followKeyInfo mode", async () => {
+    const fetchDocOutline = vi.fn().mockResolvedValue({
+      items: [{ id: "o-1", blockId: "b-1", text: "标题", type: "title", level: 1, order: 0 }]
+    });
+    deps.fetchDocOutline = fetchDocOutline;
+
+    const wysiwyg = mockProtyleEl.querySelector(".protyle-wysiwyg") as HTMLElement;
+    const pBlock = document.createElement("div");
+    pBlock.setAttribute("data-type", "NodeParagraph");
+    pBlock.setAttribute("data-node-id", "p-1");
+    pBlock.textContent = "普通段落正文";
+    const hBlock = document.createElement("div");
+    hBlock.setAttribute("data-type", "NodeHeading");
+    hBlock.setAttribute("data-node-id", "b-1");
+    hBlock.textContent = "标题";
+    wysiwyg.append(pBlock, hBlock);
+
+    const controller = new DynamicOutlineController(deps);
+    controller.syncActiveEditor();
+    await vi.waitFor(() => {
+      expect(fetchDocOutline).toHaveBeenCalledTimes(1);
+    });
+
+    // 普通段落中纯文本输入 -> 跳过大纲刷新
+    const textInputInParagraph = new Event("input", { bubbles: true }) as any;
+    textInputInParagraph.inputType = "insertText";
+    pBlock.dispatchEvent(textInputInParagraph);
+    vi.advanceTimersByTime(1600);
+    expect(fetchDocOutline).toHaveBeenCalledTimes(1);
+
+    // 段落中键入 # 前缀 -> 触发大纲刷新
+    pBlock.textContent = "# 新标题";
+    pBlock.dispatchEvent(textInputInParagraph);
+    vi.advanceTimersByTime(1600);
+    expect(fetchDocOutline).toHaveBeenCalledTimes(2);
+
+    // 标题块内输入 -> 触发大纲刷新
+    const textInputInHeading = new Event("input", { bubbles: true }) as any;
+    textInputInHeading.inputType = "insertText";
+    hBlock.dispatchEvent(textInputInHeading);
+    vi.advanceTimersByTime(1600);
+    expect(fetchDocOutline).toHaveBeenCalledTimes(3);
+
+    // followKeyInfo 模式下普通段落输入也刷新
+    configState.followKeyInfo = true;
+    pBlock.textContent = "普通段落加粗";
+    pBlock.dispatchEvent(textInputInParagraph);
+    vi.advanceTimersByTime(1600);
+    expect(deps.fetchDocKeyInfo).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
 });

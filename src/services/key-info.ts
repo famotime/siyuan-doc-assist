@@ -19,9 +19,7 @@ import {
   collectHeadingItems,
   collectMarkdownAndMetaItems
 } from "@/services/key-info-collectors";
-import {
-  KeyInfoDocResult
-} from "@/services/key-info-model";
+import { KeyInfoDocResult } from "@/services/key-info-model";
 import {
   appendDocTitleItemIfMissing,
   normalizeKeyInfoItemsByPipeline,
@@ -41,15 +39,20 @@ async function fetchDocKeyInfoUncached(
   protyle?: unknown
 ): Promise<KeyInfoDocResult> {
   let rootId = docId;
-  let rows = await listDocBlocks(rootId);
+  let [rows, docMeta] = await Promise.all([
+    listDocBlocks(rootId),
+    getDocMetaByID(rootId)
+  ]);
   if (!rows.length) {
     const resolvedRootId = await resolveRootId(docId);
     if (resolvedRootId && resolvedRootId !== rootId) {
       rootId = resolvedRootId;
-      rows = await listDocBlocks(rootId);
+      [rows, docMeta] = await Promise.all([
+        listDocBlocks(rootId),
+        getDocMetaByID(rootId)
+      ]);
     }
   }
-  const docMeta = await getDocMetaByID(rootId);
   const docTitle = docMeta?.title || "";
 
   if (!rows.length) {
@@ -67,12 +70,29 @@ async function fetchDocKeyInfoUncached(
     }
   }
 
-  const kramdownMap = await getKramdownMap(rows.map((row) => row.id));
-  const items: KeyInfoItem[] = [];
   const hasChildBlocks = rows.some((row) => row.id !== rootId);
+  const kramdownTargetIds = rows
+    .filter((row) => {
+      const rowType = (row.type || "").toLowerCase();
+      if (rowType === "l") {
+        return false;
+      }
+      if (row.id === rootId && rowType === "d" && hasChildBlocks) {
+        return false;
+      }
+      return true;
+    })
+    .map((row) => row.id);
+
+  const [kramdownMap, syOrderMap, spanRows] = await Promise.all([
+    getKramdownMap(kramdownTargetIds),
+    getDocTreeOrderFromSy(rootId, docMeta ?? null),
+    listSpanRows(rootId)
+  ]);
+
+  const items: KeyInfoItem[] = [];
   const blockSortMap = new Map<string, number>();
   const structuralOrderMap = buildStructuralBlockOrderMap(rows, rootId);
-  const syOrderMap = await getDocTreeOrderFromSy(rootId, docMeta ?? null);
   const resolvedOrder = resolveBlockOrderMap(rows, syOrderMap, structuralOrderMap);
   const listContext = createListContextResolver(rows);
   const resolveListLine = (blockId?: string): { listItem: boolean; listPrefix?: string } => {
@@ -133,7 +153,7 @@ async function fetchDocKeyInfoUncached(
   const markdownInlineItems = markdownMetaResult.markdownInlineItems;
 
   const spanItems = mapSpanRowsToItems(
-    await listSpanRows(rootId),
+    spanRows,
     blockSortMap,
     resolveListLine
   ).map(remapListLineAnchor);
@@ -157,7 +177,6 @@ async function fetchDocKeyInfoUncached(
     items: sortedItems
   };
 }
-
 
 export async function getDocKeyInfo(docId: string, protyle?: unknown): Promise<KeyInfoDocResult> {
   const key = `${(docId || "").trim()}::${protyle ? "dom" : "no-dom"}`;

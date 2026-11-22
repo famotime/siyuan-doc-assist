@@ -6,6 +6,7 @@ import {
   flattenDocOutlineNodes,
   getDocOutlineItems
 } from "@/services/key-info-outline";
+import { getKramdownMap } from "@/services/key-info-query";
 
 vi.mock("siyuan", () => ({
   fetchSyncPost: vi.fn()
@@ -184,5 +185,55 @@ describe("key-info-outline service", () => {
     ]);
     expect(k1).toBe(k2);
     expect(postMock.mock.calls.length).toBe(singleCallCount);
+  });
+
+  test("fetches kramdown chunks with bounded concurrency and skips container blocks in getDocKeyInfo", async () => {
+    const postMock = vi.mocked(fetchSyncPost);
+    let activeKramdownCalls = 0;
+    let maxConcurrentKramdownCalls = 0;
+
+    postMock.mockImplementation(async (url: string, body?: any) => {
+      if (url === "/api/block/getBlockKramdowns") {
+        activeKramdownCalls += 1;
+        maxConcurrentKramdownCalls = Math.max(maxConcurrentKramdownCalls, activeKramdownCalls);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        activeKramdownCalls -= 1;
+        const ids: string[] = body?.ids || [];
+        return {
+          code: 0,
+          msg: "",
+          data: ids.map((id) => ({ id, kramdown: `text-${id}` }))
+        };
+      }
+      if (url === "/api/query/sql") {
+        const stmt = String(body?.stmt || "");
+        if (stmt.includes("where root_id='doc-concur'") && stmt.includes("from blocks")) {
+          return {
+            code: 0,
+            msg: "",
+            data: [
+              { id: "doc-concur", parent_id: "", sort: 0, type: "d", subtype: "", content: "", markdown: "", memo: "", tag: "" },
+              { id: "list-1", parent_id: "doc-concur", sort: 1, type: "l", subtype: "u", content: "", markdown: "", memo: "", tag: "" },
+              { id: "p-1", parent_id: "doc-concur", sort: 2, type: "p", subtype: "", content: "**重要**", markdown: "**重要**", memo: "", tag: "" }
+            ]
+          };
+        }
+      }
+      return { code: 0, msg: "", data: [] };
+    });
+
+    const ids = Array.from({ length: 160 }, (_, idx) => `blk-${idx}`);
+    const map = await getKramdownMap(ids);
+    expect(map.size).toBe(160);
+    expect(maxConcurrentKramdownCalls).toBeGreaterThan(1);
+    expect(maxConcurrentKramdownCalls).toBeLessThanOrEqual(4);
+
+    postMock.mockClear();
+    await getDocKeyInfo("doc-concur");
+    const kramdownBatches = postMock.mock.calls
+      .filter(([url]) => url === "/api/block/getBlockKramdowns")
+      .map(([, body]) => (body as any)?.ids || []);
+    // 跳过根文档块 d 与列表容器块 l，只请求 p-1
+    expect(kramdownBatches).toEqual([["p-1"]]);
   });
 });

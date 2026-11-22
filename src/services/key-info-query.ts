@@ -1,3 +1,4 @@
+import { DEFAULT_MAP_CONCURRENCY, mapWithConcurrency } from "@/core/map-with-concurrency";
 import { getBlockKramdowns, sql } from "@/services/kernel";
 import {
   chunkArray,
@@ -113,17 +114,24 @@ export async function getKramdownMap(ids: string[]): Promise<Map<string, string>
     return map;
   }
   const chunks = chunkArray(ids, 50);
-  for (const chunk of chunks) {
-    try {
-      const rows = await getBlockKramdowns(chunk);
-      rows.forEach((row) => {
-        if (row?.id) {
-          map.set(row.id, row.kramdown || "");
-        }
-      });
-    } catch {
-      // Ignore and fallback to DB markdown.
+  const chunkResults = await mapWithConcurrency(
+    chunks,
+    DEFAULT_MAP_CONCURRENCY,
+    async (chunk) => {
+      try {
+        return (await getBlockKramdowns(chunk)) || [];
+      } catch {
+        // Ignore and fallback to DB markdown.
+        return [];
+      }
     }
-  }
+  );
+  chunkResults.forEach((rows) => {
+    rows.forEach((row) => {
+      if (row?.id) {
+        map.set(row.id, row.kramdown || "");
+      }
+    });
+  });
   return map;
 }
