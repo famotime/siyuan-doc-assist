@@ -8,19 +8,14 @@ import {
 import pluginInfo from "@/../plugin.json";
 import { DOC_ASSIST_ICON_SVG } from "@/icons";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
-import {
-  DocActionEnabledState,
-  DocMenuRegistrationState,
-  filterDockVisibleActions
-} from "@/core/doc-menu-registration-core";
-import { buildDefaultKeyInfoFilter, KeyInfoFilter } from "@/core/key-info-core";
+import { filterDockVisibleActions } from "@/core/doc-menu-registration-core";
+import { KeyInfoFilter } from "@/core/key-info-core";
 import { ActionRunner, ConfirmDetailItem } from "@/plugin/action-runner";
 import { ACTIONS, ActionKey } from "@/plugin/actions";
 import {
   ALPHA_FEATURE_HIDE_CONFIG,
   filterVisibleActions,
-  getHiddenActionKeys,
-  getHiddenPluginSettingKeys
+  getHiddenActionKeys
 } from "@/plugin/alpha-feature-config";
 import { getProtyleDocId, ProtyleLike, resolvePairedCursorDocId } from "@/plugin/doc-context";
 import { KeyInfoController } from "@/plugin/key-info-controller";
@@ -66,7 +61,12 @@ import {
   setSinglePluginDocMenuRegistration
 } from "@/plugin/plugin-lifecycle-state";
 import {
-  DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
+  ApiSwitchSyncHandle,
+  buildPluginLifecycleSettingPage,
+  setupApiSwitchSync,
+  shouldRunClipboardMonitor
+} from "@/plugin/plugin-lifecycle-settings-bridge";
+import {
   DynamicOutlinePosition,
   DynamicOutlineViewMode
 } from "@/core/dynamic-outline-core";
@@ -84,8 +84,10 @@ import { GestureBindings } from "@/core/gesture-recognition-core";
 import { createMouseGestureController } from "@/plugin/mouse-gesture-controller";
 import {
   bindPluginFloatingPersistence,
+  resetFloatingTextConfigCache,
   setCachedFloatingTextConfig
 } from "@/services/floating-text/floating-text-storage";
+import { rangeSelectionObserverManager } from "@/plugin/action-runner-select-range-handlers";
 import { disposeFloatingWindowHostGlobals } from "@/services/floating-text/floating-window-adapter";
 import { FloatingTextConfig } from "@/core/floating-text-core";
 import { createPluginSettings } from "@/ui/plugin-settings";
@@ -108,39 +110,73 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private currentProtyle?: ProtyleLike;
   private isMobile = false;
   private readonly docMenuRegistrationStorageName = "doc-menu-registration";
-  private docActionEnabledState: DocActionEnabledState =
-    buildDefaultPluginDocMenuState(ACTIONS).docActionEnabledState;
-
-  private docMenuRegistrationState: DocMenuRegistrationState =
-    buildDefaultPluginDocMenuState(ACTIONS).docMenuRegistrationState;
-
-  private docActionOrderState: ActionKey[] =
-    buildDefaultPluginDocMenuState(ACTIONS).docActionOrderState;
-
-  private docFavoriteActionKeys: ActionKey[] = [];
-  private keyInfoFilterState: KeyInfoFilter = buildDefaultKeyInfoFilter();
-  private aiSummaryConfig = buildDefaultPluginDocMenuState(ACTIONS).aiSummaryConfig;
-  private floatingConfig: FloatingTextConfig =
-    buildDefaultPluginDocMenuState(ACTIONS).floatingConfig;
-
-  private debugLogEnabled = false;
-  private startupDocProcessTabEnabled = false;
-  private mouseGestureEnabled = false;
-  private mouseGestureBindings: GestureBindings = {
-    ...buildDefaultPluginDocMenuState(ACTIONS).mouseGestureBindings
-  };
-
-  private dynamicOutlineEnabled = false;
-  private dynamicOutlineFollowKeyInfo = false;
-  private dynamicOutlineQuickSwitchEnabled = false;
-  private dynamicOutlinePosition: DynamicOutlinePosition = "right";
-  private dynamicOutlineViewModes: DynamicOutlineViewMode[] = [
-    ...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
-  ];
-
-  private dynamicOutlineOpenDocsExpanded = true;
-  private dynamicOutlineRecentDocsExpanded = false;
+  private menuState: PluginDocMenuState = buildDefaultPluginDocMenuState(ACTIONS);
   private readonly dynamicOutlineNavigation = createKeyInfoNavigation();
+
+  private managedAiConfig: AiServiceConfig | null = null;
+  private apiSwitchHandle?: ApiSwitchSyncHandle;
+  private unloaded = false;
+  private persistQueue: Promise<void> = Promise.resolve();
+  private persistInFlight = false;
+  private persistEpoch = 0;
+
+  // Keep read-only accessors for test inspection and narrow collaborators without
+  // duplicating mutable fields across the class and PluginDocMenuState.
+  get docActionEnabledState() {
+    return this.menuState.docActionEnabledState;
+  }
+
+  get docMenuRegistrationState() {
+    return this.menuState.docMenuRegistrationState;
+  }
+
+  get docActionOrderState() {
+    return this.menuState.docActionOrderState;
+  }
+
+  get docFavoriteActionKeys() {
+    return this.menuState.docFavoriteActionKeys;
+  }
+
+  get keyInfoFilterState() {
+    return this.menuState.keyInfoFilterState;
+  }
+
+  get aiSummaryConfig() {
+    return this.menuState.aiSummaryConfig;
+  }
+
+  get debugLogEnabled() {
+    return this.menuState.debugLogEnabled;
+  }
+
+  get floatingConfig() {
+    return this.menuState.floatingConfig;
+  }
+
+  get startupDocProcessTabEnabled() {
+    return this.menuState.startupDocProcessTabEnabled;
+  }
+
+  get mouseGestureEnabled() {
+    return this.menuState.mouseGestureEnabled;
+  }
+
+  get mouseGestureBindings() {
+    return this.menuState.mouseGestureBindings;
+  }
+
+  get dynamicOutlineEnabled() {
+    return this.menuState.dynamicOutlineEnabled;
+  }
+
+  get dynamicOutlineFollowKeyInfo() {
+    return this.menuState.dynamicOutlineFollowKeyInfo;
+  }
+
+  get dynamicOutlineQuickSwitchEnabled() {
+    return this.menuState.dynamicOutlineQuickSwitchEnabled;
+  }
 
   private readonly clipboardMonitor = new ClipboardMonitorService({
     loadData: (name) => this.loadData(name),
@@ -152,7 +188,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     isMobile: () => this.isMobile,
     getCurrentProtyle: () => this.currentProtyle,
     getCurrentDocId: () => this.syncPairedCursor(),
-    getKeyInfoFilter: () => this.keyInfoFilterState,
+    getKeyInfoFilter: () => this.menuState.keyInfoFilterState,
     fetchDocKeyInfo: (docId, protyle) => getDocKeyInfo(docId, protyle),
     navigateBlock: (blockId, protyle) => {
       this.dynamicOutlineNavigation.handleItemClick(
@@ -187,23 +223,20 @@ export default class DocLinkToolkitPlugin extends Plugin {
     onClipboardOpenFileLocation: (filePath) => this.clipboardMonitor.openFileLocation(filePath),
     resolveClipboardImageUrl: (fileName) => this.clipboardMonitor.getImageDataUrl(fileName),
     getConfig: () => ({
-      enabled: this.dynamicOutlineEnabled,
-      followKeyInfo: this.dynamicOutlineFollowKeyInfo,
-      quickSwitchEnabled: this.dynamicOutlineQuickSwitchEnabled,
-      position: this.dynamicOutlinePosition,
-      viewModes: this.dynamicOutlineViewModes,
-      openDocsExpanded: this.dynamicOutlineOpenDocsExpanded,
-      recentDocsExpanded: this.dynamicOutlineRecentDocsExpanded
+      enabled: this.menuState.dynamicOutlineEnabled,
+      followKeyInfo: this.menuState.dynamicOutlineFollowKeyInfo,
+      quickSwitchEnabled: this.menuState.dynamicOutlineQuickSwitchEnabled,
+      position: this.menuState.dynamicOutlinePosition,
+      viewModes: this.menuState.dynamicOutlineViewModes,
+      openDocsExpanded: this.menuState.dynamicOutlineOpenDocsExpanded,
+      recentDocsExpanded: this.menuState.dynamicOutlineRecentDocsExpanded
     })
   });
 
-  private managedAiConfig: AiServiceConfig | null = null;
-  private apiSwitchReadyListener?: () => void;
-
   private readonly mouseGestureController = createMouseGestureController({
     getApp: () => this.app,
-    isEnabled: () => this.mouseGestureEnabled && !this.isMobile,
-    getBindings: () => this.mouseGestureBindings
+    isEnabled: () => this.menuState.mouseGestureEnabled && !this.isMobile,
+    getBindings: () => this.menuState.mouseGestureBindings
   });
 
   private readonly powerButtonsProvider: PowerButtonsCommandProvider = createPowerButtonsProvider({
@@ -220,7 +253,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     setBackgroundActionRunning: (action, _docId, running) =>
       this.keyInfoController.setDocActionRunning(action, running),
     getKeyInfoFilter: (): KeyInfoFilter | undefined => this.keyInfoController.getCurrentFilter(),
-    getAiSummaryConfig: () => this.managedAiConfig || this.aiSummaryConfig,
+    getAiSummaryConfig: () => this.managedAiConfig || this.menuState.aiSummaryConfig,
     resolveNetworkLensPlugin: () => resolveNetworkLensPluginFromPlugins(this.app?.plugins),
     resolveCanvasPlugin: () => resolveCanvasPluginFromPlugins(this.app?.plugins)
   });
@@ -230,7 +263,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     // 成对消费入口做游标重同步：显式 docId 更新与 protyle 失步时以 protyle 为准（审计 2.2）
     getCurrentDocId: () => this.syncPairedCursor(),
     getCurrentProtyle: () => this.currentProtyle,
-    getKeyInfoFilter: () => this.keyInfoFilterState,
+    getKeyInfoFilter: () => this.menuState.keyInfoFilterState,
     setKeyInfoFilter: (filter) => this.setKeyInfoFilter(filter),
     resolveDocId: (explicitId?: string, protyle?: ProtyleLike) =>
       this.resolveDocId(explicitId, protyle),
@@ -238,19 +271,19 @@ export default class DocLinkToolkitPlugin extends Plugin {
       await this.actionRunner.runAction(action, explicitId, protyle);
     },
     actions: () => this.getDockActions(),
-    getDocMenuRegistrationState: () => this.docMenuRegistrationState,
+    getDocMenuRegistrationState: () => this.menuState.docMenuRegistrationState,
     setAllDocMenuRegistration: (enabled) => this.setAllDocMenuRegistration(enabled),
     setSingleDocMenuRegistration: (key, enabled) =>
       this.setSingleDocMenuRegistration(key, enabled),
     setDocActionOrder: (order) => this.setDocActionOrder(order),
     resetDocActionOrder: () => this.resetDocActionOrder(),
-    getDocFavoriteActionKeys: () => this.docFavoriteActionKeys,
+    getDocFavoriteActionKeys: () => this.menuState.docFavoriteActionKeys,
     setDocActionFavorite: (key, favorited) =>
       this.setDocActionFavorite(key, favorited),
     setDocFavoriteActionOrder: (order) =>
       this.setDocFavoriteActionOrder(order),
     resolveCanvasPlugin: () => resolveCanvasPluginFromPlugins(this.app?.plugins),
-    getStartupDocProcessTabEnabled: () => this.startupDocProcessTabEnabled
+    getStartupDocProcessTabEnabled: () => this.menuState.startupDocProcessTabEnabled
   });
 
   private readonly onSwitchProtyle = (event: CustomEvent<{ protyle?: ProtyleLike }>) => {
@@ -289,8 +322,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       docId,
       protyle: detail.protyle,
       actions: this.getOrderedActions(),
-      docMenuRegistrationState: this.docMenuRegistrationState,
-      docActionEnabledState: this.docActionEnabledState,
+      docMenuRegistrationState: this.menuState.docMenuRegistrationState,
+      docActionEnabledState: this.menuState.docActionEnabledState,
       runAction: async (action, explicitId, protyle) => {
         await this.actionRunner.runAction(action, explicitId, protyle);
       }
@@ -312,7 +345,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     if (
       isFloatSelectedTextHidden(
         getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG),
-        this.docActionEnabledState
+        this.menuState.docActionEnabledState
       )
     ) {
       return;
@@ -340,7 +373,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     if (
       isFloatSelectedTextHidden(
         getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG),
-        this.docActionEnabledState
+        this.menuState.docActionEnabledState
       )
     ) {
       return;
@@ -376,6 +409,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   };
 
   async onload() {
+    this.unloaded = false;
     if (!this.displayName) {
       this.displayName =
         pluginInfo.displayName?.zh_CN ||
@@ -385,6 +419,9 @@ export default class DocLinkToolkitPlugin extends Plugin {
     const frontend = getFrontend();
     this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
     await this.loadDocMenuRegistrationState();
+    if (this.unloaded) {
+      return;
+    }
     this.setting = this.buildPluginSettingPage();
 
     bindPluginLifecycleEvents(this.eventBus, {
@@ -405,15 +442,30 @@ export default class DocLinkToolkitPlugin extends Plugin {
       }
     });
 
-    this.initApiSwitchSync();
-    setTransactionDebugLogEnabled(this.debugLogEnabled);
+    this.apiSwitchHandle = setupApiSwitchSync({
+      pluginName: this.name,
+      pluginDisplayName: this.displayName,
+      aiSummaryConfig: this.menuState.aiSummaryConfig,
+      onManagedConfigChange: (config) => {
+        this.managedAiConfig = config;
+        if (this.setting) {
+          const updater = (this.setting as unknown as {
+            updateManagedConfig?: (cfg: AiServiceConfig | null) => void;
+          }).updateManagedConfig;
+          if (typeof updater === "function") {
+            updater(config);
+          }
+        }
+      }
+    });
+    setTransactionDebugLogEnabled(this.menuState.debugLogEnabled);
 
     if (!this.isMobile) {
       this.mouseGestureController.bind();
     }
 
     bindPluginFloatingPersistence((cfg) => {
-      this.floatingConfig = cfg;
+      this.menuState = { ...this.menuState, floatingConfig: cfg };
       void this.persistDocMenuRegistrationState();
     });
 
@@ -424,6 +476,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   onunload() {
+    this.unloaded = true;
     // 自兜底：旧版前端卸载插件时不会强制关闭已打开的设置对话框（2026-09 起官方
     // loader 才加入 plugin.setting?.close()），主动关闭以覆盖旧版内核（审计 4.2）。
     try {
@@ -431,15 +484,11 @@ export default class DocLinkToolkitPlugin extends Plugin {
     } catch {
       // 对话框未打开或已销毁时忽略
     }
-    if (this.apiSwitchReadyListener) {
-      window.removeEventListener("siyuan-api-switch:ready", this.apiSwitchReadyListener);
-      this.apiSwitchReadyListener = undefined;
-    }
+    this.apiSwitchHandle?.dispose();
+    this.apiSwitchHandle = undefined;
     bindPluginFloatingPersistence(null);
     disposeFloatingWindowHostGlobals();
-    if (window.siyuanApiSwitch) {
-      window.siyuanApiSwitch.unregister(this.name);
-    }
+    resetFloatingTextConfigCache();
     unbindPluginLifecycleEvents(this.eventBus, {
       onSwitchProtyle: this.onSwitchProtyle,
       onEditorTitleMenu: this.onEditorTitleMenu,
@@ -447,11 +496,16 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onDocTreeMenu: this.onDocTreeMenu,
       onBlockIconMenu: this.onBlockIconMenu
     });
+    this.actionRunner.dispose();
+    rangeSelectionObserverManager.deactivate();
+    this.dynamicOutlineNavigation.destroy();
     this.keyInfoController.destroy();
     this.dynamicOutlineController.destroy();
     this.clipboardMonitor.stop();
     this.mouseGestureController.destroy();
     destroyActionProcessingOverlay();
+    this.currentDocId = "";
+    this.currentProtyle = undefined;
   }
 
   openSetting() {
@@ -465,7 +519,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     }
     if (
       getHiddenActionKeys(ALPHA_FEATURE_HIDE_CONFIG).has("float-selected-text") ||
-      this.docActionEnabledState?.["float-selected-text"] === false
+      this.menuState?.docActionEnabledState?.["float-selected-text"] === false
     ) {
       return toolbar;
     }
@@ -547,30 +601,16 @@ export default class DocLinkToolkitPlugin extends Plugin {
   }
 
   private buildPluginSettingPage() {
-    return createPluginSettings({
+    return buildPluginLifecycleSettingPage({
       actions: this.getOrderedActions(),
-      enabledState: this.docActionEnabledState,
-      registration: this.docMenuRegistrationState,
+      state: this.menuState,
       isMobile: this.isMobile,
-      aiSummaryConfig: this.aiSummaryConfig,
       managedAiConfig: this.managedAiConfig,
-      debugLogEnabled: this.debugLogEnabled,
-      autoPasteOnSelect: this.floatingConfig.autoPasteOnSelect ?? false,
-      startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
-      mouseGestureEnabled: this.mouseGestureEnabled,
-      mouseGestureBindings: this.mouseGestureBindings,
-      dynamicOutlineEnabled: this.dynamicOutlineEnabled,
-      dynamicOutlineFollowKeyInfo: this.dynamicOutlineFollowKeyInfo,
-      dynamicOutlineQuickSwitchEnabled: this.dynamicOutlineQuickSwitchEnabled,
-      dynamicOutlineViewModes: this.dynamicOutlineViewModes,
-      hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
       onToggleAllEnabled: (enabled) => this.setAllDocActionEnabled(enabled),
       onToggleAllMenu: (enabled) => this.setAllDocMenuRegistration(enabled),
-      onToggleSingleEnabled: (key, enabled) =>
-        this.setSingleDocActionEnabled(key, enabled),
-      onToggleSingleMenu: (key, enabled) =>
-        this.setSingleDocMenuRegistration(key, enabled),
+      onToggleSingleEnabled: (key, enabled) => this.setSingleDocActionEnabled(key, enabled),
+      onToggleSingleMenu: (key, enabled) => this.setSingleDocMenuRegistration(key, enabled),
       onDebugLogEnabledChange: (enabled) => this.setDebugLogEnabled(enabled),
       onAutoPasteOnSelectChange: (enabled) =>
         this.setFloatingConfig({ autoPasteOnSelect: enabled }),
@@ -585,59 +625,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
         this.setDynamicOutlineFollowKeyInfo(follow),
       onDynamicOutlineQuickSwitchEnabledChange: (enabled) =>
         this.setDynamicOutlineQuickSwitchEnabled(enabled),
-      onDynamicOutlineViewModesChange: (modes) =>
-        this.setDynamicOutlineViewModes(modes)
+      onDynamicOutlineViewModesChange: (modes) => this.setDynamicOutlineViewModes(modes)
     });
-  }
-
-  private initApiSwitchSync() {
-    const sync = (shared: any | null) => {
-      if (shared) {
-        this.managedAiConfig = {
-          enabled: true,
-          baseUrl: shared.baseUrl,
-          apiKey: shared.apiKey,
-          model: shared.model,
-          requestTimeoutSeconds: shared.requestTimeoutSeconds ?? 60,
-          temperature: shared.temperature ?? 0.7,
-          maxTokens: shared.maxTokens ?? 4096,
-          headers: shared.headers,
-          protocol: shared.protocol
-        };
-      } else {
-        this.managedAiConfig = null;
-      }
-
-      if (this.setting) {
-        const updater = (this.setting as any).updateManagedConfig;
-        if (typeof updater === "function") {
-          updater(this.managedAiConfig);
-        }
-      }
-    };
-
-    const local = {
-      provider: "custom",
-      baseUrl: this.aiSummaryConfig.baseUrl,
-      apiKey: this.aiSummaryConfig.apiKey,
-      model: this.aiSummaryConfig.model,
-      requestTimeoutSeconds: this.aiSummaryConfig.requestTimeoutSeconds,
-      temperature: this.aiSummaryConfig.temperature,
-      maxTokens: this.aiSummaryConfig.maxTokens
-    };
-
-    if (window.siyuanApiSwitch) {
-      window.siyuanApiSwitch.register(this.name, this.displayName, sync, local);
-    } else {
-      // Keep the listener reference so onunload can remove it; an orphaned
-      // listener would register a dead plugin instance when api-switch loads later.
-      this.apiSwitchReadyListener = () => {
-        if (window.siyuanApiSwitch) {
-          window.siyuanApiSwitch.register(this.name, this.displayName, sync, local);
-        }
-      };
-      window.addEventListener("siyuan-api-switch:ready", this.apiSwitchReadyListener, { once: true });
-    }
   }
 
   private async loadDocMenuRegistrationState() {
@@ -651,23 +640,38 @@ export default class DocLinkToolkitPlugin extends Plugin {
     }
   }
 
-  private async persistDocMenuRegistrationState() {
-    try {
-      await this.saveData(
-        this.docMenuRegistrationStorageName,
-        serializePluginDocMenuState(this.snapshotDocMenuState())
-      );
-    } catch (error: unknown) {
-      // A failed save previously produced an unhandled rejection and silently
-      // forked the in-memory state from disk; surface it like load failures do.
-      const message = error instanceof Error ? error.message : String(error);
-      showMessage(`保存插件配置失败：${message}`, 5000, "error");
+  private persistDocMenuRegistrationState(): Promise<void> {
+    const snapshot = serializePluginDocMenuState(this.menuState);
+    const epoch = ++this.persistEpoch;
+    const runSave = async () => {
+      try {
+        await this.saveData(this.docMenuRegistrationStorageName, snapshot);
+      } catch (error: unknown) {
+        // A failed save previously produced an unhandled rejection and silently
+        // forked the in-memory state from disk; surface it like load failures do.
+        const message = error instanceof Error ? error.message : String(error);
+        showMessage(`保存插件配置失败：${message}`, 5000, "error");
+      } finally {
+        if (this.persistEpoch === epoch) {
+          this.persistInFlight = false;
+        }
+      }
+    };
+
+    let nextPersist: Promise<void>;
+    if (!this.persistInFlight) {
+      this.persistInFlight = true;
+      nextPersist = runSave();
+    } else {
+      nextPersist = this.persistQueue.then(runSave);
     }
+    this.persistQueue = nextPersist.catch(() => undefined);
+    return nextPersist;
   }
 
   private getOrderedActions() {
     return filterVisibleActions(
-      getOrderedPluginActions(ACTIONS, this.snapshotDocMenuState()),
+      getOrderedPluginActions(ACTIONS, this.menuState),
       ALPHA_FEATURE_HIDE_CONFIG
     );
   }
@@ -675,229 +679,173 @@ export default class DocLinkToolkitPlugin extends Plugin {
   private getDockActions() {
     return filterDockVisibleActions(
       this.getOrderedActions(),
-      this.docActionEnabledState
+      this.menuState.docActionEnabledState
     );
-  }
-
-  private snapshotDocMenuState(): PluginDocMenuState {
-    return {
-      docActionEnabledState: this.docActionEnabledState,
-      docMenuRegistrationState: this.docMenuRegistrationState,
-      docActionOrderState: this.docActionOrderState,
-      docFavoriteActionKeys: this.docFavoriteActionKeys,
-      keyInfoFilterState: this.keyInfoFilterState,
-      aiSummaryConfig: this.aiSummaryConfig,
-      debugLogEnabled: this.debugLogEnabled,
-      floatingConfig: this.floatingConfig,
-      startupDocProcessTabEnabled: this.startupDocProcessTabEnabled,
-      mouseGestureEnabled: this.mouseGestureEnabled,
-      mouseGestureBindings: this.mouseGestureBindings,
-      dynamicOutlineEnabled: this.dynamicOutlineEnabled,
-      dynamicOutlineFollowKeyInfo: this.dynamicOutlineFollowKeyInfo,
-      dynamicOutlineQuickSwitchEnabled: this.dynamicOutlineQuickSwitchEnabled,
-      dynamicOutlinePosition: this.dynamicOutlinePosition,
-      dynamicOutlineViewModes: this.dynamicOutlineViewModes,
-      dynamicOutlineOpenDocsExpanded: this.dynamicOutlineOpenDocsExpanded,
-      dynamicOutlineRecentDocsExpanded: this.dynamicOutlineRecentDocsExpanded
-    };
   }
 
   private applyDocMenuState(state: PluginDocMenuState) {
-    this.docActionEnabledState = state.docActionEnabledState;
-    this.docMenuRegistrationState = state.docMenuRegistrationState;
-    this.docActionOrderState = state.docActionOrderState;
-    this.docFavoriteActionKeys = state.docFavoriteActionKeys;
-    this.keyInfoFilterState = state.keyInfoFilterState;
-    this.aiSummaryConfig = state.aiSummaryConfig;
-    this.debugLogEnabled = state.debugLogEnabled ?? false;
-    this.floatingConfig = state.floatingConfig;
-    this.startupDocProcessTabEnabled = state.startupDocProcessTabEnabled ?? false;
-    this.mouseGestureEnabled = state.mouseGestureEnabled ?? false;
-    this.mouseGestureBindings = state.mouseGestureBindings;
-    this.dynamicOutlineEnabled = state.dynamicOutlineEnabled ?? false;
-    this.dynamicOutlineFollowKeyInfo = state.dynamicOutlineFollowKeyInfo ?? false;
-    this.dynamicOutlineQuickSwitchEnabled = state.dynamicOutlineQuickSwitchEnabled ?? false;
-    this.dynamicOutlinePosition = state.dynamicOutlinePosition ?? "right";
-    this.dynamicOutlineViewModes = state.dynamicOutlineViewModes ?? [
-      ...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
-    ];
-    this.dynamicOutlineOpenDocsExpanded = state.dynamicOutlineOpenDocsExpanded ?? true;
-    this.dynamicOutlineRecentDocsExpanded = state.dynamicOutlineRecentDocsExpanded ?? false;
+    this.menuState = state;
     this.syncClipboardMonitorLifecycle();
     setCachedFloatingTextConfig(state.floatingConfig);
-    setTransactionDebugLogEnabled(this.debugLogEnabled);
-    setDocAssistantDebugEnabled(this.debugLogEnabled);
+    setTransactionDebugLogEnabled(state.debugLogEnabled);
+    setDocAssistantDebugEnabled(state.debugLogEnabled);
+  }
+
+  private async updateMenuState(
+    updater: (prev: PluginDocMenuState) => PluginDocMenuState,
+    hooks?: { beforePersist?: () => void; afterPersist?: () => void }
+  ) {
+    this.applyDocMenuState(updater(this.menuState));
+    hooks?.beforePersist?.();
+    await this.persistDocMenuRegistrationState();
+    hooks?.afterPersist?.();
   }
 
   async setAllDocActionEnabled(enabled: boolean) {
-    this.applyDocMenuState(
-      setAllPluginDocActionEnabled(this.snapshotDocMenuState(), enabled)
+    await this.updateMenuState(
+      (s) => setAllPluginDocActionEnabled(s, enabled),
+      { afterPersist: () => this.keyInfoController.syncDocActions() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.keyInfoController.syncDocActions();
   }
 
   async setSingleDocActionEnabled(key: ActionKey, enabled: boolean) {
-    this.applyDocMenuState(
-      setSinglePluginDocActionEnabled(this.snapshotDocMenuState(), key, enabled)
+    await this.updateMenuState(
+      (s) => setSinglePluginDocActionEnabled(s, key, enabled),
+      { afterPersist: () => this.keyInfoController.syncDocActions() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.keyInfoController.syncDocActions();
   }
 
   async setAllDocMenuRegistration(enabled: boolean) {
-    this.applyDocMenuState(
-      setAllPluginDocMenuRegistration(this.snapshotDocMenuState(), enabled)
+    await this.updateMenuState(
+      (s) => setAllPluginDocMenuRegistration(s, enabled),
+      { afterPersist: () => this.keyInfoController.syncDocActions() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.keyInfoController.syncDocActions();
   }
 
   async setSingleDocMenuRegistration(key: ActionKey, enabled: boolean) {
-    this.applyDocMenuState(
-      setSinglePluginDocMenuRegistration(this.snapshotDocMenuState(), key, enabled)
+    await this.updateMenuState(
+      (s) => setSinglePluginDocMenuRegistration(s, key, enabled),
+      { afterPersist: () => this.keyInfoController.syncDocActions() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.keyInfoController.syncDocActions();
   }
 
   async setDocActionOrder(order: ActionKey[]) {
-    this.applyDocMenuState(
-      setPluginDocActionOrder(this.snapshotDocMenuState(), order, ACTIONS)
+    await this.updateMenuState(
+      (s) => setPluginDocActionOrder(s, order, ACTIONS),
+      { afterPersist: () => this.keyInfoController.syncDocActions() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.keyInfoController.syncDocActions();
   }
 
   async resetDocActionOrder() {
-    this.applyDocMenuState(
-      resetPluginDocActionOrder(this.snapshotDocMenuState(), ACTIONS)
+    await this.updateMenuState(
+      (s) => resetPluginDocActionOrder(s, ACTIONS),
+      { afterPersist: () => this.keyInfoController.syncDocActions() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.keyInfoController.syncDocActions();
   }
 
   async setDocActionFavorite(key: ActionKey, favorited: boolean) {
-    this.applyDocMenuState(
-      setPluginDocActionFavorite(this.snapshotDocMenuState(), key, favorited)
+    await this.updateMenuState(
+      (s) => setPluginDocActionFavorite(s, key, favorited),
+      { afterPersist: () => this.keyInfoController.syncDocActions() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.keyInfoController.syncDocActions();
   }
 
   async setDocFavoriteActionOrder(order: ActionKey[]) {
-    this.applyDocMenuState(
-      reorderPluginDocFavoriteActions(this.snapshotDocMenuState(), order)
+    await this.updateMenuState(
+      (s) => reorderPluginDocFavoriteActions(s, order),
+      { afterPersist: () => this.keyInfoController.syncDocActions() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.keyInfoController.syncDocActions();
   }
 
   async setKeyInfoFilter(filter: KeyInfoFilter) {
-    this.applyDocMenuState(
-      setPluginKeyInfoFilter(this.snapshotDocMenuState(), filter)
+    await this.updateMenuState(
+      (s) => setPluginKeyInfoFilter(s, filter),
+      {
+        afterPersist: () => {
+          if (this.menuState.dynamicOutlineFollowKeyInfo) {
+            this.dynamicOutlineController.refresh();
+          }
+        }
+      }
     );
-    await this.persistDocMenuRegistrationState();
-    if (this.dynamicOutlineFollowKeyInfo) {
-      this.dynamicOutlineController.refresh();
-    }
   }
 
   async setAiSummaryConfig(config: AiServiceConfig) {
-    this.applyDocMenuState(
-      setAiSummaryConfig(this.snapshotDocMenuState(), config)
-    );
-    await this.persistDocMenuRegistrationState();
+    await this.updateMenuState((s) => setAiSummaryConfig(s, config));
   }
 
   async setDebugLogEnabled(enabled: boolean) {
-    const state = this.snapshotDocMenuState();
-    state.debugLogEnabled = enabled;
-    this.applyDocMenuState(state);
-    await this.persistDocMenuRegistrationState();
+    await this.updateMenuState((s) => ({ ...s, debugLogEnabled: enabled }));
   }
 
   async setStartupDocProcessTabEnabled(enabled: boolean) {
-    this.applyDocMenuState(
-      setPluginStartupDocProcessTabEnabled(this.snapshotDocMenuState(), enabled)
+    await this.updateMenuState(
+      (s) => setPluginStartupDocProcessTabEnabled(s, enabled),
+      {
+        beforePersist: () => {
+          if (enabled) {
+            this.keyInfoController.setActiveTab("doc-process");
+          }
+        }
+      }
     );
-    if (enabled) {
-      this.keyInfoController.setActiveTab("doc-process");
-    }
-    await this.persistDocMenuRegistrationState();
   }
 
   async setFloatingConfig(config: Partial<FloatingTextConfig>) {
-    this.applyDocMenuState(
-      setFloatingConfig(this.snapshotDocMenuState(), config)
-    );
-    await this.persistDocMenuRegistrationState();
+    await this.updateMenuState((s) => setFloatingConfig(s, config));
   }
 
   async setMouseGestureEnabled(enabled: boolean) {
-    this.applyDocMenuState(
-      setPluginMouseGestureEnabled(this.snapshotDocMenuState(), enabled)
-    );
-    await this.persistDocMenuRegistrationState();
+    await this.updateMenuState((s) => setPluginMouseGestureEnabled(s, enabled));
   }
 
   async setMouseGestureBindings(bindings: GestureBindings) {
-    this.applyDocMenuState(
-      setPluginMouseGestureBindings(this.snapshotDocMenuState(), bindings)
-    );
-    await this.persistDocMenuRegistrationState();
+    await this.updateMenuState((s) => setPluginMouseGestureBindings(s, bindings));
   }
 
   async setDynamicOutlineEnabled(enabled: boolean) {
-    this.applyDocMenuState(
-      setPluginDynamicOutlineEnabled(this.snapshotDocMenuState(), enabled)
+    await this.updateMenuState(
+      (s) => setPluginDynamicOutlineEnabled(s, enabled),
+      { afterPersist: () => this.dynamicOutlineController.refresh() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.dynamicOutlineController.refresh();
   }
 
   async setDynamicOutlineFollowKeyInfo(follow: boolean) {
-    this.applyDocMenuState(
-      setPluginDynamicOutlineFollowKeyInfo(this.snapshotDocMenuState(), follow)
+    await this.updateMenuState(
+      (s) => setPluginDynamicOutlineFollowKeyInfo(s, follow),
+      { afterPersist: () => this.dynamicOutlineController.refresh() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.dynamicOutlineController.refresh();
   }
 
   async setDynamicOutlineQuickSwitchEnabled(enabled: boolean) {
-    this.applyDocMenuState(
-      setPluginDynamicOutlineQuickSwitchEnabled(this.snapshotDocMenuState(), enabled)
+    await this.updateMenuState(
+      (s) => setPluginDynamicOutlineQuickSwitchEnabled(s, enabled),
+      { afterPersist: () => this.dynamicOutlineController.refresh() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.dynamicOutlineController.refresh();
   }
 
   async setDynamicOutlinePosition(position: DynamicOutlinePosition) {
-    this.applyDocMenuState(
-      setPluginDynamicOutlinePosition(this.snapshotDocMenuState(), position)
-    );
-    await this.persistDocMenuRegistrationState();
+    await this.updateMenuState((s) => setPluginDynamicOutlinePosition(s, position));
   }
 
   async setDynamicOutlineViewModes(modes: DynamicOutlineViewMode[]) {
-    this.applyDocMenuState(
-      setPluginDynamicOutlineViewModes(this.snapshotDocMenuState(), modes)
+    await this.updateMenuState(
+      (s) => setPluginDynamicOutlineViewModes(s, modes),
+      { afterPersist: () => this.dynamicOutlineController.refresh() }
     );
-    await this.persistDocMenuRegistrationState();
-    this.dynamicOutlineController.refresh();
   }
 
   private syncClipboardMonitorLifecycle() {
-    const shouldRun =
-      !this.isMobile &&
-      this.dynamicOutlineEnabled &&
-      this.dynamicOutlineViewModes.includes("clipboard");
-    if (this.debugLogEnabled) {
+    const shouldRun = shouldRunClipboardMonitor({
+      isMobile: this.isMobile,
+      state: this.menuState
+    });
+    if (this.menuState.debugLogEnabled) {
       console.info("[DocAssistant][Clipboard] syncLifecycle", {
         shouldRun,
         isMobile: this.isMobile,
-        dynamicOutlineEnabled: this.dynamicOutlineEnabled,
-        viewModes: this.dynamicOutlineViewModes
+        dynamicOutlineEnabled: this.menuState.dynamicOutlineEnabled,
+        viewModes: this.menuState.dynamicOutlineViewModes
       });
     }
     if (shouldRun) {
@@ -911,9 +859,6 @@ export default class DocLinkToolkitPlugin extends Plugin {
     openDocsExpanded: boolean;
     recentDocsExpanded: boolean;
   }) {
-    this.applyDocMenuState(
-      setPluginDynamicOutlineDocSectionsExpanded(this.snapshotDocMenuState(), sections)
-    );
-    await this.persistDocMenuRegistrationState();
+    await this.updateMenuState((s) => setPluginDynamicOutlineDocSectionsExpanded(s, sections));
   }
 }
