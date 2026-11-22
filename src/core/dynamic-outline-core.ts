@@ -82,6 +82,7 @@ export type FilteredRecentDocItem = {
 export type DynamicOutlineConfig = {
   enabled: boolean;
   followKeyInfo: boolean;
+  quickSwitchEnabled?: boolean;
   position: DynamicOutlinePosition;
   viewModes: DynamicOutlineViewMode[];
   openDocsExpanded?: boolean;
@@ -91,6 +92,7 @@ export type DynamicOutlineConfig = {
 export const DEFAULT_DYNAMIC_OUTLINE_CONFIG: DynamicOutlineConfig = {
   enabled: false,
   followKeyInfo: false,
+  quickSwitchEnabled: false,
   position: "right",
   viewModes: [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES],
   openDocsExpanded: true,

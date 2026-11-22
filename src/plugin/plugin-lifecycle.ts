@@ -55,6 +55,7 @@ import {
   setPluginStartupDocProcessTabEnabled,
   setPluginDynamicOutlineEnabled,
   setPluginDynamicOutlineFollowKeyInfo,
+  setPluginDynamicOutlineQuickSwitchEnabled,
   setPluginDynamicOutlinePosition,
   setPluginDynamicOutlineViewModes,
   setPluginDynamicOutlineDocSectionsExpanded,
@@ -131,6 +132,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
 
   private dynamicOutlineEnabled = false;
   private dynamicOutlineFollowKeyInfo = false;
+  private dynamicOutlineQuickSwitchEnabled = false;
   private dynamicOutlinePosition: DynamicOutlinePosition = "right";
   private dynamicOutlineViewModes: DynamicOutlineViewMode[] = [
     ...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
@@ -182,6 +184,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     getConfig: () => ({
       enabled: this.dynamicOutlineEnabled,
       followKeyInfo: this.dynamicOutlineFollowKeyInfo,
+      quickSwitchEnabled: this.dynamicOutlineQuickSwitchEnabled,
       position: this.dynamicOutlinePosition,
       viewModes: this.dynamicOutlineViewModes,
       openDocsExpanded: this.dynamicOutlineOpenDocsExpanded,
@@ -553,6 +556,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       mouseGestureBindings: this.mouseGestureBindings,
       dynamicOutlineEnabled: this.dynamicOutlineEnabled,
       dynamicOutlineFollowKeyInfo: this.dynamicOutlineFollowKeyInfo,
+      dynamicOutlineQuickSwitchEnabled: this.dynamicOutlineQuickSwitchEnabled,
       dynamicOutlineViewModes: this.dynamicOutlineViewModes,
       hiddenSettingKeys: getHiddenPluginSettingKeys(ALPHA_FEATURE_HIDE_CONFIG),
       onAiSummaryConfigChange: (config) => this.setAiSummaryConfig(config),
@@ -574,6 +578,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
       onDynamicOutlineEnabledChange: (enabled) => this.setDynamicOutlineEnabled(enabled),
       onDynamicOutlineFollowKeyInfoChange: (follow) =>
         this.setDynamicOutlineFollowKeyInfo(follow),
+      onDynamicOutlineQuickSwitchEnabledChange: (enabled) =>
+        this.setDynamicOutlineQuickSwitchEnabled(enabled),
       onDynamicOutlineViewModesChange: (modes) =>
         this.setDynamicOutlineViewModes(modes)
     });
@@ -683,6 +689,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
       mouseGestureBindings: this.mouseGestureBindings,
       dynamicOutlineEnabled: this.dynamicOutlineEnabled,
       dynamicOutlineFollowKeyInfo: this.dynamicOutlineFollowKeyInfo,
+      dynamicOutlineQuickSwitchEnabled: this.dynamicOutlineQuickSwitchEnabled,
       dynamicOutlinePosition: this.dynamicOutlinePosition,
       dynamicOutlineViewModes: this.dynamicOutlineViewModes,
       dynamicOutlineOpenDocsExpanded: this.dynamicOutlineOpenDocsExpanded,
@@ -704,6 +711,7 @@ export default class DocLinkToolkitPlugin extends Plugin {
     this.mouseGestureBindings = state.mouseGestureBindings;
     this.dynamicOutlineEnabled = state.dynamicOutlineEnabled ?? false;
     this.dynamicOutlineFollowKeyInfo = state.dynamicOutlineFollowKeyInfo ?? false;
+    this.dynamicOutlineQuickSwitchEnabled = state.dynamicOutlineQuickSwitchEnabled ?? false;
     this.dynamicOutlinePosition = state.dynamicOutlinePosition ?? "right";
     this.dynamicOutlineViewModes = state.dynamicOutlineViewModes ?? [
       ...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
@@ -846,6 +854,14 @@ export default class DocLinkToolkitPlugin extends Plugin {
   async setDynamicOutlineFollowKeyInfo(follow: boolean) {
     this.applyDocMenuState(
       setPluginDynamicOutlineFollowKeyInfo(this.snapshotDocMenuState(), follow)
+    );
+    await this.persistDocMenuRegistrationState();
+    this.dynamicOutlineController.refresh();
+  }
+
+  async setDynamicOutlineQuickSwitchEnabled(enabled: boolean) {
+    this.applyDocMenuState(
+      setPluginDynamicOutlineQuickSwitchEnabled(this.snapshotDocMenuState(), enabled)
     );
     await this.persistDocMenuRegistrationState();
     this.dynamicOutlineController.refresh();

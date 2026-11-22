@@ -68,6 +68,7 @@ export type DynamicOutlineViewOptions = {
   position?: DynamicOutlinePosition;
   initialViewMode?: DynamicOutlineViewMode;
   availableViewModes?: DynamicOutlineViewMode[];
+  quickSwitchEnabled?: boolean;
   initialOpenDocsExpanded?: boolean;
   initialRecentDocsExpanded?: boolean;
   isZh?: boolean;
@@ -106,6 +107,7 @@ export type DynamicOutlineViewHandle = {
   setOpenDocs: (items: OpenDocTabItem[]) => void;
   setClipboardItems: (items: ClipboardHistoryItem[]) => void;
   setAvailableViewModes: (modes: DynamicOutlineViewMode[]) => void;
+  setQuickSwitchEnabled: (enabled: boolean) => void;
   setRecentDocs: (items: RecentDocItem[]) => void;
   setViewMode: (mode: DynamicOutlineViewMode) => void;
   getViewMode: () => DynamicOutlineViewMode;
@@ -129,13 +131,34 @@ export function createDynamicOutlineView(
   options: DynamicOutlineViewOptions
 ): DynamicOutlineViewHandle {
   let currentPosition: DynamicOutlinePosition = options.position || "right";
+  let quickSwitchEnabled = Boolean(options.quickSwitchEnabled);
 
   const container = document.createElement("div");
   container.className = `doc-assistant-dynamic-outline is-${currentPosition}`;
 
+  const rail = document.createElement("div");
+  rail.className = "doc-assistant-dynamic-outline__rail";
+  container.appendChild(rail);
+
+  const openDocsQuickBadge = document.createElement("button");
+  openDocsQuickBadge.className =
+    "doc-assistant-dynamic-outline__quick-badge is-open-docs";
+  openDocsQuickBadge.setAttribute("type", "button");
+  openDocsQuickBadge.textContent = "0";
+  openDocsQuickBadge.style.display = "none";
+  rail.appendChild(openDocsQuickBadge);
+
   const minimap = document.createElement("div");
   minimap.className = "doc-assistant-dynamic-outline__minimap";
-  container.appendChild(minimap);
+  rail.appendChild(minimap);
+
+  const clipboardQuickBadge = document.createElement("button");
+  clipboardQuickBadge.className =
+    "doc-assistant-dynamic-outline__quick-badge is-clipboard";
+  clipboardQuickBadge.setAttribute("type", "button");
+  clipboardQuickBadge.textContent = "0";
+  clipboardQuickBadge.style.display = "none";
+  rail.appendChild(clipboardQuickBadge);
 
   const viewportIndicator = document.createElement("div");
   viewportIndicator.className = "doc-assistant-dynamic-outline__viewport";
@@ -540,6 +563,42 @@ export function createDynamicOutlineView(
     });
   };
 
+  const formatQuickBadgeCount = (count: number): string =>
+    count > 99 ? "99+" : String(Math.max(0, count));
+
+  const syncQuickBadges = () => {
+    const showOpenDocs =
+      quickSwitchEnabled && availableViewModes.includes("open-docs");
+    const showClipboard =
+      quickSwitchEnabled && availableViewModes.includes("clipboard");
+
+    const openDocsCount = currentOpenDocs.length;
+    openDocsQuickBadge.style.display = showOpenDocs ? "inline-flex" : "none";
+    openDocsQuickBadge.textContent = formatQuickBadgeCount(openDocsCount);
+    openDocsQuickBadge.classList.toggle("is-active", viewMode === "open-docs");
+    openDocsQuickBadge.setAttribute(
+      "title",
+      isZh ? `已打开文档 (${openDocsCount})` : `Open Docs (${openDocsCount})`
+    );
+    openDocsQuickBadge.setAttribute(
+      "aria-label",
+      isZh ? `已打开文档 (${openDocsCount})` : `Open Docs (${openDocsCount})`
+    );
+
+    const clipboardCount = currentClipboardItems.length;
+    clipboardQuickBadge.style.display = showClipboard ? "inline-flex" : "none";
+    clipboardQuickBadge.textContent = formatQuickBadgeCount(clipboardCount);
+    clipboardQuickBadge.classList.toggle("is-active", viewMode === "clipboard");
+    clipboardQuickBadge.setAttribute(
+      "title",
+      isZh ? `剪贴板 (${clipboardCount})` : `Clipboard (${clipboardCount})`
+    );
+    clipboardQuickBadge.setAttribute(
+      "aria-label",
+      isZh ? `剪贴板 (${clipboardCount})` : `Clipboard (${clipboardCount})`
+    );
+  };
+
   const syncModeControls = () => {
     const isOpenDocs = viewMode === "open-docs";
     const isClipboard = viewMode === "clipboard";
@@ -602,6 +661,7 @@ export function createDynamicOutlineView(
     if (isDropdownOpen) {
       renderTitleDropdown();
     }
+    syncQuickBadges();
   };
   syncModeControls();
 
@@ -775,6 +835,46 @@ export function createDynamicOutlineView(
       closeTimer = null;
     }, 300);
   };
+
+  const switchViewModeOnHover = (targetMode: DynamicOutlineViewMode) => {
+    if (!availableViewModes.includes(targetMode)) {
+      openFlyout();
+      return;
+    }
+    if (viewMode !== targetMode) {
+      viewMode = targetMode;
+      searchInput.value = "";
+      searchQuery = "";
+      selectedFilteredIndex = -1;
+      closeTitleDropdown();
+      syncModeControls();
+      options.onViewModeChange?.(viewMode);
+      updateFilteredView();
+    }
+    openFlyout();
+  };
+
+  openDocsQuickBadge.addEventListener("mouseenter", () => {
+    if (!quickSwitchEnabled) {
+      return;
+    }
+    switchViewModeOnHover("open-docs");
+  });
+
+  clipboardQuickBadge.addEventListener("mouseenter", () => {
+    if (!quickSwitchEnabled) {
+      return;
+    }
+    switchViewModeOnHover("clipboard");
+  });
+
+  minimap.addEventListener("mouseenter", () => {
+    if (quickSwitchEnabled && availableViewModes.includes("outline")) {
+      switchViewModeOnHover("outline");
+    } else {
+      openFlyout();
+    }
+  });
 
   container.addEventListener("mouseenter", openFlyout);
   container.addEventListener("mouseleave", (e) => {
@@ -1594,6 +1694,7 @@ export function createDynamicOutlineView(
   const setOpenDocs = (items: OpenDocTabItem[]) => {
     currentOpenDocs = items;
     currentRecentDocs = deduplicateRecentDocs(currentRecentDocsRaw, currentOpenDocs);
+    syncQuickBadges();
     if (viewMode === "open-docs") {
       updateFilteredView();
     }
@@ -1613,6 +1714,7 @@ export function createDynamicOutlineView(
       const validIds = new Set(items.map((item) => item.id));
       selectedClipboardIds = selectedClipboardIds.filter((id) => validIds.has(id));
     }
+    syncQuickBadges();
     if (viewMode === "clipboard") {
       updateFilteredView();
     }
@@ -1625,6 +1727,11 @@ export function createDynamicOutlineView(
     }
     syncModeControls();
     updateFilteredView();
+  };
+
+  const setQuickSwitchEnabled = (enabled: boolean) => {
+    quickSwitchEnabled = Boolean(enabled);
+    syncQuickBadges();
   };
 
   const setViewMode = (mode: DynamicOutlineViewMode) => {
@@ -1713,6 +1820,7 @@ export function createDynamicOutlineView(
     setOpenDocs,
     setClipboardItems,
     setAvailableViewModes,
+    setQuickSwitchEnabled,
     setRecentDocs,
     setViewMode,
     getViewMode,

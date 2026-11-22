@@ -654,7 +654,8 @@ describe("plugin settings", () => {
     expect(sections).toEqual([
       "dynamic-outline-enabled",
       "dynamic-outline-view-modes",
-      "dynamic-outline-follow-key-info"
+      "dynamic-outline-follow-key-info",
+      "dynamic-outline-quick-switch"
     ]);
 
     const outlineToggle = panel.querySelector(
@@ -663,6 +664,9 @@ describe("plugin settings", () => {
     const followToggle = panel.querySelector(
       'input[data-setting-key="dynamic-outline-follow-key-info"]'
     ) as HTMLInputElement;
+    const quickSwitchToggle = panel.querySelector(
+      'input[data-setting-key="dynamic-outline-quick-switch"]'
+    ) as HTMLInputElement;
     const modeCheckboxes = Array.from(
       panel.querySelectorAll('input[data-view-mode]')
     ) as HTMLInputElement[];
@@ -670,6 +674,8 @@ describe("plugin settings", () => {
     expect(outlineToggle.checked).toBe(false);
     expect(followToggle.checked).toBe(false);
     expect(followToggle.disabled).toBe(true);
+    expect(quickSwitchToggle.checked).toBe(false);
+    expect(quickSwitchToggle.disabled).toBe(true);
     expect(modeCheckboxes.every((box) => box.disabled)).toBe(true);
 
     outlineToggle.checked = true;
@@ -678,6 +684,7 @@ describe("plugin settings", () => {
 
     expect(plugin.dynamicOutlineEnabled).toBe(true);
     expect(followToggle.disabled).toBe(false);
+    expect(quickSwitchToggle.disabled).toBe(false);
     expect(modeCheckboxes.every((box) => !box.disabled)).toBe(true);
 
     followToggle.checked = true;
@@ -686,12 +693,19 @@ describe("plugin settings", () => {
 
     expect(plugin.dynamicOutlineFollowKeyInfo).toBe(true);
 
+    quickSwitchToggle.checked = true;
+    quickSwitchToggle.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.dynamicOutlineQuickSwitchEnabled).toBe(true);
+
     outlineToggle.checked = false;
     outlineToggle.dispatchEvent(new Event("change"));
     await Promise.resolve();
 
     expect(plugin.dynamicOutlineEnabled).toBe(false);
     expect(followToggle.disabled).toBe(true);
+    expect(quickSwitchToggle.disabled).toBe(true);
     expect(modeCheckboxes.every((box) => box.disabled)).toBe(true);
   });
 

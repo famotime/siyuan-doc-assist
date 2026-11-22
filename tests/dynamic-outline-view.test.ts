@@ -550,4 +550,90 @@ describe("dynamic-outline-view", () => {
 
     handle.destroy();
   });
+
+  test("renders quick switch badges around minimap only for enabled view modes and switches panel on hover", () => {
+    const onViewModeChange = vi.fn();
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      onViewModeChange,
+      availableViewModes: ["outline", "open-docs", "clipboard"],
+      quickSwitchEnabled: false
+    });
+
+    const openDocsBadge = parent.querySelector(
+      ".doc-assistant-dynamic-outline__quick-badge.is-open-docs"
+    ) as HTMLButtonElement;
+    const clipboardBadge = parent.querySelector(
+      ".doc-assistant-dynamic-outline__quick-badge.is-clipboard"
+    ) as HTMLButtonElement;
+    const minimap = parent.querySelector(
+      ".doc-assistant-dynamic-outline__minimap"
+    ) as HTMLElement;
+    const flyout = parent.querySelector(
+      ".doc-assistant-dynamic-outline__flyout"
+    ) as HTMLElement;
+
+    expect(openDocsBadge).not.toBeNull();
+    expect(clipboardBadge).not.toBeNull();
+    expect(openDocsBadge.style.display).toBe("none");
+    expect(clipboardBadge.style.display).toBe("none");
+
+    handle.setQuickSwitchEnabled(true);
+    expect(openDocsBadge.style.display).toBe("inline-flex");
+    expect(clipboardBadge.style.display).toBe("inline-flex");
+
+    handle.setOpenDocs([
+      { tabId: "t1", docId: "d1", title: "Doc 1", isPinned: false, isActive: true },
+      { tabId: "t2", docId: "d2", title: "Doc 2", isPinned: false, isActive: false }
+    ]);
+    handle.setRecentDocs([
+      { docId: "d3", title: "Recent Doc" }
+    ]);
+    // 上方浮标只统计当前已打开文档数量，不包含最近文档
+    expect(openDocsBadge.textContent).toBe("2");
+    expect(openDocsBadge.getAttribute("title")).toBe("已打开文档 (2)");
+
+    // 剪贴板数量超过 99 时显示 99+
+    const manyClipboardItems = Array.from({ length: 105 }, (_, idx) => ({
+      id: `clip-${idx}`,
+      type: "text" as const,
+      text: `item ${idx}`,
+      charCount: 6,
+      createdAt: idx + 1,
+      updatedAt: idx + 1,
+      isFavorite: false
+    }));
+    handle.setClipboardItems(manyClipboardItems);
+    expect(clipboardBadge.textContent).toBe("99+");
+    expect(clipboardBadge.getAttribute("title")).toBe("剪贴板 (105)");
+
+    // 悬浮上方浮标 -> 切到已打开文档并展开浮岛
+    openDocsBadge.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    expect(handle.getViewMode()).toBe("open-docs");
+    expect(onViewModeChange).toHaveBeenCalledWith("open-docs");
+    expect(flyout.classList.contains("is-open")).toBe(true);
+    expect(openDocsBadge.classList.contains("is-active")).toBe(true);
+    expect(clipboardBadge.classList.contains("is-active")).toBe(false);
+
+    // 悬浮下方浮标 -> 切到剪贴板并展开浮岛
+    clipboardBadge.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    expect(handle.getViewMode()).toBe("clipboard");
+    expect(onViewModeChange).toHaveBeenCalledWith("clipboard");
+    expect(clipboardBadge.classList.contains("is-active")).toBe(true);
+    expect(openDocsBadge.classList.contains("is-active")).toBe(false);
+
+    // 悬浮 minimap 本体 -> 切回文档大纲
+    minimap.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    expect(handle.getViewMode()).toBe("outline");
+    expect(onViewModeChange).toHaveBeenCalledWith("outline");
+    expect(openDocsBadge.classList.contains("is-active")).toBe(false);
+    expect(clipboardBadge.classList.contains("is-active")).toBe(false);
+
+    // 当“可切换面板”中取消勾选剪贴板时，下方浮标隐藏
+    handle.setAvailableViewModes(["outline", "open-docs"]);
+    expect(openDocsBadge.style.display).toBe("inline-flex");
+    expect(clipboardBadge.style.display).toBe("none");
+
+    handle.destroy();
+  });
 });

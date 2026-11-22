@@ -34,6 +34,7 @@ type CreatePluginSettingsOptions = {
   mouseGestureBindings?: GestureBindings;
   dynamicOutlineEnabled?: boolean;
   dynamicOutlineFollowKeyInfo?: boolean;
+  dynamicOutlineQuickSwitchEnabled?: boolean;
   dynamicOutlineViewModes?: DynamicOutlineViewMode[];
   hiddenSettingKeys?: Iterable<HiddenPluginSettingKey>;
   onAiSummaryConfigChange: (config: AiServiceConfig) => Promise<void> | void;
@@ -49,6 +50,7 @@ type CreatePluginSettingsOptions = {
   onGestureRecordingChange?: (recording: boolean) => void;
   onDynamicOutlineEnabledChange?: (enabled: boolean) => Promise<void> | void;
   onDynamicOutlineFollowKeyInfoChange?: (follow: boolean) => Promise<void> | void;
+  onDynamicOutlineQuickSwitchEnabledChange?: (enabled: boolean) => Promise<void> | void;
   onDynamicOutlineViewModesChange?: (modes: DynamicOutlineViewMode[]) => Promise<void> | void;
 };
 
@@ -158,10 +160,12 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     const dynamicOutlinePanel = createDynamicOutlineSettingsPanel({
       enabled: Boolean(options.dynamicOutlineEnabled),
       followKeyInfo: Boolean(options.dynamicOutlineFollowKeyInfo),
+      quickSwitchEnabled: Boolean(options.dynamicOutlineQuickSwitchEnabled),
       viewModes: options.dynamicOutlineViewModes,
       isMobile: options.isMobile,
       onEnabledChange: options.onDynamicOutlineEnabledChange,
       onFollowKeyInfoChange: options.onDynamicOutlineFollowKeyInfoChange,
+      onQuickSwitchEnabledChange: options.onDynamicOutlineQuickSwitchEnabledChange,
       onViewModesChange: options.onDynamicOutlineViewModesChange
     });
 

@@ -8,10 +8,12 @@ import { applySettingTooltip, createElement } from "@/ui/plugin-settings-shared"
 export type CreateDynamicOutlineSettingsPanelOptions = {
   enabled: boolean;
   followKeyInfo: boolean;
+  quickSwitchEnabled?: boolean;
   viewModes?: DynamicOutlineViewMode[];
   isMobile: boolean;
   onEnabledChange: (enabled: boolean) => Promise<void> | void;
   onFollowKeyInfoChange?: (follow: boolean) => Promise<void> | void;
+  onQuickSwitchEnabledChange?: (enabled: boolean) => Promise<void> | void;
   onViewModesChange?: (modes: DynamicOutlineViewMode[]) => Promise<void> | void;
 };
 
@@ -124,11 +126,33 @@ export function createDynamicOutlineSettingsPanel(
   followControl.append(followKeyInfoToggle);
   followRow.append(followText, followControl);
 
+  // 4. 面板切换快捷入口行
+  const quickSwitchRow = createElement("div", "doc-assistant-settings__dynamic-outline-row");
+  quickSwitchRow.dataset.settingSection = "dynamic-outline-quick-switch";
+  const quickSwitchText = createElement("div", "doc-assistant-settings__dynamic-outline-row-text");
+  quickSwitchText.append(
+    createElement("div", "doc-assistant-settings__dynamic-outline-row-title", "面板切换快捷入口")
+  );
+  applySettingTooltip(
+    quickSwitchText,
+    "开启后在 Minimap 上下两端显示圆形浮标，分别显示已打开文档与剪贴板面板的条目数量，鼠标悬浮即可直接打开对应面板。"
+  );
+  const quickSwitchToggle = document.createElement("input");
+  quickSwitchToggle.className = "b3-switch fn__flex-center";
+  quickSwitchToggle.type = "checkbox";
+  quickSwitchToggle.checked = Boolean(options.quickSwitchEnabled);
+  quickSwitchToggle.dataset.settingKey = "dynamic-outline-quick-switch";
+  const quickSwitchControl = createElement("div", "doc-assistant-settings__dynamic-outline-row-control");
+  quickSwitchControl.append(quickSwitchToggle);
+  quickSwitchRow.append(quickSwitchText, quickSwitchControl);
+
   const syncChildState = (enabled: boolean) => {
     viewModesRow.classList.toggle("is-disabled", !enabled);
     followRow.classList.toggle("is-disabled", !enabled);
+    quickSwitchRow.classList.toggle("is-disabled", !enabled);
     if (enabled) {
       followKeyInfoToggle.removeAttribute("disabled");
+      quickSwitchToggle.removeAttribute("disabled");
       viewModeCheckboxes.forEach((box, mode) => {
         if (mode === "clipboard" && options.isMobile) {
           box.setAttribute("disabled", "true");
@@ -138,6 +162,7 @@ export function createDynamicOutlineSettingsPanel(
       });
     } else {
       followKeyInfoToggle.setAttribute("disabled", "true");
+      quickSwitchToggle.setAttribute("disabled", "true");
       viewModeCheckboxes.forEach((box) => {
         box.setAttribute("disabled", "true");
       });
@@ -156,6 +181,10 @@ export function createDynamicOutlineSettingsPanel(
     void options.onFollowKeyInfoChange?.(followKeyInfoToggle.checked);
   });
 
-  panel.append(enableRow, viewModesRow, followRow);
+  quickSwitchToggle.addEventListener("change", () => {
+    void options.onQuickSwitchEnabledChange?.(quickSwitchToggle.checked);
+  });
+
+  panel.append(enableRow, viewModesRow, followRow, quickSwitchRow);
   return panel;
 }

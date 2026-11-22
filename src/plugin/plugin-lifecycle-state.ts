@@ -59,6 +59,7 @@ export type PluginDocMenuState = {
   mouseGestureBindings: GestureBindings;
   dynamicOutlineEnabled: boolean;
   dynamicOutlineFollowKeyInfo: boolean;
+  dynamicOutlineQuickSwitchEnabled: boolean;
   dynamicOutlinePosition: DynamicOutlinePosition;
   dynamicOutlineViewModes: DynamicOutlineViewMode[];
   dynamicOutlineOpenDocsExpanded: boolean;
@@ -75,6 +76,7 @@ type PluginDocMenuStorageV1 = DocMenuRegistrationStorageV1 & {
   mouseGestureBindings?: unknown;
   dynamicOutlineEnabled?: unknown;
   dynamicOutlineFollowKeyInfo?: unknown;
+  dynamicOutlineQuickSwitchEnabled?: unknown;
   dynamicOutlinePosition?: unknown;
   dynamicOutlineViewModes?: unknown;
   dynamicOutlineOpenDocsExpanded?: unknown;
@@ -98,6 +100,7 @@ export function buildDefaultPluginDocMenuState(
     mouseGestureBindings: { ...DEFAULT_GESTURE_BINDINGS },
     dynamicOutlineEnabled: false,
     dynamicOutlineFollowKeyInfo: false,
+    dynamicOutlineQuickSwitchEnabled: false,
     dynamicOutlinePosition: "right",
     dynamicOutlineViewModes: [...DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES],
     dynamicOutlineOpenDocsExpanded: true,
@@ -123,6 +126,7 @@ export function normalizePluginDocMenuState(
     mouseGestureBindings: normalizeStoredMouseGestureBindings(raw),
     dynamicOutlineEnabled: normalizeStoredDynamicOutlineEnabled(raw),
     dynamicOutlineFollowKeyInfo: normalizeStoredDynamicOutlineFollowKeyInfo(raw),
+    dynamicOutlineQuickSwitchEnabled: normalizeStoredDynamicOutlineQuickSwitchEnabled(raw),
     dynamicOutlinePosition: normalizeStoredDynamicOutlinePosition(raw),
     dynamicOutlineViewModes: normalizeStoredDynamicOutlineViewModes(raw),
     dynamicOutlineOpenDocsExpanded: normalizeStoredDynamicOutlineDocSection(
@@ -214,6 +218,14 @@ function normalizeStoredDynamicOutlineFollowKeyInfo(raw: unknown): boolean {
   return typeof value === "boolean" ? value : false;
 }
 
+function normalizeStoredDynamicOutlineQuickSwitchEnabled(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") {
+    return false;
+  }
+  const value = (raw as PluginDocMenuStorageV1).dynamicOutlineQuickSwitchEnabled;
+  return typeof value === "boolean" ? value : false;
+}
+
 function normalizeStoredDynamicOutlinePosition(raw: unknown): DynamicOutlinePosition {
   if (!raw || typeof raw !== "object") {
     return "right";
@@ -261,6 +273,7 @@ export function serializePluginDocMenuState(
     mouseGestureBindings: state.mouseGestureBindings,
     dynamicOutlineEnabled: state.dynamicOutlineEnabled,
     dynamicOutlineFollowKeyInfo: state.dynamicOutlineFollowKeyInfo,
+    dynamicOutlineQuickSwitchEnabled: state.dynamicOutlineQuickSwitchEnabled,
     dynamicOutlinePosition: state.dynamicOutlinePosition,
     dynamicOutlineViewModes: state.dynamicOutlineViewModes,
     dynamicOutlineOpenDocsExpanded: state.dynamicOutlineOpenDocsExpanded,
@@ -464,6 +477,16 @@ export function setPluginDynamicOutlineFollowKeyInfo(
   return {
     ...state,
     dynamicOutlineFollowKeyInfo: Boolean(follow)
+  };
+}
+
+export function setPluginDynamicOutlineQuickSwitchEnabled(
+  state: PluginDocMenuState,
+  enabled: boolean
+): PluginDocMenuState {
+  return {
+    ...state,
+    dynamicOutlineQuickSwitchEnabled: Boolean(enabled)
   };
 }
 

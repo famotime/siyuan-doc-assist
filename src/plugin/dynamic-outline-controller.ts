@@ -132,6 +132,7 @@ export class DynamicOutlineController {
     }
     if (this.view) {
       this.view.setAvailableViewModes(allowedModes);
+      this.view.setQuickSwitchEnabled(Boolean(config.quickSwitchEnabled));
       if (this.view.getViewMode() !== this.viewMode) {
         this.view.setViewMode(this.viewMode);
       }
@@ -160,6 +161,7 @@ export class DynamicOutlineController {
       position: config.position,
       initialViewMode: this.viewMode,
       availableViewModes: allowedModes,
+      quickSwitchEnabled: Boolean(config.quickSwitchEnabled),
       initialOpenDocsExpanded: config.openDocsExpanded ?? true,
       initialRecentDocsExpanded: config.recentDocsExpanded ?? false,
       onItemClick: (item) => {
@@ -421,9 +423,20 @@ export class DynamicOutlineController {
       return;
     }
 
-    if (this.viewMode === "open-docs") {
+    const config = this.deps.getConfig();
+    const allowedModes = normalizeDynamicOutlineViewModes(config.viewModes);
+    const shouldPrefetchBadges = Boolean(config.quickSwitchEnabled);
+
+    if (
+      this.viewMode === "open-docs" ||
+      (shouldPrefetchBadges && allowedModes.includes("open-docs"))
+    ) {
       this.refreshOpenDocs(protyle);
-    } else if (this.viewMode === "clipboard") {
+    }
+    if (
+      this.viewMode === "clipboard" ||
+      (shouldPrefetchBadges && allowedModes.includes("clipboard"))
+    ) {
       void this.refreshClipboard();
     }
 
@@ -442,7 +455,6 @@ export class DynamicOutlineController {
     this.lastDocId = docId;
 
     const requestId = ++this.refreshRequestId;
-    const config = this.deps.getConfig();
 
     try {
       const result = await this.deps.fetchDocKeyInfo(docId, protyle);
