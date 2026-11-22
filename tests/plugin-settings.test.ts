@@ -638,18 +638,37 @@ describe("plugin settings", () => {
     plugin.openSetting();
 
     const setting = settingInstances[1];
-    const outlineItem = setting.items.find((item) => item.title === "灵动大纲");
-    const followItem = setting.items.find((item) => item.title === "灵动大纲：跟随关键内容");
+    const islandItem = setting.items.find((item) => item.title === "灵动浮岛");
 
-    expect(outlineItem).toBeDefined();
-    expect(followItem).toBeDefined();
+    expect(islandItem).toBeDefined();
+    expect(islandItem?.direction).toBe("row");
 
-    const outlineToggle = (outlineItem?.actionElement as HTMLElement).querySelector("input[type='checkbox']") as HTMLInputElement;
-    const followToggle = (followItem?.actionElement as HTMLElement).querySelector("input[type='checkbox']") as HTMLInputElement;
+    const panel = islandItem?.actionElement as HTMLElement;
+    expect(panel.classList.contains("doc-assistant-settings__dynamic-outline-panel")).toBe(true);
+
+    const sections = Array.from(
+      panel.querySelectorAll("[data-setting-section]")
+    ).map((el) => (el as HTMLElement).dataset.settingSection);
+    expect(sections).toEqual([
+      "dynamic-outline-enabled",
+      "dynamic-outline-view-modes",
+      "dynamic-outline-follow-key-info"
+    ]);
+
+    const outlineToggle = panel.querySelector(
+      'input[data-setting-key="dynamic-outline-enabled"]'
+    ) as HTMLInputElement;
+    const followToggle = panel.querySelector(
+      'input[data-setting-key="dynamic-outline-follow-key-info"]'
+    ) as HTMLInputElement;
+    const modeCheckboxes = Array.from(
+      panel.querySelectorAll('input[data-view-mode]')
+    ) as HTMLInputElement[];
 
     expect(outlineToggle.checked).toBe(false);
     expect(followToggle.checked).toBe(false);
     expect(followToggle.disabled).toBe(true);
+    expect(modeCheckboxes.every((box) => box.disabled)).toBe(true);
 
     outlineToggle.checked = true;
     outlineToggle.dispatchEvent(new Event("change"));
@@ -657,6 +676,7 @@ describe("plugin settings", () => {
 
     expect(plugin.dynamicOutlineEnabled).toBe(true);
     expect(followToggle.disabled).toBe(false);
+    expect(modeCheckboxes.every((box) => !box.disabled)).toBe(true);
 
     followToggle.checked = true;
     followToggle.dispatchEvent(new Event("change"));
@@ -670,9 +690,10 @@ describe("plugin settings", () => {
 
     expect(plugin.dynamicOutlineEnabled).toBe(false);
     expect(followToggle.disabled).toBe(true);
+    expect(modeCheckboxes.every((box) => box.disabled)).toBe(true);
   });
 
-  test("renders settings items in the specified order: 启动显示..., 浮窗..., 鼠标手势, 启用命令, AI服务, 调试模式", async () => {
+  test("renders settings items in the specified order: 启动显示..., 浮窗..., 灵动浮岛, 鼠标手势, 启用命令, AI服务, 调试模式", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
@@ -684,9 +705,7 @@ describe("plugin settings", () => {
     expect(setting.items.map((item) => item.title)).toEqual([
       "启动显示“文档处理”页签",
       "浮窗命中文本直接粘贴",
-      "灵动大纲",
-      "灵动大纲：跟随关键内容",
-      "灵动大纲：可切换面板",
+      "灵动浮岛",
       "鼠标手势",
       "启用命令",
       "AI 服务",

@@ -254,6 +254,7 @@
 | `src/ui/key-info-dock.ts` | Key-info Dock 列表渲染、局部刷新与滚动管理 |
 | `src/ui/link-to-doc-dialog.ts` | 网页链接转文档的选择对话框 |
 | `src/ui/plugin-settings-ai.ts` | AI 设置面板 DOM 组装与状态同步 |
+| `src/ui/plugin-settings-dynamic-outline.ts` | 灵动浮岛设置面板：总开关、可切换面板与文档大纲跟随关键内容 |
 | `src/ui/plugin-settings-gesture.ts` | 鼠标手势设置面板：总开关、手势录制、冲突校验与恢复默认 |
 | `src/ui/plugin-settings-host.ts` | SiYuan `Setting` 宿主节点修正与面板归一化 |
 | `src/ui/plugin-settings-menu.ts` | 文档标题菜单注册分组面板与开关联动 |

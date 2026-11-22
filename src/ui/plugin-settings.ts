@@ -1,10 +1,6 @@
 import { Setting } from "siyuan";
 import { AiServiceConfig } from "@/core/ai-service-config-core";
-import {
-  DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
-  DynamicOutlineViewMode,
-  normalizeDynamicOutlineViewModes
-} from "@/core/dynamic-outline-core";
+import { DynamicOutlineViewMode } from "@/core/dynamic-outline-core";
 import {
   DocActionEnabledState,
   DocMenuRegistrationState
@@ -13,6 +9,7 @@ import { HiddenPluginSettingKey } from "@/plugin/alpha-feature-config";
 import { ActionConfig, ActionKey } from "@/plugin/actions";
 import { DEFAULT_GESTURE_BINDINGS, GestureBindings } from "@/core/gesture-recognition-core";
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
+import { createDynamicOutlineSettingsPanel } from "@/ui/plugin-settings-dynamic-outline";
 import { createGestureSettingsPanel } from "@/ui/plugin-settings-gesture";
 import { installSettingHostNormalizer } from "@/ui/plugin-settings-host";
 import { createMenuRegistrationPanel } from "@/ui/plugin-settings-menu";
@@ -159,142 +156,24 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
   }
 
   if (options.onDynamicOutlineEnabledChange && !hiddenSettingKeys.has("dynamic-outline")) {
-    const dynamicOutlineToggle = document.createElement("input");
-    dynamicOutlineToggle.className = "b3-switch fn__flex-center";
-    dynamicOutlineToggle.type = "checkbox";
-    dynamicOutlineToggle.checked = Boolean(options.dynamicOutlineEnabled);
-
-    const followKeyInfoToggle = document.createElement("input");
-    followKeyInfoToggle.className = "b3-switch fn__flex-center";
-    followKeyInfoToggle.type = "checkbox";
-    followKeyInfoToggle.checked = Boolean(options.dynamicOutlineFollowKeyInfo);
-
-    const viewModeOptions: Array<{ mode: DynamicOutlineViewMode; label: string }> = [
-      { mode: "outline", label: "文档大纲" },
-      { mode: "open-docs", label: "已打开文档" },
-      { mode: "clipboard", label: "剪贴板" }
-    ];
-    let selectedViewModes = normalizeDynamicOutlineViewModes(
-      options.dynamicOutlineViewModes || DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES
-    );
-    const viewModeCheckboxes = new Map<DynamicOutlineViewMode, HTMLInputElement>();
-    const viewModesWrap = createElement(
-      "div",
-      "doc-assistant-settings__dynamic-outline-modes fn__flex"
-    );
-    viewModesWrap.style.gap = "12px";
-    viewModesWrap.style.flexWrap = "wrap";
-    viewModesWrap.style.alignItems = "center";
-
-    viewModeOptions.forEach(({ mode, label }) => {
-      const itemLabel = document.createElement("label");
-      itemLabel.className = "fn__flex";
-      itemLabel.style.gap = "4px";
-      itemLabel.style.alignItems = "center";
-      itemLabel.style.cursor = "pointer";
-
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.className = "b3-checkbox";
-      checkbox.checked = selectedViewModes.includes(mode);
-      checkbox.addEventListener("change", () => {
-        const next = viewModeOptions
-          .map((opt) => opt.mode)
-          .filter((m) => {
-            const box = viewModeCheckboxes.get(m);
-            return box ? box.checked : false;
-          });
-        if (next.length === 0) {
-          checkbox.checked = true;
-          return;
-        }
-        selectedViewModes = next;
-        options.onDynamicOutlineViewModesChange?.([...selectedViewModes]);
-      });
-
-      const textSpan = document.createElement("span");
-      textSpan.textContent = label;
-      itemLabel.append(checkbox, textSpan);
-      viewModesWrap.append(itemLabel);
-      viewModeCheckboxes.set(mode, checkbox);
+    const dynamicOutlinePanel = createDynamicOutlineSettingsPanel({
+      enabled: Boolean(options.dynamicOutlineEnabled),
+      followKeyInfo: Boolean(options.dynamicOutlineFollowKeyInfo),
+      viewModes: options.dynamicOutlineViewModes,
+      isMobile: options.isMobile,
+      onEnabledChange: options.onDynamicOutlineEnabledChange,
+      onFollowKeyInfoChange: options.onDynamicOutlineFollowKeyInfoChange,
+      onViewModesChange: options.onDynamicOutlineViewModesChange
     });
-
-    const updateFollowState = (enabled: boolean) => {
-      if (enabled) {
-        followKeyInfoToggle.removeAttribute("disabled");
-        viewModeCheckboxes.forEach((box, mode) => {
-          if (mode === "clipboard" && options.isMobile) {
-            box.setAttribute("disabled", "true");
-          } else {
-            box.removeAttribute("disabled");
-          }
-        });
-      } else {
-        followKeyInfoToggle.setAttribute("disabled", "true");
-        viewModeCheckboxes.forEach((box) => {
-          box.setAttribute("disabled", "true");
-        });
-      }
-    };
-    updateFollowState(Boolean(options.dynamicOutlineEnabled));
-
-    dynamicOutlineToggle.addEventListener("change", () => {
-      const isEnabled = dynamicOutlineToggle.checked;
-      updateFollowState(isEnabled);
-      options.onDynamicOutlineEnabledChange?.(isEnabled);
-    });
-
-    followKeyInfoToggle.addEventListener("change", () => {
-      options.onDynamicOutlineFollowKeyInfoChange?.(followKeyInfoToggle.checked);
-    });
-
-    const outlineControlWrap = createElement(
-      "div",
-      "doc-assistant-settings__dynamic-outline-control"
-    );
-    outlineControlWrap.append(dynamicOutlineToggle);
-    const outlineDesc =
-      "开启后在文档编辑区右边缘显示微型 Minimap 大纲标尺，悬浮可展开层级标题大纲并支持点击跳转和钉住。";
 
     setting.addItem({
-      title: "灵动大纲",
-      description: outlineDesc,
-      actionElement: outlineControlWrap
+      title: "灵动浮岛",
+      direction: "row",
+      description:
+        "在文档编辑区边缘提供可悬浮展开的多功能浮岛面板，集成文档大纲、已打开文档与系统剪贴板历史。",
+      actionElement: dynamicOutlinePanel
     });
-    hostNormalizedRows.push({
-      element: outlineControlWrap,
-      fallbackDescription: outlineDesc
-    });
-
-    const followControlWrap = createElement(
-      "div",
-      "doc-assistant-settings__dynamic-outline-follow-control"
-    );
-    followControlWrap.append(followKeyInfoToggle);
-    const followDesc =
-      "开启后，灵动大纲显示内容与侧栏“关键内容”Dock 当前选择的过滤类型保持一致；关闭时默认显示层级标题大纲。";
-
-    setting.addItem({
-      title: "灵动大纲：跟随关键内容",
-      description: followDesc,
-      actionElement: followControlWrap
-    });
-    hostNormalizedRows.push({
-      element: followControlWrap,
-      fallbackDescription: followDesc
-    });
-
-    const viewModesDesc =
-      "勾选要在灵动大纲左上角标题切换的面板（至少保留 1 个；勾选「剪贴板」将在桌面端后台静默记录系统剪贴板）。";
-    setting.addItem({
-      title: "灵动大纲：可切换面板",
-      description: viewModesDesc,
-      actionElement: viewModesWrap
-    });
-    hostNormalizedRows.push({
-      element: viewModesWrap,
-      fallbackDescription: viewModesDesc
-    });
+    hostNormalizedPanels.push(dynamicOutlinePanel);
   }
 
   if (options.onMouseGestureEnabledChange && !hiddenSettingKeys.has("mouse-gesture")) {
