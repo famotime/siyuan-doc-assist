@@ -129,33 +129,6 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     });
   }
 
-  if (options.onAutoPasteOnSelectChange && !hiddenSettingKeys.has("floating-text")) {
-    const autoPasteToggle = document.createElement("input");
-    autoPasteToggle.className = "b3-switch fn__flex-center";
-    autoPasteToggle.type = "checkbox";
-    autoPasteToggle.checked = Boolean(options.autoPasteOnSelect);
-    autoPasteToggle.addEventListener("change", () => {
-      options.onAutoPasteOnSelectChange?.(autoPasteToggle.checked);
-    });
-
-    const autoPasteControlWrap = createElement(
-      "div",
-      "doc-assistant-settings__autopaste-control"
-    );
-    autoPasteControlWrap.append(autoPasteToggle);
-    const tooltip =
-      "开启后，在悬浮窗搜索栏选择匹配文本后自动复制：若浮窗未钉住，浮窗自动缩小并在当前焦点输入框自动粘贴；若浮窗为钉住状态，则保持浮窗置顶并在短暂间隔后自动粘贴。关闭时仅复制到剪贴板，保持浮窗显示。";
-
-    setting.addItem({
-      title: "浮窗命中文本直接粘贴",
-      actionElement: autoPasteControlWrap
-    });
-    hostNormalizedRows.push({
-      element: autoPasteControlWrap,
-      tooltip
-    });
-  }
-
   if (options.onDynamicOutlineEnabledChange && !hiddenSettingKeys.has("dynamic-outline")) {
     const dynamicOutlinePanel = createDynamicOutlineSettingsPanel({
       enabled: Boolean(options.dynamicOutlineEnabled),
@@ -163,6 +136,10 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       quickSwitchEnabled: Boolean(options.dynamicOutlineQuickSwitchEnabled),
       viewModes: options.dynamicOutlineViewModes,
       isMobile: options.isMobile,
+      autoPasteOnSelect: Boolean(options.autoPasteOnSelect),
+      onAutoPasteOnSelectChange: !hiddenSettingKeys.has("floating-text") ?
+        options.onAutoPasteOnSelectChange :
+        undefined,
       onEnabledChange: options.onDynamicOutlineEnabledChange,
       onFollowKeyInfoChange: options.onDynamicOutlineFollowKeyInfoChange,
       onQuickSwitchEnabledChange: options.onDynamicOutlineQuickSwitchEnabledChange,

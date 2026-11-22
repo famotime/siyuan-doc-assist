@@ -3,8 +3,10 @@ import { KeyInfoItem } from "@/core/key-info-core";
 import {
   buildDynamicOutlineItems,
   calculateViewportIndicator,
+  computeOutlineExpandableIds,
   deduplicateRecentDocs,
   estimateGlobalDocumentProgress,
+  filterCollapsedOutlineItems,
   filterDynamicOutlineItems,
   filterOpenDocItems,
   filterRecentDocItems,
@@ -357,6 +359,41 @@ describe("dynamic-outline-core", () => {
       expect(formatDocIconHtml("1f4cc")).toBe("📌");
       expect(formatDocIconHtml("custom.png")).toBe('<img src="/emojis/custom.png"/>');
       expect(formatDocIconHtml("https://example.com/a.png")).toContain('src="https://example.com/a.png"');
+    });
+  });
+
+  describe("computeOutlineExpandableIds & filterCollapsedOutlineItems", () => {
+    const items = [
+      { id: "h1-a", blockId: "b1", text: "章节A", type: "title" as const, level: 1 as const, posRatio: 0, order: 1 },
+      { id: "k-a", blockId: "b2", text: "关键点A", type: "bold" as const, level: 0 as const, posRatio: 0.1, order: 2 },
+      { id: "h2-a", blockId: "b3", text: "子节A1", type: "title" as const, level: 2 as const, posRatio: 0.2, order: 3 },
+      { id: "h3-a", blockId: "b4", text: "子节A1-1", type: "title" as const, level: 3 as const, posRatio: 0.3, order: 4 },
+      { id: "h1-b", blockId: "b5", text: "章节B", type: "title" as const, level: 1 as const, posRatio: 0.5, order: 5 },
+      { id: "h1-c", blockId: "b6", text: "章节C", type: "title" as const, level: 1 as const, posRatio: 0.7, order: 6 },
+      { id: "k-c", blockId: "b7", text: "关键点C", type: "highlight" as const, level: 0 as const, posRatio: 0.9, order: 7 }
+    ];
+
+    test("identifies headings with subheadings or key info below them", () => {
+      const expandable = computeOutlineExpandableIds(items);
+      expect(Array.from(expandable)).toEqual(["h1-a", "h2-a", "h1-c"]);
+      expect(expandable.has("h3-a")).toBe(false);
+      expect(expandable.has("h1-b")).toBe(false);
+      expect(expandable.has("k-a")).toBe(false);
+    });
+
+    test("hides nested subheadings and key info under collapsed headings", () => {
+      const collapsedH2 = filterCollapsedOutlineItems(items, new Set(["h2-a"]));
+      expect(collapsedH2.map((i) => i.id)).toEqual([
+        "h1-a",
+        "k-a",
+        "h2-a",
+        "h1-b",
+        "h1-c",
+        "k-c"
+      ]);
+
+      const collapsedH1 = filterCollapsedOutlineItems(items, new Set(["h1-a", "h1-c"]));
+      expect(collapsedH1.map((i) => i.id)).toEqual(["h1-a", "h1-b", "h1-c"]);
     });
   });
 });

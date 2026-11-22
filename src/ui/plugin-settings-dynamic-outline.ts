@@ -11,6 +11,8 @@ export type CreateDynamicOutlineSettingsPanelOptions = {
   quickSwitchEnabled?: boolean;
   viewModes?: DynamicOutlineViewMode[];
   isMobile: boolean;
+  autoPasteOnSelect?: boolean;
+  onAutoPasteOnSelectChange?: (enabled: boolean) => Promise<void> | void;
   onEnabledChange: (enabled: boolean) => Promise<void> | void;
   onFollowKeyInfoChange?: (follow: boolean) => Promise<void> | void;
   onQuickSwitchEnabledChange?: (enabled: boolean) => Promise<void> | void;
@@ -185,6 +187,37 @@ export function createDynamicOutlineSettingsPanel(
     void options.onQuickSwitchEnabledChange?.(quickSwitchToggle.checked);
   });
 
-  panel.append(enableRow, viewModesRow, followRow, quickSwitchRow);
+  const rows: HTMLElement[] = [enableRow, viewModesRow, quickSwitchRow, followRow];
+
+  // 5. 浮窗命中文本直接粘贴行（移入灵动浮岛设置区域末尾）
+  if (options.onAutoPasteOnSelectChange) {
+    const autoPasteRow = createElement("div", "doc-assistant-settings__dynamic-outline-row");
+    autoPasteRow.dataset.settingSection = "floating-text-auto-paste";
+    const autoPasteText = createElement("div", "doc-assistant-settings__dynamic-outline-row-text");
+    autoPasteText.append(
+      createElement("div", "doc-assistant-settings__dynamic-outline-row-title", "浮窗命中文本直接粘贴")
+    );
+    applySettingTooltip(
+      autoPasteText,
+      "开启后，在悬浮窗搜索栏选择匹配文本后自动复制：若浮窗未钉住，浮窗自动缩小并在当前焦点输入框自动粘贴；若浮窗为钉住状态，则保持浮窗置顶并在短暂间隔后自动粘贴。关闭时仅复制到剪贴板，保持浮窗显示。"
+    );
+    const autoPasteToggle = document.createElement("input");
+    autoPasteToggle.className = "b3-switch fn__flex-center";
+    autoPasteToggle.type = "checkbox";
+    autoPasteToggle.checked = Boolean(options.autoPasteOnSelect);
+    autoPasteToggle.dataset.settingKey = "floating-text-auto-paste";
+    autoPasteToggle.addEventListener("change", () => {
+      void options.onAutoPasteOnSelectChange?.(autoPasteToggle.checked);
+    });
+    const autoPasteControl = createElement(
+      "div",
+      "doc-assistant-settings__dynamic-outline-row-control doc-assistant-settings__autopaste-control"
+    );
+    autoPasteControl.append(autoPasteToggle);
+    autoPasteRow.append(autoPasteText, autoPasteControl);
+    rows.push(autoPasteRow);
+  }
+
+  panel.append(...rows);
   return panel;
 }

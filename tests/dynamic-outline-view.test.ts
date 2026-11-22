@@ -666,4 +666,60 @@ describe("dynamic-outline-view", () => {
 
     handle.destroy();
   });
+
+  test("renders collapse toggle only for headings with subheadings or key info and toggles children", () => {
+    const onItemClick = vi.fn();
+    const handle = createDynamicOutlineView(parent, { onItemClick });
+
+    const outlineItems: DynamicOutlineItem[] = [
+      { id: "h1", blockId: "b1", text: "一级标题", type: "title", level: 1, posRatio: 0, order: 1 },
+      { id: "h2", blockId: "b2", text: "二级标题", type: "title", level: 2, posRatio: 0.25, order: 2 },
+      { id: "k1", blockId: "b3", text: "关键加粗", type: "bold", level: 0, posRatio: 0.5, order: 3 },
+      { id: "h1-leaf", blockId: "b4", text: "独立一级标题", type: "title", level: 1, posRatio: 0.75, order: 4 }
+    ];
+    handle.setItems(outlineItems, "文档大纲");
+
+    const getRows = () =>
+      Array.from(parent.querySelectorAll(".doc-assistant-dynamic-outline__item")) as HTMLElement[];
+
+    expect(getRows()).toHaveLength(4);
+    expect(getRows()[0].querySelector(".doc-assistant-dynamic-outline__item-toggle")).not.toBeNull();
+    expect(getRows()[1].querySelector(".doc-assistant-dynamic-outline__item-toggle")).not.toBeNull();
+    expect(getRows()[2].querySelector(".doc-assistant-dynamic-outline__item-toggle")).toBeNull();
+    expect(getRows()[3].querySelector(".doc-assistant-dynamic-outline__item-toggle")).toBeNull();
+    expect(
+      getRows()[3].querySelector(".doc-assistant-dynamic-outline__item-toggle-spacer")
+    ).not.toBeNull();
+
+    // 折叠二级标题（隐藏其下关键内容），不触发跳转
+    const h2Toggle = getRows()[1].querySelector(
+      ".doc-assistant-dynamic-outline__item-toggle"
+    ) as HTMLButtonElement;
+    h2Toggle.click();
+    expect(onItemClick).not.toHaveBeenCalled();
+    expect(getRows().map((r) => r.getAttribute("data-block-id"))).toEqual(["b1", "b2", "b4"]);
+
+    // 折叠一级标题（隐藏二级标题）
+    const h1Toggle = getRows()[0].querySelector(
+      ".doc-assistant-dynamic-outline__item-toggle"
+    ) as HTMLButtonElement;
+    h1Toggle.click();
+    expect(getRows().map((r) => r.getAttribute("data-block-id"))).toEqual(["b1", "b4"]);
+
+    // 搜索过滤时应能搜到被折叠的关键内容
+    handle.setSearchQuery("加粗");
+    expect(getRows().map((r) => r.getAttribute("data-block-id"))).toEqual(["b3"]);
+
+    // 清空搜索后恢复折叠状态
+    handle.setSearchQuery("");
+    expect(getRows().map((r) => r.getAttribute("data-block-id"))).toEqual(["b1", "b4"]);
+
+    // 展开一级标题，二级标题仍保持折叠
+    (
+      getRows()[0].querySelector(".doc-assistant-dynamic-outline__item-toggle") as HTMLButtonElement
+    ).click();
+    expect(getRows().map((r) => r.getAttribute("data-block-id"))).toEqual(["b1", "b2", "b4"]);
+
+    handle.destroy();
+  });
 });

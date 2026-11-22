@@ -609,6 +609,43 @@
     }
   }
 
+  &__item-toggle,
+  &__item-toggle-spacer {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__item-toggle {
+    padding: 0;
+    margin: 0 -2px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--b3-theme-on-surface-light);
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+
+    &:hover {
+      background-color: color-mix(in srgb, var(--b3-theme-on-surface) 10%, transparent);
+      color: var(--b3-theme-on-surface);
+    }
+
+    svg {
+      display: block;
+      width: 12px;
+      height: 12px;
+      transition: transform 0.15s ease;
+    }
+
+    &.is-collapsed svg {
+      transform: rotate(-90deg);
+    }
+  }
+
   &__item-text {
     flex: 1;
     white-space: nowrap;

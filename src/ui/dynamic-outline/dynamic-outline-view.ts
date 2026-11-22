@@ -6,11 +6,13 @@ import {
 } from "@/core/clipboard-core";
 import {
   calculateViewportIndicator,
+  computeOutlineExpandableIds,
   DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
   deduplicateRecentDocs,
   DynamicOutlineItem,
   DynamicOutlinePosition,
   DynamicOutlineViewMode,
+  filterCollapsedOutlineItems,
   filterDynamicOutlineItems,
   FilteredOutlineItem,
   FilteredOpenDocItem,
@@ -345,6 +347,7 @@ export function createDynamicOutlineView(
   let hasEnteredPopover = false;
   let popoverMoveListener: ((e: PointerEvent) => void) | null = null;
   let activeIndex = -1;
+  const collapsedHeadingIds = new Set<string>();
   const itemElements: HTMLElement[] = [];
   const tickElements: HTMLElement[] = [];
 
@@ -1439,6 +1442,9 @@ export function createDynamicOutlineView(
       return;
     }
 
+    const isFiltering = searchQuery.trim().length > 0;
+    const expandableIds = !isFiltering ? computeOutlineExpandableIds(currentItems) : new Set<string>();
+
     filteredItems.forEach((fItem, index) => {
       const item = fItem.item;
       const row = document.createElement("div");
@@ -1455,6 +1461,40 @@ export function createDynamicOutlineView(
       }
       if (activeIndex >= 0 && currentItems[activeIndex] && currentItems[activeIndex].id === item.id) {
         row.classList.add("is-active");
+      }
+
+      if (!isFiltering && item.level > 0) {
+        if (expandableIds.has(item.id)) {
+          const isCollapsed = collapsedHeadingIds.has(item.id);
+          const toggleBtn = document.createElement("button");
+          toggleBtn.type = "button";
+          toggleBtn.className = "doc-assistant-dynamic-outline__item-toggle";
+          if (isCollapsed) {
+            toggleBtn.classList.add("is-collapsed");
+          }
+          toggleBtn.setAttribute("aria-expanded", String(!isCollapsed));
+          toggleBtn.setAttribute(
+            "title",
+            isCollapsed ? (isZh ? "展开" : "Expand") : (isZh ? "折叠" : "Collapse")
+          );
+          toggleBtn.innerHTML = LUCIDE_CHEVRON_DOWN_SVG;
+          toggleBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (collapsedHeadingIds.has(item.id)) {
+              collapsedHeadingIds.delete(item.id);
+            } else {
+              collapsedHeadingIds.add(item.id);
+            }
+            selectedFilteredIndex = -1;
+            updateFilteredView();
+          });
+          row.appendChild(toggleBtn);
+        } else if (expandableIds.size > 0) {
+          const spacer = document.createElement("span");
+          spacer.className = "doc-assistant-dynamic-outline__item-toggle-spacer";
+          spacer.setAttribute("aria-hidden", "true");
+          row.appendChild(spacer);
+        }
       }
 
       if (item.level === 0 && item.type !== "title") {
@@ -1543,7 +1583,8 @@ export function createDynamicOutlineView(
       searchBar.classList.remove("is-filtering");
       countBadge.textContent = String(currentItems.length);
       matchCountBadge.textContent = isZh ? `${currentItems.length} 项` : `${currentItems.length} items`;
-      filteredItems = currentItems.map((item) => ({ item, isAncestor: false }));
+      const visibleItems = filterCollapsedOutlineItems(currentItems, collapsedHeadingIds);
+      filteredItems = visibleItems.map((item) => ({ item, isAncestor: false }));
       updateMinimapFilterMarks(new Set());
     } else {
       searchBar.classList.add("is-filtering");
@@ -1706,6 +1747,12 @@ export function createDynamicOutlineView(
 
   const setItems = (items: DynamicOutlineItem[], modeLabel?: string) => {
     currentItems = items;
+    const expandableIds = computeOutlineExpandableIds(items);
+    for (const id of collapsedHeadingIds) {
+      if (!expandableIds.has(id)) {
+        collapsedHeadingIds.delete(id);
+      }
+    }
     if (modeLabel) {
       currentModeLabel = modeLabel;
     }

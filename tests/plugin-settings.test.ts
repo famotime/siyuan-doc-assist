@@ -561,7 +561,7 @@ describe("plugin settings", () => {
     expect(isDocAssistantDebugEnabled()).toBe(true);
   });
 
-  test("autoPasteOnSelect toggle controls floatingConfig state", async () => {
+  test("autoPasteOnSelect toggle inside dynamic-outline panel controls floatingConfig state", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
@@ -570,13 +570,24 @@ describe("plugin settings", () => {
     plugin.openSetting();
 
     const setting = settingInstances[1];
-    const autoPasteItem = setting.items.find((item) => item.title === "浮窗命中文本直接粘贴");
-    expect(autoPasteItem).toBeDefined();
-    expect(autoPasteItem?.description).toBeUndefined();
+    expect(setting.items.find((item) => item.title === "浮窗命中文本直接粘贴")).toBeUndefined();
 
-    const control = autoPasteItem?.actionElement as HTMLElement;
-    expect(control.classList.contains("doc-assistant-settings__autopaste-control")).toBe(true);
-    const toggle = control.querySelector("input[type='checkbox']") as HTMLInputElement;
+    const islandItem = setting.items.find((item) => item.title === "灵动浮岛");
+    expect(islandItem).toBeDefined();
+    const panel = islandItem?.actionElement as HTMLElement;
+    const autoPasteRow = panel.querySelector(
+      '[data-setting-section="floating-text-auto-paste"]'
+    ) as HTMLElement;
+    expect(autoPasteRow).not.toBeNull();
+    expect(panel.lastElementChild).toBe(autoPasteRow);
+
+    const control = autoPasteRow.querySelector(
+      ".doc-assistant-settings__autopaste-control"
+    ) as HTMLElement;
+    expect(control).not.toBeNull();
+    const toggle = control.querySelector(
+      'input[data-setting-key="floating-text-auto-paste"]'
+    ) as HTMLInputElement;
     expect(toggle.checked).toBe(false);
 
     toggle.checked = true;
@@ -654,8 +665,9 @@ describe("plugin settings", () => {
     expect(sections).toEqual([
       "dynamic-outline-enabled",
       "dynamic-outline-view-modes",
+      "dynamic-outline-quick-switch",
       "dynamic-outline-follow-key-info",
-      "dynamic-outline-quick-switch"
+      "floating-text-auto-paste"
     ]);
 
     const outlineToggle = panel.querySelector(
@@ -667,6 +679,9 @@ describe("plugin settings", () => {
     const quickSwitchToggle = panel.querySelector(
       'input[data-setting-key="dynamic-outline-quick-switch"]'
     ) as HTMLInputElement;
+    const autoPasteToggle = panel.querySelector(
+      'input[data-setting-key="floating-text-auto-paste"]'
+    ) as HTMLInputElement;
     const modeCheckboxes = Array.from(
       panel.querySelectorAll('input[data-view-mode]')
     ) as HTMLInputElement[];
@@ -676,6 +691,7 @@ describe("plugin settings", () => {
     expect(followToggle.disabled).toBe(true);
     expect(quickSwitchToggle.checked).toBe(false);
     expect(quickSwitchToggle.disabled).toBe(true);
+    expect(autoPasteToggle.disabled).toBe(false);
     expect(modeCheckboxes.every((box) => box.disabled)).toBe(true);
 
     outlineToggle.checked = true;
@@ -709,7 +725,7 @@ describe("plugin settings", () => {
     expect(modeCheckboxes.every((box) => box.disabled)).toBe(true);
   });
 
-  test("renders settings items in the specified order: 启动显示..., 浮窗..., 灵动浮岛, 鼠标手势, 启用命令, AI服务, 调试模式", async () => {
+  test("renders settings items in the specified order: 启动显示..., 灵动浮岛, 鼠标手势, 启用命令, AI服务, 调试模式", async () => {
     const { default: DocLinkToolkitPlugin } = await import("@/plugin/plugin-lifecycle");
     const plugin = new DocLinkToolkitPlugin() as any;
     await plugin.onload();
@@ -720,7 +736,6 @@ describe("plugin settings", () => {
     const setting = settingInstances[1];
     expect(setting.items.map((item) => item.title)).toEqual([
       "启动显示“文档处理”页签",
-      "浮窗命中文本直接粘贴",
       "灵动浮岛",
       "鼠标手势",
       "启用命令",

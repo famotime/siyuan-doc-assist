@@ -284,6 +284,61 @@ export function findActiveOutlineItemIndex(
   return activeIdx;
 }
 
+/** 计算包含子标题或下属关键内容的标题 ID 集合 */
+export function computeOutlineExpandableIds(items: DynamicOutlineItem[]): Set<string> {
+  const expandable = new Set<string>();
+  if (!items || items.length === 0) {
+    return expandable;
+  }
+  for (let i = 0; i < items.length; i++) {
+    const current = items[i];
+    if (current.level <= 0) {
+      continue;
+    }
+    const next = items[i + 1];
+    if (!next) {
+      continue;
+    }
+    // 紧接其后的是更深层级标题或关键内容 (level === 0) 时，当前标题可折叠
+    if (next.level === 0 || next.level > current.level) {
+      expandable.add(current.id);
+    }
+  }
+  return expandable;
+}
+
+/** 根据已折叠的标题 ID 集合过滤出当前可见的大纲条目 */
+export function filterCollapsedOutlineItems(
+  items: DynamicOutlineItem[],
+  collapsedIds: ReadonlySet<string>
+): DynamicOutlineItem[] {
+  if (!items || items.length === 0) {
+    return [];
+  }
+  if (!collapsedIds || collapsedIds.size === 0) {
+    return [...items];
+  }
+  const expandableIds = computeOutlineExpandableIds(items);
+  const visible: DynamicOutlineItem[] = [];
+  let collapsedLevel: number | null = null;
+
+  for (const item of items) {
+    if (collapsedLevel !== null) {
+      if (item.level > 0 && item.level <= collapsedLevel) {
+        collapsedLevel = null;
+      } else {
+        continue;
+      }
+    }
+    visible.push(item);
+    if (item.level > 0 && expandableIds.has(item.id) && collapsedIds.has(item.id)) {
+      collapsedLevel = item.level;
+    }
+  }
+
+  return visible;
+}
+
 export type FilteredOutlineItem = {
   item: DynamicOutlineItem;
   matchRange?: [number, number];
