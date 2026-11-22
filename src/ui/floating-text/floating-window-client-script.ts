@@ -57,6 +57,7 @@ const CLIENT_SCRIPT_BODY_PART1 = `          window.__docAssistantFloatingClientA
               window.close();
             } catch (e) {}
           }
+          const appEl = document.getElementById("ft-app");
           const popoverEl = document.getElementById("ft-popover");
           const textView = document.getElementById("ft-text-view");
           const mdView = document.getElementById("ft-markdown-view");

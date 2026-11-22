@@ -195,6 +195,81 @@ describe("floating-window-render", () => {
       expect(textView?.style.display).toBe("block");
       expect(mdView?.style.display).toBe("none");
     });
+
+    test("updates opacity and font size styles, labels, and config in JSDOM without runtime errors", async () => {
+      const { JSDOM, VirtualConsole } = await import("jsdom");
+      const virtualConsole = new VirtualConsole();
+      const errors: any[] = [];
+      virtualConsole.on("error", (err) => errors.push(err));
+      virtualConsole.on("jsdomError", (err) => errors.push(err));
+
+      const savedPatches: Array<Record<string, any>> = [];
+      const html = buildFloatingWindowHtml({
+        title: "外观调节测试",
+        text: "测试文本",
+        config: { ...DEFAULT_FLOATING_TEXT_CONFIG, opacity: 0.85, fontSize: 15 },
+        isDark: false
+      });
+
+      const dom = new JSDOM(html, {
+        url: "https://localhost/",
+        runScripts: "dangerously",
+        virtualConsole,
+        beforeParse(window) {
+          Object.defineProperty(window, "opener", {
+            value: {
+              __saveDocAssistantFloatingConfig: (patch: Record<string, any>) => {
+                savedPatches.push(patch);
+              }
+            },
+            configurable: true
+          });
+        }
+      });
+
+      const doc = dom.window.document;
+      const appEl = doc.getElementById("ft-app") as HTMLElement;
+      const slider = doc.getElementById("ft-opacity-slider") as HTMLInputElement;
+      const opacityLabel = doc.getElementById("ft-opacity-label") as HTMLElement;
+      const fontLabel = doc.getElementById("ft-font-label") as HTMLElement;
+      const fontIncBtn = doc.getElementById("ft-font-inc") as HTMLButtonElement;
+      const fontDecBtn = doc.getElementById("ft-font-dec") as HTMLButtonElement;
+
+      // 1. 调节不透明度（input + change）
+      slider.value = "55";
+      slider.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+      expect(appEl.style.getPropertyValue("--ft-opacity")).toBe("0.55");
+      expect(opacityLabel.textContent).toBe("55%");
+
+      slider.value = "40";
+      slider.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      expect(appEl.style.getPropertyValue("--ft-opacity")).toBe("0.4");
+      expect(opacityLabel.textContent).toBe("40%");
+      expect(savedPatches).toContainEqual({ opacity: 0.4 });
+
+      // 2. 调节字号（点击 + / - 按钮及 Ctrl+滚轮）
+      fontIncBtn.click();
+      expect(appEl.style.getPropertyValue("--ft-font-size")).toBe("16px");
+      expect(fontLabel.textContent).toBe("16px");
+      expect(savedPatches).toContainEqual({ fontSize: 16 });
+
+      fontDecBtn.click();
+      expect(appEl.style.getPropertyValue("--ft-font-size")).toBe("15px");
+      expect(fontLabel.textContent).toBe("15px");
+      expect(savedPatches).toContainEqual({ fontSize: 15 });
+
+      doc.dispatchEvent(
+        new dom.window.WheelEvent("wheel", {
+          ctrlKey: true,
+          deltaY: -100,
+          cancelable: true
+        })
+      );
+      expect(appEl.style.getPropertyValue("--ft-font-size")).toBe("16px");
+      expect(fontLabel.textContent).toBe("16px");
+
+      expect(errors).toEqual([]);
+    });
   });
 
   describe("newline normalization and change detection logic", () => {
