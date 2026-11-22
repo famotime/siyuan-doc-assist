@@ -3,7 +3,7 @@ import {
   DynamicOutlineViewMode,
   normalizeDynamicOutlineViewModes
 } from "@/core/dynamic-outline-core";
-import { createElement } from "@/ui/plugin-settings-shared";
+import { applySettingTooltip, createElement } from "@/ui/plugin-settings-shared";
 
 export type CreateDynamicOutlineSettingsPanelOptions = {
   enabled: boolean;
@@ -28,12 +28,11 @@ export function createDynamicOutlineSettingsPanel(
   enableRow.dataset.settingSection = "dynamic-outline-enabled";
   const enableText = createElement("div", "doc-assistant-settings__dynamic-outline-row-text");
   enableText.append(
-    createElement("div", "doc-assistant-settings__dynamic-outline-row-title", "启用灵动浮岛"),
-    createElement(
-      "div",
-      "doc-assistant-settings__dynamic-outline-row-hint",
-      "开启后在文档编辑区边缘显示微型 Minimap 标尺，悬浮可展开灵动浮岛面板，支持文档大纲、已打开文档与剪贴板历史切换，并支持点击跳转和钉住。"
-    )
+    createElement("div", "doc-assistant-settings__dynamic-outline-row-title", "启用灵动浮岛")
+  );
+  applySettingTooltip(
+    enableText,
+    "开启后在文档编辑区边缘显示微型 Minimap 标尺，悬浮可展开灵动浮岛面板，支持文档大纲、已打开文档与剪贴板历史切换，并支持点击跳转和钉住。"
   );
   const dynamicOutlineToggle = document.createElement("input");
   dynamicOutlineToggle.className = "b3-switch fn__flex-center";
@@ -49,12 +48,11 @@ export function createDynamicOutlineSettingsPanel(
   viewModesRow.dataset.settingSection = "dynamic-outline-view-modes";
   const viewModesText = createElement("div", "doc-assistant-settings__dynamic-outline-row-text");
   viewModesText.append(
-    createElement("div", "doc-assistant-settings__dynamic-outline-row-title", "可切换面板"),
-    createElement(
-      "div",
-      "doc-assistant-settings__dynamic-outline-row-hint",
-      "勾选要在灵动浮岛左上角标题切换的面板（至少保留 1 个；勾选「剪贴板」将在桌面端后台静默记录系统剪贴板）。"
-    )
+    createElement("div", "doc-assistant-settings__dynamic-outline-row-title", "可切换面板")
+  );
+  applySettingTooltip(
+    viewModesText,
+    "勾选要在灵动浮岛左上角标题切换的面板（至少保留 1 个；勾选「剪贴板」将在桌面端后台静默记录系统剪贴板）。"
   );
 
   const viewModeOptions: Array<{ mode: DynamicOutlineViewMode; label: string }> = [
@@ -111,12 +109,11 @@ export function createDynamicOutlineSettingsPanel(
   followRow.dataset.settingSection = "dynamic-outline-follow-key-info";
   const followText = createElement("div", "doc-assistant-settings__dynamic-outline-row-text");
   followText.append(
-    createElement("div", "doc-assistant-settings__dynamic-outline-row-title", "文档大纲跟随关键内容"),
-    createElement(
-      "div",
-      "doc-assistant-settings__dynamic-outline-row-hint",
-      "开启后，“文档大纲”面板显示内容与侧栏“关键内容”Dock 当前选择的过滤类型保持一致；关闭时默认显示层级标题大纲。"
-    )
+    createElement("div", "doc-assistant-settings__dynamic-outline-row-title", "文档大纲跟随关键内容")
+  );
+  applySettingTooltip(
+    followText,
+    "开启后，“文档大纲”面板显示内容与侧栏“关键内容”Dock 当前选择的过滤类型保持一致；关闭时默认显示层级标题大纲。"
   );
   const followKeyInfoToggle = document.createElement("input");
   followKeyInfoToggle.className = "b3-switch fn__flex-center";

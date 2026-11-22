@@ -5,6 +5,7 @@ import {
   normalizeAiServiceConfig
 } from "@/core/ai-service-config-core";
 import {
+  applySettingTooltip,
   createCheckbox,
   createCollapseButton,
   createElement,
@@ -230,12 +231,11 @@ export function createAiSettingsPanel(
   const switchRow = createElement("div", "doc-assistant-settings__ai-switch");
   const switchText = createElement("div", "doc-assistant-settings__ai-switch-text");
   switchText.append(
-    createElement("div", "doc-assistant-settings__ai-switch-title", "启用 AI 文档功能"),
-    createElement(
-      "div",
-      "doc-assistant-settings__ai-switch-hint",
-      "发送当前文档内容到 AI，可用于生成摘要、概念地图（含关联文档），或筛选应加删除线的口水段落。"
-    )
+    createElement("div", "doc-assistant-settings__ai-switch-title", "启用 AI 文档功能")
+  );
+  applySettingTooltip(
+    switchText,
+    "发送当前文档内容到 AI，可用于生成摘要、概念地图（含关联文档），或筛选应加删除线的口水段落。"
   );
 
   const fields = createElement("div", "doc-assistant-settings__ai-fields");

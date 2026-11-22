@@ -523,7 +523,7 @@ describe("plugin settings", () => {
     expect(aiPanel.querySelector('[data-setting-key="ai-debug"]')).toBeNull();
 
     const debugModeItem = setting.items.find((item) => item.title === "调试模式");
-    expect(debugModeItem?.description).toContain("开启后，会在控制台打印插件执行操作时的 transaction 明细日志");
+    expect(debugModeItem?.description).toBeUndefined();
     expect(debugModeItem?.direction).toBeUndefined();
 
     const debugControl = debugModeItem?.actionElement as HTMLElement;
@@ -546,7 +546,9 @@ describe("plugin settings", () => {
     expect(debugToggle.classList.contains("fn__size200")).toBe(false);
     expect(debugToggle.classList.contains("fn__block")).toBe(false);
     expect(hostItem.classList.contains("doc-assistant-settings__host-row")).toBe(true);
-    expect(hostTitle.querySelector(".b3-label__text")?.textContent).toContain("transaction 明细日志");
+    expect(hostTitle.querySelector(".b3-label__text")).toBeNull();
+    expect(hostTitle.classList.contains("ariaLabel")).toBe(true);
+    expect(hostTitle.getAttribute("aria-label")).toContain("transaction 明细日志");
 
     expect(isDocAssistantDebugEnabled()).toBe(false);
     expect(debugToggle.checked).toBe(false);
@@ -570,7 +572,7 @@ describe("plugin settings", () => {
     const setting = settingInstances[1];
     const autoPasteItem = setting.items.find((item) => item.title === "浮窗命中文本直接粘贴");
     expect(autoPasteItem).toBeDefined();
-    expect(autoPasteItem?.description).toContain("开启后，在悬浮窗搜索栏选择匹配文本后自动复制");
+    expect(autoPasteItem?.description).toBeUndefined();
 
     const control = autoPasteItem?.actionElement as HTMLElement;
     expect(control.classList.contains("doc-assistant-settings__autopaste-control")).toBe(true);
@@ -598,7 +600,7 @@ describe("plugin settings", () => {
     const setting = settingInstances[1];
     const startupItem = setting.items.find((item) => item.title === "启动显示“文档处理”页签");
     expect(startupItem).toBeDefined();
-    expect(startupItem?.description).toContain("开启时打开侧栏默认显示“文档处理”页签");
+    expect(startupItem?.description).toBeUndefined();
 
     const control = startupItem?.actionElement as HTMLElement;
     expect(control.classList.contains("doc-assistant-settings__startup-tab-control")).toBe(true);

@@ -11,7 +11,11 @@ import { DEFAULT_GESTURE_BINDINGS, GestureBindings } from "@/core/gesture-recogn
 import { createAiSettingsPanel } from "@/ui/plugin-settings-ai";
 import { createDynamicOutlineSettingsPanel } from "@/ui/plugin-settings-dynamic-outline";
 import { createGestureSettingsPanel } from "@/ui/plugin-settings-gesture";
-import { installSettingHostNormalizer } from "@/ui/plugin-settings-host";
+import {
+  installSettingHostNormalizer,
+  SettingHostPanelConfig,
+  SettingHostRowConfig
+} from "@/ui/plugin-settings-host";
 import { createMenuRegistrationPanel } from "@/ui/plugin-settings-menu";
 import { createElement } from "@/ui/plugin-settings-shared";
 
@@ -93,11 +97,8 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     }
   });
   const hiddenSettingKeys = new Set(options.hiddenSettingKeys || []);
-  const hostNormalizedPanels: HTMLElement[] = [];
-  const hostNormalizedRows: Array<{
-    element: HTMLElement | null;
-    fallbackDescription?: string;
-  }> = [];
+  const hostNormalizedPanels: SettingHostPanelConfig[] = [];
+  const hostNormalizedRows: SettingHostRowConfig[] = [];
 
   if (options.onStartupDocProcessTabEnabledChange) {
     const startupDocProcessTabToggle = document.createElement("input");
@@ -113,17 +114,16 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       "doc-assistant-settings__startup-tab-control"
     );
     startupControlWrap.append(startupDocProcessTabToggle);
-    const description =
+    const tooltip =
       "开启时打开侧栏默认显示“文档处理”页签，关闭时保持默认“关键内容”页签或上次选中页签。";
 
     setting.addItem({
       title: "启动显示“文档处理”页签",
-      description,
       actionElement: startupControlWrap
     });
     hostNormalizedRows.push({
       element: startupControlWrap,
-      fallbackDescription: description
+      tooltip
     });
   }
 
@@ -141,17 +141,16 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       "doc-assistant-settings__autopaste-control"
     );
     autoPasteControlWrap.append(autoPasteToggle);
-    const description =
+    const tooltip =
       "开启后，在悬浮窗搜索栏选择匹配文本后自动复制：若浮窗未钉住，浮窗自动缩小并在当前焦点输入框自动粘贴；若浮窗为钉住状态，则保持浮窗置顶并在短暂间隔后自动粘贴。关闭时仅复制到剪贴板，保持浮窗显示。";
 
     setting.addItem({
       title: "浮窗命中文本直接粘贴",
-      description,
       actionElement: autoPasteControlWrap
     });
     hostNormalizedRows.push({
       element: autoPasteControlWrap,
-      fallbackDescription: description
+      tooltip
     });
   }
 
@@ -169,11 +168,13 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     setting.addItem({
       title: "灵动浮岛",
       direction: "row",
-      description:
-        "在文档编辑区边缘提供可悬浮展开的多功能浮岛面板，集成文档大纲、已打开文档与系统剪贴板历史。",
       actionElement: dynamicOutlinePanel
     });
-    hostNormalizedPanels.push(dynamicOutlinePanel);
+    hostNormalizedPanels.push({
+      element: dynamicOutlinePanel,
+      tooltip:
+        "在文档编辑区边缘提供可悬浮展开的多功能浮岛面板，集成文档大纲、已打开文档与系统剪贴板历史。"
+    });
   }
 
   if (options.onMouseGestureEnabledChange && !hiddenSettingKeys.has("mouse-gesture")) {
@@ -189,11 +190,13 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     setting.addItem({
       title: "鼠标手势",
       direction: "row",
-      description:
-        "开启后可在文档编辑器中按住鼠标右键划动手势：← 切换上一个文档，→ 切换下一个文档，↓→ 关闭当前文档。手势可自定义，切换为移动式（打开目标文档并关闭当前标签页）。",
       actionElement: gesturePanel.panel
     });
-    hostNormalizedPanels.push(gesturePanel.panel);
+    hostNormalizedPanels.push({
+      element: gesturePanel.panel,
+      tooltip:
+        "开启后可在文档编辑器中按住鼠标右键划动手势：← 切换上一个文档，→ 切换下一个文档，↓→ 关闭当前文档。手势可自定义，切换为移动式（打开目标文档并关闭当前标签页）。"
+    });
     panelDestroyCallbacks.push(gesturePanel.destroy);
   }
 
@@ -210,11 +213,13 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
   setting.addItem({
     title: "启用命令",
     direction: "row",
-    description:
-      "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。",
     actionElement: menuRegistrationPanel
   });
-  hostNormalizedPanels.push(menuRegistrationPanel);
+  hostNormalizedPanels.push({
+    element: menuRegistrationPanel,
+    tooltip:
+      "管理操作命令在侧面板“文档处理”中的显示及是否注册到文档标题菜单。只有已启用的命令才能注册到文档菜单。"
+  });
 
   if (!hiddenSettingKeys.has("ai-service")) {
     // 渲染时，如果有接管配置，用接管配置来展示
@@ -231,10 +236,12 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
     setting.addItem({
       title: "AI 服务",
       direction: "row",
-      description: "配置兼容 OpenAI API 的服务，用于生成文档摘要和标记口水内容。",
       actionElement: aiPanel
     });
-    hostNormalizedPanels.push(aiPanel);
+    hostNormalizedPanels.push({
+      element: aiPanel,
+      tooltip: "配置兼容 OpenAI API 的服务，用于生成文档摘要和标记口水内容。"
+    });
   }
 
   if (options.onDebugLogEnabledChange && !hiddenSettingKeys.has("debug-mode")) {
@@ -251,17 +258,16 @@ export function createPluginSettings(options: CreatePluginSettingsOptions) {
       "doc-assistant-settings__debug-control"
     );
     debugControlWrap.append(debugLogToggle);
-    const description =
+    const tooltip =
       "开启后，会在控制台打印插件执行操作时的 transaction 明细日志，方便定位撤销/重做失效等问题。";
 
     setting.addItem({
       title: "调试模式",
-      description,
       actionElement: debugControlWrap
     });
     hostNormalizedRows.push({
       element: debugControlWrap,
-      fallbackDescription: description
+      tooltip
     });
   }
 

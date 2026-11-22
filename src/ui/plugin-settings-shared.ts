@@ -80,6 +80,19 @@ export function createTextareaInput(options: {
   return textarea;
 }
 
+export function applySettingTooltip(
+  el: HTMLElement | null | undefined,
+  tooltip?: string
+): void {
+  if (!el || !tooltip) {
+    return;
+  }
+  el.classList.add("ariaLabel");
+  el.setAttribute("aria-label", tooltip);
+  el.setAttribute("data-position", "parent");
+  el.removeAttribute("title");
+}
+
 export function createFieldRow(options: {
   label: string;
   hint?: string;
@@ -90,11 +103,7 @@ export function createFieldRow(options: {
   textWrap.append(
     createElement("div", "doc-assistant-settings__ai-field-label", options.label)
   );
-  if (options.hint) {
-    textWrap.append(
-      createElement("div", "doc-assistant-settings__ai-field-hint", options.hint)
-    );
-  }
+  applySettingTooltip(textWrap, options.hint);
   field.append(textWrap, options.input);
   return field;
 }

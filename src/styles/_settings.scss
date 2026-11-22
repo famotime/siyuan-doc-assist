@@ -95,9 +95,9 @@
 }
 
 .doc-assistant-settings__dynamic-outline-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
   gap: 12px;
   padding: 4px 0;
 
@@ -111,6 +111,8 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .doc-assistant-settings__dynamic-outline-row-title {
@@ -133,12 +135,14 @@
 }
 
 .doc-assistant-settings__dynamic-outline-modes {
+  display: flex;
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
 }
 
 .doc-assistant-settings__dynamic-outline-mode-item {
+  display: inline-flex;
   gap: 4px;
   align-items: center;
   cursor: pointer;

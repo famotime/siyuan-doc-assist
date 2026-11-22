@@ -1,8 +1,18 @@
+import { applySettingTooltip } from "@/ui/plugin-settings-shared";
+
 type SettingLike = {
   open: (name: string) => void;
 };
 
-export function normalizeSettingPanelHost(panel: HTMLElement | null): void {
+export type SettingHostPanelConfig = {
+  element: HTMLElement | null;
+  tooltip?: string;
+};
+
+export function normalizeSettingPanelHost(
+  panel: HTMLElement | null,
+  tooltip?: string
+): void {
   if (!panel) {
     return;
   }
@@ -39,6 +49,7 @@ export function normalizeSettingPanelHost(panel: HTMLElement | null): void {
     titleWrap.classList.add("doc-assistant-settings__host-title");
     titleWrap.style.overflow = "visible";
     titleWrap.style.minHeight = "0";
+    applySettingTooltip(titleWrap, tooltip);
   }
 
   if (spacer instanceof HTMLElement) {
@@ -48,12 +59,12 @@ export function normalizeSettingPanelHost(panel: HTMLElement | null): void {
 
 export type SettingHostRowConfig = {
   element: HTMLElement | null;
-  fallbackDescription?: string;
+  tooltip?: string;
 };
 
 export function normalizeSettingRowHost(
   control: HTMLElement | null,
-  fallbackDescription?: string
+  tooltip?: string
 ): void {
   if (!control) {
     return;
@@ -83,19 +94,7 @@ export function normalizeSettingRowHost(
     titleWrap.classList.add("doc-assistant-settings__host-title");
     titleWrap.style.overflow = "visible";
     titleWrap.style.minHeight = "0";
-
-    let desc = titleWrap.querySelector(".b3-label__text");
-    if (!desc && fallbackDescription) {
-      desc = document.createElement("div");
-      desc.className = "b3-label__text";
-      desc.textContent = fallbackDescription;
-      titleWrap.appendChild(desc);
-    }
-    if (desc instanceof HTMLElement) {
-      desc.style.display = "block";
-      desc.style.visibility = "visible";
-      desc.style.opacity = "1";
-    }
+    applySettingTooltip(titleWrap, tooltip);
   }
 
   if (spacer instanceof HTMLElement) {
@@ -105,12 +104,21 @@ export function normalizeSettingRowHost(
 
 export function installSettingHostNormalizer(
   setting: SettingLike,
-  panels: Array<HTMLElement | null>,
+  panels: Array<SettingHostPanelConfig | HTMLElement | null>,
   rows: Array<SettingHostRowConfig | HTMLElement | null> = []
 ): void {
   const originalOpen = setting.open.bind(setting);
   const normalizeElements = () => {
-    panels.forEach((panel) => normalizeSettingPanelHost(panel));
+    panels.forEach((panel) => {
+      if (!panel) {
+        return;
+      }
+      if (panel instanceof HTMLElement) {
+        normalizeSettingPanelHost(panel);
+      } else {
+        normalizeSettingPanelHost(panel.element, panel.tooltip);
+      }
+    });
     rows.forEach((row) => {
       if (!row) {
         return;
@@ -118,7 +126,7 @@ export function installSettingHostNormalizer(
       if (row instanceof HTMLElement) {
         normalizeSettingRowHost(row);
       } else {
-        normalizeSettingRowHost(row.element, row.fallbackDescription);
+        normalizeSettingRowHost(row.element, row.tooltip);
       }
     });
   };

@@ -13,7 +13,7 @@ import {
   serializeDirections
 } from "@/core/gesture-recognition-core";
 import { createGestureCapture } from "@/ui/gesture-capture";
-import { createElement } from "@/ui/plugin-settings-shared";
+import { applySettingTooltip, createElement } from "@/ui/plugin-settings-shared";
 
 type CreateGestureSettingsPanelOptions = {
   enabled: boolean;
@@ -123,12 +123,11 @@ export function createGestureSettingsPanel(
   const switchRow = createElement("div", "doc-assistant-settings__gesture-switch");
   const switchText = createElement("div", "doc-assistant-settings__gesture-switch-text");
   switchText.append(
-    createElement("div", "doc-assistant-settings__gesture-switch-title", "启用鼠标手势"),
-    createElement(
-      "div",
-      "doc-assistant-settings__gesture-switch-hint",
-      "在文档编辑器中按住鼠标右键划动手势，触发文档切换与关闭操作；普通右键菜单不受影响。"
-    )
+    createElement("div", "doc-assistant-settings__gesture-switch-title", "启用鼠标手势")
+  );
+  applySettingTooltip(
+    switchText,
+    "在文档编辑器中按住鼠标右键划动手势，触发文档切换与关闭操作；普通右键菜单不受影响。"
   );
   const enabledToggle = document.createElement("input");
   enabledToggle.className = "b3-switch fn__flex-center";
@@ -154,9 +153,9 @@ export function createGestureSettingsPanel(
 
     const meta = createElement("div", "doc-assistant-settings__gesture-action-meta");
     meta.append(
-      createElement("div", "doc-assistant-settings__gesture-action-label", MOUSE_GESTURE_ACTION_LABELS[key]),
-      createElement("div", "doc-assistant-settings__gesture-action-hint", MOUSE_GESTURE_ACTION_HINTS[key])
+      createElement("div", "doc-assistant-settings__gesture-action-label", MOUSE_GESTURE_ACTION_LABELS[key])
     );
+    applySettingTooltip(meta, MOUSE_GESTURE_ACTION_HINTS[key]);
 
     const sequenceEl = createElement("span", "doc-assistant-settings__gesture-sequence");
     sequenceEl.dataset.gestureSequence = key;
@@ -209,12 +208,11 @@ export function createGestureSettingsPanel(
     refreshSequences();
     void options.onBindingsChange(bindings);
   });
-  const tip = createElement(
-    "div",
-    "doc-assistant-settings__gesture-tip",
-    "点击「录制」后，按住鼠标右键划出手势，松开即完成绑定；按 Esc 取消。"
+  applySettingTooltip(
+    resetButton,
+    "恢复为默认手势；点击各动作的「录制」后，按住鼠标右键划出手势，松开即完成绑定（按 Esc 取消）。"
   );
-  footer.append(resetButton, tip);
+  footer.append(resetButton);
 
   const syncDisabledState = () => {
     fields.classList.toggle("is-disabled", !enabled);
