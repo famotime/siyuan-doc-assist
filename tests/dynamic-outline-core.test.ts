@@ -5,8 +5,10 @@ import {
   calculateViewportIndicator,
   estimateGlobalDocumentProgress,
   filterDynamicOutlineItems,
+  filterOpenDocItems,
   findActiveOutlineItemIndex,
   highlightMatchRanges,
+  OpenDocTabItem,
   parseHeadingLevel
 } from "@/core/dynamic-outline-core";
 
@@ -296,6 +298,30 @@ describe("dynamic-outline-core", () => {
         { text: "前端架构", highlight: false },
         { text: "模块", highlight: true }
       ]);
+    });
+  });
+
+  describe("filterOpenDocItems", () => {
+    const mockDocs: OpenDocTabItem[] = [
+      { tabId: "t1", docId: "d1", title: "项目架构设计", isPinned: true, isActive: false },
+      { tabId: "t2", docId: "d2", title: "每周工作周报", isPinned: false, isActive: true },
+      { tabId: "t3", docId: "d3", title: "API Reference", isPinned: false, isActive: false }
+    ];
+
+    test("returns all open docs when query is empty", () => {
+      expect(filterOpenDocItems(mockDocs, "")).toHaveLength(3);
+      expect(filterOpenDocItems(mockDocs, "   ")).toHaveLength(3);
+    });
+
+    test("filters open docs by chinese keyword and pinyin initials", () => {
+      const byKeyword = filterOpenDocItems(mockDocs, "周报");
+      expect(byKeyword).toHaveLength(1);
+      expect(byKeyword[0].item.docId).toBe("d2");
+      expect(byKeyword[0].matchRange).toEqual([4, 5]);
+
+      const byPinyin = filterOpenDocItems(mockDocs, "xmjgsj");
+      expect(byPinyin).toHaveLength(1);
+      expect(byPinyin[0].item.docId).toBe("d1");
     });
   });
 });

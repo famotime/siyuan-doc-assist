@@ -6,6 +6,7 @@ import {
   DynamicOutlineControllerDeps
 } from "@/plugin/dynamic-outline-controller";
 import { KeyInfoItem } from "@/core/key-info-core";
+import { collectCurrentWndOpenDocTabs, OpenDocTabRef } from "@/services/doc-navigation";
 
 describe("dynamic-outline-controller", () => {
   let deps: DynamicOutlineControllerDeps;
@@ -200,5 +201,111 @@ describe("dynamic-outline-controller", () => {
     });
 
     controller.destroy();
+  });
+
+  test("switches to open docs mode, activates target tab, and preserves mode across doc refresh", async () => {
+    const openDocs: OpenDocTabRef[] = [
+      { tabId: "t1", docId: "doc-123", title: "当前文档", isPinned: true, isActive: true },
+      { tabId: "t2", docId: "doc-999", title: "目标文档", isPinned: false, isActive: false }
+    ];
+    const activateOpenDocTab = vi.fn();
+    deps.getOpenDocTabs = vi.fn().mockReturnValue(openDocs);
+    deps.activateOpenDocTab = activateOpenDocTab;
+
+    const controller = new DynamicOutlineController(deps);
+    controller.syncActiveEditor();
+
+    await vi.waitFor(() => {
+      expect(mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__item").length).toBe(1);
+    });
+
+    const titleBtn = mockProtyleEl.querySelector(".doc-assistant-dynamic-outline__title-btn") as HTMLButtonElement;
+    titleBtn.click();
+
+    const docItems = mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__doc-item");
+    expect(docItems).toHaveLength(2);
+    expect(deps.getOpenDocTabs).toHaveBeenCalled();
+
+    (docItems[1] as HTMLElement).click();
+    expect(activateOpenDocTab).toHaveBeenCalledWith(openDocs[1]);
+
+    // 切换文档后刷新，依然保持在已打开文档模式
+    (deps.getCurrentDocId as any).mockReturnValue("doc-999");
+    await controller.refreshData();
+    expect(mockProtyleEl.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")).toHaveLength(2);
+
+    controller.destroy();
+  });
+
+  test("collectCurrentWndOpenDocTabs collects active, pinned and lazy-loaded editor tabs in current wnd", () => {
+    const createHead = (opts: { title: string; pin?: boolean; focus?: boolean; icon?: string; initData?: unknown }) => {
+      const li = document.createElement("li");
+      if (opts.pin) li.classList.add("item--pin");
+      if (opts.focus) li.classList.add("item--focus");
+      if (opts.initData) li.setAttribute("data-initdata", JSON.stringify(opts.initData));
+      if (opts.icon) {
+        const icon = document.createElement("span");
+        icon.className = "item__icon";
+        icon.innerHTML = opts.icon;
+        li.appendChild(icon);
+      }
+      const text = document.createElement("span");
+      text.className = "item__text";
+      text.textContent = opts.title;
+      li.appendChild(text);
+      return li;
+    };
+
+    const activeHead = createHead({ title: "已钉住文档", pin: true, focus: true, icon: "⭐" });
+    const lazyHead = createHead({
+      title: "未激活文档",
+      initData: { instance: "Editor", rootId: "doc-lazy", title: "未激活文档" }
+    });
+    const searchHead = createHead({
+      title: "全局搜索",
+      initData: { instance: "Search" }
+    });
+
+    const wnd: any = { children: [] };
+    const activeProtyle: any = { block: { rootID: "doc-active" } };
+    const activeTab: any = {
+      id: "tab-1",
+      parent: wnd,
+      headElement: activeHead,
+      model: { editor: { protyle: activeProtyle } }
+    };
+    activeTab.model.parent = activeTab;
+    activeProtyle.model = activeTab.model;
+    const lazyTab = {
+      id: "tab-2",
+      parent: wnd,
+      headElement: lazyHead,
+      model: undefined
+    };
+    const searchTab = {
+      id: "tab-3",
+      parent: wnd,
+      headElement: searchHead,
+      model: undefined
+    };
+    wnd.children = [activeTab, lazyTab, searchTab];
+
+    const tabs = collectCurrentWndOpenDocTabs(activeProtyle);
+    expect(tabs).toHaveLength(2);
+    expect(tabs[0]).toMatchObject({
+      tabId: "tab-1",
+      docId: "doc-active",
+      title: "已钉住文档",
+      iconHtml: "⭐",
+      isPinned: true,
+      isActive: true
+    });
+    expect(tabs[1]).toMatchObject({
+      tabId: "tab-2",
+      docId: "doc-lazy",
+      title: "未激活文档",
+      isPinned: false,
+      isActive: false
+    });
   });
 });

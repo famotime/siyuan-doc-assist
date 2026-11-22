@@ -1,6 +1,12 @@
 import { getAllModels, openTab } from "siyuan";
+import { OpenDocTabItem } from "@/core/dynamic-outline-core";
 import { getParentDocPath, SiblingDocRef } from "@/core/doc-navigation-core";
 import { FileTreeDoc, getPathByID, listDocsByPath } from "@/services/kernel-file";
+
+export type OpenDocTabRef = OpenDocTabItem & {
+  wnd?: unknown;
+  headElement?: HTMLElement;
+};
 
 /**
  * 查询当前文档在文档树中同一层级的兄弟文档。
@@ -46,6 +52,71 @@ export function findProtyleByElement(target: HTMLElement | null): unknown {
     if (element && (element === target || element.contains(target))) {
       return protyle;
     }
+  }
+  return undefined;
+}
+
+function parseTabInitData(headElement?: HTMLElement): { instance?: string; rootId?: string; title?: string } | null {
+  const raw = headElement?.getAttribute("data-initdata");
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as { instance?: string; rootId?: string; title?: string };
+  } catch {
+    return null;
+  }
+}
+
+/** 获取当前编辑器所属分屏（Wnd）内所有已打开的文档页签（含常驻钉住与未激活页签） */
+export function collectCurrentWndOpenDocTabs(protyle: unknown): OpenDocTabRef[] {
+  const currentTab = (protyle as any)?.model?.parent;
+  const wnd = currentTab?.parent;
+  const children = wnd?.children;
+  if (!Array.isArray(children)) {
+    return [];
+  }
+
+  const result: OpenDocTabRef[] = [];
+  for (const tab of children) {
+    const headElement = tab?.headElement as HTMLElement | undefined;
+    const editorRootId = tab?.model?.editor?.protyle?.block?.rootID as string | undefined;
+    const initData = editorRootId ? null : parseTabInitData(headElement);
+    const docId = editorRootId || (initData?.instance === "Editor" ? initData.rootId : undefined);
+    if (!docId) {
+      continue;
+    }
+
+    const titleFromHead = headElement?.querySelector(".item__text")?.textContent?.trim();
+    const title = titleFromHead || (tab?.title as string | undefined) || initData?.title || "未命名文档";
+    const iconHtml = headElement?.querySelector(".item__icon")?.innerHTML?.trim() || undefined;
+    const isPinned = Boolean(headElement?.classList?.contains("item--pin"));
+    const isActive = Boolean(headElement?.classList?.contains("item--focus"));
+
+    result.push({
+      tabId: String(tab?.id || docId),
+      docId,
+      title,
+      iconHtml,
+      isPinned,
+      isActive,
+      wnd,
+      headElement
+    });
+  }
+
+  return result;
+}
+
+/** 激活当前分屏中的目标文档页签；若页签 DOM 已失效则回退为 openTab */
+export async function activateOpenDocTab(target: OpenDocTabRef, app?: unknown): Promise<unknown> {
+  const wnd = target.wnd as { switchTab?: (head: HTMLElement, pushBack?: boolean) => void } | undefined;
+  if (wnd && typeof wnd.switchTab === "function" && target.headElement && document.contains(target.headElement)) {
+    wnd.switchTab(target.headElement, true);
+    return undefined;
+  }
+  if (target.docId) {
+    return openDocTab(app, target.docId);
   }
   return undefined;
 }

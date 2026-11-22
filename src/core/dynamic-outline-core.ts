@@ -19,6 +19,22 @@ export type DynamicOutlineItem = {
 
 export type DynamicOutlinePosition = "left" | "right";
 
+export type DynamicOutlineViewMode = "outline" | "open-docs";
+
+export type OpenDocTabItem = {
+  tabId: string;
+  docId: string;
+  title: string;
+  iconHtml?: string;
+  isPinned: boolean;
+  isActive: boolean;
+};
+
+export type FilteredOpenDocItem = {
+  item: OpenDocTabItem;
+  matchRange?: [number, number];
+};
+
 export type DynamicOutlineConfig = {
   enabled: boolean;
   followKeyInfo: boolean;
@@ -327,4 +343,27 @@ export function highlightMatchRanges(
   }
 
   return parts;
+}
+
+export function filterOpenDocItems(
+  items: OpenDocTabItem[],
+  query: string
+): FilteredOpenDocItem[] {
+  if (!items || items.length === 0) {
+    return [];
+  }
+
+  const trimmed = (query || "").trim();
+  if (!trimmed) {
+    return items.map((item) => ({ item }));
+  }
+
+  const result: FilteredOpenDocItem[] = [];
+  items.forEach((item) => {
+    const matchRange = PinyinMatch.match(item.title || "", trimmed);
+    if (matchRange) {
+      result.push({ item, matchRange });
+    }
+  });
+  return result;
 }

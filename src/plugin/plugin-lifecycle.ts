@@ -65,6 +65,10 @@ import {
 import { DynamicOutlinePosition } from "@/core/dynamic-outline-core";
 import { DynamicOutlineController } from "@/plugin/dynamic-outline-controller";
 import { createKeyInfoNavigation } from "@/plugin/key-info-navigation";
+import {
+  activateOpenDocTab,
+  collectCurrentWndOpenDocTabs
+} from "@/services/doc-navigation";
 import { getDocKeyInfo } from "@/services/key-info";
 import { GestureBindings } from "@/core/gesture-recognition-core";
 import { createMouseGestureController } from "@/plugin/mouse-gesture-controller";
@@ -133,6 +137,8 @@ export default class DocLinkToolkitPlugin extends Plugin {
         () => protyle || this.currentProtyle
       );
     },
+    getOpenDocTabs: (protyle) => collectCurrentWndOpenDocTabs(protyle || this.currentProtyle),
+    activateOpenDocTab: (item) => activateOpenDocTab(item, this.app),
     setPosition: (position) => this.setDynamicOutlinePosition(position),
     getConfig: () => ({
       enabled: this.dynamicOutlineEnabled,

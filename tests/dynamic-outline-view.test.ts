@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { DynamicOutlineItem } from "@/core/dynamic-outline-core";
+import { DynamicOutlineItem, OpenDocTabItem } from "@/core/dynamic-outline-core";
 import { createDynamicOutlineView } from "@/ui/dynamic-outline/dynamic-outline-view";
 
 describe("dynamic-outline-view", () => {
@@ -248,6 +248,240 @@ describe("dynamic-outline-view", () => {
     vi.advanceTimersByTime(500);
     expect(flyout.classList.contains("is-open")).toBe(false);
 
+    handle.destroy();
+  });
+
+  test("toggles between outline and open docs mode via title button", () => {
+    const onOpenDocClick = vi.fn();
+    const onViewModeChange = vi.fn();
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      onOpenDocClick,
+      onViewModeChange
+    });
+
+    handle.setItems(mockItems, "关键内容 · 全部");
+    const openDocs: OpenDocTabItem[] = [
+      {
+        tabId: "tab-1",
+        docId: "doc-1",
+        title: "置顶文档",
+        iconHtml: "<span>📌</span>",
+        isPinned: true,
+        isActive: false
+      },
+      {
+        tabId: "tab-2",
+        docId: "doc-2",
+        title: "当前文档",
+        isPinned: false,
+        isActive: true
+      }
+    ];
+    handle.setOpenDocs(openDocs);
+
+    const titleBtn = parent.querySelector(".doc-assistant-dynamic-outline__title-btn") as HTMLButtonElement;
+    const titleText = parent.querySelector(".doc-assistant-dynamic-outline__title-text") as HTMLElement;
+    const toTopBtn = parent.querySelector(".doc-assistant-dynamic-outline__top-btn") as HTMLElement;
+    const treeBtn = parent.querySelector(".doc-assistant-dynamic-outline__tree-toggle") as HTMLElement;
+    const flyout = parent.querySelector(".doc-assistant-dynamic-outline__flyout") as HTMLElement;
+    const container = parent.querySelector(".doc-assistant-dynamic-outline") as HTMLElement;
+
+    expect(titleText.textContent).toBe("关键内容 · 全部");
+    expect(toTopBtn.style.display).not.toBe("none");
+
+    container.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(flyout.classList.contains("is-open")).toBe(true);
+
+    // 点击标题切换到已打开文档
+    titleBtn.click();
+    expect(onViewModeChange).toHaveBeenCalledWith("open-docs");
+    expect(handle.getViewMode()).toBe("open-docs");
+    expect(titleText.textContent).toBe("已打开文档");
+    expect(toTopBtn.style.display).toBe("none");
+    expect(treeBtn.style.display).toBe("none");
+
+    const docRows = parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item");
+    expect(docRows).toHaveLength(2);
+    expect(docRows[0].classList.contains("popover__block")).toBe(true);
+    expect(docRows[0].getAttribute("data-id")).toBe("doc-1");
+    expect(docRows[0].querySelector(".doc-assistant-dynamic-outline__doc-pin")).not.toBeNull();
+    expect(docRows[0].querySelector(".doc-assistant-dynamic-outline__doc-icon")?.textContent).toBe("📌");
+    expect(docRows[1].classList.contains("is-active")).toBe(true);
+
+    // 搜索过滤已打开文档
+    const searchInput = parent.querySelector(".doc-assistant-dynamic-outline__search-input") as HTMLInputElement;
+    searchInput.value = "zdwd";
+    searchInput.dispatchEvent(new Event("input"));
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item")).toHaveLength(1);
+
+    // 点击跳转后保持在 open-docs 模式，但未固定时收起面板
+    (parent.querySelector(".doc-assistant-dynamic-outline__doc-item") as HTMLElement).click();
+    expect(onOpenDocClick).toHaveBeenCalledWith(openDocs[0]);
+    expect(handle.getViewMode()).toBe("open-docs");
+    expect(flyout.classList.contains("is-open")).toBe(false);
+
+    // 再次点击标题切回原大纲模式，恢复原模式名称与工具栏按钮
+    titleBtn.click();
+    expect(handle.getViewMode()).toBe("outline");
+    expect(titleText.textContent).toBe("关键内容 · 全部");
+    expect(toTopBtn.style.display).toBe("");
+    expect(treeBtn.style.display).toBe("");
+
+    handle.destroy();
+  });
+
+  test("keeps flyout open when pointer moves into native block popover", () => {
+    const handle = createDynamicOutlineView(parent, { onItemClick: vi.fn() });
+    const container = parent.querySelector(".doc-assistant-dynamic-outline") as HTMLElement;
+    const flyout = parent.querySelector(".doc-assistant-dynamic-outline__flyout") as HTMLElement;
+
+    const popoverEl = document.createElement("div");
+    popoverEl.className = "block__popover";
+    document.body.appendChild(popoverEl);
+
+    container.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(flyout.classList.contains("is-open")).toBe(true);
+
+    // 模拟鼠标直接移入 .block__popover
+    container.dispatchEvent(new MouseEvent("mouseleave", { relatedTarget: popoverEl }));
+    vi.advanceTimersByTime(400);
+    expect(flyout.classList.contains("is-open")).toBe(true);
+
+    // 鼠标离开浮窗进入外部区域后，面板延迟关闭
+    document.dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
+    vi.advanceTimersByTime(350);
+    expect(flyout.classList.contains("is-open")).toBe(false);
+
+    popoverEl.remove();
+    handle.destroy();
+  });
+
+  test("destroys unpinned block popover when pointer leaves doc item outside popover", () => {
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      initialViewMode: "open-docs"
+    });
+    const openDocs: OpenDocTabItem[] = [
+      { tabId: "t1", docId: "doc-1", title: "文档一", isPinned: false, isActive: true },
+      { tabId: "t2", docId: "doc-2", title: "文档二", isPinned: false, isActive: false }
+    ];
+    handle.setOpenDocs(openDocs);
+
+    const rows = parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item");
+    const row1 = rows[0] as HTMLElement;
+    const row2 = rows[1] as HTMLElement;
+
+    const destroyUnpinned = vi.fn();
+    const destroyPinned = vi.fn();
+    const unpinnedEl = document.createElement("div");
+    unpinnedEl.className = "block__popover";
+    unpinnedEl.setAttribute("data-pin", "false");
+    const pinnedEl = document.createElement("div");
+    pinnedEl.className = "block__popover";
+    pinnedEl.setAttribute("data-pin", "true");
+
+    (window as any).siyuan = {
+      blockPanels: [
+        { targetElement: row1, element: unpinnedEl, destroy: destroyUnpinned },
+        { targetElement: row2, element: pinnedEl, destroy: destroyPinned }
+      ]
+    };
+
+    // 鼠标离开 row1 到外部非浮窗区域
+    row1.dispatchEvent(new MouseEvent("mouseleave", { relatedTarget: document.body }));
+    vi.advanceTimersByTime(200);
+    expect(destroyUnpinned).toHaveBeenCalledTimes(1);
+
+    // 已钉住的浮窗不受影响
+    row2.dispatchEvent(new MouseEvent("mouseleave", { relatedTarget: document.body }));
+    vi.advanceTimersByTime(200);
+    expect(destroyPinned).not.toHaveBeenCalled();
+
+    // 鼠标从 row1 直接移入浮窗时，不关闭；离开浮窗后再关闭
+    destroyUnpinned.mockClear();
+    document.body.appendChild(unpinnedEl);
+    row1.dispatchEvent(new MouseEvent("mouseleave", { relatedTarget: unpinnedEl }));
+    vi.advanceTimersByTime(200);
+    expect(destroyUnpinned).not.toHaveBeenCalled();
+
+    document.dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
+    expect(destroyUnpinned).toHaveBeenCalledTimes(1);
+
+    unpinnedEl.remove();
+    delete (window as any).siyuan;
+    handle.destroy();
+  });
+
+  test("waits 350ms hover delay before allowing popover and preserves popover while moving via sibling row", () => {
+    const handle = createDynamicOutlineView(parent, {
+      onItemClick: vi.fn(),
+      initialViewMode: "open-docs"
+    });
+    const openDocs: OpenDocTabItem[] = [
+      { tabId: "t1", docId: "doc-1", title: "文档一", isPinned: false, isActive: true },
+      { tabId: "t2", docId: "doc-2", title: "文档二", isPinned: false, isActive: false }
+    ];
+    handle.setOpenDocs(openDocs);
+
+    const rows = parent.querySelectorAll(".doc-assistant-dynamic-outline__doc-item");
+    const row1 = rows[0] as HTMLElement;
+    const row2 = rows[1] as HTMLElement;
+
+    const destroyUnpinned = vi.fn().mockName("destroyUnpinned");
+    const unpinnedEl = document.createElement("div");
+    unpinnedEl.className = "block__popover";
+    unpinnedEl.setAttribute("data-pin", "false");
+    document.body.appendChild(unpinnedEl);
+
+    (window as any).siyuan = {
+      blockPanels: []
+    };
+
+    // 默认带 prevent-popover="true"，需在文档项上停顿 350ms 后才允许触发浮窗
+    expect(row1.getAttribute("prevent-popover")).toBe("true");
+    const mouseoverSpy = vi.fn().mockName("mouseoverSpy");
+    row1.addEventListener("mouseover", mouseoverSpy);
+    row1.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(200);
+    expect(row1.getAttribute("prevent-popover")).toBe("true");
+    expect(mouseoverSpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(160);
+    expect(row1.getAttribute("prevent-popover")).toBeNull();
+    expect(mouseoverSpy).toHaveBeenCalledTimes(1);
+
+    // 模拟浮窗已弹出：再次移入同一个文档项时保持稳定且加回 prevent-popover="true"，防止思源重复重建导致闪烁
+    (window as any).siyuan.blockPanels.push({
+      targetElement: row1,
+      element: unpinnedEl,
+      destroy: destroyUnpinned
+    });
+    row1.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(400);
+    expect(mouseoverSpy).toHaveBeenCalledTimes(1);
+    expect(row1.getAttribute("prevent-popover")).toBe("true");
+    expect(destroyUnpinned).not.toHaveBeenCalled();
+
+    // 鼠标从 row1 经过 row2 去往浮窗时，不立即销毁 row1 浮窗且临时阻止 row2 抢占
+    row1.dispatchEvent(new MouseEvent("mouseleave", { relatedTarget: row2 }));
+    expect(row2.getAttribute("prevent-popover")).toBe("true");
+    vi.advanceTimersByTime(100);
+    expect(destroyUnpinned).not.toHaveBeenCalled();
+
+    // 在缓冲时间内鼠标进入浮窗内部
+    unpinnedEl.dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
+    vi.advanceTimersByTime(300);
+    expect(destroyUnpinned).not.toHaveBeenCalled();
+
+    // 离开浮窗进入外部区域后，浮窗销毁且保持 prevent-popover="true"
+    document.body.dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
+    expect(destroyUnpinned).toHaveBeenCalledTimes(1);
+    expect(row1.getAttribute("prevent-popover")).toBe("true");
+    expect(row2.getAttribute("prevent-popover")).toBe("true");
+
+    unpinnedEl.remove();
+    delete (window as any).siyuan;
     handle.destroy();
   });
 });

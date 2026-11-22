@@ -3,12 +3,15 @@ import {
   DynamicOutlineConfig,
   DynamicOutlineItem,
   DynamicOutlinePosition,
+  DynamicOutlineViewMode,
   estimateGlobalDocumentProgress,
   findActiveOutlineItemIndex,
+  OpenDocTabItem,
   ProgressAnchor
 } from "@/core/dynamic-outline-core";
 import { KeyInfoFilter, KeyInfoItem, resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { ProtyleLike } from "@/plugin/doc-context";
+import { OpenDocTabRef } from "@/services/doc-navigation";
 import { resolveCurrentHeadingColors } from "@/services/key-info-heading-color";
 import {
   createDynamicOutlineView,
@@ -22,6 +25,8 @@ export type DynamicOutlineControllerDeps = {
   getKeyInfoFilter?: () => KeyInfoFilter | undefined;
   fetchDocKeyInfo: (docId: string, protyle?: unknown) => Promise<{ items: KeyInfoItem[] }>;
   navigateBlock: (blockId: string, protyle?: ProtyleLike) => void;
+  getOpenDocTabs?: (protyle?: ProtyleLike) => OpenDocTabRef[];
+  activateOpenDocTab?: (item: OpenDocTabRef) => Promise<unknown> | void;
   getConfig: () => DynamicOutlineConfig;
   setPosition?: (position: DynamicOutlinePosition) => Promise<void> | void;
 };
@@ -34,6 +39,8 @@ export class DynamicOutlineController {
   private onScrollHandler?: () => void;
   private onInputHandler?: () => void;
   private currentItems: DynamicOutlineItem[] = [];
+  private currentOpenDocRefs: OpenDocTabRef[] = [];
+  private viewMode: DynamicOutlineViewMode = "outline";
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private refreshRequestId = 0;
   private lastDocId = "";
@@ -107,9 +114,28 @@ export class DynamicOutlineController {
     const config = this.deps.getConfig();
     this.view = createDynamicOutlineView(mountContainer, {
       position: config.position,
+      initialViewMode: this.viewMode,
       onItemClick: (item) => {
         const activeProtyle = protyle || this.deps.getCurrentProtyle();
         this.deps.navigateBlock(item.blockId, activeProtyle);
+      },
+      onOpenDocClick: (docItem: OpenDocTabItem) => {
+        const matchedRef =
+          this.currentOpenDocRefs.find(
+            (ref) => ref.tabId === docItem.tabId && ref.docId === docItem.docId
+          ) || docItem;
+        void this.deps.activateOpenDocTab?.(matchedRef);
+      },
+      onViewModeChange: (mode) => {
+        this.viewMode = mode;
+        if (mode === "open-docs") {
+          this.refreshOpenDocs(protyle || this.deps.getCurrentProtyle());
+        }
+      },
+      onFlyoutOpen: () => {
+        if (this.viewMode === "open-docs") {
+          this.refreshOpenDocs(protyle || this.deps.getCurrentProtyle());
+        }
       },
       onTogglePosition: (nextPos) => {
         void this.deps.setPosition?.(nextPos);
@@ -249,9 +275,23 @@ export class DynamicOutlineController {
     }
   }
 
+  public refreshOpenDocs(protyle?: ProtyleLike) {
+    if (!this.view) {
+      return;
+    }
+    const targetProtyle = protyle || this.deps.getCurrentProtyle();
+    const refs = this.deps.getOpenDocTabs?.(targetProtyle) || [];
+    this.currentOpenDocRefs = refs;
+    this.view.setOpenDocs(refs);
+  }
+
   public async refreshData(protyle?: ProtyleLike) {
     if (!this.view) {
       return;
+    }
+
+    if (this.viewMode === "open-docs") {
+      this.refreshOpenDocs(protyle);
     }
 
     const docId = this.deps.getCurrentDocId();

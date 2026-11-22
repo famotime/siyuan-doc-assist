@@ -2,9 +2,13 @@ import {
   calculateViewportIndicator,
   DynamicOutlineItem,
   DynamicOutlinePosition,
+  DynamicOutlineViewMode,
   filterDynamicOutlineItems,
+  FilteredOpenDocItem,
   FilteredOutlineItem,
-  highlightMatchRanges
+  filterOpenDocItems,
+  highlightMatchRanges,
+  OpenDocTabItem
 } from "@/core/dynamic-outline-core";
 import { resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { HeadingLevel } from "@/core/key-info-heading-color-core";
@@ -34,10 +38,20 @@ const LUCIDE_ARROW_UP_TO_LINE_SVG =
 const LUCIDE_ARROW_DOWN_TO_LINE_SVG =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" fill="none"></path><path d="M6 19h12"></path></svg>';
 
+const LUCIDE_MODE_SWITCH_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5" fill="none"></path><path d="m7 9 5-5 5 5" fill="none"></path></svg>';
+
+const LUCIDE_DOC_PIN_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="none"></path></svg>';
+
 export type DynamicOutlineViewOptions = {
   position?: DynamicOutlinePosition;
+  initialViewMode?: DynamicOutlineViewMode;
   isZh?: boolean;
   onItemClick: (item: DynamicOutlineItem) => void;
+  onOpenDocClick?: (item: OpenDocTabItem) => void;
+  onViewModeChange?: (mode: DynamicOutlineViewMode) => void;
+  onFlyoutOpen?: () => void;
   onPinChange?: (pinned: boolean) => void;
   onTogglePosition?: (nextPosition: DynamicOutlinePosition) => void;
   onJumpToTop?: () => void;
@@ -47,6 +61,9 @@ export type DynamicOutlineViewOptions = {
 
 export type DynamicOutlineViewHandle = {
   setItems: (items: DynamicOutlineItem[], modeLabel?: string) => void;
+  setOpenDocs: (items: OpenDocTabItem[]) => void;
+  setViewMode: (mode: DynamicOutlineViewMode) => void;
+  getViewMode: () => DynamicOutlineViewMode;
   setScroll: (
     scrollTop: number,
     scrollHeight: number,
@@ -87,21 +104,31 @@ export function createDynamicOutlineView(
   header.className = "doc-assistant-dynamic-outline__header";
   flyout.appendChild(header);
 
+  const isZh = options.isZh !== undefined ? options.isZh : true;
+
   const titleWrap = document.createElement("div");
   titleWrap.className = "doc-assistant-dynamic-outline__title";
   header.appendChild(titleWrap);
 
+  const titleBtn = document.createElement("button");
+  titleBtn.className = "doc-assistant-dynamic-outline__title-btn";
+  titleBtn.setAttribute("type", "button");
+  titleWrap.appendChild(titleBtn);
+
   const titleText = document.createElement("span");
   titleText.className = "doc-assistant-dynamic-outline__title-text";
   titleText.textContent = "文档大纲";
-  titleWrap.appendChild(titleText);
+  titleBtn.appendChild(titleText);
+
+  const titleSwitchIcon = document.createElement("span");
+  titleSwitchIcon.className = "doc-assistant-dynamic-outline__title-switch-icon";
+  titleSwitchIcon.innerHTML = LUCIDE_MODE_SWITCH_SVG;
+  titleBtn.appendChild(titleSwitchIcon);
 
   const countBadge = document.createElement("span");
   countBadge.className = "doc-assistant-dynamic-outline__count";
   countBadge.textContent = "0";
   titleWrap.appendChild(countBadge);
-
-  const isZh = options.isZh !== undefined ? options.isZh : true;
 
   const actionsWrap = document.createElement("div");
   actionsWrap.className = "doc-assistant-dynamic-outline__header-actions";
@@ -182,17 +209,56 @@ export function createDynamicOutlineView(
   list.className = "doc-assistant-dynamic-outline__list";
   flyout.appendChild(list);
 
+  const DOC_POPOVER_HOVER_DELAY_MS = 350;
+  let viewMode: DynamicOutlineViewMode = options.initialViewMode || "outline";
   let currentItems: DynamicOutlineItem[] = [];
   let currentModeLabel = "文档大纲";
   let filteredItems: FilteredOutlineItem[] = [];
+  let currentOpenDocs: OpenDocTabItem[] = [];
+  let filteredOpenDocs: FilteredOpenDocItem[] = [];
   let searchQuery = "";
   let showTreeContext = false;
   let selectedFilteredIndex = -1;
   let isPinned = false;
   let closeTimer: ReturnType<typeof setTimeout> | null = null;
+  let rowPopoverTimers: ReturnType<typeof setTimeout>[] = [];
+  const rowHoverTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
+  const rowCloseTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
+  const hoveredRows = new WeakSet<HTMLElement>();
+  let pendingPopoverRow: HTMLElement | null = null;
+  let hasEnteredPopover = false;
+  let popoverMoveListener: ((e: PointerEvent) => void) | null = null;
   let activeIndex = -1;
   const itemElements: HTMLElement[] = [];
   const tickElements: HTMLElement[] = [];
+
+  const syncModeControls = () => {
+    const isOpenDocs = viewMode === "open-docs";
+    container.classList.toggle("is-open-docs-mode", isOpenDocs);
+    toTopBtn.style.display = isOpenDocs ? "none" : "";
+    toBottomBtn.style.display = isOpenDocs ? "none" : "";
+    treeToggleBtn.style.display = isOpenDocs ? "none" : "";
+    if (isOpenDocs) {
+      searchInput.placeholder = isZh ?
+        "过滤已打开文档 (拼音首字母/关键词)" :
+        "Filter open docs (pinyin/keyword)";
+      titleBtn.setAttribute(
+        "title",
+        isZh ? "点击切换回文档大纲" : "Click to switch to outline"
+      );
+      titleText.textContent = isZh ? "已打开文档" : "Open Docs";
+    } else {
+      searchInput.placeholder = isZh ?
+        "过滤章节 (拼音首字母/关键词)" :
+        "Filter chapters (pinyin/keyword)";
+      titleBtn.setAttribute(
+        "title",
+        isZh ? "点击切换为已打开文档" : "Click to switch to open docs"
+      );
+      titleText.textContent = currentModeLabel || "文档大纲";
+    }
+  };
+  syncModeControls();
 
   const updateTreeToggleBtn = () => {
     if (showTreeContext) {
@@ -224,16 +290,127 @@ export function createDynamicOutlineView(
     return isComposing || document.activeElement === searchInput;
   };
 
+  const clearRowPopoverTimers = () => {
+    rowPopoverTimers.forEach((timer) => clearTimeout(timer));
+    rowPopoverTimers = [];
+    rowHoverTimers.forEach((timer) => clearTimeout(timer));
+    rowHoverTimers.clear();
+    rowCloseTimers.forEach((timer) => clearTimeout(timer));
+    rowCloseTimers.clear();
+  };
+
+  const isPointerInElement = (el: HTMLElement) => {
+    return hoveredRows.has(el);
+  };
+
+  const resetPreventPopoverAttrs = () => {
+    itemElements.forEach((el) => {
+      if (el.classList.contains("doc-assistant-dynamic-outline__doc-item")) {
+        el.setAttribute("prevent-popover", "true");
+      }
+    });
+  };
+
+  const hasUnpinnedRowPopover = (row: HTMLElement) => {
+    const blockPanels = (window as any)?.siyuan?.blockPanels;
+    if (!Array.isArray(blockPanels)) {
+      return false;
+    }
+    return blockPanels.some((panel) => {
+      if (!panel || panel.element?.getAttribute?.("data-pin") === "true") {
+        return false;
+      }
+      const targetEl = panel.targetElement as Node | undefined;
+      return targetEl === row || (targetEl ? row.contains(targetEl) : false);
+    });
+  };
+
+  const destroyUnpinnedRowPopovers = (row?: HTMLElement | null) => {
+    const blockPanels = (window as any)?.siyuan?.blockPanels;
+    if (!Array.isArray(blockPanels)) {
+      return;
+    }
+    for (let i = blockPanels.length - 1; i >= 0; i--) {
+      const panel = blockPanels[i];
+      if (!panel || panel.element?.getAttribute?.("data-pin") === "true") {
+        continue;
+      }
+      const targetEl = panel.targetElement as Node | undefined;
+      const matched = row ?
+          (targetEl === row || (targetEl ? row.contains(targetEl) : false)) :
+          Boolean(targetEl && list.contains(targetEl));
+      if (matched && typeof panel.destroy === "function") {
+        panel.destroy();
+      }
+    }
+  };
+
+  const clearPopoverMoveListener = () => {
+    if (popoverMoveListener) {
+      document.removeEventListener("pointermove", popoverMoveListener);
+      popoverMoveListener = null;
+    }
+  };
+
+  const isPointerInPopover = (relatedTarget?: EventTarget | null) => {
+    if (relatedTarget && relatedTarget instanceof Element && relatedTarget.closest(".block__popover")) {
+      return true;
+    }
+    try {
+      return Boolean(document.querySelector(".block__popover:hover"));
+    } catch {
+      return false;
+    }
+  };
+
   const openFlyout = () => {
+    clearPopoverMoveListener();
     if (closeTimer) {
       clearTimeout(closeTimer);
       closeTimer = null;
     }
     flyout.classList.add("is-open");
+    options.onFlyoutOpen?.();
   };
 
-  const closeFlyoutLater = () => {
+  const schedulePopoverLeaveWatch = () => {
+    if (popoverMoveListener) {
+      return;
+    }
+    popoverMoveListener = (moveEvent: PointerEvent) => {
+      const target = moveEvent.target;
+      const inContainer = target instanceof Node ? container.contains(target) : false;
+      const inPopover =
+        (target instanceof Element ? Boolean(target.closest(".block__popover")) : false) ||
+        isPointerInPopover();
+      if (inPopover) {
+        hasEnteredPopover = true;
+      }
+      if (
+        pendingPopoverRow &&
+        hasEnteredPopover &&
+        !inPopover &&
+        !isPointerInElement(pendingPopoverRow)
+      ) {
+        destroyUnpinnedRowPopovers(pendingPopoverRow);
+        resetPreventPopoverAttrs();
+        pendingPopoverRow = null;
+        hasEnteredPopover = false;
+      }
+      if (!inContainer && !inPopover) {
+        clearPopoverMoveListener();
+        closeFlyoutLater();
+      }
+    };
+    document.addEventListener("pointermove", popoverMoveListener, { passive: true });
+  };
+
+  const closeFlyoutLater = (relatedTarget?: EventTarget | null) => {
     if (isPinned || isInputActive()) {
+      return;
+    }
+    if (isPointerInPopover(relatedTarget)) {
+      schedulePopoverLeaveWatch();
       return;
     }
     if (closeTimer) {
@@ -244,13 +421,31 @@ export function createDynamicOutlineView(
         closeTimer = null;
         return;
       }
+      if (isPointerInPopover()) {
+        closeTimer = null;
+        schedulePopoverLeaveWatch();
+        return;
+      }
       flyout.classList.remove("is-open");
       closeTimer = null;
     }, 300);
   };
 
   container.addEventListener("mouseenter", openFlyout);
-  container.addEventListener("mouseleave", closeFlyoutLater);
+  container.addEventListener("mouseleave", (e) => {
+    closeFlyoutLater(e.relatedTarget);
+  });
+
+  titleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    viewMode = viewMode === "outline" ? "open-docs" : "outline";
+    searchInput.value = "";
+    searchQuery = "";
+    selectedFilteredIndex = -1;
+    syncModeControls();
+    options.onViewModeChange?.(viewMode);
+    updateFilteredView();
+  });
 
   toTopBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -329,11 +524,228 @@ export function createDynamicOutlineView(
     });
   };
 
+  const appendHighlightedText = (
+    target: HTMLElement,
+    text: string,
+    matchRange?: [number, number]
+  ) => {
+    if (matchRange) {
+      const segments = highlightMatchRanges(text, matchRange);
+      segments.forEach((seg) => {
+        if (seg.highlight) {
+          const mark = document.createElement("mark");
+          mark.className = "doc-assistant-dynamic-outline__highlight";
+          mark.textContent = seg.text;
+          target.appendChild(mark);
+        } else {
+          target.appendChild(document.createTextNode(seg.text));
+        }
+      });
+    } else {
+      target.textContent = text || "(空)";
+    }
+  };
+
+  const renderOpenDocsList = () => {
+    if (filteredOpenDocs.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "doc-assistant-dynamic-outline__empty";
+      empty.textContent = searchQuery.trim() ?
+          (isZh ? "未匹配到已打开文档" : "No matching open docs") :
+          (isZh ? "当前编辑区暂无已打开文档" : "No open documents");
+      list.appendChild(empty);
+      return;
+    }
+
+    filteredOpenDocs.forEach((fDoc, index) => {
+      const doc = fDoc.item;
+      const row = document.createElement("div");
+      row.className =
+        "doc-assistant-dynamic-outline__item doc-assistant-dynamic-outline__doc-item popover__block";
+      row.setAttribute("data-level", "0");
+      row.setAttribute("data-id", doc.docId);
+      row.setAttribute("data-doc-id", doc.docId);
+      row.setAttribute("data-tab-id", doc.tabId);
+      row.setAttribute("prevent-popover", "true");
+
+      if (doc.isPinned) {
+        row.classList.add("is-doc-pinned");
+      }
+      if (doc.isActive) {
+        row.classList.add("is-active");
+      }
+      if (index === selectedFilteredIndex) {
+        row.classList.add("is-selected");
+      }
+
+      if (doc.isPinned) {
+        const pinBadge = document.createElement("span");
+        pinBadge.className = "doc-assistant-dynamic-outline__doc-pin";
+        pinBadge.setAttribute("title", isZh ? "常驻钉住" : "Pinned");
+        pinBadge.innerHTML = LUCIDE_DOC_PIN_SVG;
+        row.appendChild(pinBadge);
+      }
+
+      if (doc.iconHtml) {
+        const iconSpan = document.createElement("span");
+        iconSpan.className = "doc-assistant-dynamic-outline__doc-icon";
+        iconSpan.innerHTML = doc.iconHtml;
+        row.appendChild(iconSpan);
+      }
+
+      const textSpan = document.createElement("span");
+      textSpan.className = "doc-assistant-dynamic-outline__item-text";
+      textSpan.setAttribute("data-level", "0");
+      textSpan.setAttribute("title", doc.title);
+      appendHighlightedText(textSpan, doc.title, fDoc.matchRange);
+      row.appendChild(textSpan);
+
+      row.addEventListener("click", () => {
+        options.onOpenDocClick?.(doc);
+        if (!isPinned) {
+          flyout.classList.remove("is-open");
+        }
+      });
+
+      row.addEventListener("mouseenter", () => {
+        hoveredRows.add(row);
+        const pendingCloseTimer = rowCloseTimers.get(row);
+        if (pendingCloseTimer) {
+          clearTimeout(pendingCloseTimer);
+          rowCloseTimers.delete(row);
+        }
+        const existingTimer = rowHoverTimers.get(row);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+        }
+
+        // 若当前已显示该文档的浮窗，保持 prevent-popover="true" 防止思源重复重建同一浮窗导致闪烁
+        if (hasUnpinnedRowPopover(row)) {
+          row.setAttribute("prevent-popover", "true");
+          if (pendingPopoverRow === row) {
+            pendingPopoverRow = null;
+            hasEnteredPopover = false;
+          }
+          return;
+        }
+
+        const hoverTimer = setTimeout(() => {
+          rowHoverTimers.delete(row);
+          if (hasEnteredPopover || isPointerInPopover()) {
+            return;
+          }
+          if (hasUnpinnedRowPopover(row)) {
+            row.setAttribute("prevent-popover", "true");
+            return;
+          }
+          if (pendingPopoverRow && pendingPopoverRow !== row) {
+            destroyUnpinnedRowPopovers(pendingPopoverRow);
+            pendingPopoverRow = null;
+          }
+          resetPreventPopoverAttrs();
+          row.removeAttribute("prevent-popover");
+          row.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+          if (hasUnpinnedRowPopover(row)) {
+            row.setAttribute("prevent-popover", "true");
+          }
+        }, DOC_POPOVER_HOVER_DELAY_MS);
+        rowHoverTimers.set(row, hoverTimer);
+      });
+
+      row.addEventListener("mouseleave", (e) => {
+        hoveredRows.delete(row);
+        const existingHoverTimer = rowHoverTimers.get(row);
+        if (existingHoverTimer) {
+          clearTimeout(existingHoverTimer);
+          rowHoverTimers.delete(row);
+        }
+        row.setAttribute("prevent-popover", "true");
+
+        const hasActivePopoverForRow = hasUnpinnedRowPopover(row);
+
+        if (isPointerInPopover(e.relatedTarget)) {
+          pendingPopoverRow = row;
+          hasEnteredPopover = true;
+          schedulePopoverLeaveWatch();
+          return;
+        }
+
+        let nextDocRow: HTMLElement | null = null;
+        if (e.relatedTarget instanceof Element) {
+          nextDocRow = e.relatedTarget.closest(".doc-assistant-dynamic-outline__doc-item") as HTMLElement | null;
+        }
+        const movingToSiblingDoc = Boolean(nextDocRow && nextDocRow !== row && list.contains(nextDocRow));
+
+        const existingCloseTimer = rowCloseTimers.get(row);
+        if (existingCloseTimer) {
+          clearTimeout(existingCloseTimer);
+        }
+
+        if (movingToSiblingDoc && hasActivePopoverForRow) {
+          // 鼠标从当前文档向下方/上方移动经过相邻文档项去往浮窗时，保持当前浮窗等待用户进入浮窗
+          pendingPopoverRow = row;
+          hasEnteredPopover = false;
+          schedulePopoverLeaveWatch();
+
+          const timer = setTimeout(() => {
+            rowCloseTimers.delete(row);
+            rowPopoverTimers = rowPopoverTimers.filter((t) => t !== timer);
+            if (isPointerInElement(row)) {
+              return;
+            }
+            if (isPointerInPopover() || hasEnteredPopover) {
+              return;
+            }
+            destroyUnpinnedRowPopovers(row);
+            resetPreventPopoverAttrs();
+            pendingPopoverRow = null;
+          }, 360);
+          rowCloseTimers.set(row, timer);
+          rowPopoverTimers.push(timer);
+          return;
+        }
+
+        const timer = setTimeout(() => {
+          rowCloseTimers.delete(row);
+          rowPopoverTimers = rowPopoverTimers.filter((t) => t !== timer);
+          if (isPointerInElement(row)) {
+            return;
+          }
+          if (isPointerInPopover()) {
+            pendingPopoverRow = row;
+            hasEnteredPopover = true;
+            schedulePopoverLeaveWatch();
+            return;
+          }
+          destroyUnpinnedRowPopovers(row);
+          resetPreventPopoverAttrs();
+          if (pendingPopoverRow === row) {
+            pendingPopoverRow = null;
+            hasEnteredPopover = false;
+          }
+        }, 150);
+        rowCloseTimers.set(row, timer);
+        rowPopoverTimers.push(timer);
+      });
+
+      list.appendChild(row);
+      itemElements.push(row);
+    });
+  };
+
   const renderList = () => {
+    clearRowPopoverTimers();
+    pendingPopoverRow = null;
+    hasEnteredPopover = false;
     list.innerHTML = "";
     itemElements.length = 0;
 
-    titleText.textContent = currentModeLabel || "文档大纲";
+    syncModeControls();
+
+    if (viewMode === "open-docs") {
+      renderOpenDocsList();
+      return;
+    }
 
     if (filteredItems.length === 0) {
       const empty = document.createElement("div");
@@ -375,22 +787,7 @@ export function createDynamicOutlineView(
       textSpan.className = "doc-assistant-dynamic-outline__item-text";
       textSpan.setAttribute("data-level", String(item.level));
       textSpan.setAttribute("title", item.text);
-
-      if (fItem.matchRange) {
-        const segments = highlightMatchRanges(item.text, fItem.matchRange);
-        segments.forEach((seg) => {
-          if (seg.highlight) {
-            const mark = document.createElement("mark");
-            mark.className = "doc-assistant-dynamic-outline__highlight";
-            mark.textContent = seg.text;
-            textSpan.appendChild(mark);
-          } else {
-            textSpan.appendChild(document.createTextNode(seg.text));
-          }
-        });
-      } else {
-        textSpan.textContent = item.text || "(空)";
-      }
+      appendHighlightedText(textSpan, item.text, fItem.matchRange);
 
       row.appendChild(textSpan);
 
@@ -409,6 +806,28 @@ export function createDynamicOutlineView(
   const updateFilteredView = () => {
     const query = searchQuery.trim();
     clearBtn.style.display = query ? "inline-flex" : "none";
+
+    if (viewMode === "open-docs") {
+      if (!query) {
+        searchBar.classList.remove("is-filtering");
+        countBadge.textContent = String(currentOpenDocs.length);
+        matchCountBadge.textContent = isZh ? `${currentOpenDocs.length} 项` : `${currentOpenDocs.length} items`;
+        filteredOpenDocs = currentOpenDocs.map((item) => ({ item }));
+      } else {
+        searchBar.classList.add("is-filtering");
+        filteredOpenDocs = filterOpenDocItems(currentOpenDocs, query);
+        countBadge.textContent = `${filteredOpenDocs.length}/${currentOpenDocs.length}`;
+        matchCountBadge.textContent = isZh ?
+          `${filteredOpenDocs.length}/${currentOpenDocs.length} 项` :
+          `${filteredOpenDocs.length}/${currentOpenDocs.length}`;
+      }
+      updateMinimapFilterMarks(new Set());
+      if (selectedFilteredIndex >= filteredOpenDocs.length) {
+        selectedFilteredIndex = -1;
+      }
+      renderList();
+      return;
+    }
 
     if (!query) {
       searchBar.classList.remove("is-filtering");
@@ -484,23 +903,38 @@ export function createDynamicOutlineView(
   });
 
   searchInput.addEventListener("keydown", (e) => {
+    const activeListLength =
+      viewMode === "open-docs" ? filteredOpenDocs.length : filteredItems.length;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (filteredItems.length > 0) {
+      if (activeListLength > 0) {
         selectedFilteredIndex =
-          selectedFilteredIndex < filteredItems.length - 1 ? selectedFilteredIndex + 1 : 0;
+          selectedFilteredIndex < activeListLength - 1 ? selectedFilteredIndex + 1 : 0;
         updateSelectionHighlight();
       }
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      if (filteredItems.length > 0) {
+      if (activeListLength > 0) {
         selectedFilteredIndex =
-          selectedFilteredIndex > 0 ? selectedFilteredIndex - 1 : filteredItems.length - 1;
+          selectedFilteredIndex > 0 ? selectedFilteredIndex - 1 : activeListLength - 1;
         updateSelectionHighlight();
       }
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (filteredItems.length > 0) {
+      if (viewMode === "open-docs") {
+        if (filteredOpenDocs.length > 0) {
+          const target =
+            selectedFilteredIndex >= 0 && filteredOpenDocs[selectedFilteredIndex] ?
+              filteredOpenDocs[selectedFilteredIndex] :
+              filteredOpenDocs[0];
+          if (target) {
+            options.onOpenDocClick?.(target.item);
+            if (!isPinned) {
+              flyout.classList.remove("is-open");
+            }
+          }
+        }
+      } else if (filteredItems.length > 0) {
         const target =
           selectedFilteredIndex >= 0 && filteredItems[selectedFilteredIndex] ?
             filteredItems[selectedFilteredIndex] :
@@ -565,6 +999,25 @@ export function createDynamicOutlineView(
     updateFilteredView();
   };
 
+  const setOpenDocs = (items: OpenDocTabItem[]) => {
+    currentOpenDocs = items;
+    if (viewMode === "open-docs") {
+      updateFilteredView();
+    }
+  };
+
+  const setViewMode = (mode: DynamicOutlineViewMode) => {
+    if (viewMode === mode) {
+      return;
+    }
+    viewMode = mode;
+    selectedFilteredIndex = -1;
+    syncModeControls();
+    updateFilteredView();
+  };
+
+  const getViewMode = (): DynamicOutlineViewMode => viewMode;
+
   const setScroll = (
     scrollTop: number,
     scrollHeight: number,
@@ -585,6 +1038,9 @@ export function createDynamicOutlineView(
 
   const setActiveIndex = (index: number) => {
     activeIndex = index;
+    if (viewMode !== "outline") {
+      return;
+    }
     const targetItem = currentItems[index];
     const targetFilteredIdx = targetItem ? filteredItems.findIndex((f) => f.item.id === targetItem.id) : -1;
     itemElements.forEach((el, i) => {
@@ -619,6 +1075,10 @@ export function createDynamicOutlineView(
   };
 
   const destroy = () => {
+    clearPopoverMoveListener();
+    clearRowPopoverTimers();
+    pendingPopoverRow = null;
+    hasEnteredPopover = false;
     if (closeTimer) {
       clearTimeout(closeTimer);
       closeTimer = null;
@@ -628,6 +1088,9 @@ export function createDynamicOutlineView(
 
   return {
     setItems,
+    setOpenDocs,
+    setViewMode,
+    getViewMode,
     setScroll,
     setActiveIndex,
     setPosition,
