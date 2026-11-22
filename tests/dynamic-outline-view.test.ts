@@ -901,4 +901,61 @@ describe("dynamic-outline-view", () => {
     handle.destroy();
     vi.advanceTimersByTime(300);
   });
+
+  test("lazy-renders, virtualizes large outline lists, samples minimap ticks, and debounces search", () => {
+    const onItemClick = vi.fn();
+    const handle = createDynamicOutlineView(parent, { onItemClick });
+
+    const largeItems: DynamicOutlineItem[] = Array.from({ length: 300 }, (_, i) => ({
+      id: `h-${i}`,
+      blockId: `b-${i}`,
+      text: i === 250 ? "特殊目标章节" : `第 ${i} 章`,
+      type: "title",
+      level: ((i % 3) + 1) as 1 | 2 | 3,
+      posRatio: i / 299,
+      order: i
+    }));
+
+    // 浮岛关闭时设置大量标题：延迟构建列表 DOM，Minimap 采样降噪
+    handle.setItems(largeItems, "文档大纲");
+    expect(parent.querySelector(".doc-assistant-dynamic-outline__count")?.textContent).toBe("300");
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__item")).toHaveLength(0);
+    const ticks = parent.querySelectorAll(".doc-assistant-dynamic-outline__tick");
+    expect(ticks.length).toBeGreaterThan(0);
+    expect(ticks.length).toBeLessThan(120);
+
+    // 悬停展开浮岛：触发虚拟窗口渲染，仅挂载视口及缓冲区行
+    const container = parent.querySelector(".doc-assistant-dynamic-outline") as HTMLElement;
+    container.dispatchEvent(new MouseEvent("mouseenter"));
+    const renderedRows = parent.querySelectorAll(".doc-assistant-dynamic-outline__item");
+    expect(renderedRows.length).toBeGreaterThan(10);
+    expect(renderedRows.length).toBeLessThan(60);
+
+    // 事件委托点击能正确回调对应 item
+    (renderedRows[2] as HTMLElement).click();
+    expect(onItemClick).toHaveBeenCalledWith(largeItems[2]);
+
+    // 重新打开后测试 activeIndex 切换与搜索防抖
+    container.dispatchEvent(new MouseEvent("mouseenter"));
+    handle.setActiveIndex(0);
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__item")[0].classList.contains("is-active")).toBe(true);
+    handle.setActiveIndex(1);
+    const currentRows = parent.querySelectorAll(".doc-assistant-dynamic-outline__item");
+    expect(currentRows[0].classList.contains("is-active")).toBe(false);
+    expect(currentRows[1].classList.contains("is-active")).toBe(true);
+
+    // 大纲项 > 150 时输入搜索带 100ms 防抖，且能高亮对应的采样 minimap tick
+    const searchInput = parent.querySelector(".doc-assistant-dynamic-outline__search-input") as HTMLInputElement;
+    searchInput.value = "特殊目标";
+    searchInput.dispatchEvent(new Event("input"));
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__item").length).toBeGreaterThan(1);
+
+    vi.advanceTimersByTime(110);
+    const filteredRows = parent.querySelectorAll(".doc-assistant-dynamic-outline__item");
+    expect(filteredRows).toHaveLength(1);
+    expect(filteredRows[0].getAttribute("data-block-id")).toBe("b-250");
+    expect(parent.querySelectorAll(".doc-assistant-dynamic-outline__tick.is-matched").length).toBe(1);
+
+    handle.destroy();
+  });
 });

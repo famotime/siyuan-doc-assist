@@ -2,6 +2,7 @@ import { ClipboardHistoryItem, filterClipboardItems } from "@/core/clipboard-cor
 import {
   calculateViewportIndicator,
   computeOutlineExpandableIds,
+  computeVirtualOutlineWindow,
   DEFAULT_DYNAMIC_OUTLINE_VIEW_MODES,
   deduplicateRecentDocs,
   DynamicOutlineItem,
@@ -16,7 +17,8 @@ import {
   filterRecentDocItems,
   normalizeDynamicOutlineViewModes,
   OpenDocTabItem,
-  RecentDocItem
+  RecentDocItem,
+  sampleMinimapTicks
 } from "@/core/dynamic-outline-core";
 import { resolveKeyInfoTypeLabel } from "@/core/key-info-core";
 import { HeadingLevel } from "@/core/key-info-heading-color-core";
@@ -124,6 +126,12 @@ export type DynamicOutlineViewHandle = {
   destroy: () => void;
   element: HTMLElement;
 };
+
+const OUTLINE_LAZY_RENDER_THRESHOLD = 100;
+const OUTLINE_VIRTUAL_THRESHOLD = 150;
+const OUTLINE_SEARCH_DEBOUNCE_THRESHOLD = 150;
+const OUTLINE_SEARCH_DEBOUNCE_MS = 100;
+const OUTLINE_ROW_HEIGHT_PX = 31;
 
 function createActionButton(className: string, title: string, iconSvg: string): HTMLButtonElement {
   const btn = document.createElement("button");
@@ -324,10 +332,20 @@ export function createDynamicOutlineView(
   let isComposing = false;
   let closeTimer: ReturnType<typeof setTimeout> | null = null;
   let blurTimer: ReturnType<typeof setTimeout> | null = null;
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let listScrollRafId: number | null = null;
   let activeIndex = -1;
+  let currentExpandableIds = new Set<string>();
   const collapsedHeadingIds = new Set<string>();
+  const filteredIndexByItemId = new Map<string, number>();
   const itemElements: HTMLElement[] = [];
-  const tickElements: HTMLElement[] = [];
+  const itemElementByFilteredIndex = new Map<number, HTMLElement>();
+  let activeRowElement: HTMLElement | null = null;
+  let selectedRowElement: HTMLElement | null = null;
+  let outlineRenderPending = false;
+  let outlineVirtualActive = false;
+  let lastRenderedRange: { start: number; end: number } | null = null;
+  const tickEntries: Array<{ el: HTMLElement; representedIds: string[] }> = [];
 
   let renderListFn: () => void = () => {};
   let updateFilteredViewFn: () => void = () => {};
@@ -484,11 +502,21 @@ export function createDynamicOutlineView(
     syncQuickBadges();
   };
 
+  const cancelSearchDebounce = () => {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = null;
+    }
+  };
+
+  const isFlyoutVisible = () => isPinned || flyout.classList.contains("is-open");
+
   const switchToViewMode = (mode: DynamicOutlineViewMode) => {
     closeTitleDropdown();
     if (viewMode === mode) {
       return;
     }
+    cancelSearchDebounce();
     viewMode = mode;
     searchInput.value = "";
     searchQuery = "";
@@ -537,6 +565,10 @@ export function createDynamicOutlineView(
       closeTimer = null;
     }
     flyout.classList.add("is-open");
+    if (outlineRenderPending && viewMode === "outline") {
+      outlineRenderPending = false;
+      renderListFn();
+    }
     options.onFlyoutOpen?.();
   };
 
@@ -674,48 +706,60 @@ export function createDynamicOutlineView(
   parent.appendChild(container);
 
   const renderMinimapTicks = () => {
-    const ticks = minimap.querySelectorAll(".doc-assistant-dynamic-outline__tick");
-    ticks.forEach((tick) => tick.remove());
-    tickElements.length = 0;
+    tickEntries.forEach((entry) => entry.el.remove());
+    tickEntries.length = 0;
 
     const trackHeight = minimap.clientHeight || 260;
-    currentItems.forEach((item) => {
+    const sampled = sampleMinimapTicks(currentItems, trackHeight);
+    if (sampled.length === 0) {
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    for (const entry of sampled) {
       const tick = document.createElement("div");
       tick.className = "doc-assistant-dynamic-outline__tick";
-      tick.setAttribute("data-level", String(item.level));
-      tick.setAttribute("data-item-id", item.id);
-      const topPx = Math.round(item.posRatio * (trackHeight - 6)) + 3;
-      tick.style.top = `${topPx}px`;
-      minimap.appendChild(tick);
-      tickElements.push(tick);
-    });
+      tick.setAttribute("data-level", String(entry.item.level));
+      tick.setAttribute("data-item-id", entry.item.id);
+      tick.style.top = `${entry.topPx}px`;
+      fragment.appendChild(tick);
+      tickEntries.push({ el: tick, representedIds: entry.representedIds });
+    }
+    minimap.appendChild(fragment);
   };
 
   const updateMinimapFilterMarks = (matchedIds: Set<string>) => {
     const hasFilter = searchQuery.trim().length > 0;
     if (!hasFilter) {
       minimap.classList.remove("is-filtering");
-      tickElements.forEach((tick) => {
-        tick.classList.remove("is-dimmed", "is-matched");
+      tickEntries.forEach((entry) => {
+        entry.el.classList.remove("is-dimmed", "is-matched");
       });
       return;
     }
 
     minimap.classList.add("is-filtering");
-    tickElements.forEach((tick) => {
-      const itemId = tick.getAttribute("data-item-id") || "";
-      if (matchedIds.has(itemId)) {
-        tick.classList.add("is-matched");
-        tick.classList.remove("is-dimmed");
+    tickEntries.forEach((entry) => {
+      const hasMatch = entry.representedIds.some((id) => matchedIds.has(id));
+      if (hasMatch) {
+        entry.el.classList.add("is-matched");
+        entry.el.classList.remove("is-dimmed");
       } else {
-        tick.classList.add("is-dimmed");
-        tick.classList.remove("is-matched");
+        entry.el.classList.add("is-dimmed");
+        entry.el.classList.remove("is-matched");
       }
     });
   };
 
   const renderOutlineList = () => {
+    itemElementByFilteredIndex.clear();
+    activeRowElement = null;
+    selectedRowElement = null;
+    outlineVirtualActive = false;
+    lastRenderedRange = null;
+
     if (filteredItems.length === 0) {
+      outlineRenderPending = false;
       const empty = document.createElement("div");
       empty.className = "doc-assistant-dynamic-outline__empty";
       empty.textContent = searchQuery.trim() ?
@@ -725,15 +769,50 @@ export function createDynamicOutlineView(
       return;
     }
 
-    const isFiltering = searchQuery.trim().length > 0;
-    const expandableIds = !isFiltering ? computeOutlineExpandableIds(currentItems) : new Set<string>();
+    // 浮岛未展开且标题数较多时延迟构建 DOM，展开瞬间再渲染
+    if (!isFlyoutVisible() && filteredItems.length > OUTLINE_LAZY_RENDER_THRESHOLD) {
+      outlineRenderPending = true;
+      return;
+    }
+    outlineRenderPending = false;
 
-    filteredItems.forEach((fItem, index) => {
+    const isFiltering = searchQuery.trim().length > 0;
+    const expandableIds = !isFiltering ? currentExpandableIds : new Set<string>();
+    const hasAnyExpandable = expandableIds.size > 0;
+    const activeItemId = activeIndex >= 0 ? currentItems[activeIndex]?.id : undefined;
+
+    const isVirtual = filteredItems.length > OUTLINE_VIRTUAL_THRESHOLD;
+    const windowRange = isVirtual ?
+        computeVirtualOutlineWindow({
+          totalCount: filteredItems.length,
+          scrollTop: list.scrollTop,
+          viewportHeight: list.clientHeight || 420,
+          rowHeight: OUTLINE_ROW_HEIGHT_PX
+        }) :
+        {
+          startIndex: 0,
+          endIndex: filteredItems.length,
+          topSpacerHeight: 0,
+          bottomSpacerHeight: 0
+        };
+
+    const fragment = document.createDocumentFragment();
+    if (windowRange.topSpacerHeight > 0) {
+      const topSpacer = document.createElement("div");
+      topSpacer.className = "doc-assistant-dynamic-outline__virtual-spacer";
+      topSpacer.setAttribute("aria-hidden", "true");
+      topSpacer.style.height = `${windowRange.topSpacerHeight}px`;
+      fragment.appendChild(topSpacer);
+    }
+
+    for (let index = windowRange.startIndex; index < windowRange.endIndex; index += 1) {
+      const fItem = filteredItems[index];
       const item = fItem.item;
       const row = document.createElement("div");
       row.className = "doc-assistant-dynamic-outline__item";
       row.setAttribute("data-level", String(item.level));
       row.setAttribute("data-block-id", item.blockId);
+      row.setAttribute("data-filtered-index", String(index));
 
       if (fItem.isAncestor) {
         row.classList.add("is-ancestor");
@@ -741,9 +820,11 @@ export function createDynamicOutlineView(
       }
       if (index === selectedFilteredIndex) {
         row.classList.add("is-selected");
+        selectedRowElement = row;
       }
-      if (activeIndex >= 0 && currentItems[activeIndex] && currentItems[activeIndex].id === item.id) {
+      if (activeItemId && activeItemId === item.id) {
         row.classList.add("is-active");
+        activeRowElement = row;
       }
 
       if (!isFiltering && item.level > 0) {
@@ -761,18 +842,8 @@ export function createDynamicOutlineView(
             isCollapsed ? (isZh ? "展开" : "Expand") : (isZh ? "折叠" : "Collapse")
           );
           toggleBtn.innerHTML = LUCIDE_CHEVRON_DOWN_SVG;
-          toggleBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            if (collapsedHeadingIds.has(item.id)) {
-              collapsedHeadingIds.delete(item.id);
-            } else {
-              collapsedHeadingIds.add(item.id);
-            }
-            selectedFilteredIndex = -1;
-            updateFilteredViewFn();
-          });
           row.appendChild(toggleBtn);
-        } else if (expandableIds.size > 0) {
+        } else if (hasAnyExpandable) {
           const spacer = document.createElement("span");
           spacer.className = "doc-assistant-dynamic-outline__item-toggle-spacer";
           spacer.setAttribute("aria-hidden", "true");
@@ -795,17 +866,104 @@ export function createDynamicOutlineView(
       appendHighlightedText(textSpan, item.text, fItem.matchRange);
       row.appendChild(textSpan);
 
-      row.addEventListener("click", () => {
-        options.onItemClick(item);
-        if (!isPinned) {
-          flyout.classList.remove("is-open");
-        }
-      });
-
-      list.appendChild(row);
+      fragment.appendChild(row);
       itemElements.push(row);
-    });
+      itemElementByFilteredIndex.set(index, row);
+    }
+
+    if (windowRange.bottomSpacerHeight > 0) {
+      const bottomSpacer = document.createElement("div");
+      bottomSpacer.className = "doc-assistant-dynamic-outline__virtual-spacer";
+      bottomSpacer.setAttribute("aria-hidden", "true");
+      bottomSpacer.style.height = `${windowRange.bottomSpacerHeight}px`;
+      fragment.appendChild(bottomSpacer);
+    }
+
+    list.appendChild(fragment);
+    outlineVirtualActive = isVirtual;
+    lastRenderedRange = { start: windowRange.startIndex, end: windowRange.endIndex };
   };
+
+  list.addEventListener("click", (e) => {
+    if (viewMode !== "outline") {
+      return;
+    }
+    const target = e.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    const toggleBtn = target.closest(
+      ".doc-assistant-dynamic-outline__item-toggle"
+    ) as HTMLElement | null;
+    if (toggleBtn) {
+      e.stopPropagation();
+      const row = toggleBtn.closest(".doc-assistant-dynamic-outline__item") as HTMLElement | null;
+      const idx = Number(row?.getAttribute("data-filtered-index"));
+      const fItem = Number.isInteger(idx) ? filteredItems[idx] : undefined;
+      if (!fItem) {
+        return;
+      }
+      if (collapsedHeadingIds.has(fItem.item.id)) {
+        collapsedHeadingIds.delete(fItem.item.id);
+      } else {
+        collapsedHeadingIds.add(fItem.item.id);
+      }
+      selectedFilteredIndex = -1;
+      updateFilteredViewFn();
+      return;
+    }
+
+    const row = target.closest(".doc-assistant-dynamic-outline__item") as HTMLElement | null;
+    if (!row) {
+      return;
+    }
+    const idx = Number(row.getAttribute("data-filtered-index"));
+    const fItem = Number.isInteger(idx) ? filteredItems[idx] : undefined;
+    if (!fItem) {
+      return;
+    }
+    options.onItemClick(fItem.item);
+    if (!isPinned) {
+      flyout.classList.remove("is-open");
+    }
+  });
+
+  const renderVirtualOutlineWindow = () => {
+    listScrollRafId = null;
+    if (viewMode !== "outline" || !outlineVirtualActive) {
+      return;
+    }
+    const nextRange = computeVirtualOutlineWindow({
+      totalCount: filteredItems.length,
+      scrollTop: list.scrollTop,
+      viewportHeight: list.clientHeight || 420,
+      rowHeight: OUTLINE_ROW_HEIGHT_PX
+    });
+    if (
+      lastRenderedRange &&
+      nextRange.startIndex === lastRenderedRange.start &&
+      nextRange.endIndex === lastRenderedRange.end
+    ) {
+      return;
+    }
+    list.innerHTML = "";
+    itemElements.length = 0;
+    renderOutlineList();
+  };
+
+  list.addEventListener("scroll", () => {
+    if (viewMode !== "outline" || !outlineVirtualActive) {
+      return;
+    }
+    if (typeof requestAnimationFrame !== "function") {
+      renderVirtualOutlineWindow();
+      return;
+    }
+    if (listScrollRafId !== null) {
+      return;
+    }
+    listScrollRafId = requestAnimationFrame(renderVirtualOutlineWindow);
+  }, { passive: true });
 
   const renderList = () => {
     docPopover.resetListState();
@@ -871,6 +1029,35 @@ export function createDynamicOutlineView(
   renderListFn = renderList;
 
   const updateSelectionHighlight = () => {
+    if (viewMode === "outline") {
+      if (selectedRowElement) {
+        selectedRowElement.classList.remove("is-selected");
+        selectedRowElement = null;
+      }
+      if (selectedFilteredIndex < 0 || selectedFilteredIndex >= filteredItems.length) {
+        return;
+      }
+      if (outlineVirtualActive && !itemElementByFilteredIndex.has(selectedFilteredIndex)) {
+        const viewportH = list.clientHeight || 420;
+        list.scrollTop = Math.max(
+          0,
+          selectedFilteredIndex * OUTLINE_ROW_HEIGHT_PX - Math.floor(viewportH / 2)
+        );
+        list.innerHTML = "";
+        itemElements.length = 0;
+        renderOutlineList();
+      }
+      const targetRow = itemElementByFilteredIndex.get(selectedFilteredIndex);
+      if (targetRow) {
+        targetRow.classList.add("is-selected");
+        selectedRowElement = targetRow;
+        if (typeof targetRow.scrollIntoView === "function") {
+          targetRow.scrollIntoView({ block: "nearest" });
+        }
+      }
+      return;
+    }
+
     itemElements.forEach((el, i) => {
       if (i === selectedFilteredIndex) {
         el.classList.add("is-selected");
@@ -942,20 +1129,37 @@ export function createDynamicOutlineView(
       searchBar.classList.remove("is-filtering");
       countBadge.textContent = String(currentItems.length);
       matchCountBadge.textContent = isZh ? `${currentItems.length} 项` : `${currentItems.length} items`;
-      const visibleItems = filterCollapsedOutlineItems(currentItems, collapsedHeadingIds);
+      const visibleItems = filterCollapsedOutlineItems(
+        currentItems,
+        collapsedHeadingIds,
+        currentExpandableIds
+      );
       filteredItems = visibleItems.map((item) => ({ item, isAncestor: false }));
       updateMinimapFilterMarks(new Set());
     } else {
       searchBar.classList.add("is-filtering");
       filteredItems = filterDynamicOutlineItems(currentItems, query, { showTreeContext });
-      const directMatchCount = filteredItems.filter((f) => !f.isAncestor).length;
+      let directMatchCount = 0;
+      const matchedIds = new Set<string>();
+      for (const f of filteredItems) {
+        matchedIds.add(f.item.id);
+        if (!f.isAncestor) {
+          directMatchCount += 1;
+        }
+      }
       countBadge.textContent = `${directMatchCount}/${currentItems.length}`;
       matchCountBadge.textContent = isZh ?
         `${directMatchCount}/${currentItems.length} 项` :
         `${directMatchCount}/${currentItems.length}`;
-      const matchedIds = new Set(filteredItems.map((f) => f.item.id));
       updateMinimapFilterMarks(matchedIds);
     }
+
+    filteredIndexByItemId.clear();
+    filteredItems.forEach((f, idx) => {
+      if (!filteredIndexByItemId.has(f.item.id)) {
+        filteredIndexByItemId.set(f.item.id, idx);
+      }
+    });
 
     if (selectedFilteredIndex >= filteredItems.length) {
       selectedFilteredIndex = -1;
@@ -991,6 +1195,7 @@ export function createDynamicOutlineView(
 
   searchInput.addEventListener("compositionend", () => {
     isComposing = false;
+    cancelSearchDebounce();
     searchQuery = searchInput.value;
     selectedFilteredIndex = -1;
     updateFilteredView();
@@ -1000,6 +1205,15 @@ export function createDynamicOutlineView(
   searchInput.addEventListener("input", () => {
     searchQuery = searchInput.value;
     selectedFilteredIndex = -1;
+    cancelSearchDebounce();
+    if (viewMode === "outline" && currentItems.length > OUTLINE_SEARCH_DEBOUNCE_THRESHOLD) {
+      searchDebounceTimer = setTimeout(() => {
+        searchDebounceTimer = null;
+        updateFilteredView();
+        options.onSearchChange?.(searchQuery, showTreeContext);
+      }, OUTLINE_SEARCH_DEBOUNCE_MS);
+      return;
+    }
     updateFilteredView();
     options.onSearchChange?.(searchQuery, showTreeContext);
   });
@@ -1071,6 +1285,7 @@ export function createDynamicOutlineView(
         return;
       }
       if (searchInput.value) {
+        cancelSearchDebounce();
         searchInput.value = "";
         searchQuery = "";
         selectedFilteredIndex = -1;
@@ -1086,6 +1301,7 @@ export function createDynamicOutlineView(
 
   clearBtn.addEventListener("click", (e) => {
     e.stopPropagation();
+    cancelSearchDebounce();
     searchInput.value = "";
     searchQuery = "";
     selectedFilteredIndex = -1;
@@ -1112,9 +1328,9 @@ export function createDynamicOutlineView(
 
   const setItems = (items: DynamicOutlineItem[], modeLabel?: string) => {
     currentItems = items;
-    const expandableIds = computeOutlineExpandableIds(items);
+    currentExpandableIds = computeOutlineExpandableIds(items);
     for (const id of collapsedHeadingIds) {
-      if (!expandableIds.has(id)) {
+      if (!currentExpandableIds.has(id)) {
         collapsedHeadingIds.delete(id);
       }
     }
@@ -1200,15 +1416,23 @@ export function createDynamicOutlineView(
     if (viewMode !== "outline") {
       return;
     }
+    if (activeRowElement) {
+      activeRowElement.classList.remove("is-active");
+      activeRowElement = null;
+    }
     const targetItem = currentItems[index];
-    const targetFilteredIdx = targetItem ? filteredItems.findIndex((f) => f.item.id === targetItem.id) : -1;
-    itemElements.forEach((el, i) => {
-      if (i === targetFilteredIdx) {
-        el.classList.add("is-active");
-      } else {
-        el.classList.remove("is-active");
-      }
-    });
+    if (!targetItem) {
+      return;
+    }
+    const targetFilteredIdx = filteredIndexByItemId.get(targetItem.id);
+    if (targetFilteredIdx === undefined) {
+      return;
+    }
+    const rowEl = itemElementByFilteredIndex.get(targetFilteredIdx);
+    if (rowEl) {
+      rowEl.classList.add("is-active");
+      activeRowElement = rowEl;
+    }
   };
 
   const setPosition = (position: DynamicOutlinePosition) => {
@@ -1220,6 +1444,7 @@ export function createDynamicOutlineView(
   };
 
   const resetSearch = () => {
+    cancelSearchDebounce();
     searchInput.value = "";
     searchQuery = "";
     selectedFilteredIndex = -1;
@@ -1227,6 +1452,7 @@ export function createDynamicOutlineView(
   };
 
   const setSearchQuery = (query: string) => {
+    cancelSearchDebounce();
     searchInput.value = query;
     searchQuery = query;
     selectedFilteredIndex = -1;
@@ -1236,6 +1462,11 @@ export function createDynamicOutlineView(
   const destroy = () => {
     document.removeEventListener("click", handleDocumentClick);
     docPopover.destroy();
+    cancelSearchDebounce();
+    if (listScrollRafId !== null && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(listScrollRafId);
+      listScrollRafId = null;
+    }
     if (blurTimer) {
       clearTimeout(blurTimer);
       blurTimer = null;

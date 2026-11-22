@@ -4,6 +4,7 @@ import {
   buildDynamicOutlineItems,
   calculateViewportIndicator,
   computeOutlineExpandableIds,
+  computeVirtualOutlineWindow,
   deduplicateRecentDocs,
   estimateGlobalDocumentProgress,
   filterCollapsedOutlineItems,
@@ -15,7 +16,8 @@ import {
   highlightMatchRanges,
   OpenDocTabItem,
   parseHeadingLevel,
-  RecentDocItem
+  RecentDocItem,
+  sampleMinimapTicks
 } from "@/core/dynamic-outline-core";
 
 describe("dynamic-outline-core", () => {
@@ -409,6 +411,46 @@ describe("dynamic-outline-core", () => {
 
       const collapsedH1 = filterCollapsedOutlineItems(items, new Set(["h1-a", "h1-c"]));
       expect(collapsedH1.map((i) => i.id)).toEqual(["h1-a", "h1-b", "h1-c"]);
+    });
+  });
+
+  describe("sampleMinimapTicks & computeVirtualOutlineWindow", () => {
+    test("samples dense minimap ticks by pixel bucket and prioritizes higher heading levels", () => {
+      const denseItems = Array.from({ length: 300 }, (_, i) => ({
+        id: `tick-${i}`,
+        blockId: `b-${i}`,
+        text: `Title ${i}`,
+        type: "title" as const,
+        level: (i === 1 ? 1 : 4) as 1 | 4,
+        posRatio: i / 299,
+        order: i
+      }));
+
+      const sampled = sampleMinimapTicks(denseItems, 260, 3);
+      expect(sampled.length).toBeLessThan(120);
+      const totalRepresented = sampled.reduce((sum, entry) => sum + entry.representedIds.length, 0);
+      expect(totalRepresented).toBe(300);
+      // tick-1 (H1) 所在桶应优先保留 H1
+      const firstBucket = sampled[0];
+      expect(firstBucket.representedIds).toContain("tick-1");
+      expect(firstBucket.item.level).toBe(1);
+    });
+
+    test("computes bounded virtual outline window and spacer heights", () => {
+      const win = computeVirtualOutlineWindow({
+        totalCount: 500,
+        scrollTop: 3100, // row 100
+        viewportHeight: 310, // 10 rows
+        rowHeight: 31,
+        overscan: 5
+      });
+
+      expect(win).toEqual({
+        startIndex: 95,
+        endIndex: 115,
+        topSpacerHeight: 95 * 31,
+        bottomSpacerHeight: (500 - 115) * 31
+      });
     });
   });
 });

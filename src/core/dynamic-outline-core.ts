@@ -316,7 +316,8 @@ export function computeOutlineExpandableIds(items: DynamicOutlineItem[]): Set<st
 /** 根据已折叠的标题 ID 集合过滤出当前可见的大纲条目 */
 export function filterCollapsedOutlineItems(
   items: DynamicOutlineItem[],
-  collapsedIds: ReadonlySet<string>
+  collapsedIds: ReadonlySet<string>,
+  precomputedExpandableIds?: ReadonlySet<string>
 ): DynamicOutlineItem[] {
   if (!items || items.length === 0) {
     return [];
@@ -324,7 +325,7 @@ export function filterCollapsedOutlineItems(
   if (!collapsedIds || collapsedIds.size === 0) {
     return [...items];
   }
-  const expandableIds = computeOutlineExpandableIds(items);
+  const expandableIds = precomputedExpandableIds || computeOutlineExpandableIds(items);
   const visible: DynamicOutlineItem[] = [];
   let collapsedLevel: number | null = null;
 
@@ -343,6 +344,97 @@ export function filterCollapsedOutlineItems(
   }
 
   return visible;
+}
+
+export type SampledMinimapTick = {
+  item: DynamicOutlineItem;
+  topPx: number;
+  representedIds: string[];
+};
+
+const MINIMAP_SAMPLE_THRESHOLD = 120;
+
+export function sampleMinimapTicks(
+  items: DynamicOutlineItem[],
+  trackHeight: number,
+  bucketPx = 3
+): SampledMinimapTick[] {
+  if (!items || items.length === 0) {
+    return [];
+  }
+  const usableSpan = Math.max(1, trackHeight - 6);
+  if (items.length <= MINIMAP_SAMPLE_THRESHOLD) {
+    return items.map((item) => ({
+      item,
+      topPx: Math.round(item.posRatio * usableSpan) + 3,
+      representedIds: [item.id]
+    }));
+  }
+
+  const safeBucketPx = Math.max(1, bucketPx);
+  const rankLevel = (level: number) => (level > 0 ? level : 7);
+  const buckets = new Map<number, SampledMinimapTick>();
+
+  for (const item of items) {
+    const topPx = Math.round(item.posRatio * usableSpan) + 3;
+    const bucketKey = Math.floor(topPx / safeBucketPx);
+    const existing = buckets.get(bucketKey);
+    if (!existing) {
+      buckets.set(bucketKey, {
+        item,
+        topPx,
+        representedIds: [item.id]
+      });
+    } else {
+      existing.representedIds.push(item.id);
+      if (rankLevel(item.level) < rankLevel(existing.item.level)) {
+        existing.item = item;
+        existing.topPx = topPx;
+      }
+    }
+  }
+
+  return Array.from(buckets.values());
+}
+
+export type VirtualOutlineWindow = {
+  startIndex: number;
+  endIndex: number;
+  topSpacerHeight: number;
+  bottomSpacerHeight: number;
+};
+
+export function computeVirtualOutlineWindow(options: {
+  totalCount: number;
+  scrollTop: number;
+  viewportHeight: number;
+  rowHeight: number;
+  overscan?: number;
+}): VirtualOutlineWindow {
+  const { totalCount, scrollTop, viewportHeight, rowHeight, overscan = 12 } = options;
+  if (totalCount <= 0 || rowHeight <= 0) {
+    return {
+      startIndex: 0,
+      endIndex: 0,
+      topSpacerHeight: 0,
+      bottomSpacerHeight: 0
+    };
+  }
+  const safeScrollTop = Math.max(0, scrollTop);
+  const safeViewportHeight = Math.max(rowHeight, viewportHeight);
+  const visibleStart = Math.max(0, Math.floor(safeScrollTop / rowHeight));
+  const visibleCount = Math.max(1, Math.ceil(safeViewportHeight / rowHeight));
+  const startIndex = Math.max(0, visibleStart - overscan);
+  const endIndex = Math.min(totalCount, visibleStart + visibleCount + overscan);
+  const topSpacerHeight = startIndex * rowHeight;
+  const bottomSpacerHeight = Math.max(0, (totalCount - endIndex) * rowHeight);
+
+  return {
+    startIndex,
+    endIndex,
+    topSpacerHeight,
+    bottomSpacerHeight
+  };
 }
 
 export type FilteredOutlineItem = {
