@@ -63,4 +63,31 @@ describe("gesture settings recording lifecycle", () => {
     expect(() => destroy()).not.toThrow();
     expect(onRecordingStateChange).not.toHaveBeenCalled();
   });
+
+  test("disabling the gesture master switch mid-recording exits recording cleanly", () => {
+    const onRecordingStateChange = vi.fn();
+    const onBindingsChange = vi.fn();
+    const { panel, destroy } = createGestureSettingsPanel({
+      enabled: true,
+      bindings: { ...DEFAULT_GESTURE_BINDINGS },
+      onEnabledChange: async () => undefined,
+      onBindingsChange,
+      onRecordingStateChange
+    });
+
+    pressRecordButton(panel);
+    expect(onRecordingStateChange).toHaveBeenLastCalledWith(true);
+
+    const toggle = panel.querySelector<HTMLInputElement>('[data-setting-key="gesture-enabled"]');
+    expect(toggle).toBeTruthy();
+    toggle!.checked = false;
+    toggle!.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(onRecordingStateChange).toHaveBeenLastCalledWith(false);
+    expect(panel.classList.contains("is-recording")).toBe(false);
+
+    strokeRightButton();
+    expect(onBindingsChange).not.toHaveBeenCalled();
+    destroy();
+  });
 });

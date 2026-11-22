@@ -167,11 +167,18 @@ export function createGestureCapture(callbacks: GestureCaptureCallbacks) {
     window.addEventListener("blur", handleBlur);
   };
 
+  const cancel = () => {
+    finishDrag(false);
+    suppressNextContextMenu = false;
+    pendingPoint = null;
+  };
+
   const unbind = () => {
     if (!bound) {
       return;
     }
     bound = false;
+    cancel();
     document.removeEventListener("mousedown", handleMouseDown, true);
     document.removeEventListener("mousemove", handleMouseMove, true);
     document.removeEventListener("mouseup", handleMouseUp, true);
@@ -182,6 +189,7 @@ export function createGestureCapture(callbacks: GestureCaptureCallbacks) {
   return {
     bind,
     unbind,
+    cancel,
     isDragging: () => dragging
   };
 }

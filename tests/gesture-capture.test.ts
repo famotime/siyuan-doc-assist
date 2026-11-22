@@ -106,4 +106,30 @@ describe("gesture capture trail throttling (audit low-risk)", () => {
     expect(endState?.moved).toBe(true);
     expect(endState?.points.at(-1)).toEqual({ x: 600, y: 0 });
   });
+
+  test("unbind mid-drag cancels active stroke, resets dragging state, and clears pending rAF", () => {
+    let cancelCalls = 0;
+    let endCalls = 0;
+    const capture = createGestureCapture({
+      shouldHandle: () => true,
+      onStrokeEnd: () => {
+        endCalls += 1;
+      },
+      onStrokeCancel: () => {
+        cancelCalls += 1;
+      }
+    });
+    capture.bind();
+    dispatchMouse("mousedown", 0, 0);
+    dispatchMouse("mousemove", 50, 0);
+    expect(capture.isDragging()).toBe(true);
+    expect(rafCallback).not.toBeNull();
+
+    capture.unbind();
+
+    expect(capture.isDragging()).toBe(false);
+    expect(rafCallback).toBeNull();
+    expect(cancelCalls).toBe(1);
+    expect(endCalls).toBe(0);
+  });
 });

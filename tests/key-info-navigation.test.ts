@@ -143,10 +143,9 @@ describe("key-info navigation", () => {
     target.scrollIntoView = scrollIntoView;
 
     let currentRoot: HTMLElement | null = null;
+    const resolveLazyProtyle = () => (currentRoot ? ({ wysiwyg: { element: currentRoot } } as any) : undefined);
     const navigation = createKeyInfoNavigation();
-    navigation.handleItemClick(item("block-lazy"), () =>
-      currentRoot ? ({ wysiwyg: { element: currentRoot } } as any) : undefined
-    );
+    navigation.handleItemClick(item("block-lazy"), resolveLazyProtyle);
 
     vi.advanceTimersByTime(80);
     expect(scrollIntoView).toHaveBeenCalledTimes(0);
@@ -162,9 +161,7 @@ describe("key-info navigation", () => {
 
     // destroy() cancels pending timers before target renders.
     currentRoot = null;
-    navigation.handleItemClick(item("block-cancelled"), () =>
-      currentRoot ? ({ wysiwyg: { element: currentRoot } } as any) : undefined
-    );
+    navigation.handleItemClick(item("block-cancelled"), resolveLazyProtyle);
     navigation.destroy();
     currentRoot = root;
     vi.advanceTimersByTime(1500);

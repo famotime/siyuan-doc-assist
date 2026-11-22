@@ -136,6 +136,9 @@ export function createGestureSettingsPanel(
   enabledToggle.dataset.settingKey = "gesture-enabled";
   enabledToggle.addEventListener("change", () => {
     enabled = enabledToggle.checked;
+    if (!enabled && recording) {
+      finishRecording();
+    }
     syncDisabledState();
     void options.onEnabledChange(enabled);
   });

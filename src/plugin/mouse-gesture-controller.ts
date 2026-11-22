@@ -130,6 +130,7 @@ export function createMouseGestureController(options: MouseGestureControllerOpti
     setSuspended(value: boolean) {
       suspended = value;
       if (value) {
+        capture.cancel();
         hideGestureTrail();
       }
     },

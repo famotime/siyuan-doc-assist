@@ -233,4 +233,18 @@ describe("mouse gesture controller", () => {
     expect(gestureMenu.defaultPrevented).toBe(true);
     controller.destroy();
   });
+
+  test("setSuspended(true) mid-stroke cancels the in-flight gesture and skips execution", () => {
+    const controller = createBoundController();
+    dispatchMouse("mousedown", { x: 300, y: 300, button: 2, target: editorArea.firstElementChild as HTMLElement });
+    dispatchMouse("mousemove", { x: 200, y: 300, button: 2, target: editorArea });
+
+    controller.setSuspended(true);
+    dispatchMouse("mouseup", { x: 190, y: 300, button: 2, target: editorArea });
+
+    expect(trailMocks.hideGestureTrail).toHaveBeenCalled();
+    expect(openDocTabMock).not.toHaveBeenCalled();
+    expect(closeDocTabMock).not.toHaveBeenCalled();
+    controller.destroy();
+  });
 });
